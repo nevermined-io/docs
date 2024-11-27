@@ -3,7 +3,7 @@ sidebar_position: 1
 description: Factoring dynamic outcomes & cost mettering
 ---
 
-# Cost Mettering
+# Cost Metering
 
 AI agents resemble a platform from a technical point of view, with an internal set of tools or component services that can be employed to service requests. These requests are dynamic in nature. Which tools are invoked when provisioning a response is dependent on the complexity of the input request. Depending on the sophistication of the agent, each request will be decomposed and routed through the agent system via the optimal response path.
 
