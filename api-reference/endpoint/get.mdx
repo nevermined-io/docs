@@ -1,4 +1,81 @@
 ---
-title: 'Get Plants'
-openapi: 'GET /plants'
+title: 'Get Agent'
+openapi: 'GET /agent/{agentId}'
 ---
+
+Retrieves information about a registered AI agent, including metadata and associated payment plans.
+
+## Path Parameters
+
+| Name     | Type   | Required | Description                   |
+|----------|--------|----------|-------------------------------|
+| agentId  | string | Yes      | The unique identifier of the agent to retrieve |
+
+## Example Request
+
+```ts
+const agent: Agent = await payments.getAgent(agentId)
+```
+
+## Response Structure
+
+```typescript
+interface Agent {
+  agentId: string
+  metadata: AgentMetadata
+  plans: PaymentPlan[]
+}
+
+interface AgentMetadata {
+  name: string
+  tags: string[]
+  dateCreated: string
+}
+
+interface PaymentPlan {
+  planId: string
+  metadata: PlanMetadata
+  price: PriceConfig
+  credits: CreditsConfig
+  nftAddress: string
+}
+```
+
+## Example Response
+
+```json
+{
+  "agentId": "0xabc123...",
+  "metadata": {
+    "name": "Legal Assistant",
+    "tags": ["legal", "ai"],
+    "dateCreated": "2024-01-10T00:00:00Z"
+  },
+  "plans": [
+    {
+      "planId": "0xdef456...",
+      "metadata": {
+        "name": "Premium Legal Plan",
+        "description": "Monthly subscription for legal assistance"
+      },
+      "price": {
+        "priceType": "FIXED_PRICE",
+        "tokenAddress": "0xUSDC...",
+        "amounts": [10000000],
+        "receivers": ["0xbuilderAddress"]
+      },
+      "credits": {
+        "creditsType": "EXPIRABLE",
+        "amount": 1,
+        "durationOfThePlan": 2592000
+      },
+      "nftAddress": "0x..."
+    }
+  ]
+}
+```
+
+## Notes
+
+- You must initialize the `Payments` client with a valid `nvmApiKey` before calling `getAgent`.
+- The returned object includes all plans currently associated with the agent.

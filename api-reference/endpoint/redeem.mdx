@@ -1,0 +1,38 @@
+---
+title: 'Redeem Credits'
+openapi: 'POST /plan/{planId}/redeem'
+---
+
+Redeems a specific number of credits from a subscriber's balance after a valid request.
+
+This is typically used by builders after validating a request signature.
+
+## Example Usage
+
+```ts
+// Authorize the user and process the AI request first
+// Then redeem credits after successful processing
+const creditsToRedeem = 5n 
+const result = await payments.redeemCredits(planId, creditsToRedeem, proof)
+```
+
+## Parameters
+
+- **planId**: ID of the active payment plan
+- **amount**: Number of credits to redeem (BigInt)
+- **proof**: Signature or encoded proof provided with the query
+
+## Response
+
+```json
+{
+  "success": true,
+  "creditsRedeemed": "number",
+  "remainingBalance": "number"
+}
+```
+
+## Notes
+
+- Credits will be deducted from the user's plan balance
+- Will fail if credits are insufficient or the proof is invalid 

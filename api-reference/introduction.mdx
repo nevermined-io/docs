@@ -1,33 +1,136 @@
 ---
 title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+description: 'Get started with the Nevermined Payments API for AI-native monetization'
 ---
 
 <Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
+  This section introduces the Nevermined Payments API — a TypeScript-first system for registering agents, configuring payment plans, handling subscriber access, and enforcing credit-based billing. All endpoints are available via direct function calls through the `Payments` client.
 </Note>
 
-## Welcome
+## Overview
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+Nevermined provides a modular, programmable API that enables AI Builders to:
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+- Register autonomous agents with metadata and HTTP endpoints
+- Create flexible fiat/crypto-based payment plans
+- Manage subscriptions using tokenized credits
+- Enforce usage-based access with secure metering and redemption
+- Enable agent-to-agent or human-to-agent transactions
 
-## Authentication
+The API is designed for high-frequency use, real-time authorization, and deep integration into backend agent logic or proxy infrastructure.
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+---
 
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+## Setup
+
+Supported environments:
+
+- `local`
+- `testing` (Base Sepolia)
+- `production` (Base Mainnet)
+- `custom` (any EVM-compatible network with manual config)
+
+Initialize the Payments API:
+
+```ts
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY,
+  environment: 'production'
+})
 ```
+⸻
+
+## Core Capabilities
+
+### Register an Agent and Plan
+
+```ts
+const agentMetadata = {
+  name: 'Legal Assistant',
+  tags: ['legal', 'ai'],
+  dateCreated: new Date()
+}
+
+const agentApi = {
+  endpoints: [{ POST: 'https://yourdomain.com/api/query' }]
+}
+
+const price = getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
+const credits = getExpirablePlanCreditsConfig(86400n * 30n)
+
+const { agentId, planId } = await payments.registerAgentAndPlan(
+  agentMetadata,
+  agentApi,
+  price,
+  credits
+)
+```
+
+---
+
+## Enforce Access and Redeem Credits
+
+When receiving a request to your agent:
+
+```ts
+const isValid = await payments.isValidRequest(
+  planId,
+  agentId,
+  subscriberAddress,
+  request.headers['x-nvm-query-signature']
+)
+
+if (!isValid) {
+  const paymentCard = await payments.getAgentPaymentCard(agentId)
+  return res.status(402).send(paymentCard)
+}
+
+// Run the AI logic and redeem usage
+await payments.redeemCredits(planId, 5n, proof)
+```
+
+⸻
+
+## API Authentication
+
+All API operations require an nvmApiKey, which you can generate from the Nevermined App.
+
+Authentication occurs at the time of instantiating Payments.getInstance() and is required for all calls to register, validate, or query.
+
+⸻
+
+## Start Exploring
+
+<CardGroup cols={2}>
+  <Card title="Register Agents" icon="brain" href="/api-reference/register-agent">
+    Publish metadata and register endpoints for your AI agent
+  </Card>
+  <Card title="Create Plans" icon="credit-card" href="/api-reference/register-plan">
+    Define fixed, expirable, or dynamic usage-based payment plans
+  </Card>
+  <Card title="Query Agents" icon="code" href="/api-reference/query-agent">
+    Query agents with valid access and enforce credit redemption
+  </Card>
+  <Card title="Redeem Credits" icon="coins" href="/api-reference/redeem-credits">
+    Programmatically burn credits based on request usage
+  </Card>
+</CardGroup>
+
+
+
+⸻
+
+## Next Steps
+
+- [Quickstart Guide](/getting-started/quickstart-guide)
+- [Full API Reference](/api-reference)
+- [Join the Discord Community](https://discord.gg/nevermined)
+- [View GitHub Source](https://github.com/nevermined-io)
+
+Nevermined lets you build composable, agent-native payment flows — with full control over billing, pricing, and enforcement.
+
+---
+
+Let me know if you'd like help wiring this up with an OpenAPI spec for Mintlify’s API Playground, or if you want MDX subpages scaffolded for `/api-reference/register-agent`, `/query-agent`, etc.
