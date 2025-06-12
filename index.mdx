@@ -1,15 +1,16 @@
 ---
 title: "Welcome"
-description: "Welcome to **Nevermined** - AI-powered payment infrastructure for developers and businesses"
+description: "Welcome to Nevermined — AI-native payments and access infrastructure for developers"
 icon: "hand-wave"
 ---
+
 # Introduction
 
-Nevermined is an open, programmable payments and access protocol purpose-built for a future where AI agents operate autonomously, earn revenue, and transact with each other and with humans — without needing centralized platforms or complex custom infrastructure.
+Nevermined is an open, programmable payments and access protocol purpose-built for a future where AI agents operate autonomously, earn revenue, and transact with each other and with humans — without needing centralized platforms or complex billing infrastructure.
 
-It provides a decentralized backend that supports real-time, usage-based payments, flexible subscription plans, metered access control, and automated accounting — all in a way that’s agent-native and composable across Web2 and Web3 environments.
+It provides a decentralized backend that supports real-time, usage-based payments, flexible subscription plans, metered access control, and automated accounting — all optimized for AI-native applications, and fully composable across Web2 and Web3 environments.
 
-Whether you're building a solo AI agent or a coordinated multi-agent system, Nevermined helps you focus on your agent’s intelligence — not billing, settlement, or compliance.
+Whether you're building a solo AI agent or orchestrating a multi-agent system, Nevermined helps you focus on intelligence, not infrastructure.
 
 ---
 
@@ -34,18 +35,18 @@ Whether you're building a solo AI agent or a coordinated multi-agent system, Nev
 
 ## Why Nevermined?
 
-Today’s AI economy is growing rapidly, but monetization and access control remain fragmented and inefficient.
+The AI economy is growing rapidly, but monetization and access control remain fragmented and inefficient.
 
-- Most AI applications rely on centralized SaaS models with inflexible billing
-- Developers must build custom metering, access, and payment systems
-- AI agents cannot easily transact with each other in a secure, programmable way
+- Most AI tools rely on centralized SaaS platforms
+- Billing logic is custom, fragile, and not composable
+- Agents cannot easily pay or restrict other agents
 
-Nevermined is designed to solve these challenges:
+### Nevermined solves these challenges:
 
-- Built-in support for crypto and fiat payments
-- Flexible, agent-controlled pricing and subscription plans
-- Usage-based billing with on-chain accounting and access enforcement
-- Direct or proxy-based agent integration with low-code setup
+- Built-in crypto and fiat (Stripe) payment support
+- Flexible payment plans with usage-based metering
+- Real-time credit accounting and secure access enforcement
+- Agent-to-agent and human-to-agent flows with low-code integration
 
 ---
 
@@ -53,36 +54,36 @@ Nevermined is designed to solve these challenges:
 
 With Nevermined, your AI agents can:
 
-- Offer services via public or private APIs
-- Charge users per request, per time window, or per custom logic
-- Interact with and pay other AI agents autonomously
-- Expose searchable metadata and register in decentralized registries
-- Integrate with frontends, backends, or existing marketplaces
+- Offer services via public or private HTTP APIs
+- Charge users per request, time period, or credits
+- Integrate pricing plans for fiat and crypto
+- Transact autonomously with other agents
+- Expose metadata and register for discovery
 
 ---
 
 ## How It Works
 
 ### 1. Register an Agent  
-Declare your agent’s metadata, capabilities, and pricing plans.
+Declare your agent’s metadata, capabilities, and API endpoints.
 
-### 2. Define a Payment Plan  
-Choose from time-based or usage-based subscriptions, configure pricing, and assign payout shares.
+### 2. Create a Payment Plan  
+Use `getERC20PriceConfig` and `getFixedCreditsConfig` to define pricing and usage.
 
 ### 3. Accept Subscribers  
-Buyers (human or agent) subscribe using fiat or crypto. Credits are issued automatically on-chain.
+Subscribers purchase plans via Stripe or tokens. Credits are automatically issued and tracked.
 
 ### 4. Enforce Access  
-Agents validate subscriber access and meter consumption via built-in protocols or proxy infrastructure.
+Nevermined validates credit balance and redeems usage on each request — either directly or via proxy.
 
 ---
 
 ## What's New
 
-- **Fiat Payment Integration** – Native support for Stripe and traditional payment methods
-- **AI Agent Marketplace** – Discover and monetize AI services
-- **Credits System** – Flexible usage-based billing
-- **Enhanced Developer Tools** – Improved APIs and SDKs
+- **Fiat Payment Integration** – Accept payments with Stripe and stablecoins
+- **AI Agent Marketplace** – Discover and monetize agents across use cases
+- **Credits System** – Built-in metering with dynamic pricing support
+- **Enhanced Developer Tools** – Unified Payments API with built-in credit logic
 
 ---
 
@@ -90,22 +91,22 @@ Agents validate subscriber access and meter consumption via built-in protocols o
 
 <CardGroup cols={3}>
   <Card title="Payment Plans" icon="credit-card">
-    Create time-based or request-based access plans for AI agents with flexible pricing options
+    Create flexible usage-based or subscription plans with pricing logic
   </Card>
   <Card title="AI Credits System" icon="coins">
-    Manage subscriptions and usage with a sophisticated credits system that handles redemption
+    Manage billing and usage with tokenized credits and redemption tracking
   </Card>
-  <Card title="Nevermined AI Hub" icon="server">
-    Delegate API execution while you focus on AI logic, simplifying your architecture
+  <Card title="Nevermined Proxy" icon="server">
+    Use a proxy to gate access and validate usage without modifying your agent code
   </Card>
-  <Card title="Query Protocol" icon="code">
-    Standardize how AI agents communicate for easier integration between services
+  <Card title="Agent Registry" icon="bookmark">
+    Register agents with searchable metadata and discoverability
   </Card>
   <Card title="Multiple Payment Options" icon="wallet">
-    Support both fiat (via Stripe) and crypto payment methods for flexibility
+    Accept payments in USDC, native tokens, or fiat via Stripe
   </Card>
   <Card title="Usage Protection" icon="shield-halved">
-    Control and account for service usage to prevent unexpected over-expenditure
+    Prevent over-expenditure with dynamic pricing and redemption limits
   </Card>
 </CardGroup>
 
@@ -113,14 +114,14 @@ Agents validate subscriber access and meter consumption via built-in protocols o
 
 ## Integration Options
 
-- Direct Integration  
-  Use our Python or TypeScript libraries to integrate Nevermined directly into your agent's API backend.
+- **TypeScript Payments API**  
+  Use `Payments.getInstance()` to register agents, create plans, authorize users, and redeem credits.
 
-- Proxy Integration  
-  Use the NVM Proxy to manage access and billing for agents without modifying your existing code.
+- **Proxy Integration**  
+  Let Nevermined handle access and credit redemption for you with no backend changes.
 
-- REST API and App  
-  Access the protocol via HTTP REST API or the hosted web app for rapid testing and configuration.
+- **REST API and Web App**  
+  Configure agents and plans via REST or use the hosted Nevermined App to manage your setup visually.
 
 ---
 
@@ -128,16 +129,17 @@ Agents validate subscriber access and meter consumption via built-in protocols o
 
 Nevermined is ideal for developers who:
 
-- Want to monetize agents or services without managing infrastructure
-- Need transparent, programmable access enforcement
-- Are building autonomous agents or marketplaces that require decentralized coordination
-- Prefer open tooling with minimal dependencies
+- Want to monetize agents without reinventing payments
+- Need real-time usage metering and credit redemption
+- Are building autonomous or multi-agent systems
+- Prefer a modern, low-code TypeScript API that’s ready for production
 
 ---
 
 ## Get Started
 
-Ready to build with Nevermined? Check out our [quickstart guide](/getting-started/quickstart-guide) to get up and running in minutes.
+Ready to build with Nevermined?  
+Start with the [quickstart guide](/getting-started/quickstart-guide) and go live in under 10 minutes.
 
 ---
 
