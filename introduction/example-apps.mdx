@@ -1,11 +1,725 @@
 ---
-title: "Example Apps"
-description: "Example apps using Nevermined"
-icon: "grid-2"
+title: 'Example Apps'
+description: 'Real-world examples and implementations using Nevermined Payments'
+icon: 'code'
 ---
 
-## Example Apps
+## Complete Examples
 
-Here are some example apps using Nevermined:
+Explore these comprehensive examples to see how Nevermined Payments works in practice.
 
-- [Nevermined AI Agent Marketplace](https://github.com/nevermined-io/nevermined-ai-agent-marketplace)
+<CardGroup cols={2}>
+  <Card title="AI Code Review Assistant" icon="magnifying-glass" href="#ai-code-review-assistant">
+    Monetize code review and analysis services
+  </Card>
+  <Card title="Multi-Tier Chat Agent" icon="message" href="#multi-tier-chat-agent">
+    Offer different pricing tiers for AI chat services
+  </Card>
+  <Card title="Dynamic Pricing API" icon="chart-line" href="#dynamic-pricing-api">
+    Charge based on request complexity
+  </Card>
+  <Card title="Proxy Integration" icon="shield" href="#proxy-integration-example">
+    Add payments to existing services without code changes
+  </Card>
+</CardGroup>
+
+## AI Code Review Assistant
+
+A complete example of an AI-powered code review service with payment integration.
+
+```typescript
+import express from 'express'
+import { 
+  Payments, 
+  getERC20PriceConfig, 
+  getFixedCreditsConfig 
+} from '@nevermined-io/payments'
+
+const app = express()
+app.use(express.json())
+
+// Initialize Nevermined
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY,
+  environment: 'production'
+})
+
+// Setup function - run once to create agent
+async function setupCodeReviewAgent() {
+  const agentMetadata = {
+    name: 'AI Code Review Assistant',
+    tags: ['development', 'code-review', 'ai', 'typescript'],
+    dateCreated: new Date(),
+    description: 'Advanced AI-powered code review with security analysis and best practice suggestions'
+  }
+
+  const agentApi = {
+    endpoints: [
+      { POST: 'https://api.codereview.ai/review' },
+      { POST: 'https://api.codereview.ai/security-scan' },
+      { GET: 'https://api.codereview.ai/status' }
+    ],
+    openEndpoints: ['https://api.codereview.ai/health']
+  }
+
+  // 10 USDC for 100 reviews
+  const priceConfig = getERC20PriceConfig(
+    10_000_000n, // 10 USDC
+    '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
+    process.env.BUILDER_ADDRESS
+  )
+
+  const creditsConfig = getFixedCreditsConfig(100n, 1n)
+
+  const { agentId, planId } = await payments.registerAgentAndPlan(
+    agentMetadata,
+    agentApi,
+    priceConfig,
+    creditsConfig
+  )
+
+  console.log(`Code Review Agent: ${agentId}`)
+  console.log(`Basic Plan: ${planId}`)
+  
+  return { agentId, planId }
+}
+
+// Middleware for Nevermined authentication
+function requirePayment(planId: string, agentId: string) {
+  return async (req, res, next) => {
+    try {
+      const isValid = await payments.isValidRequest(
+        planId,
+        agentId,
+        req.body.subscriberAddress,
+        req.headers['x-nvm-query-signature']
+      )
+
+      if (!isValid) {
+        const paymentCard = await payments.getAgentPaymentCard(agentId)
+        return res.status(402).json({
+          error: 'Payment required',
+          message: 'Purchase a plan to access this service',
+          paymentCard
+        })
+      }
+
+      req.nevermined = { planId, agentId }
+      next()
+    } catch (error) {
+      console.error('Auth error:', error)
+      res.status(500).json({ error: 'Authentication failed' })
+    }
+  }
+}
+
+// Main code review endpoint
+app.post('/review', 
+  requirePayment(process.env.PLAN_ID, process.env.AGENT_ID),
+  async (req, res) => {
+    try {
+      const { code, language, rules } = req.body
+
+      // Perform AI code review
+      const review = await performCodeReview(code, language, rules)
+
+      // Track usage
+      const proof = {
+        requestId: req.id,
+        timestamp: new Date().toISOString(),
+        codeLength: code.length,
+        language
+      }
+
+      // Redeem credits
+      await payments.redeemCredits(
+        req.nevermined.planId,
+        1n,
+        proof
+      )
+
+      // Get remaining balance
+      const balance = await payments.getPlanBalance(
+        req.nevermined.planId,
+        req.body.subscriberAddress
+      )
+
+      res.json({
+        review,
+        credits: {
+          used: 1,
+          remaining: balance.credits.toString()
+        }
+      })
+    } catch (error) {
+      console.error('Review error:', error)
+      res.status(500).json({ error: 'Review failed' })
+    }
+  }
+)
+
+// Security scan endpoint (uses more credits)
+app.post('/security-scan',
+  requirePayment(process.env.PLAN_ID, process.env.AGENT_ID),
+  async (req, res) => {
+    try {
+      const { code, language } = req.body
+      
+      // This endpoint uses 5 credits
+      const creditsRequired = 5n
+      
+      // Check balance first
+      const balance = await payments.getPlanBalance(
+        req.nevermined.planId,
+        req.body.subscriberAddress
+      )
+      
+      if (balance.credits < creditsRequired) {
+        return res.status(402).json({
+          error: 'Insufficient credits',
+          required: creditsRequired.toString(),
+          available: balance.credits.toString()
+        })
+      }
+
+      const scan = await performSecurityScan(code, language)
+
+      await payments.redeemCredits(
+        req.nevermined.planId,
+        creditsRequired,
+        { scan: scan.id, severity: scan.highestSeverity }
+      )
+
+      res.json({
+        scan,
+        credits: {
+          used: creditsRequired.toString(),
+          remaining: (balance.credits - creditsRequired).toString()
+        }
+      })
+    } catch (error) {
+      console.error('Scan error:', error)
+      res.status(500).json({ error: 'Security scan failed' })
+    }
+  }
+)
+
+// Health check (open endpoint)
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', service: 'code-review' })
+})
+
+// Mock review functions
+async function performCodeReview(code, language, rules) {
+  // Your AI code review logic here
+  return {
+    score: 85,
+    issues: [
+      { line: 10, severity: 'warning', message: 'Consider using const instead of let' },
+      { line: 25, severity: 'info', message: 'Function could be simplified' }
+    ],
+    suggestions: ['Add error handling', 'Consider adding unit tests']
+  }
+}
+
+async function performSecurityScan(code, language) {
+  // Your security scanning logic here
+  return {
+    id: 'scan-' + Date.now(),
+    vulnerabilities: [],
+    highestSeverity: 'low',
+    recommendations: ['Enable strict mode', 'Validate user input']
+  }
+}
+
+app.listen(3000, () => {
+  console.log('Code Review Service running on port 3000')
+})
+```
+
+## Multi-Tier Chat Agent
+
+Example of an AI chat service with multiple pricing tiers.
+
+```typescript
+import { 
+  Payments, 
+  getERC20PriceConfig, 
+  getFixedCreditsConfig,
+  getExpirablePlanCreditsConfig,
+  getFiatPriceConfig
+} from '@nevermined-io/payments'
+
+async function createMultiTierChatAgent() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY,
+    environment: 'production'
+  })
+
+  const agentMetadata = {
+    name: 'Advanced AI Chat Assistant',
+    tags: ['chat', 'ai', 'gpt-4', 'enterprise'],
+    dateCreated: new Date(),
+    description: 'Enterprise-grade AI chat with multiple models and capabilities',
+    image: 'https://example.com/chat-logo.png'
+  }
+
+  const agentApi = {
+    endpoints: [
+      { POST: 'https://api.chat.ai/v1/chat' },
+      { POST: 'https://api.chat.ai/v1/chat/stream' },
+      { GET: 'https://api.chat.ai/v1/models' }
+    ]
+  }
+
+  // Basic Plan - 5 USDC for 50 messages
+  const basicPrice = getERC20PriceConfig(
+    5_000_000n,
+    '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
+    process.env.BUILDER_ADDRESS
+  )
+  const basicCredits = getFixedCreditsConfig(50n, 1n)
+  const { planId: basicPlanId } = await payments.registerCreditsPlan(
+    basicPrice,
+    basicCredits
+  )
+
+  // Premium Plan - 20 USDC for 250 messages  
+  const premiumPrice = getERC20PriceConfig(
+    20_000_000n,
+    '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
+    process.env.BUILDER_ADDRESS
+  )
+  const premiumCredits = getFixedCreditsConfig(250n, 1n)
+  const { planId: premiumPlanId } = await payments.registerCreditsPlan(
+    premiumPrice,
+    premiumCredits
+  )
+
+  // Enterprise Plan - $100/month unlimited (via Stripe)
+  const enterprisePrice = getFiatPriceConfig(
+    100_000_000n, // $100
+    process.env.BUILDER_ADDRESS
+  )
+  const enterpriseCredits = getExpirablePlanCreditsConfig(86400n * 30n) // 30 days
+  const { planId: enterprisePlanId } = await payments.registerTimePlan(
+    enterprisePrice,
+    enterpriseCredits
+  )
+
+  // Register agent with all plans
+  const { agentId } = await payments.registerAgent(
+    agentMetadata,
+    agentApi,
+    [basicPlanId, premiumPlanId, enterprisePlanId]
+  )
+
+  return {
+    agentId,
+    plans: {
+      basic: basicPlanId,
+      premium: premiumPlanId,
+      enterprise: enterprisePlanId
+    }
+  }
+}
+
+// Express server implementation
+app.post('/v1/chat', async (req, res) => {
+  const { message, model, subscriberAddress, planId } = req.body
+  const signature = req.headers['x-nvm-query-signature']
+  
+  // Find which plan they're using
+  const agentId = process.env.AGENT_ID
+  const agent = await payments.getAgent(agentId)
+  const plan = agent.plans.find(p => p.planId === planId)
+  
+  if (!plan) {
+    return res.status(400).json({ error: 'Invalid plan' })
+  }
+
+  // Validate access
+  const isValid = await payments.isValidRequest(
+    planId,
+    agentId,
+    subscriberAddress,
+    signature
+  )
+
+  if (!isValid) {
+    const paymentCard = await payments.getAgentPaymentCard(agentId)
+    return res.status(402).json({
+      error: 'Payment required',
+      paymentCard,
+      availablePlans: agent.plans.map(p => ({
+        id: p.planId,
+        name: p.metadata.name,
+        price: p.price.amounts[0],
+        credits: p.credits.amount,
+        features: getFeaturesByPlan(p.planId)
+      }))
+    })
+  }
+
+  // Route to appropriate model based on plan
+  const modelToUse = getModelByPlan(plan.planId, model)
+  const response = await generateChatResponse(message, modelToUse)
+
+  // Calculate credits based on response length
+  const creditsUsed = plan.credits.creditsType === 'DYNAMIC' 
+    ? calculateDynamicCredits(response)
+    : 1n
+
+  await payments.redeemCredits(planId, creditsUsed, {
+    model: modelToUse,
+    tokens: response.usage.totalTokens
+  })
+
+  res.json({
+    response: response.content,
+    model: modelToUse,
+    usage: {
+      creditsUsed: creditsUsed.toString(),
+      tokensUsed: response.usage.totalTokens
+    }
+  })
+})
+
+function getModelByPlan(planId: string, requestedModel: string): string {
+  const planModels = {
+    [process.env.BASIC_PLAN_ID]: ['gpt-3.5-turbo'],
+    [process.env.PREMIUM_PLAN_ID]: ['gpt-3.5-turbo', 'gpt-4'],
+    [process.env.ENTERPRISE_PLAN_ID]: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo']
+  }
+  
+  const allowedModels = planModels[planId] || ['gpt-3.5-turbo']
+  return allowedModels.includes(requestedModel) ? requestedModel : allowedModels[0]
+}
+
+function getFeaturesByPlan(planId: string) {
+  const features = {
+    [process.env.BASIC_PLAN_ID]: ['GPT-3.5', '50 messages', 'Standard support'],
+    [process.env.PREMIUM_PLAN_ID]: ['GPT-4', '250 messages', 'Priority support'],
+    [process.env.ENTERPRISE_PLAN_ID]: ['All models', 'Unlimited', '24/7 support', 'Custom integration']
+  }
+  return features[planId] || []
+}
+```
+
+## Dynamic Pricing API
+
+Example of dynamic credit consumption based on request complexity.
+
+```typescript
+async function createDynamicPricingAgent() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY,
+    environment: 'production'
+  })
+
+  const agentMetadata = {
+    name: 'AI Data Analysis Service',
+    tags: ['data', 'analysis', 'ml', 'dynamic-pricing'],
+    dateCreated: new Date(),
+    description: 'Advanced data analysis with pricing based on complexity'
+  }
+
+  const agentApi = {
+    endpoints: [
+      { POST: 'https://api.dataanalysis.ai/analyze' }
+    ]
+  }
+
+  // Dynamic pricing: 50 USDC for 1000 credits
+  const priceConfig = getERC20PriceConfig(
+    50_000_000n,
+    '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
+    process.env.BUILDER_ADDRESS
+  )
+
+  const dynamicCredits = {
+    creditsType: 'DYNAMIC',
+    minCreditsPerRequest: 1n,
+    maxCreditsPerRequest: 50n,
+    amount: 1000n
+  }
+
+  const { agentId, planId } = await payments.registerAgentAndPlan(
+    agentMetadata,
+    agentApi,
+    priceConfig,
+    dynamicCredits
+  )
+
+  return { agentId, planId }
+}
+
+// Dynamic pricing endpoint
+app.post('/analyze', async (req, res) => {
+  const { data, analysisType, depth } = req.body
+  
+  // Validate access
+  const isValid = await payments.isValidRequest(
+    req.body.planId,
+    req.body.agentId,
+    req.body.subscriberAddress,
+    req.headers['x-nvm-query-signature']
+  )
+
+  if (!isValid) {
+    const paymentCard = await payments.getAgentPaymentCard(req.body.agentId)
+    return res.status(402).json({ error: 'Payment required', paymentCard })
+  }
+
+  // Check balance before processing
+  const balance = await payments.getPlanBalance(
+    req.body.planId,
+    req.body.subscriberAddress
+  )
+
+  // Calculate complexity and required credits
+  const complexity = calculateComplexity(data, analysisType, depth)
+  const creditsRequired = BigInt(Math.min(Math.max(complexity, 1), 50))
+
+  if (balance.credits < creditsRequired) {
+    return res.status(402).json({
+      error: 'Insufficient credits',
+      required: creditsRequired.toString(),
+      available: balance.credits.toString(),
+      complexity: complexity
+    })
+  }
+
+  // Perform analysis
+  const startTime = Date.now()
+  const analysis = await performDataAnalysis(data, analysisType, depth)
+  const processingTime = Date.now() - startTime
+
+  // Redeem credits based on actual complexity
+  await payments.redeemCredits(
+    req.body.planId,
+    creditsRequired,
+    {
+      analysisId: analysis.id,
+      dataPoints: data.length,
+      processingTime,
+      complexity
+    }
+  )
+
+  res.json({
+    analysis,
+    billing: {
+      creditsUsed: creditsRequired.toString(),
+      creditsRemaining: (balance.credits - creditsRequired).toString(),
+      complexity,
+      processingTime
+    }
+  })
+})
+
+function calculateComplexity(data: any[], analysisType: string, depth: string): number {
+  const baseComplexity = {
+    'basic': 1,
+    'intermediate': 5,
+    'advanced': 10,
+    'ml-powered': 20
+  }
+
+  const depthMultiplier = {
+    'shallow': 1,
+    'normal': 2,
+    'deep': 3
+  }
+
+  const base = baseComplexity[analysisType] || 1
+  const multiplier = depthMultiplier[depth] || 1
+  const dataMultiplier = Math.ceil(data.length / 1000) // Per 1000 data points
+
+  return base * multiplier * dataMultiplier
+}
+```
+
+## Proxy Integration Example
+
+Use Nevermined Proxy to add payments to existing services without modifying code.
+
+```typescript
+// For existing services, no code changes needed!
+// Just register your service with Nevermined
+
+async function setupProxyIntegration() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY,
+    environment: 'production'
+  })
+
+  // Register your existing service
+  const agentMetadata = {
+    name: 'Legacy AI Service',
+    tags: ['legacy', 'proxy', 'no-code'],
+    dateCreated: new Date(),
+    description: 'Existing AI service monetized through Nevermined Proxy'
+  }
+
+  const agentApi = {
+    endpoints: [
+      // Your existing endpoints
+      { POST: 'https://legacy-api.example.com/v1/process' },
+      { GET: 'https://legacy-api.example.com/v1/status' }
+    ],
+    // Public endpoints that don't require payment
+    openEndpoints: [
+      'https://legacy-api.example.com/health',
+      'https://legacy-api.example.com/version'
+    ]
+  }
+
+  const priceConfig = getERC20PriceConfig(
+    15_000_000n, // 15 USDC
+    '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
+    process.env.BUILDER_ADDRESS
+  )
+
+  const creditsConfig = getFixedCreditsConfig(100n, 1n)
+
+  const { agentId, planId } = await payments.registerAgentAndPlan(
+    agentMetadata,
+    agentApi,
+    priceConfig,
+    creditsConfig
+  )
+
+  console.log(`
+    Legacy service registered!
+    Agent ID: ${agentId}
+    Plan ID: ${planId}
+    
+    Users can now access your service through:
+    https://proxy.nevermined.app/agent/${agentId}
+    
+    The proxy handles all payment validation and credit redemption.
+    No changes needed to your existing service!
+  `)
+}
+
+// Client code to use the proxied service
+async function useProxiedService() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY,
+    environment: 'production'
+  })
+
+  // Purchase plan
+  await payments.orderPlan(planId)
+
+  // Get access credentials
+  const options = await payments.getAgentHTTPOptions(planId, agentId)
+
+  // Query through proxy
+  const response = await fetch(options.neverminedProxyUri, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${options.accessToken}`
+    },
+    body: JSON.stringify({
+      // Your original API payload
+      data: 'process this data'
+    })
+  })
+
+  const result = await response.json()
+  console.log('Result from legacy service:', result)
+}
+```
+
+## Testing Your Integration
+
+Example test suite for your Nevermined integration:
+
+```typescript
+import { Payments } from '@nevermined-io/payments'
+
+describe('Nevermined Integration Tests', () => {
+  let payments: Payments
+  let testAgentId: string
+  let testPlanId: string
+
+  beforeAll(async () => {
+    // Use testing environment
+    payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_TEST_API_KEY,
+      environment: 'testing'
+    })
+
+    // Create test agent
+    const result = await payments.registerAgentAndPlan(
+      {
+        name: 'Test Agent',
+        tags: ['test'],
+        dateCreated: new Date()
+      },
+      {
+        endpoints: [{ POST: 'https://test.example.com/api' }]
+      },
+      getERC20PriceConfig(1_000_000n, TEST_TOKEN_ADDRESS, TEST_BUILDER_ADDRESS),
+      getFixedCreditsConfig(10n, 1n)
+    )
+
+    testAgentId = result.agentId
+    testPlanId = result.planId
+  })
+
+  test('should create agent successfully', () => {
+    expect(testAgentId).toBeDefined()
+    expect(testPlanId).toBeDefined()
+  })
+
+  test('should validate authorized requests', async () => {
+    // Mock valid signature
+    const isValid = await payments.isValidRequest(
+      testPlanId,
+      testAgentId,
+      TEST_SUBSCRIBER_ADDRESS,
+      'valid-signature'
+    )
+    
+    expect(isValid).toBe(true)
+  })
+
+  test('should reject unauthorized requests', async () => {
+    const isValid = await payments.isValidRequest(
+      testPlanId,
+      testAgentId,
+      'unauthorized-address',
+      'invalid-signature'
+    )
+    
+    expect(isValid).toBe(false)
+  })
+
+  test('should track credit usage', async () => {
+    const initialBalance = await payments.getPlanBalance(
+      testPlanId,
+      TEST_SUBSCRIBER_ADDRESS
+    )
+
+    await payments.redeemCredits(testPlanId, 1n, { test: true })
+
+    const newBalance = await payments.getPlanBalance(
+      testPlanId,
+      TEST_SUBSCRIBER_ADDRESS
+    )
+
+    expect(newBalance.credits).toBe(initialBalance.credits - 1n)
+  })
+})
+```
+
+## Resources
+
+- [GitHub Repository](https://github.com/nevermined-io/payments) - Source code and more examples
+- [API Reference](/api-reference) - Complete API documentation
+- [Discord Community](https://discord.gg/nevermined) - Get help and share your implementations
+- [Nevermined App](https://app.nevermined.io) - Manage your agents and view analytics

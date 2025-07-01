@@ -2,10 +2,614 @@
 title: "Integrating Nevermined Using AI"
 ---
 
-# Integrating NVM Use AI
+# Integrating Nevermined into AI Applications
 
 ## Overview
 
-NVM Use AI is a tool that allows you to integrate NVM Use AI into your project.
+This guide walks you through integrating Nevermined Payments into your AI application, from basic setup to advanced configurations. You'll learn how to monetize your AI services, handle payments, and manage access control.
 
-## Getting Started
+## Prerequisites
+
+- Node.js 16.x or higher
+- TypeScript 4.5+ (recommended)
+- An AI service or agent to monetize
+- Nevermined API key (get one at [app.nevermined.io](https://app.nevermined.io))
+
+## Quick Start Guide
+
+### 1. Installation
+
+```bash
+npm install @nevermined-io/payments
+```
+
+### 2. Initialize the SDK
+
+```typescript
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY,
+  environment: 'production' // or 'testing' for Base Sepolia
+})
+```
+
+### 3. Register Your AI Agent
+
+```typescript
+import { getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+
+// Define your agent
+const agentMetadata = {
+  name: 'My AI Assistant',
+  tags: ['ai', 'assistant', 'nlp'],
+  dateCreated: new Date(),
+  description: 'An intelligent assistant for various tasks'
+}
+
+const agentApi = {
+  endpoints: [
+    { POST: 'https://api.myai.com/query' }
+  ]
+}
+
+// Configure pricing
+const priceConfig = getERC20PriceConfig(
+  10_000_000n, // 10 USDC
+  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC address
+  process.env.BUILDER_ADDRESS
+)
+
+const creditsConfig = getFixedCreditsConfig(100n, 1n) // 100 requests
+
+// Register agent and create payment plan
+const { agentId, planId } = await payments.registerAgentAndPlan(
+  agentMetadata,
+  agentApi,
+  priceConfig,
+  creditsConfig
+)
+
+console.log(`Agent registered: ${agentId}`)
+console.log(`Plan created: ${planId}`)
+```
+
+## Integration Patterns
+
+### Pattern 1: Direct Integration
+
+Integrate Nevermined directly into your Express/Node.js application:
+
+```typescript
+import express from 'express'
+import { Payments } from '@nevermined-io/payments'
+
+const app = express()
+app.use(express.json())
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY,
+  environment: 'production'
+})
+
+app.post('/api/ai-query', async (req, res) => {
+  try {
+    // 1. Validate the request
+    const isValid = await payments.isValidRequest(
+      req.body.planId,
+      req.body.agentId,
+      req.body.subscriberAddress,
+      req.headers['x-nvm-query-signature']
+    )
+
+    if (!isValid) {
+      // Return payment required response
+      const paymentCard = await payments.getAgentPaymentCard(req.body.agentId)
+      return res.status(402).json({
+        error: 'Payment required',
+        paymentCard
+      })
+    }
+
+    // 2. Process the AI request
+    const aiResponse = await processAIQuery(req.body.prompt)
+
+    // 3. Redeem credits
+    const proof = generateProof(req.body, aiResponse)
+    await payments.redeemCredits(req.body.planId, 1n, proof)
+
+    // 4. Return response
+    res.json({
+      result: aiResponse,
+      creditsUsed: 1
+    })
+
+  } catch (error) {
+    console.error('Error processing request:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+app.listen(3000, () => {
+  console.log('AI service running on port 3000')
+})
+```
+
+### Pattern 2: Middleware Approach
+
+Create reusable middleware for multiple endpoints:
+
+```typescript
+import { Request, Response, NextFunction } from 'express'
+
+// Nevermined authentication middleware
+function neverminedAuth(planId: string, agentId: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const isValid = await payments.isValidRequest(
+        planId,
+        agentId,
+        req.body.subscriberAddress,
+        req.headers['x-nvm-query-signature'] as string
+      )
+
+      if (!isValid) {
+        const paymentCard = await payments.getAgentPaymentCard(agentId)
+        return res.status(402).json({
+          error: 'Payment required',
+          message: 'Please purchase a plan to access this service',
+          paymentCard
+        })
+      }
+
+      // Add plan info to request for later use
+      req.neverminedPlan = { planId, agentId }
+      next()
+    } catch (error) {
+      console.error('Auth error:', error)
+      res.status(500).json({ error: 'Authentication failed' })
+    }
+  }
+}
+
+// Credit redemption middleware
+function redeemCredits(creditsPerRequest: bigint = 1n) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    // Store original send function
+    const originalSend = res.send
+
+    // Override send to redeem credits after response
+    res.send = function(data: any) {
+      if (res.statusCode < 400 && req.neverminedPlan) {
+        const proof = generateProof(req.body, data)
+        payments.redeemCredits(
+          req.neverminedPlan.planId,
+          creditsPerRequest,
+          proof
+        ).catch(error => {
+          console.error('Credit redemption error:', error)
+        })
+      }
+      return originalSend.call(this, data)
+    }
+
+    next()
+  }
+}
+
+// Use the middleware
+app.post('/api/ai-query',
+  neverminedAuth(planId, agentId),
+  redeemCredits(1n),
+  async (req, res) => {
+    const result = await processAIQuery(req.body.prompt)
+    res.json({ result })
+  }
+)
+```
+
+### Pattern 3: Proxy Integration
+
+For existing services that can't be modified, use the Nevermined Proxy:
+
+```typescript
+// No changes needed to your existing AI service
+// Nevermined Proxy handles all authentication and billing
+
+// Subscribers access your service through the proxy:
+const subscriberUsage = async () => {
+  const payments = Payments.getInstance({
+    nvmApiKey: subscriberApiKey,
+    environment: 'production'
+  })
+
+  // Get access credentials
+  const options = await payments.getAgentHTTPOptions(planId, agentId)
+
+  // Query through proxy
+  const response = await fetch(options.neverminedProxyUri, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    },
+    body: JSON.stringify({
+      prompt: 'Analyze this data...'
+    })
+  })
+
+  const result = await response.json()
+  console.log('AI response:', result)
+}
+```
+
+## Advanced Configurations
+
+### Dynamic Pricing Based on Complexity
+
+```typescript
+interface ComplexityCalculator {
+  calculateCredits(request: any, response: any): bigint
+}
+
+class AIComplexityCalculator implements ComplexityCalculator {
+  calculateCredits(request: any, response: any): bigint {
+    let credits = 1n
+
+    // Factor 1: Input length
+    if (request.prompt.length > 1000) credits += 1n
+    if (request.prompt.length > 5000) credits += 2n
+
+    // Factor 2: Response complexity
+    if (response.processingTime > 5000) credits += 1n
+    if (response.modelUsed === 'advanced') credits += 3n
+
+    // Factor 3: Additional features
+    if (request.includeAnalysis) credits += 2n
+    if (request.generateVisuals) credits += 5n
+
+    return credits
+  }
+}
+
+const complexityCalculator = new AIComplexityCalculator()
+
+app.post('/api/complex-query', 
+  neverminedAuth(planId, agentId),
+  async (req, res) => {
+    const startTime = Date.now()
+    
+    // Process request
+    const result = await processComplexQuery(req.body)
+    result.processingTime = Date.now() - startTime
+
+    // Calculate credits based on complexity
+    const creditsUsed = complexityCalculator.calculateCredits(req.body, result)
+
+    // Redeem credits
+    await payments.redeemCredits(
+      req.neverminedPlan.planId,
+      creditsUsed,
+      generateProof(req.body, result)
+    )
+
+    res.json({ result, creditsUsed: creditsUsed.toString() })
+  }
+)
+```
+
+### Multi-Plan Support
+
+```typescript
+// Create different service tiers
+async function createServiceTiers() {
+  // Basic tier - Limited features
+  const basicPrice = getERC20PriceConfig(5_000_000n, USDC_ADDRESS, builderAddress)
+  const basicCredits = getFixedCreditsConfig(50n, 1n)
+  const { planId: basicPlanId } = await payments.registerCreditsPlan(
+    basicPrice,
+    basicCredits
+  )
+
+  // Pro tier - More features and credits
+  const proPrice = getERC20PriceConfig(20_000_000n, USDC_ADDRESS, builderAddress)
+  const proCredits = getFixedCreditsConfig(250n, 1n)
+  const { planId: proPlanId } = await payments.registerCreditsPlan(
+    proPrice,
+    proCredits
+  )
+
+  // Enterprise tier - Unlimited monthly
+  const enterprisePrice = getERC20PriceConfig(100_000_000n, USDC_ADDRESS, builderAddress)
+  const enterpriseCredits = getExpirablePlanCreditsConfig(86400n * 30n)
+  const { planId: enterprisePlanId } = await payments.registerTimePlan(
+    enterprisePrice,
+    enterpriseCredits
+  )
+
+  // Register agent with all plans
+  const { agentId } = await payments.registerAgent(
+    agentMetadata,
+    agentApi,
+    [basicPlanId, proPlanId, enterprisePlanId]
+  )
+
+  return {
+    agentId,
+    plans: {
+      basic: basicPlanId,
+      pro: proPlanId,
+      enterprise: enterprisePlanId
+    }
+  }
+}
+
+// Check plan tier in endpoints
+app.post('/api/ai-query', async (req, res) => {
+  const planDetails = await payments.getPlan(req.body.planId)
+  const planTier = determinePlanTier(planDetails)
+
+  // Limit features based on tier
+  const options = {
+    maxTokens: planTier === 'basic' ? 1000 : planTier === 'pro' ? 5000 : 10000,
+    allowAdvancedFeatures: planTier !== 'basic',
+    priority: planTier === 'enterprise' ? 'high' : 'normal'
+  }
+
+  const result = await processAIQuery(req.body.prompt, options)
+  res.json({ result, tier: planTier })
+})
+```
+
+### Error Handling and Monitoring
+
+```typescript
+import { PaymentsError } from '@nevermined-io/payments'
+
+// Comprehensive error handling
+app.use(async (err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof PaymentsError) {
+    console.error(`Payments error: ${err.code} - ${err.message}`)
+    
+    switch (err.code) {
+      case 'INVALID_API_KEY':
+        return res.status(401).json({ error: 'Invalid API configuration' })
+      
+      case 'INSUFFICIENT_BALANCE':
+        return res.status(402).json({ 
+          error: 'Insufficient credits',
+          message: 'Please purchase more credits to continue'
+        })
+      
+      case 'INVALID_SIGNATURE':
+        return res.status(403).json({ error: 'Invalid request signature' })
+      
+      case 'NETWORK_ERROR':
+        return res.status(503).json({ error: 'Service temporarily unavailable' })
+      
+      default:
+        return res.status(500).json({ error: 'Payment processing error' })
+    }
+  }
+
+  // Handle other errors
+  console.error('Unexpected error:', err)
+  res.status(500).json({ error: 'Internal server error' })
+})
+
+// Monitoring and analytics
+class UsageMonitor {
+  private usage = new Map<string, { requests: number, credits: bigint }>()
+
+  trackUsage(subscriberAddress: string, credits: bigint) {
+    const current = this.usage.get(subscriberAddress) || { requests: 0, credits: 0n }
+    this.usage.set(subscriberAddress, {
+      requests: current.requests + 1,
+      credits: current.credits + credits
+    })
+  }
+
+  getUsageStats() {
+    return Array.from(this.usage.entries()).map(([address, stats]) => ({
+      address,
+      ...stats,
+      credits: stats.credits.toString()
+    }))
+  }
+}
+
+const monitor = new UsageMonitor()
+
+// Track usage in endpoints
+app.post('/api/ai-query',
+  neverminedAuth(planId, agentId),
+  async (req, res) => {
+    const result = await processAIQuery(req.body.prompt)
+    const creditsUsed = 1n
+
+    // Track usage
+    monitor.trackUsage(req.body.subscriberAddress, creditsUsed)
+
+    // Redeem credits
+    await payments.redeemCredits(req.body.planId, creditsUsed, generateProof(req, result))
+
+    res.json({ result })
+  }
+)
+
+// Analytics endpoint
+app.get('/api/admin/usage', authenticate, (req, res) => {
+  res.json(monitor.getUsageStats())
+})
+```
+
+## Testing Your Integration
+
+### 1. Use Testing Environment
+
+```typescript
+// Development configuration
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_TEST_API_KEY,
+  environment: 'testing' // Uses Base Sepolia testnet
+})
+```
+
+### 2. Test Payment Flow
+
+```typescript
+// Test script
+async function testPaymentFlow() {
+  try {
+    // 1. Register test agent
+    const { agentId, planId } = await payments.registerAgentAndPlan(
+      testAgentMetadata,
+      testAgentApi,
+      testPriceConfig,
+      testCreditsConfig
+    )
+    console.log('✓ Agent registered:', agentId)
+
+    // 2. Purchase plan as subscriber
+    await payments.orderPlan(planId)
+    console.log('✓ Plan purchased')
+
+    // 3. Check balance
+    const balance = await payments.getPlanBalance(planId)
+    console.log('✓ Balance:', balance.credits.toString())
+
+    // 4. Test query
+    const credentials = await payments.getAgentHTTPOptions(planId, agentId)
+    const result = await payments.query(agentId, credentials, {
+      prompt: 'Test query'
+    })
+    console.log('✓ Query successful:', result)
+
+  } catch (error) {
+    console.error('Test failed:', error)
+  }
+}
+```
+
+### 3. Load Testing
+
+```typescript
+import { performance } from 'perf_hooks'
+
+async function loadTest(concurrentRequests: number) {
+  const times: number[] = []
+
+  for (let i = 0; i < concurrentRequests; i++) {
+    const start = performance.now()
+    
+    await payments.isValidRequest(
+      planId,
+      agentId,
+      subscriberAddress,
+      testSignature
+    )
+
+    times.push(performance.now() - start)
+  }
+
+  console.log('Load test results:')
+  console.log('Average time:', times.reduce((a, b) => a + b) / times.length, 'ms')
+  console.log('Min time:', Math.min(...times), 'ms')
+  console.log('Max time:', Math.max(...times), 'ms')
+}
+```
+
+## Production Checklist
+
+### Before Going Live
+
+1. **Security**
+   - [ ] API keys stored in environment variables
+   - [ ] HTTPS enabled on all endpoints
+   - [ ] Input validation implemented
+   - [ ] Rate limiting configured
+
+2. **Error Handling**
+   - [ ] All payment errors handled gracefully
+   - [ ] User-friendly error messages
+   - [ ] Logging configured for debugging
+
+3. **Performance**
+   - [ ] Response time < 200ms for validation
+   - [ ] Caching implemented where appropriate
+   - [ ] Database queries optimized
+
+4. **Monitoring**
+   - [ ] Usage tracking implemented
+   - [ ] Error monitoring setup
+   - [ ] Revenue tracking configured
+
+5. **Documentation**
+   - [ ] API documentation updated
+   - [ ] Pricing clearly communicated
+   - [ ] Integration guide for users
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Invalid Signature Error**
+   ```typescript
+   // Ensure signature is passed correctly
+   const signature = req.headers['x-nvm-query-signature'] as string
+   if (!signature) {
+     return res.status(400).json({ error: 'Missing signature' })
+   }
+   ```
+
+2. **Network Timeout**
+   ```typescript
+   // Implement retry logic
+   const retryWithBackoff = async (fn: Function, retries = 3) => {
+     for (let i = 0; i < retries; i++) {
+       try {
+         return await fn()
+       } catch (error) {
+         if (i === retries - 1) throw error
+         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)))
+       }
+     }
+   }
+   ```
+
+3. **Credit Balance Issues**
+   ```typescript
+   // Check balance before processing
+   const balance = await payments.getPlanBalance(planId, subscriberAddress)
+   if (balance.credits < requiredCredits) {
+     return res.status(402).json({
+       error: 'Insufficient credits',
+       remainingCredits: balance.credits.toString(),
+       requiredCredits: requiredCredits.toString()
+     })
+   }
+   ```
+
+## Next Steps
+
+1. **Explore Advanced Features**
+   - Implement webhook notifications
+   - Add subscription management
+   - Create admin dashboard
+
+2. **Optimize Performance**
+   - Implement request batching
+   - Add response caching
+   - Use connection pooling
+
+3. **Enhance User Experience**
+   - Add usage analytics dashboard
+   - Implement credit alerts
+   - Create billing history
+
+## Resources
+
+- [API Reference](/api-reference)
+- [Example Repository](https://github.com/nevermined-io/payments-examples)
+- [Discord Community](https://discord.gg/nevermined)
+- [Support Email](mailto:support@nevermined.io)

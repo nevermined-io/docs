@@ -1,107 +1,475 @@
 ---
-title: 'Development'
-description: 'Preview changes locally to update your docs'
+title: 'Development Guide'
+description: 'Set up your development environment for building with Nevermined'
+icon: 'code'
 ---
 
-<Info>
-  **Prerequisite**: Please install Node.js (version 19 or higher) before proceeding. <br />
-  Please upgrade to ```docs.json``` before proceeding and delete the legacy ```mint.json``` file.
-</Info>
+## Environment Setup
 
-Follow these steps to install and run Mintlify on your operating system:
+Get your development environment ready for building AI agents with Nevermined.
 
-**Step 1**: Install Mintlify:
+### Prerequisites
 
-<CodeGroup>
+<CardGroup cols={2}>
+  <Card title="Node.js 16+" icon="node">
+    Required for running the SDK
+  </Card>
+  <Card title="TypeScript 4.5+" icon="code">
+    Recommended for type safety
+  </Card>
+  <Card title="Git" icon="git-alt">
+    For version control
+  </Card>
+  <Card title="Code Editor" icon="laptop-code">
+    VS Code or similar IDE
+  </Card>
+</CardGroup>
 
-  ```bash npm
-  npm i -g mintlify
-  ```
+### Installation
 
-```bash yarn
-yarn global add mintlify
-```
-
-</CodeGroup>
-
-**Step 2**: Navigate to the docs directory (where the `docs.json` file is located) and execute the following command:
-
-```bash
-mintlify dev
-```
-
-A local preview of your documentation will be available at `http://localhost:3000`.
-
-### Custom Ports
-
-By default, Mintlify uses port 3000. You can customize the port Mintlify runs on by using the `--port` flag. To run Mintlify on port 3333, for instance, use this command:
+Create a new project and install Nevermined:
 
 ```bash
-mintlify dev --port 3333
+# Create new project
+mkdir my-ai-agent
+cd my-ai-agent
+
+# Initialize package.json
+npm init -y
+
+# Install dependencies
+npm install @nevermined-io/payments
+npm install --save-dev typescript @types/node
+
+# Initialize TypeScript
+npx tsc --init
 ```
 
-If you attempt to run Mintlify on a port that's already in use, it will use the next available port:
+### Project Structure
 
-```md
-Port 3000 is already in use. Trying 3001 instead.
+Recommended project structure for a Nevermined-powered agent:
+
+```
+my-ai-agent/
+├── src/
+│   ├── index.ts          # Main application entry
+│   ├── agent.ts          # Agent registration logic
+│   ├── endpoints/        # API endpoint handlers
+│   │   ├── query.ts
+│   │   └── health.ts
+│   ├── middleware/       # Express middleware
+│   │   └── auth.ts
+│   └── utils/           # Utility functions
+│       └── cache.ts
+├── tests/               # Test files
+├── .env.example         # Environment template
+├── .gitignore
+├── package.json
+└── tsconfig.json
 ```
 
-## Mintlify Versions
+## Development Environments
 
-Please note that each CLI release is associated with a specific version of Mintlify. If your local website doesn't align with the production version, please update the CLI:
+Nevermined supports multiple environments for different stages of development:
 
-<CodeGroup>
+<Tabs>
+  <Tab title="Local Development">
+    ```typescript
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'local'
+    })
+    ```
+    
+    - For initial development and testing
+    - No real transactions
+    - Fast iteration cycles
+  </Tab>
+  
+  <Tab title="Testing (Base Sepolia)">
+    ```typescript
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'testing'
+    })
+    ```
+    
+    - Testnet environment
+    - Test tokens available from faucets
+    - Full functionality testing
+  </Tab>
+  
+  <Tab title="Production (Base Mainnet)">
+    ```typescript
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'production'
+    })
+    ```
+    
+    - Live environment
+    - Real transactions
+    - Production API key required
+  </Tab>
+</Tabs>
 
-```bash npm
-npm i -g mintlify@latest
-```
+## Local Development Setup
 
-```bash yarn
-yarn global upgrade mintlify
-```
+### 1. Environment Variables
 
-</CodeGroup>
-
-## Validating Links
-
-The CLI can assist with validating reference links made in your documentation. To identify any broken links, use the following command:
+Create a `.env` file for local development:
 
 ```bash
-mintlify broken-links
+# Development API Key
+NVM_API_KEY=your_test_api_key
+
+# Your wallet address (for receiving payments)
+BUILDER_ADDRESS=0x1234...
+
+# Environment
+NODE_ENV=development
+ENVIRONMENT=testing
+
+# Server
+PORT=3000
+
+# Optional: Redis for caching
+REDIS_URL=redis://localhost:6379
 ```
 
-## Deployment
+### 2. Basic Server Setup
 
-<Tip>
-  Unlimited editors available under the [Pro
-  Plan](https://mintlify.com/pricing) and above.
-</Tip>
+Create a basic Express server with Nevermined:
 
-If the deployment is successful, you should see the following:
+```typescript src/index.ts
+import express from 'express'
+import dotenv from 'dotenv'
+import { Payments } from '@nevermined-io/payments'
 
-<Frame>
-  <img src="/images/checks-passed.png" style={{ borderRadius: '0.5rem' }} />
-</Frame>
+// Load environment variables
+dotenv.config()
 
-## Code Formatting
+// Initialize Express
+const app = express()
+app.use(express.json())
 
-We suggest using extensions on your IDE to recognize and format MDX. If you're a VSCode user, consider the [MDX VSCode extension](https://marketplace.visualstudio.com/items?itemName=unifiedjs.vscode-mdx) for syntax highlighting, and [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) for code formatting.
+// Initialize Nevermined
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: process.env.ENVIRONMENT as any || 'testing'
+})
 
-## Troubleshooting
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', environment: process.env.ENVIRONMENT })
+})
+
+// Start server
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+})
+```
+
+### 3. Register Your Agent
+
+Create an agent registration script:
+
+```typescript src/agent.ts
+import { 
+  Payments, 
+  getERC20PriceConfig, 
+  getFixedCreditsConfig 
+} from '@nevermined-io/payments'
+
+export async function registerAgent() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY!,
+    environment: 'testing'
+  })
+
+  const agentMetadata = {
+    name: 'Development AI Agent',
+    tags: ['development', 'test'],
+    dateCreated: new Date(),
+    description: 'AI agent for development testing'
+  }
+
+  const agentApi = {
+    endpoints: [
+      { POST: `http://localhost:${process.env.PORT}/api/query` }
+    ],
+    openEndpoints: [
+      `http://localhost:${process.env.PORT}/health`
+    ]
+  }
+
+  // Test pricing: 1 USDC for 10 requests
+  const priceConfig = getERC20PriceConfig(
+    1_000_000n, // 1 USDC
+    '0x1234...', // Test USDC address
+    process.env.BUILDER_ADDRESS!
+  )
+
+  const creditsConfig = getFixedCreditsConfig(10n, 1n)
+
+  const { agentId, planId } = await payments.registerAgentAndPlan(
+    agentMetadata,
+    agentApi,
+    priceConfig,
+    creditsConfig
+  )
+
+  console.log('Agent registered:', agentId)
+  console.log('Plan created:', planId)
+  
+  // Save to .env for easy access
+  console.log('\nAdd these to your .env file:')
+  console.log(`AGENT_ID=${agentId}`)
+  console.log(`PLAN_ID=${planId}`)
+}
+
+// Run if called directly
+if (require.main === module) {
+  registerAgent().catch(console.error)
+}
+```
+
+## Development Workflow
+
+### 1. Create Authentication Middleware
+
+```typescript src/middleware/auth.ts
+import { Request, Response, NextFunction } from 'express'
+import { Payments } from '@nevermined-io/payments'
+
+export function createAuthMiddleware(payments: Payments) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { planId, agentId, subscriberAddress } = req.body
+      const signature = req.headers['x-nvm-query-signature'] as string
+
+      const isValid = await payments.isValidRequest(
+        planId,
+        agentId,
+        subscriberAddress,
+        signature
+      )
+
+      if (!isValid) {
+        const paymentCard = await payments.getAgentPaymentCard(agentId)
+        return res.status(402).json({
+          error: 'Payment required',
+          paymentCard
+        })
+      }
+
+      // Add to request for later use
+      req.nevermined = { planId, agentId, subscriberAddress }
+      next()
+    } catch (error) {
+      console.error('Auth error:', error)
+      res.status(500).json({ error: 'Authentication failed' })
+    }
+  }
+}
+```
+
+### 2. Implement Your AI Endpoint
+
+```typescript src/endpoints/query.ts
+import { Request, Response } from 'express'
+import { Payments } from '@nevermined-io/payments'
+
+export function createQueryHandler(payments: Payments) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { prompt } = req.body
+      const { planId, subscriberAddress } = req.nevermined
+
+      // Your AI logic here
+      const result = await processAIQuery(prompt)
+
+      // Redeem credits
+      await payments.redeemCredits(
+        planId,
+        1n,
+        { prompt: prompt.substring(0, 100), timestamp: Date.now() }
+      )
+
+      // Get balance
+      const balance = await payments.getPlanBalance(planId, subscriberAddress)
+
+      res.json({
+        result,
+        usage: {
+          creditsUsed: 1,
+          creditsRemaining: balance.credits.toString()
+        }
+      })
+    } catch (error) {
+      console.error('Query error:', error)
+      res.status(500).json({ error: 'Query processing failed' })
+    }
+  }
+}
+
+async function processAIQuery(prompt: string) {
+  // Mock AI response for development
+  return {
+    response: `Processed: ${prompt}`,
+    confidence: 0.95
+  }
+}
+```
+
+### 3. Testing Your Agent
+
+Create a test client to verify your agent works:
+
+```typescript tests/client.test.ts
+import { Payments } from '@nevermined-io/payments'
+
+async function testAgent() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY!,
+    environment: 'testing'
+  })
+
+  const agentId = process.env.AGENT_ID!
+  const planId = process.env.PLAN_ID!
+
+  // 1. Get agent info
+  const agent = await payments.getAgent(agentId)
+  console.log('Agent:', agent.metadata.name)
+
+  // 2. Simulate purchasing a plan
+  try {
+    await payments.orderPlan(planId)
+    console.log('Plan purchased')
+  } catch (error) {
+    console.log('Plan already purchased or error:', error.message)
+  }
+
+  // 3. Get access credentials
+  const options = await payments.getAgentHTTPOptions(planId, agentId)
+  console.log('Access token received')
+
+  // 4. Query the agent
+  const result = await payments.query(agentId, options, {
+    prompt: 'Hello from test client!'
+  })
+  console.log('Query result:', result)
+}
+
+testAgent().catch(console.error)
+```
+
+## Development Tools
+
+### TypeScript Configuration
+
+Optimize your `tsconfig.json` for Nevermined development:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+### Development Scripts
+
+Add helpful scripts to your `package.json`:
+
+```json
+{
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "register": "ts-node src/agent.ts",
+    "test": "jest",
+    "test:client": "ts-node tests/client.test.ts"
+  }
+}
+```
+
+### Debugging Tips
 
 <AccordionGroup>
-  <Accordion title='Error: Could not load the "sharp" module using the darwin-arm64 runtime'>
-
-    This may be due to an outdated version of node. Try the following:
-    1. Remove the currently-installed version of mintlify: `npm remove -g mintlify`
-    2. Upgrade to Node v19 or higher.
-    3. Reinstall mintlify: `npm install -g mintlify`
+  <Accordion icon="bug" title="Enable Debug Logging">
+    ```typescript
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'testing',
+      debug: true // Enable debug logs
+    })
+    ```
   </Accordion>
-
-  <Accordion title="Issue: Encountering an unknown error">
   
-    Solution: Go to the root of your device and delete the \~/.mintlify folder. Afterwards, run `mintlify dev` again.
+  <Accordion icon="terminal" title="Test with cURL">
+    ```bash
+    # Test health endpoint
+    curl http://localhost:3000/health
+    
+    # Test authenticated endpoint
+    curl -X POST http://localhost:3000/api/query \
+      -H "Content-Type: application/json" \
+      -H "x-nvm-query-signature: your-signature" \
+      -d '{
+        "planId": "your-plan-id",
+        "agentId": "your-agent-id",
+        "subscriberAddress": "0x...",
+        "prompt": "Test query"
+      }'
+    ```
+  </Accordion>
+  
+  <Accordion icon="shield" title="Mock Authentication for Development">
+    ```typescript
+    // Development-only mock auth
+    if (process.env.NODE_ENV === 'development') {
+      app.use((req, res, next) => {
+        req.nevermined = {
+          planId: 'mock-plan',
+          agentId: 'mock-agent',
+          subscriberAddress: '0xmock'
+        }
+        next()
+      })
+    }
+    ```
   </Accordion>
 </AccordionGroup>
 
-Curious about what changed in the CLI version? [Check out the CLI changelog.](https://www.npmjs.com/package/mintlify?activeTab=versions)
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deploy Your Agent" icon="rocket" href="/introduction/go-live-checklist">
+    Ready to go live? Follow our deployment checklist
+  </Card>
+  <Card title="Advanced Features" icon="gear" href="/api-reference">
+    Explore advanced SDK features in the API reference
+  </Card>
+  <Card title="Example Apps" icon="code" href="/introduction/example-apps">
+    See complete implementation examples
+  </Card>
+  <Card title="Get Help" icon="discord" href="https://discord.gg/nevermined">
+    Join our Discord community for support
+  </Card>
+</CardGroup>

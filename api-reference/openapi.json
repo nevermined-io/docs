@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OpenAPI Plant Store",
-    "description": "A sample API that uses a plant store as an example to demonstrate features in the OpenAPI specification",
+    "title": "Nevermined API",
+    "description": "API for managing AI agents, payment plans, and subscriptions in the Nevermined ecosystem",
     "license": {
       "name": "MIT"
     },
@@ -19,30 +19,52 @@
     }
   ],
   "paths": {
-    "/plants": {
-      "get": {
-        "description": "Returns all plants from the system that the user has access to",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of results to return",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
+    "/agent": {
+      "post": {
+        "summary": "Register Agent and Plan",
+        "description": "Registers a new AI agent along with a payment plan.",
+        "operationId": "registerAgentAndPlan",
+        "tags": ["Agents"],
+        "requestBody": {
+          "description": "Agent and plan to register",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agentMetadata": {
+                    "$ref": "#/components/schemas/AgentMetadata"
+                  },
+                  "agentApi": {
+                    "type": "object",
+                    "properties": {
+                      "endpoints": {
+                        "type": "array",
+                        "items": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  },
+                  "price": {
+                    "type": "object"
+                  },
+                  "credits": {
+                    "type": "object"
+                  }
+                }
+              }
             }
           }
-        ],
+        },
         "responses": {
           "200": {
-            "description": "Plant response",
+            "description": "Agent and plan created",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Plant"
-                  }
+                  "$ref": "#/components/schemas/NewAgentResponse"
                 }
               }
             }
@@ -58,37 +80,144 @@
             }
           }
         }
-      },
-      "post": {
-        "description": "Creates a new plant in the store",
-        "requestBody": {
-          "description": "Plant to add to the store",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPlant"
-              }
+      }
+    },
+    "/agent/{agentId}": {
+      "get": {
+        "summary": "Get Agent",
+        "description": "Retrieves information about a registered AI agent, including metadata and associated payment plans.",
+        "operationId": "getAgent",
+        "tags": ["Agents"],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The unique identifier of the agent to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
-          },
-          "required": true
-        },
+          }
+        ],
         "responses": {
           "200": {
-            "description": "plant response",
+            "description": "Agent information response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Plant"
+                  "$ref": "#/components/schemas/Agent"
                 }
               }
             }
           },
-          "400": {
-            "description": "unexpected error",
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Agent",
+        "description": "Deletes a registered AI agent and all associated payment plans.",
+        "operationId": "deleteAgent",
+        "tags": ["Agents"],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The unique identifier of the agent to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent successfully deleted"
+          },
+          "403": {
+            "description": "Caller is not authorized to delete this agent"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/agent/{agentId}/query": {
+      "post": {
+        "summary": "Query Agent",
+        "description": "Queries a registered AI agent via the Nevermined Proxy or directly, using a valid payment plan and signature-based access token.",
+        "operationId": "queryAgent",
+        "tags": ["Agents"],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The unique identifier of the agent to query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Query payload",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prompt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query successful",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required"
+          }
+        }
+      }
+    },
+    "/plan/{planId}": {
+      "get": {
+        "summary": "Get Plan",
+        "description": "Retrieves details about a specific payment plan by its ID.",
+        "operationId": "getPlan",
+        "tags": ["Plans"],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The unique identifier of the plan to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
                 }
               }
             }
@@ -96,32 +225,111 @@
         }
       }
     },
-    "/plants/{id}": {
-      "delete": {
-        "description": "Deletes a single plant based on the ID supplied",
+    "/plan/{planId}/order": {
+      "post": {
+        "summary": "Order Plan",
+        "description": "Allows a subscriber (human or agent) to purchase a payment plan using crypto or fiat.",
+        "operationId": "orderPlan",
+        "tags": ["Plans"],
         "parameters": [
           {
-            "name": "id",
+            "name": "planId",
             "in": "path",
-            "description": "ID of plant to delete",
+            "description": "The unique identifier of the plan to order",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int64"
+              "type": "string"
             }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Plant deleted",
-            "content": {}
-          },
-          "400": {
-            "description": "unexpected error",
+          "200": {
+            "description": "Order successful",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "txHash": {
+                      "type": "string"
+                    },
+                    "balance": {
+                      "$ref": "#/components/schemas/Balance"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/{planId}/balance": {
+      "get": {
+        "summary": "Get Plan Balance",
+        "description": "Checks the current usage balance for a given plan.",
+        "operationId": "getPlanBalance",
+        "tags": ["Plans"],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The unique identifier of the plan.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Balance information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Balance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/{planId}/redeem": {
+      "post": {
+        "summary": "Redeem Credits",
+        "description": "Redeems a specific number of credits from a subscriber's balance.",
+        "operationId": "redeemCredits",
+        "tags": ["Plans"],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The unique identifier of the plan.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redemption successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "creditsRedeemed": {
+                      "type": "integer"
+                    },
+                    "remainingBalance": {
+                      "type": "integer"
+                    }
+                  }
                 }
               }
             }
@@ -130,66 +338,8 @@
       }
     }
   },
-  "webhooks": {
-    "/plant/webhook": {
-      "post": {
-        "description": "Information about a new plant added to the store",
-        "requestBody": {
-          "description": "Plant added to the store",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPlant"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Return a 200 status to indicate that the data was received successfully"
-          }
-        }
-      }
-    }
-  },
   "components": {
     "schemas": {
-      "Plant": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "description": "The name of the plant",
-            "type": "string"
-          },
-          "tag": {
-            "description": "Tag to specify the type",
-            "type": "string"
-          }
-        }
-      },
-      "NewPlant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Plant"
-          },
-          {
-            "required": [
-              "id"
-            ],
-            "type": "object",
-            "properties": {
-              "id": {
-                "description": "Identification number of the plant",
-                "type": "integer",
-                "format": "int64"
-              }
-            }
-          }
-        ]
-      },
       "Error": {
         "required": [
           "error",
@@ -203,6 +353,128 @@
           },
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "AgentMetadata": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dateCreated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NewAgentResponse": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          }
+        }
+      },
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/AgentMetadata"
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Plan"
+            }
+          }
+        }
+      },
+      "Plan": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "price": {
+            "type": "object",
+            "properties": {
+              "priceType": {
+                "type": "string"
+              },
+              "tokenAddress": {
+                "type": "string"
+              },
+              "amounts": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "receivers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "credits": {
+            "type": "object",
+            "properties": {
+              "creditsType": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "integer"
+              },
+              "durationOfThePlan": {
+                "type": "integer"
+              }
+            }
+          },
+          "nftAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "Balance": {
+        "type": "object",
+        "properties": {
+          "isSubscriber": {
+            "type": "boolean"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "used": {
+            "type": "integer"
+          },
+          "remaining": {
+            "type": "integer"
           }
         }
       }

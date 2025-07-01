@@ -1,12 +1,376 @@
 ---
-title: "Best Practices"
-description: "Best practices for using Nevermined"
-icon: "shield-check"
+title: 'Best Practices'
+description: 'Security, performance, and implementation best practices for Nevermined Payments'
+icon: 'shield-check'
 ---
 
-## Best Practices
+## Security Best Practices
 
-Here are some best practices for using Nevermined:
+### Always Validate Requests
 
-- [ ] Use the latest version of Nevermined
-- [ ] Use the latest version of Nevermined
+Before processing any request, always validate that the subscriber has proper access:
+
+```typescript
+const isValid = await payments.isValidRequest(
+  planId, 
+  agentId, 
+  subscriberAddress, 
+  signature
+)
+
+if (!isValid) {
+  const paymentCard = await payments.getAgentPaymentCard(agentId)
+  return response.status(402).json(paymentCard)
+}
+```
+
+### Secure API Keys
+
+Never hardcode API keys or sensitive information:
+
+```typescript
+// Good ✅
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY,
+  environment: process.env.NODE_ENV === 'production' ? 'production' : 'testing'
+})
+
+// Bad ❌
+const payments = Payments.getInstance({
+  nvmApiKey: 'sk_live_abcd1234...',
+  environment: 'production'
+})
+```
+
+### Implement Rate Limiting
+
+Protect your agents from abuse with rate limiting:
+
+```typescript
+import rateLimit from 'express-rate-limit'
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per window
+  message: 'Too many requests, please try again later'
+})
+
+app.use('/api/', limiter)
+```
+
+### Fail Closed for Security
+
+Always default to denying access when validation errors occur:
+
+```typescript
+const isValid = await payments.isValidRequest(planId, agentId, subscriber, signature)
+  .catch(error => {
+    console.error('Validation error:', error)
+    return false // Fail closed
+  })
+```
+
+## Performance Optimization
+
+### Cache Agent and Plan Data
+
+Reduce API calls by caching frequently accessed data:
+
+```typescript
+const cache = new Map()
+
+async function getCachedAgent(agentId: string) {
+  if (!cache.has(agentId)) {
+    const agent = await payments.getAgent(agentId)
+    cache.set(agentId, agent)
+    // Set TTL for cache invalidation
+    setTimeout(() => cache.delete(agentId), 5 * 60 * 1000) // 5 minutes
+  }
+  return cache.get(agentId)
+}
+```
+
+### Batch Operations
+
+When dealing with multiple operations, batch them for better performance:
+
+```typescript
+// Good ✅ - Parallel execution
+const [agent1, agent2, agent3] = await Promise.all([
+  payments.getAgent(agentId1),
+  payments.getAgent(agentId2),
+  payments.getAgent(agentId3)
+])
+
+// Bad ❌ - Sequential execution
+const agent1 = await payments.getAgent(agentId1)
+const agent2 = await payments.getAgent(agentId2)
+const agent3 = await payments.getAgent(agentId3)
+```
+
+### Implement Retry Logic
+
+Handle transient failures gracefully:
+
+```typescript
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      if (attempt === maxRetries) throw error
+      
+      // Exponential backoff
+      const delay = 1000 * Math.pow(2, attempt - 1)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+  throw new Error('Max retries exceeded')
+}
+
+// Usage
+const result = await withRetry(() => 
+  payments.redeemCredits(planId, credits, proof)
+)
+```
+
+## User Experience
+
+### Clear Error Messages
+
+Provide helpful error responses for payment requirements:
+
+```typescript
+if (!isValid) {
+  const paymentCard = await payments.getAgentPaymentCard(agentId)
+  const agent = await payments.getAgent(agentId)
+  
+  return response.status(402).json({
+    error: 'Payment required to access this service',
+    message: 'Please purchase a plan to continue',
+    paymentCard,
+    availablePlans: agent.plans.map(p => ({
+      name: p.metadata.name,
+      price: p.price.amounts[0],
+      credits: p.credits.amount,
+      duration: p.credits.durationOfThePlan
+    }))
+  })
+}
+```
+
+### Usage Information Headers
+
+Include usage information in response headers:
+
+```typescript
+const balance = await payments.getPlanBalance(planId, subscriberAddress)
+
+response.setHeader('X-Credits-Remaining', balance.credits.toString())
+response.setHeader('X-Credits-Used', (balance.totalCredits - balance.credits).toString())
+response.setHeader('X-Plan-Type', balance.planType)
+```
+
+### Monitor Credit Usage
+
+Notify users when their credits are running low:
+
+```typescript
+const balance = await payments.getPlanBalance(planId, subscriberAddress)
+
+if (balance.credits < 10) {
+  // Include warning in response
+  response.setHeader('X-Low-Balance-Warning', 'true')
+  
+  // Optional: Send notification
+  await notifyLowBalance(subscriberAddress, balance.credits)
+}
+```
+
+## Implementation Patterns
+
+### Middleware Pattern
+
+Create reusable middleware for authentication:
+
+```typescript
+function neverminedAuth(planId: string, agentId: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const isValid = await payments.isValidRequest(
+      planId,
+      agentId,
+      req.body.subscriberAddress,
+      req.headers['x-nvm-query-signature']
+    )
+
+    if (!isValid) {
+      const paymentCard = await payments.getAgentPaymentCard(agentId)
+      return res.status(402).json(paymentCard)
+    }
+
+    // Add usage info to request object
+    req.nevermined = { planId, agentId }
+    next()
+  }
+}
+
+// Usage
+app.post('/api/query', 
+  neverminedAuth(planId, agentId), 
+  handleQuery
+)
+```
+
+### Error Handling Pattern
+
+Implement comprehensive error handling:
+
+```typescript
+import { PaymentsError } from '@nevermined-io/payments'
+
+app.use((error, req, res, next) => {
+  if (error instanceof PaymentsError) {
+    switch (error.code) {
+      case 'INVALID_API_KEY':
+        return res.status(401).json({ error: 'Invalid API key' })
+      case 'INSUFFICIENT_BALANCE':
+        return res.status(402).json({ error: 'Insufficient balance' })
+      case 'INVALID_PLAN_CONFIG':
+        return res.status(400).json({ error: 'Invalid plan configuration' })
+      case 'NETWORK_ERROR':
+        return res.status(503).json({ error: 'Service temporarily unavailable' })
+      default:
+        return res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+  
+  // Handle other errors
+  console.error('Unexpected error:', error)
+  res.status(500).json({ error: 'Internal server error' })
+})
+```
+
+## Monitoring and Analytics
+
+### Track Revenue
+
+Monitor your agent's revenue generation:
+
+```typescript
+async function trackRevenue(planId: string) {
+  const plan = await payments.getPlan(planId)
+  const price = plan.price.amounts[0]
+  const token = plan.price.tokenAddress
+  
+  // Log or send to analytics
+  console.log(`Revenue: ${price} tokens from ${token}`)
+  
+  // Optional: Send to analytics service
+  analytics.track('revenue_generated', {
+    planId,
+    amount: price.toString(),
+    token,
+    timestamp: new Date().toISOString()
+  })
+}
+```
+
+### Monitor Agent Health
+
+Implement health checks and monitoring:
+
+```typescript
+app.get('/health', async (req, res) => {
+  try {
+    // Check Nevermined connection
+    const agent = await payments.getAgent(agentId)
+    
+    res.json({
+      status: 'healthy',
+      agent: {
+        id: agent.agentId,
+        name: agent.metadata.name,
+        plans: agent.plans.length
+      }
+    })
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message
+    })
+  }
+})
+```
+
+## Testing Recommendations
+
+### Use Testing Environment
+
+Always use the testing environment during development:
+
+```typescript
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_TEST_API_KEY,
+  environment: 'testing' // Base Sepolia testnet
+})
+```
+
+### Mock for Unit Tests
+
+Mock the Payments SDK for unit testing:
+
+```typescript
+jest.mock('@nevermined-io/payments', () => ({
+  Payments: {
+    getInstance: jest.fn().mockReturnValue({
+      isValidRequest: jest.fn().mockResolvedValue(true),
+      redeemCredits: jest.fn().mockResolvedValue(true),
+      getAgentPaymentCard: jest.fn().mockResolvedValue({
+        agentId: 'test-agent',
+        plans: []
+      })
+    })
+  }
+}))
+```
+
+### Integration Testing
+
+Test the full flow in a test environment:
+
+```typescript
+describe('Agent Integration', () => {
+  let agentId: string
+  let planId: string
+
+  beforeAll(async () => {
+    // Create test agent and plan
+    const result = await payments.registerAgentAndPlan(
+      testMetadata,
+      testApi,
+      testPrice,
+      testCredits
+    )
+    agentId = result.agentId
+    planId = result.planId
+  })
+
+  test('should validate and process requests', async () => {
+    // Test implementation
+  })
+})
+```
+
+## Summary
+
+Following these best practices will help you build secure, performant, and user-friendly AI agents with Nevermined Payments. Remember to:
+
+- Always validate requests before processing
+- Secure your API keys and sensitive data
+- Implement proper error handling
+- Cache data for better performance
+- Provide clear feedback to users
+- Monitor your agents' health and usage
+- Test thoroughly in development environments
+
+For more detailed examples and advanced patterns, check out our [Example Apps](/introduction/example-apps) section.

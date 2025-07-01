@@ -2,3 +2,108 @@
 title: "AI"
 icon: "brain"
 ---
+
+# AI Integration with Nevermined
+
+## Overview
+
+Nevermined Payments is a TypeScript-first SDK that enables AI builders to monetize their agents through a decentralized payments protocol. It's specifically designed for the AI-native economy, providing seamless integration for AI services, agent-to-agent transactions, and flexible monetization models.
+
+## Key Features for AI Builders
+
+### AI Agent Monetization
+Register and monetize your AI services with flexible payment models tailored for AI workloads:
+- **Per-request pricing**: Charge based on API calls or inference requests
+- **Time-based subscriptions**: Monthly or annual access to your AI services
+- **Usage-based billing**: Dynamic pricing based on compute complexity
+- **Hybrid models**: Combine time and usage limits for maximum flexibility
+
+### Agent-to-Agent Transactions
+Enable autonomous AI-to-AI commerce where agents can:
+- Discover and purchase services from other agents
+- Automatically negotiate and execute transactions
+- Build complex AI workflows with multiple paid services
+- Create AI marketplaces and ecosystems
+
+### Dual Payment Support
+Accept payments in both:
+- **Cryptocurrency**: ERC-20 tokens for Web3-native users
+- **Fiat payments**: Traditional payments via Stripe integration
+- **No wallet required**: Simplified onboarding for traditional developers
+
+### Credit-Based Billing
+Implement sophisticated usage tracking:
+- **Tokenized credits**: Represent computational units or API calls
+- **Dynamic credit consumption**: Adjust costs based on request complexity
+- **Real-time settlement**: Instant credit redemption and balance updates
+- **Usage analytics**: Track and optimize AI service consumption
+
+## Why Nevermined for AI?
+
+### Built for AI Workloads
+- **High-frequency authorization**: Optimized for rapid API calls
+- **Low latency**: Minimal overhead for real-time AI services
+- **Scalable**: Handle millions of micro-transactions efficiently
+
+### Developer-Friendly
+- **TypeScript SDK**: First-class TypeScript support with full type safety
+- **Simple integration**: Get started with just a few lines of code
+- **Flexible deployment**: Direct integration or proxy-based setup
+
+### Security & Trust
+- **Cryptographic validation**: Secure request signatures
+- **Access control**: Fine-grained permission management
+- **Decentralized**: No single point of failure or control
+
+## Common AI Use Cases
+
+### 1. LLM Services
+Monetize large language model access with per-token or per-request pricing.
+
+### 2. Computer Vision APIs
+Charge for image processing, object detection, or video analysis services.
+
+### 3. Data Processing Pipelines
+Bill for complex data transformation and analysis workflows.
+
+### 4. AI Consulting Agents
+Create specialized AI agents that charge for domain expertise.
+
+### 5. Model Training Services
+Offer compute resources for training custom AI models.
+
+## Getting Started
+
+To start monetizing your AI agent:
+
+1. **Install the SDK**
+   ```bash
+   npm install @nevermined-io/payments
+   ```
+
+2. **Initialize the client**
+   ```typescript
+   import { Payments } from '@nevermined-io/payments'
+   
+   const payments = Payments.getInstance({
+     nvmApiKey: process.env.NVM_API_KEY,
+     environment: 'production'
+   })
+   ```
+
+3. **Register your AI agent**
+   ```typescript
+   const { agentId, planId } = await payments.registerAgentAndPlan(
+     agentMetadata,
+     agentApi,
+     priceConfig,
+     creditsConfig
+   )
+   ```
+
+## Next Steps
+
+- [Explore AI Use Cases](./ai-use-cases) - See real examples of AI services using Nevermined
+- [Integration Guide](./integrating-nvm-using-ai) - Step-by-step guide to integrate Nevermined
+- [API Reference](/api-reference) - Complete SDK documentation
+- [Example Apps](/introduction/example-apps) - Code samples and templates

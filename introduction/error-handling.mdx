@@ -1,0 +1,562 @@
+---
+title: 'Error Handling'
+description: 'Handle errors gracefully in your Nevermined integration'
+icon: 'triangle-exclamation'
+---
+
+## Error Types
+
+Nevermined SDK can throw several types of errors that you should handle appropriately:
+
+<CardGroup cols={2}>
+  <Card title="PaymentsError" icon="code">
+    SDK-specific errors with error codes
+  </Card>
+  <Card title="Network Errors" icon="wifi">
+    Connection and timeout issues
+  </Card>
+  <Card title="Validation Errors" icon="shield-xmark">
+    Invalid requests or parameters
+  </Card>
+  <Card title="Balance Errors" icon="coins">
+    Insufficient credits or funds
+  </Card>
+</CardGroup>
+
+## Common Error Scenarios
+
+### PaymentsError Handling
+
+The SDK throws `PaymentsError` instances with specific error codes:
+
+```typescript
+import { PaymentsError } from '@nevermined-io/payments'
+
+try {
+  const result = await payments.registerAgentAndPlan(metadata, api, price, credits)
+} catch (error) {
+  if (error instanceof PaymentsError) {
+    switch (error.code) {
+      case 'INVALID_API_KEY':
+        console.error('Invalid API key provided')
+        // Prompt user to check API key
+        break
+        
+      case 'INSUFFICIENT_BALANCE':
+        console.error('Insufficient balance for transaction')
+        // Show payment required message
+        break
+        
+      case 'INVALID_PLAN_CONFIG':
+        console.error('Invalid payment plan configuration')
+        // Check plan parameters
+        break
+        
+      case 'NETWORK_ERROR':
+        console.error('Network connection failed')
+        // Retry with exponential backoff
+        break
+        
+      case 'VALIDATION_ERROR':
+        console.error('Request validation failed:', error.details)
+        // Fix validation issues
+        break
+        
+      default:
+        console.error('Unknown payments error:', error.message)
+    }
+  } else {
+    console.error('Unexpected error:', error)
+  }
+}
+```
+
+### Request Validation Errors
+
+Always handle validation failures gracefully:
+
+```typescript
+app.post('/api/query', async (req, res) => {
+  try {
+    // Validate required fields
+    const { planId, agentId, subscriberAddress } = req.body
+    const signature = req.headers['x-nvm-query-signature']
+
+    if (!planId || !agentId || !subscriberAddress || !signature) {
+      return res.status(400).json({
+        error: 'Missing required parameters',
+        required: ['planId', 'agentId', 'subscriberAddress'],
+        headers: ['x-nvm-query-signature']
+      })
+    }
+
+    // Validate request with Nevermined
+    const isValid = await payments.isValidRequest(
+      planId,
+      agentId,
+      subscriberAddress,
+      signature as string
+    ).catch(error => {
+      console.error('Validation error:', error)
+      return false // Fail closed for security
+    })
+
+    if (!isValid) {
+      const paymentCard = await payments.getAgentPaymentCard(agentId)
+      return res.status(402).json({
+        error: 'Payment required',
+        message: 'Please purchase a plan to access this service',
+        paymentCard
+      })
+    }
+
+    // Process request...
+    
+  } catch (error) {
+    console.error('Request processing error:', error)
+    res.status(500).json({ 
+      error: 'Internal server error',
+      requestId: req.id // For debugging
+    })
+  }
+})
+```
+
+### Credit Balance Errors
+
+Check balance before processing expensive operations:
+
+```typescript
+async function processExpensiveOperation(planId: string, subscriberAddress: string, creditsRequired: bigint) {
+  try {
+    // Check balance first
+    const balance = await payments.getPlanBalance(planId, subscriberAddress)
+    
+    if (!balance.isSubscriber) {
+      throw new Error('Not a subscriber to this plan')
+    }
+
+    if (balance.credits < creditsRequired) {
+      return {
+        error: 'Insufficient credits',
+        required: creditsRequired.toString(),
+        available: balance.credits.toString(),
+        planType: balance.planType
+      }
+    }
+
+    // Process operation
+    const result = await performExpensiveOperation()
+
+    // Redeem credits
+    await payments.redeemCredits(planId, creditsRequired, {
+      operation: 'expensive',
+      timestamp: Date.now()
+    })
+
+    return {
+      success: true,
+      result,
+      creditsUsed: creditsRequired.toString(),
+      creditsRemaining: (balance.credits - creditsRequired).toString()
+    }
+
+  } catch (error) {
+    console.error('Operation failed:', error)
+    throw error
+  }
+}
+```
+
+## Error Recovery Strategies
+
+### Retry with Exponential Backoff
+
+Implement retry logic for transient failures:
+
+```typescript
+async function withRetry<T>(
+  fn: () => Promise<T>, 
+  options: {
+    maxRetries?: number
+    initialDelay?: number
+    maxDelay?: number
+    factor?: number
+  } = {}
+): Promise<T> {
+  const {
+    maxRetries = 3,
+    initialDelay = 1000,
+    maxDelay = 30000,
+    factor = 2
+  } = options
+
+  let lastError: Error
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error as Error
+
+      // Don't retry on certain errors
+      if (error instanceof PaymentsError) {
+        const nonRetryableCodes = [
+          'INVALID_API_KEY',
+          'INVALID_PLAN_CONFIG',
+          'VALIDATION_ERROR'
+        ]
+        
+        if (nonRetryableCodes.includes(error.code)) {
+          throw error
+        }
+      }
+
+      if (attempt < maxRetries - 1) {
+        const delay = Math.min(
+          initialDelay * Math.pow(factor, attempt),
+          maxDelay
+        )
+        
+        console.log(`Retry attempt ${attempt + 1} after ${delay}ms`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+  }
+
+  throw lastError!
+}
+
+// Usage
+const result = await withRetry(() => 
+  payments.redeemCredits(planId, credits, proof)
+)
+```
+
+### Circuit Breaker Pattern
+
+Prevent cascading failures:
+
+```typescript
+class CircuitBreaker {
+  private failures = 0
+  private lastFailureTime = 0
+  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED'
+
+  constructor(
+    private threshold = 5,
+    private timeout = 60000 // 1 minute
+  ) {}
+
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.state === 'OPEN') {
+      if (Date.now() - this.lastFailureTime > this.timeout) {
+        this.state = 'HALF_OPEN'
+      } else {
+        throw new Error('Circuit breaker is OPEN')
+      }
+    }
+
+    try {
+      const result = await fn()
+      this.onSuccess()
+      return result
+    } catch (error) {
+      this.onFailure()
+      throw error
+    }
+  }
+
+  private onSuccess() {
+    this.failures = 0
+    this.state = 'CLOSED'
+  }
+
+  private onFailure() {
+    this.failures++
+    this.lastFailureTime = Date.now()
+
+    if (this.failures >= this.threshold) {
+      this.state = 'OPEN'
+      console.error(`Circuit breaker opened after ${this.failures} failures`)
+    }
+  }
+}
+
+// Usage
+const breaker = new CircuitBreaker()
+
+app.post('/api/query', async (req, res) => {
+  try {
+    const result = await breaker.execute(async () => {
+      // Your payment validation and processing
+      return await processRequest(req)
+    })
+    
+    res.json(result)
+  } catch (error) {
+    if (error.message === 'Circuit breaker is OPEN') {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        retryAfter: 60
+      })
+    } else {
+      res.status(500).json({ error: 'Request failed' })
+    }
+  }
+})
+```
+
+## Global Error Handler
+
+Implement a comprehensive error handler for Express:
+
+```typescript
+import { Request, Response, NextFunction } from 'express'
+import { PaymentsError } from '@nevermined-io/payments'
+
+interface ErrorResponse {
+  error: string
+  code?: string
+  details?: any
+  requestId?: string
+  timestamp: string
+}
+
+export function errorHandler(
+  error: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Log error for debugging
+  console.error(`Error ${req.method} ${req.path}:`, error)
+
+  // Build error response
+  const errorResponse: ErrorResponse = {
+    error: 'Internal server error',
+    timestamp: new Date().toISOString(),
+    requestId: req.id
+  }
+
+  let status = 500
+
+  // Handle PaymentsError
+  if (error instanceof PaymentsError) {
+    const errorMap = {
+      'INVALID_API_KEY': { status: 401, message: 'Invalid API key' },
+      'INSUFFICIENT_BALANCE': { status: 402, message: 'Insufficient balance' },
+      'INVALID_PLAN_CONFIG': { status: 400, message: 'Invalid plan configuration' },
+      'NETWORK_ERROR': { status: 503, message: 'Service temporarily unavailable' },
+      'VALIDATION_ERROR': { status: 400, message: 'Validation failed' },
+      'AGENT_NOT_FOUND': { status: 404, message: 'Agent not found' },
+      'PLAN_NOT_FOUND': { status: 404, message: 'Plan not found' },
+      'UNAUTHORIZED': { status: 403, message: 'Unauthorized access' }
+    }
+
+    const mapped = errorMap[error.code]
+    if (mapped) {
+      status = mapped.status
+      errorResponse.error = mapped.message
+      errorResponse.code = error.code
+      
+      if (process.env.NODE_ENV === 'development') {
+        errorResponse.details = error.details
+      }
+    }
+  }
+
+  // Handle validation errors
+  else if (error.name === 'ValidationError') {
+    status = 400
+    errorResponse.error = 'Validation failed'
+    errorResponse.details = error.message
+  }
+
+  // Handle rate limit errors
+  else if (error.message.includes('Rate limit')) {
+    status = 429
+    errorResponse.error = 'Too many requests'
+    res.setHeader('Retry-After', '60')
+  }
+
+  // Send response
+  res.status(status).json(errorResponse)
+}
+
+// Apply to Express app
+app.use(errorHandler)
+```
+
+## Client-Side Error Handling
+
+For client applications using your API:
+
+```typescript
+class NeverminedClient {
+  constructor(
+    private apiUrl: string,
+    private payments: Payments
+  ) {}
+
+  async query(agentId: string, planId: string, prompt: string) {
+    try {
+      const options = await this.payments.getAgentHTTPOptions(planId, agentId)
+      
+      const response = await fetch(`${this.apiUrl}/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        body: JSON.stringify({ prompt })
+      })
+
+      if (!response.ok) {
+        await this.handleErrorResponse(response, agentId)
+      }
+
+      return await response.json()
+      
+    } catch (error) {
+      this.handleNetworkError(error)
+    }
+  }
+
+  private async handleErrorResponse(response: Response, agentId: string) {
+    const error = await response.json()
+
+    switch (response.status) {
+      case 402: // Payment Required
+        console.error('Payment required:', error.paymentCard)
+        throw new PaymentRequiredError(error.paymentCard)
+        
+      case 429: // Rate Limited
+        const retryAfter = response.headers.get('Retry-After')
+        throw new RateLimitError(retryAfter)
+        
+      case 503: // Service Unavailable
+        throw new ServiceUnavailableError(error.message)
+        
+      default:
+        throw new APIError(error.message, response.status)
+    }
+  }
+
+  private handleNetworkError(error: any) {
+    if (error.code === 'ECONNREFUSED') {
+      throw new Error('Cannot connect to API server')
+    } else if (error.code === 'ETIMEDOUT') {
+      throw new Error('Request timed out')
+    } else {
+      throw error
+    }
+  }
+}
+
+// Custom error classes
+class PaymentRequiredError extends Error {
+  constructor(public paymentCard: any) {
+    super('Payment required to access this service')
+    this.name = 'PaymentRequiredError'
+  }
+}
+
+class RateLimitError extends Error {
+  constructor(public retryAfter: string | null) {
+    super('Rate limit exceeded')
+    this.name = 'RateLimitError'
+  }
+}
+
+class ServiceUnavailableError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ServiceUnavailableError'
+  }
+}
+
+class APIError extends Error {
+  constructor(message: string, public status: number) {
+    super(message)
+    this.name = 'APIError'
+  }
+}
+```
+
+## Monitoring and Alerting
+
+Track errors for operational visibility:
+
+```typescript
+import * as Sentry from '@sentry/node'
+
+// Initialize error tracking
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  integrations: [
+    new Sentry.Integrations.Http({ tracing: true }),
+    new Sentry.Integrations.Express({ app })
+  ]
+})
+
+// Track specific Nevermined errors
+function trackPaymentError(error: PaymentsError, context: any) {
+  Sentry.captureException(error, {
+    tags: {
+      error_code: error.code,
+      component: 'nevermined'
+    },
+    extra: context
+  })
+}
+
+// Metrics tracking
+function trackErrorMetrics(error: Error, endpoint: string) {
+  // Send to your metrics service
+  metrics.increment('api.errors', {
+    endpoint,
+    error_type: error.constructor.name,
+    error_code: (error as any).code || 'unknown'
+  })
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion icon="shield" title="Security">
+    - Never expose sensitive error details in production
+    - Always fail closed on validation errors
+    - Log security-related errors for auditing
+    - Implement rate limiting to prevent abuse
+  </Accordion>
+  
+  <Accordion icon="user" title="User Experience">
+    - Provide clear, actionable error messages
+    - Include support contact for critical errors
+    - Show remaining credits when near limits
+    - Offer alternative actions when possible
+  </Accordion>
+  
+  <Accordion icon="wrench" title="Operations">
+    - Log all errors with context
+    - Set up alerts for error spikes
+    - Track error rates by type
+    - Monitor recovery success rates
+  </Accordion>
+  
+  <Accordion icon="code" title="Development">
+    - Use TypeScript for better error handling
+    - Write tests for error scenarios
+    - Document error codes and meanings
+    - Provide error recovery examples
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- [Test error scenarios](/introduction/development#testing-your-agent)
+- [Monitor production errors](/introduction/go-live-checklist#monitoring--analytics)
+- [Get help with errors](https://discord.gg/nevermined)

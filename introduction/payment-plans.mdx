@@ -1,0 +1,462 @@
+---
+title: 'Payment Plans'
+description: 'Design flexible pricing models for your AI services'
+icon: 'money-bill'
+---
+
+## Overview
+
+Payment plans define how subscribers pay for and access your AI services. Nevermined supports multiple pricing models to match your business needs.
+
+<CardGroup cols={3}>
+  <Card title="Usage-Based" icon="coins" href="#usage-based-plans">
+    Pay per request
+  </Card>
+  <Card title="Time-Based" icon="clock" href="#time-based-plans">
+    Subscription model
+  </Card>
+  <Card title="Hybrid" icon="layer-group" href="#hybrid-plans">
+    Combined approach
+  </Card>
+</CardGroup>
+
+## Plan Components
+
+Every payment plan consists of two main configurations:
+
+### 1. Price Configuration
+
+Defines the cost and payment details:
+
+```typescript
+interface PriceConfig {
+  priceType: 'FIXED_PRICE' | 'DYNAMIC_PRICE'
+  tokenAddress: string      // Token contract or '0x0' for native
+  amounts: bigint[]        // Payment amounts
+  receivers: string[]      // Who receives payment
+}
+```
+
+### 2. Credits Configuration
+
+Defines what subscribers receive:
+
+```typescript
+interface CreditsConfig {
+  creditsType: 'FIXED' | 'EXPIRABLE' | 'DYNAMIC'
+  amount: bigint                    // Total credits
+  creditsPerRequest?: bigint        // Credits per use
+  minCreditsPerRequest?: bigint     // For dynamic pricing
+  maxCreditsPerRequest?: bigint     // For dynamic pricing  
+  durationOfThePlan?: bigint        // For time-based plans
+}
+```
+
+## Usage-Based Plans
+
+Perfect for pay-as-you-go services where users pay for what they consume.
+
+### Fixed Credits Example
+
+```typescript
+import { 
+  getERC20PriceConfig, 
+  getFixedCreditsConfig 
+} from '@nevermined-io/payments'
+
+// 10 USDC for 100 API calls
+const price = getERC20PriceConfig(
+  10_000_000n, // 10 USDC (6 decimals)
+  '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C', // USDC address
+  builderAddress
+)
+
+const credits = getFixedCreditsConfig(
+  100n, // Total credits
+  1n    // 1 credit per request
+)
+
+const { planId } = await payments.registerCreditsPlan(price, credits)
+```
+
+### Dynamic Credits Example
+
+For services where usage varies by request:
+
+```typescript
+// 50 USDC for 1000 credits (variable consumption)
+const price = getERC20PriceConfig(50_000_000n, USDC_ADDRESS, builderAddress)
+
+const dynamicCredits = {
+  creditsType: 'DYNAMIC',
+  amount: 1000n,
+  minCreditsPerRequest: 1n,   // Minimum 1 credit
+  maxCreditsPerRequest: 50n   // Maximum 50 credits
+}
+
+const { planId } = await payments.registerCreditsPlan(price, dynamicCredits)
+
+// In your endpoint, calculate credits based on complexity
+const creditsUsed = calculateComplexity(request) // Returns 1-50
+await payments.redeemCredits(planId, creditsUsed, proof)
+```
+
+## Time-Based Plans
+
+Ideal for subscription services with unlimited or high-volume usage.
+
+### Monthly Subscription
+
+```typescript
+import { 
+  getFiatPriceConfig, 
+  getExpirablePlanCreditsConfig 
+} from '@nevermined-io/payments'
+
+// $29.99/month via Stripe
+const price = getFiatPriceConfig(
+  29_990_000n, // $29.99 (8 decimals)
+  builderAddress
+)
+
+const credits = getExpirablePlanCreditsConfig(
+  86400n * 30n // 30 days in seconds
+)
+
+const { planId } = await payments.registerTimePlan(price, credits)
+```
+
+### Annual Subscription
+
+```typescript
+// $299/year (with discount)
+const price = getFiatPriceConfig(299_000_000n, builderAddress)
+const credits = getExpirablePlanCreditsConfig(86400n * 365n)
+
+const { planId } = await payments.registerTimePlan(price, credits)
+```
+
+## Hybrid Plans
+
+Combine time limits with usage limits for maximum flexibility.
+
+### Example: Monthly Plan with Usage Cap
+
+```typescript
+// $49/month for up to 1000 requests
+const price = getFiatPriceConfig(49_000_000n, builderAddress)
+
+const hybridCredits = {
+  creditsType: 'FIXED',
+  amount: 1000n,
+  creditsPerRequest: 1n,
+  durationOfThePlan: 86400n * 30n // Also expires after 30 days
+}
+
+const { planId } = await payments.registerCreditsPlan(price, hybridCredits)
+```
+
+## Multi-Tier Pricing
+
+Offer different plans for different customer segments:
+
+```typescript
+async function createTieredPricing() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY,
+    environment: 'production'
+  })
+
+  // Basic Tier - $9.99 for 100 requests
+  const basicPrice = getFiatPriceConfig(9_990_000n, builderAddress)
+  const basicCredits = getFixedCreditsConfig(100n, 1n)
+  const { planId: basicPlan } = await payments.registerCreditsPlan(
+    basicPrice, 
+    basicCredits
+  )
+
+  // Pro Tier - $49.99 for 1000 requests
+  const proPrice = getFiatPriceConfig(49_990_000n, builderAddress)
+  const proCredits = getFixedCreditsConfig(1000n, 1n)
+  const { planId: proPlan } = await payments.registerCreditsPlan(
+    proPrice, 
+    proCredits
+  )
+
+  // Enterprise Tier - $199/month unlimited
+  const enterprisePrice = getFiatPriceConfig(199_000_000n, builderAddress)
+  const enterpriseCredits = getExpirablePlanCreditsConfig(86400n * 30n)
+  const { planId: enterprisePlan } = await payments.registerTimePlan(
+    enterprisePrice, 
+    enterpriseCredits
+  )
+
+  // Register agent with all plans
+  const { agentId } = await payments.registerAgent(
+    agentMetadata,
+    agentApi,
+    [basicPlan, proPlan, enterprisePlan]
+  )
+
+  return { agentId, plans: { basicPlan, proPlan, enterprisePlan } }
+}
+```
+
+## Payment Methods
+
+### Cryptocurrency (ERC-20 Tokens)
+
+```typescript
+// Accept USDC
+const usdcPrice = getERC20PriceConfig(
+  10_000_000n, // 10 USDC
+  '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C', // USDC contract
+  builderAddress
+)
+
+// Accept custom token
+const customPrice = getERC20PriceConfig(
+  1000_000_000_000_000_000n, // 1 token (18 decimals)
+  '0xYourTokenAddress',
+  builderAddress
+)
+```
+
+### Fiat Currency (via Stripe)
+
+```typescript
+// Accept USD via credit card
+const fiatPrice = getFiatPriceConfig(
+  25_000_000n, // $25.00
+  builderAddress
+)
+```
+
+## Advanced Pricing Strategies
+
+### Volume Discounts
+
+Create plans with better rates for higher volume:
+
+```typescript
+const plans = [
+  { credits: 100n, price: 10_000_000n },   // $0.10 per credit
+  { credits: 1000n, price: 80_000_000n },  // $0.08 per credit
+  { credits: 10000n, price: 500_000_000n } // $0.05 per credit
+]
+
+for (const tier of plans) {
+  const price = getERC20PriceConfig(tier.price, USDC_ADDRESS, builderAddress)
+  const credits = getFixedCreditsConfig(tier.credits, 1n)
+  await payments.registerCreditsPlan(price, credits)
+}
+```
+
+### Feature-Based Pricing
+
+Different credit consumption for different features:
+
+```typescript
+// In your endpoint logic
+async function processRequest(feature: string, req: Request) {
+  const creditCosts = {
+    'basic-query': 1n,
+    'advanced-analysis': 5n,
+    'premium-generation': 10n,
+    'enterprise-batch': 25n
+  }
+
+  const creditsRequired = creditCosts[feature] || 1n
+  
+  // Check balance first
+  const balance = await payments.getPlanBalance(planId, subscriberAddress)
+  if (balance.credits < creditsRequired) {
+    throw new Error('Insufficient credits for this feature')
+  }
+
+  // Process and redeem
+  const result = await processFeature(feature, req)
+  await payments.redeemCredits(planId, creditsRequired, { feature })
+  
+  return result
+}
+```
+
+### Revenue Sharing
+
+Split payments between multiple parties:
+
+```typescript
+const revenueSharePrice = {
+  priceType: 'FIXED_PRICE',
+  tokenAddress: USDC_ADDRESS,
+  amounts: [
+    7_000_000n,  // 70% to main developer
+    2_000_000n,  // 20% to data provider
+    1_000_000n   // 10% to platform
+  ],
+  receivers: [
+    developerAddress,
+    dataProviderAddress,
+    platformAddress
+  ]
+}
+
+const { planId } = await payments.registerCreditsPlan(
+  revenueSharePrice,
+  creditsConfig
+)
+```
+
+## Plan Management
+
+### Updating Plans
+
+Plans are immutable once created, but you can:
+
+1. Create new plans with updated pricing
+2. Add new plans to existing agents
+3. Deprecate old plans (stop promoting them)
+
+```typescript
+// Add a new plan to existing agent
+const newPlanId = await createNewPlan()
+await payments.addPlanToAgent(agentId, newPlanId)
+```
+
+### Plan Analytics
+
+Track plan performance:
+
+```typescript
+async function analyzePlanPerformance(planId: string) {
+  const plan = await payments.getPlan(planId)
+  
+  // Get subscriber count and usage metrics
+  const metrics = {
+    planId,
+    price: plan.price.amounts[0],
+    totalCredits: plan.credits.amount,
+    creditsPerRequest: plan.credits.creditsPerRequest,
+    // Add your custom analytics
+  }
+  
+  return metrics
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion icon="lightbulb" title="Pricing Strategy">
+    - Research competitor pricing
+    - Start with simple plans
+    - A/B test different price points
+    - Consider freemium options
+    - Offer clear value propositions
+  </Accordion>
+  
+  <Accordion icon="users" title="Customer Segmentation">
+    - Individual developers (low volume, price sensitive)
+    - Startups (medium volume, feature focused)
+    - Enterprise (high volume, SLA requirements)
+    - Offer appropriate plans for each segment
+  </Accordion>
+  
+  <Accordion icon="chart-line" title="Usage Patterns">
+    - Monitor actual usage vs. allocated credits
+    - Adjust credit allocations based on data
+    - Consider peak usage times
+    - Plan for seasonal variations
+  </Accordion>
+  
+  <Accordion icon="shield" title="Plan Security">
+    - Set reasonable rate limits
+    - Monitor for abuse patterns
+    - Implement usage caps where appropriate
+    - Have clear terms of service
+  </Accordion>
+</AccordionGroup>
+
+## Example: Complete Pricing Implementation
+
+```typescript
+import { 
+  Payments,
+  getERC20PriceConfig,
+  getFiatPriceConfig,
+  getFixedCreditsConfig,
+  getExpirablePlanCreditsConfig
+} from '@nevermined-io/payments'
+
+class PricingManager {
+  private payments: Payments
+  
+  constructor() {
+    this.payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'production'
+    })
+  }
+
+  async setupCompletePricing(agentMetadata, agentApi) {
+    const plans = []
+
+    // Free Trial - 10 requests
+    const trialPrice = getERC20PriceConfig(0n, USDC_ADDRESS, builderAddress)
+    const trialCredits = getFixedCreditsConfig(10n, 1n)
+    const trial = await this.payments.registerCreditsPlan(trialPrice, trialCredits)
+    plans.push(trial.planId)
+
+    // Pay-as-you-go - $0.10 per request
+    const paygoPrice = getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
+    const paygoCredits = getFixedCreditsConfig(100n, 1n)
+    const paygo = await this.payments.registerCreditsPlan(paygoPrice, paygoCredits)
+    plans.push(paygo.planId)
+
+    // Monthly Pro - $49/month for 1000 requests
+    const proPrice = getFiatPriceConfig(49_000_000n, builderAddress)
+    const proCredits = {
+      creditsType: 'FIXED',
+      amount: 1000n,
+      creditsPerRequest: 1n,
+      durationOfThePlan: 86400n * 30n
+    }
+    const pro = await this.payments.registerCreditsPlan(proPrice, proCredits)
+    plans.push(pro.planId)
+
+    // Enterprise - Custom pricing
+    const enterprisePrice = getFiatPriceConfig(499_000_000n, builderAddress)
+    const enterpriseCredits = getExpirablePlanCreditsConfig(86400n * 30n)
+    const enterprise = await this.payments.registerTimePlan(
+      enterprisePrice, 
+      enterpriseCredits
+    )
+    plans.push(enterprise.planId)
+
+    // Register agent with all plans
+    const { agentId } = await this.payments.registerAgent(
+      agentMetadata,
+      agentApi,
+      plans
+    )
+
+    return {
+      agentId,
+      plans: {
+        trial: trial.planId,
+        paygo: paygo.planId,
+        pro: pro.planId,
+        enterprise: enterprise.planId
+      }
+    }
+  }
+}
+```
+
+## Next Steps
+
+- [Implement payment validation](/introduction/integration-guide)
+- [Handle different credit types](/introduction/core-concepts#credits-system)
+- [See pricing examples](/introduction/example-apps)
+- [Go live with your plans](/introduction/go-live-checklist)

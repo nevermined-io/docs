@@ -1,161 +1,237 @@
 ---
 title: "Welcome"
-description: "Welcome to Nevermined — AI-native payments and access infrastructure for developers"
+description: "Welcome to Nevermined — AI-native payments infrastructure for developers"
 icon: "hand-wave"
 ---
 
-# Introduction
+## The AI Commerce Protocol
 
-Nevermined is an open, programmable payments and access protocol purpose-built for a future where AI agents operate autonomously, earn revenue, and transact with each other and with humans — without needing centralized platforms or complex billing infrastructure.
-
-It provides a decentralized backend that supports real-time, usage-based payments, flexible subscription plans, metered access control, and automated accounting — all optimized for AI-native applications, and fully composable across Web2 and Web3 environments.
-
-Whether you're building a solo AI agent or orchestrating a multi-agent system, Nevermined helps you focus on intelligence, not infrastructure.
-
----
-
-## Quick Links
+Nevermined is an open payments and access protocol designed for the AI economy. It provides infrastructure for AI agents to monetize their services, transact autonomously, and integrate seamlessly with both Web2 and Web3 payment systems — all without centralized platforms or complex billing infrastructure.
 
 <CardGroup cols={2}>
-  <Card title="Getting Started" icon="rocket" href="/getting-started">
-    Start building with Nevermined in minutes
-  </Card>
-  <Card title="AI Development" icon="brain" href="/ai-development">
-    Build and deploy AI agents with payment integration
+  <Card title="Quickstart" icon="rocket" href="/introduction/quickstart">
+    Get started with Nevermined in 5 minutes
   </Card>
   <Card title="API Reference" icon="code" href="/api-reference">
-    Comprehensive API documentation and examples
+    Explore the complete API documentation
   </Card>
-  <Card title="Support" icon="question" href="/troubleshooting">
-    Get help and find solutions to common issues
+  <Card title="Core Concepts" icon="lightbulb" href="/introduction/core-concepts">
+    Understand the key building blocks
+  </Card>
+  <Card title="Examples" icon="code" href="/introduction/example-apps">
+    See real-world implementations
   </Card>
 </CardGroup>
-
----
 
 ## Why Nevermined?
 
-The AI economy is growing rapidly, but monetization and access control remain fragmented and inefficient.
+The AI economy is growing rapidly, but monetization remains fragmented:
 
-- Most AI tools rely on centralized SaaS platforms
-- Billing logic is custom, fragile, and not composable
-- Agents cannot easily pay or restrict other agents
+- **Centralized Gatekeepers**: Most AI tools rely on proprietary platforms
+- **Limited Payment Options**: Traditional processors don't support AI-native workflows
+- **No Agent Commerce**: AI agents can't easily transact with each other
+- **Complex Integration**: Building custom billing is time-consuming and error-prone
 
-### Nevermined solves these challenges:
+### Nevermined Is Different
 
-- Built-in crypto and fiat (Stripe) payment support
-- Flexible payment plans with usage-based metering
-- Real-time credit accounting and secure access enforcement
-- Agent-to-agent and human-to-agent flows with low-code integration
+<CardGroup cols={3}>
+  <Card title="Protocol-First" icon="network-wired">
+    Open protocol enabling permissionless AI commerce
+  </Card>
+  <Card title="Multi-Language" icon="code">
+    SDKs for TypeScript, Python, and REST APIs
+  </Card>
+  <Card title="Dual Payments" icon="credit-card">
+    Native support for crypto and fiat payments
+  </Card>
+  <Card title="Agent Economy" icon="robot">
+    Built for autonomous AI-to-AI transactions
+  </Card>
+  <Card title="Composable" icon="puzzle-piece">
+    Works with existing infrastructure and services
+  </Card>
+  <Card title="Decentralized" icon="globe">
+    No single point of failure or control
+  </Card>
+</CardGroup>
 
----
+## The Nevermined Stack
+
+### 1. Protocol Layer
+The core protocol handles payments, access control, and credit accounting on-chain, ensuring transparency and reliability.
+
+### 2. Integration Options
+
+<Tabs>
+  <Tab title="TypeScript SDK">
+    Full-featured SDK for Node.js and browser applications
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+    
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'production'
+    })
+    ```
+  </Tab>
+  
+  <Tab title="Python SDK">
+    Native Python library for AI/ML applications
+    ```python
+    from nevermined import Payments
+    
+    payments = Payments(
+        api_key=os.environ['NVM_API_KEY'],
+        environment='production'
+    )
+    ```
+  </Tab>
+  
+  <Tab title="REST API">
+    HTTP endpoints for any programming language
+    ```bash
+    curl -X POST https://api.nevermined.app/agents \
+      -H "Authorization: Bearer $NVM_API_KEY" \
+      -d '{"name": "My AI Agent", "endpoints": [...]}'
+    ```
+  </Tab>
+  
+  <Tab title="Proxy Service">
+    Zero-code integration for existing services
+    ```
+    https://proxy.nevermined.app/agent/{agentId}
+    ```
+  </Tab>
+</Tabs>
+
+### 3. Builder Tools
+- **Nevermined App**: Visual dashboard for managing agents and analytics
+- **CLI Tools**: Command-line utilities for automation
+- **Templates**: Starter projects and examples
 
 ## What You Can Build
 
-With Nevermined, your AI agents can:
-
-- Offer services via public or private HTTP APIs
-- Charge users per request, time period, or credits
-- Integrate pricing plans for fiat and crypto
-- Transact autonomously with other agents
-- Expose metadata and register for discovery
-
----
+<AccordionGroup>
+  <Accordion icon="message" title="AI Chat Services">
+    Monetize conversational AI with per-message or subscription pricing
+  </Accordion>
+  <Accordion icon="magnifying-glass" title="Code Analysis Tools">
+    Charge for code reviews, security scans, and optimization suggestions
+  </Accordion>
+  <Accordion icon="image" title="Computer Vision APIs">
+    Bill based on image complexity or processing time
+  </Accordion>
+  <Accordion icon="language" title="Translation Services">
+    Offer pay-per-use or monthly plans for language processing
+  </Accordion>
+  <Accordion icon="chart-mixed" title="Data Analysis">
+    Dynamic pricing based on dataset size and complexity
+  </Accordion>
+  <Accordion icon="link" title="Multi-Agent Systems">
+    Build AI workflows where agents pay each other for services
+  </Accordion>
+  <Accordion icon="brain" title="Model Inference">
+    Monetize custom models with usage-based billing
+  </Accordion>
+  <Accordion icon="database" title="RAG Services">
+    Charge for access to specialized knowledge bases
+  </Accordion>
+</AccordionGroup>
 
 ## How It Works
 
-### 1. Register an Agent  
-Declare your agent’s metadata, capabilities, and API endpoints.
-
-### 2. Create a Payment Plan  
-Use `getERC20PriceConfig` and `getFixedCreditsConfig` to define pricing and usage.
-
-### 3. Accept Subscribers  
-Subscribers purchase plans via Stripe or tokens. Credits are automatically issued and tracked.
-
-### 4. Enforce Access  
-Nevermined validates credit balance and redeems usage on each request — either directly or via proxy.
-
----
-
-## What's New
-
-- **Fiat Payment Integration** – Accept payments with Stripe and stablecoins
-- **AI Agent Marketplace** – Discover and monetize agents across use cases
-- **Credits System** – Built-in metering with dynamic pricing support
-- **Enhanced Developer Tools** – Unified Payments API with built-in credit logic
-
----
+<Steps>
+  <Step title="Create Your Agent">
+    Register your AI service with metadata and endpoints
+    ```typescript
+    const { agentId } = await payments.registerAgent(
+      metadata, 
+      api, 
+      planIds
+    )
+    ```
+  </Step>
+  
+  <Step title="Define Payment Plans">
+    Set up flexible pricing models
+    ```typescript
+    const { planId } = await payments.registerCreditsPlan(
+      price, 
+      credits
+    )
+    ```
+  </Step>
+  
+  <Step title="Accept Subscribers">
+    Users purchase plans via Stripe or crypto
+    ```typescript
+    await payments.orderPlan(planId)
+    ```
+  </Step>
+  
+  <Step title="Validate & Deliver">
+    Check access and track usage automatically
+    ```typescript
+    const isValid = await payments.isValidRequest(...)
+    await payments.redeemCredits(planId, amount, proof)
+    ```
+  </Step>
+</Steps>
 
 ## Key Features
 
+### For AI Builders
+
+- **Multi-Language Support**: SDKs for TypeScript, Python, and more
+- **Payment Flexibility**: Accept USDC, ETH, or credit cards via Stripe
+- **Usage Metering**: Built-in credit system for precise billing
+- **Access Control**: Cryptographic validation for secure services
+- **High Performance**: Optimized for real-time AI workloads
+- **Agent Discovery**: Register services for ecosystem visibility
+
+### For AI Consumers
+
+- **Universal Access**: One account for all Nevermined services
+- **Payment Choice**: Pay with crypto or traditional methods
+- **Usage Transparency**: Real-time credit tracking
+- **No Lock-in**: Switch between services freely
+- **Instant Settlement**: No waiting for payment processing
+
+## Join the Ecosystem
+
+Nevermined is more than infrastructure — it's a growing ecosystem of AI builders and users creating the future of autonomous commerce.
+
 <CardGroup cols={3}>
-  <Card title="Payment Plans" icon="credit-card">
-    Create flexible usage-based or subscription plans with pricing logic
+  <Card title="For Developers" icon="code">
+    Build and monetize AI services with our tools
   </Card>
-  <Card title="AI Credits System" icon="coins">
-    Manage billing and usage with tokenized credits and redemption tracking
+  <Card title="For Enterprises" icon="building">
+    Deploy private AI marketplaces for your organization
   </Card>
-  <Card title="Nevermined Proxy" icon="server">
-    Use a proxy to gate access and validate usage without modifying your agent code
-  </Card>
-  <Card title="Agent Registry" icon="bookmark">
-    Register agents with searchable metadata and discoverability
-  </Card>
-  <Card title="Multiple Payment Options" icon="wallet">
-    Accept payments in USDC, native tokens, or fiat via Stripe
-  </Card>
-  <Card title="Usage Protection" icon="shield-halved">
-    Prevent over-expenditure with dynamic pricing and redemption limits
+  <Card title="For Researchers" icon="flask">
+    Share and monetize models and datasets
   </Card>
 </CardGroup>
 
----
-
-## Integration Options
-
-- **TypeScript Payments API**  
-  Use `Payments.getInstance()` to register agents, create plans, authorize users, and redeem credits.
-
-- **Proxy Integration**  
-  Let Nevermined handle access and credit redemption for you with no backend changes.
-
-- **REST API and Web App**  
-  Configure agents and plans via REST or use the hosted Nevermined App to manage your setup visually.
-
----
-
-## Built for AI Builders
-
-Nevermined is ideal for developers who:
-
-- Want to monetize agents without reinventing payments
-- Need real-time usage metering and credit redemption
-- Are building autonomous or multi-agent systems
-- Prefer a modern, low-code TypeScript API that’s ready for production
-
----
-
-## Get Started
-
-Ready to build with Nevermined?  
-Start with the [quickstart guide](/getting-started/quickstart-guide) and go live in under 10 minutes.
-
----
-
-## Support & Community
+## Get Started Today
 
 <CardGroup cols={2}>
-  <Card title="Discord Community" icon="discord" href="https://discord.gg/nevermined">
-    Join our Discord community for support and discussions
+  <Card title="Read the Quickstart" icon="book" href="/introduction/quickstart">
+    Build your first monetized AI agent
   </Card>
-  <Card title="GitHub" icon="github" href="https://github.com/nevermined-io">
-    Contribute to our open source projects
+  <Card title="Explore the App" icon="desktop" href="https://app.nevermined.io">
+    Manage agents and view analytics
   </Card>
-  <Card title="Twitter" icon="twitter" href="https://twitter.com/nevermined_io">
-    Follow us for updates and announcements
+  <Card title="Join Discord" icon="discord" href="https://discord.gg/nevermined">
+    Connect with the community
   </Card>
-  <Card title="Email Support" icon="envelope" href="mailto:info@nevermined.io">
-    Contact us directly for enterprise support
+  <Card title="View GitHub" icon="github" href="https://github.com/nevermined-io">
+    Contribute to the protocol
   </Card>
 </CardGroup>
+
+---
+
+<Note>
+  **Ready to join the AI economy?** Start with our [Quickstart Guide](/introduction/quickstart) and launch your first monetized AI service in minutes!
+</Note>

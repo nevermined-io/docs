@@ -1,147 +1,199 @@
 ---
 title: 'Quickstart'
-description: 'Get started building AI agents with integrated payments and access control'
-icon: "rocket-launch"
+description: 'Get started with Nevermined Payments in 5 minutes'
+icon: 'rocket-launch'
 ---
 
-## Set up your development environment
+## Welcome to Nevermined
 
-This guide walks you through initializing the Nevermined Payments API, registering your first AI agent, attaching a payment plan, and enabling billing, access control, and credit redemption.
+Nevermined Payments is a TypeScript SDK that enables AI builders to monetize their agents through flexible payment models. With support for both cryptocurrency and fiat payments, you can start accepting payments for your AI services in minutes.
 
-### Core setup
-
-<AccordionGroup>
-
-  <Accordion icon="github" title="Install the Payments API">
-    To start using Nevermined's programmable payments, install the Payments module:
-
-    ```bash
-    npm install @nevermined-io/payments
-    ```
-
-    Then, initialize the client:
-
-    ```ts
-    import { Payments } from '@nevermined-io/payments'
-
-    const payments = Payments.getInstance({
-      nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'production' // or 'testing', 'local', or 'custom'
-    })
-    ```
-
-    You’ll need a valid Nevermined API Key, which can be created via the [Nevermined App](https://app.nevermined.io).
-  </Accordion>
-
-  <Accordion icon="rectangle-terminal" title="Start a local agent">
-    Your AI agent should be an HTTP-accessible service with a POST endpoint.
-
-    Example setup:
-    - Build a FastAPI or Express server
-    - Accept a `prompt` and return a response
-    - Optionally validate request signatures and usage
-
-    See agent templates in the [examples directory](https://github.com/nevermined-io).
-  </Accordion>
-
-</AccordionGroup>
-
----
-
-## Register an Agent and Payment Plan
-
-<AccordionGroup>
-
-  <Accordion icon="brain" title="1. Define your Agent Metadata">
-    ```ts
-    const agentMetadata = {
-      name: 'Legal Assistant',
-      tags: ['legal', 'ai'],
-      dateCreated: new Date()
-    }
-
-    const agentApi = {
-      endpoints: [{ POST: 'https://your-server.com/query' }]
-    }
-    ```
-  </Accordion>
-
-  <Accordion icon="credit-card" title="2. Define the Payment Plan">
-    Use `PriceConfig` and `CreditsConfig` to define how much a plan costs and what it grants.
-
-    ```ts
-    const price = getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
-    const credits = getExpirablePlanCreditsConfig(86400n * 30n) // 1-month plan
-    ```
-  </Accordion>
-
-  <Accordion icon="rocket" title="3. Register Agent and Plan">
-    You can register both in one step:
-
-    ```ts
-    const { agentId, planId } = await payments.registerAgentAndPlan(
-      agentMetadata,
-      agentApi,
-      price,
-      credits
-    )
-    ```
-  </Accordion>
-
-</AccordionGroup>
-
----
-
-## Query the Agent
-
-After a subscriber purchases a plan, they can query the agent using authorized credentials.
-
-```ts
-const options = await payments.query.getAgentHTTPOptions(planId, agentId)
-const result = await payments.query(agentId, options)
-```
-
-Nevermined handles:
-	- Validating subscriber access
-	- Redeeming credits per request
-	- Enforcing usage rules
-
-⸻
-
-Build with confidence
-
-<CardGroup>
-
-
-  <Card title="Register Agents" icon="brain" href="/guides/register-agents">
-    Register your AI agent and expose its capabilities via metadata
+<CardGroup cols={2}>
+  <Card title="Install SDK" icon="download" href="#installation">
+    Get the Nevermined SDK installed in your project
   </Card>
-
-
-  <Card title="Create Plans" icon="credit-card" href="/guides/create-payment-plans">
-    Build flexible pricing models using fiat or crypto
+  <Card title="Create Agent" icon="robot" href="#create-your-first-agent">
+    Register and monetize your first AI agent
   </Card>
-
-
-  <Card title="Manage Credits" icon="coins" href="/guides/usage-and-credits">
-    Handle credit redemption, metering, and access enforcement
+  <Card title="Accept Payments" icon="credit-card" href="#accept-payments">
+    Start accepting crypto and fiat payments
   </Card>
-
-
-  <Card title="Use the Proxy" icon="server" href="/guides/proxy-integration">
-    Skip direct integration and use Nevermined’s secure HTTP proxy
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Explore the complete API documentation
   </Card>
-
-
 </CardGroup>
 
+## Installation
 
+Install the Nevermined Payments SDK using your preferred package manager:
 
-⸻
+```bash npm
+npm install @nevermined-io/payments
+```
 
-Next Steps
-	•	View the API Reference
-	•	Explore real agent examples
-	•	Join our Discord Community
+```bash yarn
+yarn add @nevermined-io/payments
+```
 
-Nevermined helps you focus on building intelligent agents — not reinventing payments or billing infrastructure.
+```bash pnpm
+pnpm add @nevermined-io/payments
+```
+
+## Initialize the SDK
+
+First, you'll need an API key from the [Nevermined App](https://app.nevermined.io). Once you have it, initialize the Payments client:
+
+```typescript
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY,
+  environment: 'production' // or 'testing' for development
+})
+```
+
+## Create Your First Agent
+
+Let's create a simple AI agent with a payment plan:
+
+```typescript
+import { 
+  Payments, 
+  getERC20PriceConfig, 
+  getFixedCreditsConfig 
+} from '@nevermined-io/payments'
+
+async function createMyFirstAgent() {
+  // Initialize payments
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY,
+    environment: 'production'
+  })
+
+  // Define agent metadata
+  const agentMetadata = {
+    name: 'My AI Assistant',
+    tags: ['ai', 'assistant'],
+    dateCreated: new Date(),
+    description: 'A helpful AI assistant for various tasks'
+  }
+
+  // Define API endpoints
+  const agentApi = {
+    endpoints: [
+      { POST: 'https://api.myservice.com/query' }
+    ]
+  }
+
+  // Configure pricing (10 USDC)
+  const priceConfig = getERC20PriceConfig(
+    10_000_000n, // 10 USDC (6 decimals)
+    '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C', // USDC address
+    process.env.BUILDER_ADDRESS // Your wallet address
+  )
+
+  // Configure credits (100 queries)
+  const creditsConfig = getFixedCreditsConfig(
+    100n, // Total credits
+    1n    // Credits per request
+  )
+
+  // Register agent and plan
+  const { agentId, planId } = await payments.registerAgentAndPlan(
+    agentMetadata,
+    agentApi,
+    priceConfig,
+    creditsConfig
+  )
+
+  console.log(`Agent created: ${agentId}`)
+  console.log(`Plan created: ${planId}`)
+}
+```
+
+## Accept Payments
+
+Integrate payment validation into your agent endpoint:
+
+```typescript
+import express from 'express'
+
+const app = express()
+
+app.post('/api/query', async (req, res) => {
+  // Validate access
+  const isValid = await payments.isValidRequest(
+    req.body.planId,
+    req.body.agentId,
+    req.body.subscriberAddress,
+    req.headers['x-nvm-query-signature']
+  )
+
+  if (!isValid) {
+    // Return payment required response
+    const paymentCard = await payments.getAgentPaymentCard(req.body.agentId)
+    return res.status(402).json(paymentCard)
+  }
+
+  // Process the AI request
+  const result = await processAIQuery(req.body.prompt)
+
+  // Redeem credits
+  await payments.redeemCredits(
+    req.body.planId, 
+    1n, // Credits to redeem
+    generateProof(req, result)
+  )
+
+  res.json(result)
+})
+```
+
+## Query an Agent
+
+Here's how subscribers can purchase a plan and query your agent:
+
+```typescript
+async function queryAgent() {
+  // Get agent details
+  const agent = await payments.getAgent(agentId)
+  
+  // Purchase a plan
+  const plan = agent.plans[0]
+  await payments.orderPlan(plan.planId)
+  
+  // Get access credentials
+  const credentials = await payments.getAgentHTTPOptions(plan.planId, agentId)
+  
+  // Query the agent
+  const result = await payments.query(agentId, credentials, {
+    prompt: "Hello, how can you help me?"
+  })
+  
+  console.log(result)
+}
+```
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="lightbulb" href="/introduction/core-concepts">
+    Understand the key concepts behind Nevermined
+  </Card>
+  <Card title="Payment Plans" icon="money-bill" href="/introduction/payment-plans">
+    Learn about different pricing models
+  </Card>
+  <Card title="Integration Guide" icon="plug" href="/introduction/integration-guide">
+    Integrate Nevermined into your existing services
+  </Card>
+  <Card title="Best Practices" icon="check" href="/introduction/best-practices">
+    Learn security and performance best practices
+  </Card>
+</CardGroup>
+
+## Quick Links
+
+- [API Reference](/api-reference) - Complete API documentation
+- [Example Apps](/introduction/example-apps) - See real-world implementations
+- [Discord Community](https://discord.gg/nevermined) - Get help from the community
+- [GitHub Repository](https://github.com/nevermined-io/payments) - View the source code

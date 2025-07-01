@@ -1,13 +1,265 @@
 ---
-title: "Go Live Checklist"
-description: "Checklist to go live with Nevermined"
-icon: "clipboard-list-check"
+title: 'Go-Live Checklist'
+description: 'Essential steps to take your Nevermined-powered AI agent to production'
+icon: 'rocket'
 ---
 
-## Go Live Checklist
+## Pre-Launch Checklist
 
-Here is a checklist to go live with Nevermined:
+Before launching your AI agent to production, ensure you've completed these essential steps.
 
-- [ ] Create a new project
-- [ ] Add a new payment method
-- [ ] Add a new payment method
+<AccordionGroup>
+  <Accordion icon="key" title="1. API Key & Environment Setup">
+    - [ ] Generate production API key from [Nevermined App](https://app.nevermined.io)
+    - [ ] Store API key securely in environment variables
+    - [ ] Switch from `testing` to `production` environment
+    - [ ] Verify connection to production services
+    
+    ```typescript
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'production'
+    })
+    ```
+  </Accordion>
+
+  <Accordion icon="robot" title="2. Agent Configuration">
+    - [ ] Complete agent metadata (name, description, tags, image)
+    - [ ] Define all API endpoints correctly
+    - [ ] Specify open endpoints that don't require payment
+    - [ ] Test agent registration on production
+    
+    ```typescript
+    const agentMetadata = {
+      name: 'Production AI Agent',
+      tags: ['production', 'ai', 'v1.0'],
+      dateCreated: new Date(),
+      description: 'Production-ready AI service',
+      image: 'https://yourdomain.com/agent-logo.png'
+    }
+    ```
+  </Accordion>
+
+  <Accordion icon="money-bill" title="3. Payment Plan Configuration">
+    - [ ] Set appropriate pricing for your service
+    - [ ] Choose between ERC-20 tokens or fiat (Stripe)
+    - [ ] Configure credit allocation (fixed, dynamic, or time-based)
+    - [ ] Test payment flow end-to-end
+    - [ ] Set up multiple tiers if needed
+    
+    ```typescript
+    // Production pricing
+    const priceConfig = getERC20PriceConfig(
+      25_000_000n, // 25 USDC
+      '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
+      process.env.BUILDER_WALLET_ADDRESS
+    )
+    ```
+  </Accordion>
+
+  <Accordion icon="shield" title="4. Security Implementation">
+    - [ ] Implement request validation on all endpoints
+    - [ ] Add rate limiting to prevent abuse
+    - [ ] Set up HTTPS/TLS for all endpoints
+    - [ ] Implement proper error handling
+    - [ ] Add request logging for auditing
+    
+    ```typescript
+    // Validation middleware
+    app.use(neverminedAuth(planId, agentId))
+    app.use(rateLimiter)
+    app.use(helmet())
+    ```
+  </Accordion>
+
+  <Accordion icon="chart-line" title="5. Performance Optimization">
+    - [ ] Implement caching for agent/plan data
+    - [ ] Set up retry logic for transient failures
+    - [ ] Optimize database queries
+    - [ ] Configure appropriate timeouts
+    - [ ] Load test your endpoints
+    
+    ```typescript
+    // Cache configuration
+    const cache = new NodeCache({ stdTTL: 300 }) // 5 min TTL
+    ```
+  </Accordion>
+
+  <Accordion icon="monitor" title="6. Monitoring & Analytics">
+    - [ ] Set up application monitoring (APM)
+    - [ ] Configure error tracking (Sentry, etc.)
+    - [ ] Implement revenue tracking
+    - [ ] Set up health check endpoints
+    - [ ] Configure alerting for critical issues
+    
+    ```typescript
+    app.get('/health', async (req, res) => {
+      const health = await checkSystemHealth()
+      res.status(health.isHealthy ? 200 : 503).json(health)
+    })
+    ```
+  </Accordion>
+
+  <Accordion icon="file-invoice" title="7. Documentation">
+    - [ ] Document API endpoints and parameters
+    - [ ] Create integration guide for subscribers
+    - [ ] Provide code examples in multiple languages
+    - [ ] Document error codes and responses
+    - [ ] Create FAQ section
+  </Accordion>
+
+  <Accordion icon="bug" title="8. Testing">
+    - [ ] Unit tests for all critical functions
+    - [ ] Integration tests for payment flows
+    - [ ] End-to-end tests for user journeys
+    - [ ] Load testing for expected traffic
+    - [ ] Security testing for vulnerabilities
+    
+    ```bash
+    npm test
+    npm run test:integration
+    npm run test:load
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Production Configuration
+
+### Environment Variables
+
+Ensure all required environment variables are set:
+
+```bash
+# Required
+NVM_API_KEY=your_production_api_key
+BUILDER_ADDRESS=your_wallet_address
+NODE_ENV=production
+
+# Recommended
+REDIS_URL=redis://your-redis-instance
+SENTRY_DSN=your_sentry_dsn
+LOG_LEVEL=info
+RATE_LIMIT_MAX=100
+RATE_LIMIT_WINDOW_MS=900000
+```
+
+### Infrastructure Requirements
+
+<CardGroup cols={2}>
+  <Card title="Server Requirements" icon="server">
+    - HTTPS/TLS enabled
+    - Auto-scaling configured
+    - Load balancer set up
+    - CDN for static assets
+  </Card>
+  <Card title="Database & Storage" icon="database">
+    - Database backups configured
+    - Redis for caching
+    - Log aggregation service
+    - Metrics storage
+  </Card>
+</CardGroup>
+
+## Launch Day Checklist
+
+<Tip>
+  Complete these final checks on launch day to ensure a smooth deployment.
+</Tip>
+
+### Final Verification
+
+- [ ] All tests passing in CI/CD pipeline
+- [ ] Production API key working correctly
+- [ ] Payment flow tested with real transactions
+- [ ] Monitoring dashboards configured
+- [ ] Support channels ready
+
+### Deployment Steps
+
+1. **Deploy to Production**
+   ```bash
+   npm run build
+   npm run deploy:production
+   ```
+
+2. **Verify Deployment**
+   ```bash
+   curl https://your-api.com/health
+   ```
+
+3. **Test Live Endpoints**
+   ```typescript
+   const agent = await payments.getAgent(productionAgentId)
+   console.log('Agent live:', agent.metadata.name)
+   ```
+
+4. **Monitor Initial Traffic**
+   - Check error rates
+   - Monitor response times
+   - Verify payment processing
+   - Watch for rate limit hits
+
+## Post-Launch Tasks
+
+### First 24 Hours
+
+- [ ] Monitor error rates and fix critical issues
+- [ ] Check payment processing success rate
+- [ ] Review performance metrics
+- [ ] Respond to user feedback
+- [ ] Update documentation based on user questions
+
+### First Week
+
+- [ ] Analyze usage patterns
+- [ ] Optimize based on real-world data
+- [ ] Plan feature updates
+- [ ] Review security logs
+- [ ] Calculate initial revenue metrics
+
+## Troubleshooting Common Issues
+
+<AccordionGroup>
+  <Accordion icon="exclamation-triangle" title="Invalid API Key Errors">
+    **Problem**: Getting "Invalid API key" errors in production
+    
+    **Solution**:
+    - Verify you're using production API key
+    - Check environment variable is set correctly
+    - Ensure API key hasn't expired
+    - Generate new key if needed
+  </Accordion>
+
+  <Accordion icon="credit-card" title="Payment Processing Failures">
+    **Problem**: Payments failing or not processing
+    
+    **Solution**:
+    - Verify wallet address is correct
+    - Check token contract addresses
+    - Ensure sufficient gas for transactions
+    - Test with smaller amounts first
+  </Accordion>
+
+  <Accordion icon="gauge" title="Performance Issues">
+    **Problem**: Slow response times or timeouts
+    
+    **Solution**:
+    - Implement caching for repeated queries
+    - Check database query performance
+    - Scale infrastructure if needed
+    - Review and optimize code paths
+  </Accordion>
+</AccordionGroup>
+
+## Support Resources
+
+If you encounter issues during launch:
+
+- **Technical Support**: [Discord Community](https://discord.gg/nevermined)
+- **Documentation**: [docs.nevermined.io](https://docs.nevermined.io)
+- **GitHub Issues**: [github.com/nevermined-io/payments/issues](https://github.com/nevermined-io/payments/issues)
+- **Email Support**: support@nevermined.io
+
+<Note>
+  Remember to celebrate your launch! You're contributing to the AI-native economy by enabling sustainable monetization for AI services. 
+</Note>
