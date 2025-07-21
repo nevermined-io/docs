@@ -235,8 +235,13 @@ const agent = await payments.agents.getAgent('AGENT_ID');
 const plan = agent.plans[0];
 
 // 2. Purchase the plan
+// Option A: Crypto payment
 const orderResult = await payments.plans.orderPlan(plan.planId);
 console.log('Order transaction:', orderResult.transactionHash);
+
+// Option B: Fiat payment (credit card)
+const { sessionId, url } = await payments.plans.orderFiatPlan(plan.planId);
+window.location.href = url; // Redirect to Stripe
 
 // 3. Get access credentials
 const credentials = await payments.agents.getAgentAccessToken(
@@ -269,8 +274,13 @@ agent = payments.agents.get_agent('AGENT_ID')
 plan = agent['plans'][0]
 
 # 2. Purchase the plan
+# Option A: Crypto payment
 order_result = payments.plans.order_plan(plan['planId'])
 print(f'Order transaction: {order_result["transactionHash"]}')
+
+# Option B: Fiat payment (credit card)
+fiat_result = payments.plans.order_fiat_plan(plan['planId'])
+print(f'Stripe checkout URL: {fiat_result["url"]}')
 
 # 3. Get access credentials
 credentials = payments.agents.get_agent_access_token(

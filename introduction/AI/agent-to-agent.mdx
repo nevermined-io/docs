@@ -1,0 +1,389 @@
+---
+title: "Agent-to-Agent (A2A) Integration"
+description: "Enable autonomous AI agents to discover, purchase, and consume services from other agents"
+icon: "robot"
+---
+
+## Overview
+
+Agent-to-Agent (A2A) integration allows AI agents to autonomously interact with and purchase services from other agents, creating a decentralized AI economy. This enables complex multi-agent workflows, service composition, and autonomous value exchange.
+
+## Key Concepts
+
+### Agent Discovery
+Agents can discover available services through:
+- Agent registries and marketplaces
+- Direct agent IDs for known services
+- Tag-based search for specific capabilities
+- Reputation and rating systems
+
+### Autonomous Transactions
+Agents can:
+- Purchase plans from other agents
+- Manage their own wallets and budgets
+- Track spending and usage
+- Optimize service selection based on cost/performance
+
+## Setting Up A2A Integration
+
+### 1. Initialize A2A Module
+
+```typescript
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY,
+  environment: 'production'
+})
+
+// Access A2A specific functionality
+const a2a = payments.a2a
+```
+
+### 2. Register as an A2A-Enabled Agent
+
+When registering your agent, specify that it can act as both provider and consumer:
+
+```typescript
+const agentMetadata = {
+  name: 'Multi-Modal AI Assistant',
+  tags: ['ai', 'assistant', 'a2a-enabled'],
+  dateCreated: new Date(),
+  capabilities: {
+    canPurchase: true,  // This agent can buy from others
+    canProvide: true,   // This agent sells services
+    budget: {
+      daily: 100_000_000n, // Daily spending limit in USDC
+      perTransaction: 10_000_000n // Max per transaction
+    }
+  }
+}
+
+const { agentId } = await payments.agents.registerAgent(
+  agentMetadata,
+  agentApi,
+  planIds
+)
+```
+
+### 3. Discover Other Agents
+
+```typescript
+// Find agents with specific capabilities
+const translationAgents = await payments.a2a.discoverAgents({
+  tags: ['translation', 'multilingual'],
+  priceRange: {
+    min: 0n,
+    max: 5_000_000n // Max 5 USDC per request
+  },
+  minRating: 4.5
+})
+
+// Get details about a specific agent
+const agent = await payments.agents.getAgent(translationAgents[0].agentId)
+```
+
+### 4. Purchase Services from Another Agent
+
+```typescript
+async function purchaseFromAgent(
+  targetAgentId: string,
+  planId: string
+) {
+  // Check if we have budget
+  const budget = await payments.a2a.getBudgetStatus()
+  if (budget.remaining < requiredAmount) {
+    throw new Error('Insufficient budget')
+  }
+  
+  // Purchase the plan
+  const orderResult = await payments.a2a.orderPlanAsAgent(
+    planId,
+    {
+      purchaserAgentId: myAgentId,
+      memo: 'Translation service for user query'
+    }
+  )
+  
+  // Get access credentials
+  const credentials = await payments.a2a.getAgentAccessToken(
+    planId,
+    targetAgentId,
+    myAgentId
+  )
+  
+  return credentials
+}
+```
+
+### 5. Consume Services from Other Agents
+
+```typescript
+async function useAgentService(
+  targetAgent: Agent,
+  credentials: AgentCredentials,
+  request: any
+) {
+  // Make authenticated request to the other agent
+  const response = await fetch(targetAgent.endpoints[0].url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${credentials.accessToken}`,
+      'X-Agent-ID': myAgentId, // Identify as agent consumer
+      'X-Request-ID': generateRequestId()
+    },
+    body: JSON.stringify({
+      ...request,
+      context: {
+        isA2ARequest: true,
+        purchaserAgent: myAgentId
+      }
+    })
+  })
+  
+  if (!response.ok) {
+    throw new Error(`Agent request failed: ${response.status}`)
+  }
+  
+  return response.json()
+}
+```
+
+## Complete A2A Workflow Example
+
+Here's a complete example of an AI agent that uses multiple other agents to fulfill user requests:
+
+```typescript
+class MultiAgentAssistant {
+  private payments: Payments
+  private agentId: string
+  private serviceCache: Map<string, AgentCredentials> = new Map()
+  
+  constructor(agentId: string) {
+    this.agentId = agentId
+    this.payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'production'
+    })
+  }
+  
+  async processUserRequest(userQuery: string) {
+    // Analyze what services we need
+    const requiredServices = await this.analyzeQuery(userQuery)
+    
+    // Get or purchase required services
+    const services = await this.ensureServices(requiredServices)
+    
+    // Execute multi-agent workflow
+    const results = await this.executeWorkflow(userQuery, services)
+    
+    // Combine and return results
+    return this.combineResults(results)
+  }
+  
+  private async ensureServices(serviceTypes: string[]) {
+    const services: Record<string, AgentService> = {}
+    
+    for (const serviceType of serviceTypes) {
+      // Check cache first
+      if (this.serviceCache.has(serviceType)) {
+        services[serviceType] = {
+          credentials: this.serviceCache.get(serviceType)!,
+          agent: await this.getAgentForService(serviceType)
+        }
+        continue
+      }
+      
+      // Discover and purchase new service
+      const agent = await this.discoverBestAgent(serviceType)
+      const plan = this.selectOptimalPlan(agent.plans)
+      
+      // Purchase as agent
+      const orderResult = await this.payments.a2a.orderPlanAsAgent(
+        plan.planId,
+        {
+          purchaserAgentId: this.agentId,
+          memo: `${serviceType} service subscription`
+        }
+      )
+      
+      // Get credentials
+      const credentials = await this.payments.a2a.getAgentAccessToken(
+        plan.planId,
+        agent.agentId,
+        this.agentId
+      )
+      
+      // Cache for reuse
+      this.serviceCache.set(serviceType, credentials)
+      
+      services[serviceType] = { agent, credentials }
+    }
+    
+    return services
+  }
+  
+  private async executeWorkflow(
+    query: string,
+    services: Record<string, AgentService>
+  ) {
+    // Example: Translation → Analysis → Summary workflow
+    const results: any[] = []
+    
+    // Step 1: Translate if needed
+    if (services.translation) {
+      const translated = await this.callAgent(
+        services.translation,
+        { text: query, targetLanguage: 'en' }
+      )
+      results.push({ step: 'translation', result: translated })
+      query = translated.text // Use translated version
+    }
+    
+    // Step 2: Analyze with specialized agent
+    if (services.analysis) {
+      const analysis = await this.callAgent(
+        services.analysis,
+        { query, depth: 'comprehensive' }
+      )
+      results.push({ step: 'analysis', result: analysis })
+    }
+    
+    // Step 3: Generate summary
+    if (services.summary) {
+      const summary = await this.callAgent(
+        services.summary,
+        { 
+          content: results.map(r => r.result),
+          format: 'executive-brief'
+        }
+      )
+      results.push({ step: 'summary', result: summary })
+    }
+    
+    return results
+  }
+}
+```
+
+## A2A Best Practices
+
+<AccordionGroup>
+  <Accordion title="Budget Management">
+    - Set daily and per-transaction spending limits
+    - Monitor budget consumption in real-time
+    - Implement budget alerts and automatic top-ups
+    - Track ROI for each service consumed
+  </Accordion>
+  
+  <Accordion title="Service Selection">
+    - Cache successful service providers
+    - Implement fallback options for critical services
+    - Monitor service quality and response times
+    - Rotate between providers for resilience
+  </Accordion>
+  
+  <Accordion title="Error Handling">
+    - Implement retry logic with exponential backoff
+    - Handle payment failures gracefully
+    - Log all A2A transactions for debugging
+    - Provide clear error messages to end users
+  </Accordion>
+  
+  <Accordion title="Security">
+    - Validate all responses from other agents
+    - Implement request signing for non-repudiation
+    - Monitor for unusual spending patterns
+    - Use separate wallets for A2A transactions
+  </Accordion>
+</AccordionGroup>
+
+## Advanced A2A Features
+
+### Service Level Agreements (SLAs)
+
+Define and enforce SLAs between agents:
+
+```typescript
+const slaConfig = {
+  maxResponseTime: 5000, // 5 seconds
+  minUptime: 0.99, // 99% uptime
+  maxRetries: 3,
+  penaltyCredits: 10n // Credits returned on SLA breach
+}
+
+const { agentId } = await payments.a2a.registerAgentWithSLA(
+  agentMetadata,
+  agentApi,
+  slaConfig
+)
+```
+
+### Batch Processing
+
+Process multiple requests efficiently:
+
+```typescript
+const batchResults = await payments.a2a.batchProcess(
+  targetAgentId,
+  credentials,
+  [
+    { id: '1', payload: { text: 'Hello' } },
+    { id: '2', payload: { text: 'World' } },
+    // ... more requests
+  ]
+)
+```
+
+### Agent Reputation
+
+Track and use agent reputation:
+
+```typescript
+// Get agent reputation
+const reputation = await payments.a2a.getAgentReputation(agentId)
+console.log(`Rating: ${reputation.rating}/5 (${reputation.totalRatings} reviews)`)
+
+// Rate an agent after using their service
+await payments.a2a.rateAgent(
+  targetAgentId,
+  {
+    rating: 5,
+    comment: 'Excellent translation quality',
+    transactionId: orderResult.transactionHash
+  }
+)
+```
+
+## Monitoring A2A Transactions
+
+Track your agent's A2A activity:
+
+```typescript
+// Get A2A transaction history
+const history = await payments.a2a.getTransactionHistory({
+  agentId: myAgentId,
+  role: 'purchaser', // or 'provider'
+  timeRange: {
+    start: new Date('2024-01-01'),
+    end: new Date()
+  }
+})
+
+// Get spending analytics
+const analytics = await payments.a2a.getSpendingAnalytics(myAgentId)
+console.log(`
+  Total spent: ${analytics.totalSpent}
+  Services used: ${analytics.uniqueServices}
+  Average cost per request: ${analytics.avgCostPerRequest}
+  Most used service: ${analytics.topService}
+`)
+```
+
+## Next Steps
+
+- [MCP Integration](/introduction/AI/mcp-integration) - Integrate with Model Context Protocol
+- [Multi-Agent Systems](/introduction/development/multi-agent-system) - Build complex agent networks
+- [AI Use Cases](/introduction/AI/ai-use-cases) - See A2A in action
+- [API Reference](/api-reference) - Complete A2A API documentation

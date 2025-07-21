@@ -8,7 +8,7 @@ icon: 'money-bill'
 
 Payment plans define how subscribers pay for and access your AI services. Nevermined supports multiple pricing models to match your business needs.
 
-<CardGroup cols={3}>
+<CardGroup cols={4}>
   <Card title="Usage-Based" icon="coins" href="#usage-based-plans">
     Pay per request
   </Card>
@@ -17,6 +17,9 @@ Payment plans define how subscribers pay for and access your AI services. Neverm
   </Card>
   <Card title="Hybrid" icon="layer-group" href="#hybrid-plans">
     Combined approach
+  </Card>
+  <Card title="Trial" icon="gift" href="#trial-plans">
+    Free or limited access
   </Card>
 </CardGroup>
 
@@ -200,6 +203,78 @@ const { planId } = await payments.plans.registerCreditsPlan(
   hybridCreditsConfig
 )
 ```
+
+## Trial Plans
+
+Perfect for letting users test your service before committing to a paid plan.
+
+### Time-Based Trial
+
+Offer free access for a limited time:
+
+```typescript
+// 7-day free trial
+const trialMetadata = {
+  name: 'Free Trial',
+  description: '7 days of unlimited access'
+}
+
+const { planId } = await payments.plans.registerTimeTrialPlan(
+  trialMetadata,
+  86400n * 7n // 7 days in seconds
+)
+```
+
+### Credits-Based Trial
+
+Provide a limited number of free credits:
+
+```typescript
+// 10 free credits trial
+const trialMetadata = {
+  name: 'Starter Trial',
+  description: 'Try 10 requests for free'
+}
+
+const { planId } = await payments.plans.registerCreditsTrialPlan(
+  trialMetadata,
+  10n, // Total free credits
+  1n   // Credits per request
+)
+```
+
+### Trial Plan Features
+
+<Note>
+Trial plans have special characteristics:
+- **No payment required** - Users can start immediately
+- **One-time use** - Each user can only claim a trial once
+- **Auto-expiry** - Time trials expire automatically
+- **Conversion tracking** - Monitor trial-to-paid conversions
+</Note>
+
+### Best Practices for Trials
+
+<AccordionGroup>
+  <Accordion title="Trial Length">
+    - Time trials: 7-14 days is typical
+    - Credit trials: 10-50 requests depending on complexity
+    - Consider your sales cycle when setting duration
+  </Accordion>
+  
+  <Accordion title="Feature Access">
+    - Provide full feature access to showcase value
+    - Or limit to basic features to encourage upgrades
+    - Be transparent about trial limitations
+  </Accordion>
+  
+  <Accordion title="Conversion Strategy">
+    - Send reminders before trial expires
+    - Offer special pricing for trial users
+    - Make upgrade process seamless
+    - Track conversion metrics
+  </Accordion>
+</AccordionGroup>
 
 ## Multi-Tier Pricing
 

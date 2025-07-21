@@ -707,6 +707,241 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 })
 ```
 
+## Request Tracking
+
+Track and manage the lifecycle of subscriber requests for analytics, debugging, and compliance purposes.
+
+### Request Lifecycle Management
+
+The SDK provides methods to track requests from initialization through completion:
+
+```typescript
+// Initialize a new request when subscriber starts
+const requestId = await payments.requests.initializeSubscriberRequest(
+  planId,
+  agentId,
+  subscriberAddress,
+  {
+    method: 'POST',
+    endpoint: '/api/query',
+    timestamp: new Date(),
+    metadata: {
+      feature: 'advanced-analysis',
+      version: '1.0'
+    }
+  }
+)
+
+// Update request progress (optional)
+await payments.requests.updateSubscriberRequest(
+  requestId,
+  {
+    status: 'processing',
+    progress: 50,
+    checkpoint: 'Model inference started'
+  }
+)
+
+// Finish request and record results
+await payments.requests.finishSubscriberRequest(
+  requestId,
+  {
+    status: 'completed',
+    creditsUsed: 5n,
+    responseTime: 1250, // milliseconds
+    metadata: {
+      tokensGenerated: 450,
+      modelUsed: 'gpt-4'
+    }
+  }
+)
+```
+
+### Integration with Request Handler
+
+Add request tracking to your API endpoints:
+
+```typescript
+app.post('/api/query', authenticate(agentId), async (req, res) => {
+  let requestId: string | null = null
+  
+  try {
+    // Initialize request tracking
+    requestId = await payments.requests.initializeSubscriberRequest(
+      req.nevermined.planId,
+      req.nevermined.agentId,
+      req.nevermined.subscriberAddress,
+      {
+        method: req.method,
+        endpoint: req.path,
+        timestamp: new Date(),
+        metadata: {
+          prompt: req.body.prompt,
+          parameters: req.body.parameters
+        }
+      }
+    )
+    
+    // Update progress during processing
+    await payments.requests.updateSubscriberRequest(requestId, {
+      status: 'processing',
+      progress: 25,
+      checkpoint: 'Request validated'
+    })
+    
+    // Process AI request
+    const startTime = Date.now()
+    const result = await processAIRequest(req.body.prompt)
+    const responseTime = Date.now() - startTime
+    
+    // Finish request tracking
+    await payments.requests.finishSubscriberRequest(requestId, {
+      status: 'completed',
+      creditsUsed: 1n,
+      responseTime,
+      metadata: {
+        outputLength: result.response.length,
+        success: true
+      }
+    })
+    
+    res.json({
+      result,
+      requestId,
+      usage: {
+        creditsUsed: 1,
+        responseTime
+      }
+    })
+    
+  } catch (error) {
+    // Track failed requests
+    if (requestId) {
+      await payments.requests.finishSubscriberRequest(requestId, {
+        status: 'failed',
+        creditsUsed: 0n,
+        error: error.message,
+        metadata: {
+          errorType: error.constructor.name
+        }
+      })
+    }
+    
+    res.status(500).json({ error: 'Processing failed' })
+  }
+})
+```
+
+### Analytics and Monitoring
+
+Use request tracking data for insights:
+
+```typescript
+// Get request history for a subscriber
+async function getSubscriberUsageAnalytics(
+  subscriberAddress: string,
+  planId: string
+) {
+  // This would integrate with your analytics backend
+  // The request tracking provides the raw data
+  
+  return {
+    totalRequests: 156,
+    successRate: 0.98,
+    averageResponseTime: 850,
+    creditsConsumed: 312,
+    popularFeatures: {
+      'basic-query': 89,
+      'advanced-analysis': 45,
+      'batch-processing': 22
+    },
+    timeDistribution: {
+      // Requests by hour of day
+    }
+  }
+}
+```
+
+### Best Practices for Request Tracking
+
+<AccordionGroup>
+  <Accordion title="Performance Considerations">
+    - Use async operations to avoid blocking request processing
+    - Consider batching updates for high-volume scenarios
+    - Implement request sampling for very high traffic
+    - Store detailed metadata only when necessary
+  </Accordion>
+  
+  <Accordion title="Privacy and Compliance">
+    - Don't store sensitive user data in request metadata
+    - Implement data retention policies
+    - Allow users to request deletion of their tracking data
+    - Comply with GDPR and other privacy regulations
+  </Accordion>
+  
+  <Accordion title="Error Handling">
+    - Always finish requests even if they fail
+    - Track different types of failures separately
+    - Use request IDs for debugging and support
+    - Implement retry logic for tracking failures
+  </Accordion>
+</AccordionGroup>
+
+### Request Tracking Middleware
+
+Create reusable middleware for automatic request tracking:
+
+```typescript
+export function createRequestTracker(payments: Payments) {
+  return (agentId: string) => {
+    return async (req: NeverminedRequest, res: Response, next: NextFunction) => {
+      if (!req.nevermined) {
+        return next()
+      }
+      
+      const requestId = await payments.requests.initializeSubscriberRequest(
+        req.nevermined.planId,
+        agentId,
+        req.nevermined.subscriberAddress,
+        {
+          method: req.method,
+          endpoint: req.path,
+          timestamp: new Date()
+        }
+      )
+      
+      // Store request ID for later use
+      req.nevermined.requestId = requestId
+      
+      // Override res.json to track completion
+      const originalJson = res.json.bind(res)
+      res.json = function(data: any) {
+        payments.requests.finishSubscriberRequest(requestId, {
+          status: 'completed',
+          creditsUsed: req.nevermined.creditsUsed || 1n,
+          responseTime: Date.now() - req.nevermined.startTime
+        }).catch(console.error)
+        
+        return originalJson(data)
+      }
+      
+      // Track request start time
+      req.nevermined.startTime = Date.now()
+      
+      next()
+    }
+  }
+}
+
+// Usage
+const requestTracker = createRequestTracker(payments)
+app.post('/api/query', 
+  authenticate(agentId), 
+  requestTracker(agentId),
+  handler
+)
+```
+
 ## Testing Your Integration
 
 ### Unit Tests
