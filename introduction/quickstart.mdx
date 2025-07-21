@@ -1,199 +1,305 @@
 ---
-title: 'Quickstart'
-description: 'Get started with Nevermined Payments in 5 minutes'
-icon: 'rocket-launch'
+title: "Quickstart"
+description: "Get started with Nevermined Payments in 5 minutes"
+icon: "rocket-launch"
 ---
 
-## Welcome to Nevermined
+This guide provides a quick path to integrating Nevermined, whether you're an AI Builder looking to monetize a service or a Subscriber wanting to access one. You can interact with Nevermined through our user-friendly Web App or programmatically via our SDKs.
 
-Nevermined Payments is a TypeScript SDK that enables AI builders to monetize their agents through flexible payment models. With support for both cryptocurrency and fiat payments, you can start accepting payments for your AI services in minutes.
+## For AI Builders: Monetize Your Agent
 
-<CardGroup cols={2}>
-  <Card title="Install SDK" icon="download" href="#installation">
-    Get the Nevermined SDK installed in your project
-  </Card>
-  <Card title="Create Agent" icon="robot" href="#create-your-first-agent">
-    Register and monetize your first AI agent
-  </Card>
-  <Card title="Accept Payments" icon="credit-card" href="#accept-payments">
-    Start accepting crypto and fiat payments
-  </Card>
-  <Card title="API Reference" icon="code" href="/api-reference">
-    Explore the complete API documentation
-  </Card>
-</CardGroup>
+### Using the Nevermined Web App (No Code)
 
-## Installation
+The easiest way to get started is by using the [Nevermined App](https://app.nevermined.io) to register your agent and create payment plans through a visual interface.
 
-Install the Nevermined Payments SDK using your preferred package manager:
+1.  **Log In**: Access the app and connect your wallet.
+2.  **Register Agent**: Navigate to the "Agents" section and click "Register New Agent". Fill in your agent's metadata, such as name, description, and API endpoints.
+3.  **Create Payment Plan**: Define one or more payment plans for your agent, specifying price, currency (fiat or crypto), and usage terms (subscription or credits).
+4.  **Done!**: Your agent is now discoverable and ready to accept payments.
 
-```bash npm
+### Using the SDKs (Programmatic)
+
+For developers who need to automate and integrate directly, our SDKs are the perfect tool.
+
+<Steps>
+
+<Step title="1. Get Your API Key">
+To interact with the Nevermined API, you need an API key.
+
+1.  Go to the [Nevermined App](https://app.nevermined.io).
+2.  Log in with your wallet.
+3.  Navigate to the **Settings** section in the user menu.
+4.  Click on the **API Keys** tab.
+5.  Generate a new key, give it a descriptive name, and copy it.
+6.  Store this key securely as an environment variable (e.g., `NVM_API_KEY`).
+
+</Step>
+
+<Step title="2. Install and Initialize the SDK">
+Install the SDK and initialize the `Payments` client with your API key.
+
+<Tabs>
+<Tab title="TypeScript">
+```bash
 npm install @nevermined-io/payments
 ```
-
-```bash yarn
-yarn add @nevermined-io/payments
-```
-
-```bash pnpm
-pnpm add @nevermined-io/payments
-```
-
-## Initialize the SDK
-
-First, you'll need an API key from the [Nevermined App](https://app.nevermined.io). Once you have it, initialize the Payments client:
-
 ```typescript
-import { Payments } from '@nevermined-io/payments'
+import { Payments } from '@nevermined-io/payments';
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY,
-  environment: 'production' // or 'testing' for development
-})
+  environment: 'testing' // or 'production'
+});
 ```
+</Tab>
+<Tab title="Python">
+```bash
+pip install payments-py
+```
+```python
+import os
+from payments_py import Payments
 
-## Create Your First Agent
+payments = Payments(
+    api_key=os.environ.get('NVM_API_KEY'),
+    environment='testing' # or 'production'
+)
+```
+</Tab>
+</Tabs>
+</Step>
 
-Let's create a simple AI agent with a payment plan:
+<Step title="3. Register Your AI Agent">
+Define your agent's metadata, API endpoints, and payment plan. Then, register it with a single call.
 
+<Tabs>
+<Tab title="TypeScript">
 ```typescript
-import { 
-  Payments, 
-  getERC20PriceConfig, 
-  getFixedCreditsConfig 
-} from '@nevermined-io/payments'
+import { getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments';
 
-async function createMyFirstAgent() {
-  // Initialize payments
-  const payments = Payments.getInstance({
-    nvmApiKey: process.env.NVM_API_KEY,
-    environment: 'production'
-  })
+// Define agent metadata
+const agentMetadata = {
+  name: 'My AI Assistant',
+  tags: ['ai', 'assistant'],
+  dateCreated: new Date(),
+};
 
-  // Define agent metadata
-  const agentMetadata = {
-    name: 'My AI Assistant',
-    tags: ['ai', 'assistant'],
-    dateCreated: new Date(),
-    description: 'A helpful AI assistant for various tasks'
-  }
+// Define API endpoints
+const agentApi = {
+  endpoints: [{ POST: 'https://api.myservice.com/query' }],
+};
 
-  // Define API endpoints
-  const agentApi = {
-    endpoints: [
-      { POST: 'https://api.myservice.com/query' }
-    ]
-  }
+// Define plan metadata
+const planMetadata = {
+  name: 'Basic Plan',
+  description: '100 queries per month',
+  dateCreated: new Date(),
+};
 
-  // Configure pricing (10 USDC)
-  const priceConfig = getERC20PriceConfig(
-    10_000_000n, // 10 USDC (6 decimals)
-    '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C', // USDC address
-    process.env.BUILDER_ADDRESS // Your wallet address
-  )
+// Configure pricing (e.g., 10 USDC)
+const priceConfig = getERC20PriceConfig(
+  10_000_000n, // 10 USDC (6 decimals)
+  '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C', // USDC address
+  process.env.BUILDER_ADDRESS
+);
 
-  // Configure credits (100 queries)
-  const creditsConfig = getFixedCreditsConfig(
-    100n, // Total credits
-    1n    // Credits per request
-  )
+// Configure credits (e.g., 100 queries)
+const creditsConfig = getFixedCreditsConfig(100n, 1n);
 
-  // Register agent and plan
-  const { agentId, planId } = await payments.registerAgentAndPlan(
-    agentMetadata,
-    agentApi,
-    priceConfig,
-    creditsConfig
-  )
+// Register agent and plan together
+const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+  agentMetadata,
+  agentApi,
+  planMetadata,
+  priceConfig,
+  creditsConfig
+);
 
-  console.log(`Agent created: ${agentId}`)
-  console.log(`Plan created: ${planId}`)
+console.log(`Agent registered: ${agentId}`);
+```
+</Tab>
+<Tab title="Python">
+```python
+# Define agent metadata
+agent_metadata = {
+    'name': 'My AI Assistant',
+    'tags': ['ai', 'assistant'],
+    'dateCreated': '2023-10-27T10:00:00Z',
 }
+
+# Define API endpoints
+agent_api = {
+    'endpoints': [{'POST': 'https://api.myservice.com/query'}]
+}
+
+# Define plan metadata
+plan_metadata = {
+    'name': 'Basic Plan',
+    'description': '100 queries per month',
+    'dateCreated': '2023-10-27T10:00:00Z',
+}
+
+# Configure pricing (e.g., 10 USDC)
+price_config = {
+    'priceType': 'FIXED_PRICE',
+    'tokenAddress': '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
+    'amounts': [10000000],
+    'receivers': [os.environ.get('BUILDER_ADDRESS')]
+}
+
+# Configure credits (e.g., 100 queries)
+credits_config = {
+    'creditsType': 'FIXED',
+    'amount': 100,
+    'creditsPerRequest': 1
+}
+
+# Register agent and plan together
+agent_info = payments.agents.register_agent_and_plan(
+    agent_metadata,
+    agent_api,
+    plan_metadata,
+    price_config,
+    credits_config
+)
+
+print(f"Agent registered: {agent_info['agentId']}")
 ```
+</Tab>
+</Tabs>
+</Step>
 
-## Accept Payments
-
-Integrate payment validation into your agent endpoint:
+<Step title="4. Accept Payments">
+In your agent's backend, add logic to validate requests from subscribers. This ensures that only authorized users can access your service.
 
 ```typescript
-import express from 'express'
-
-const app = express()
-
+// Example in an Express.js route
 app.post('/api/query', async (req, res) => {
-  // Validate access
-  const isValid = await payments.isValidRequest(
-    req.body.planId,
-    req.body.agentId,
-    req.body.subscriberAddress,
-    req.headers['x-nvm-query-signature']
-  )
-
-  if (!isValid) {
-    // Return payment required response
-    const paymentCard = await payments.getAgentPaymentCard(req.body.agentId)
-    return res.status(402).json(paymentCard)
+  // Extract authorization header
+  const authHeader = req.headers['authorization'];
+  
+  // For agents using Nevermined Proxy:
+  // The proxy handles validation automatically
+  // Just ensure your agent is registered with endpoints
+  
+  // For direct integration:
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
-
+  
+  const token = authHeader.substring(7);
+  
+  // Validate the access token
+  const validationResult = await payments.requests.isValidRequest(
+    token,
+    req.body
+  );
+  
+  if (!validationResult.isValid) {
+    // Return 402 Payment Required with payment options
+    return res.status(402).json({
+      error: 'Payment Required',
+      plans: validationResult.plans
+    });
+  }
+  
   // Process the AI request
-  const result = await processAIQuery(req.body.prompt)
-
-  // Redeem credits
-  await payments.redeemCredits(
-    req.body.planId, 
-    1n, // Credits to redeem
-    generateProof(req, result)
-  )
-
-  res.json(result)
-})
+  const result = await processAIQuery(req.body.prompt);
+  
+  // Credits are automatically redeemed by the proxy
+  // or you can manually redeem for direct integration
+  
+  res.json(result);
+});
 ```
+This flow protects your agent and automates billing.
+</Step>
 
-## Query an Agent
+</Steps>
 
-Here's how subscribers can purchase a plan and query your agent:
+## For Subscribers: Access an AI Agent
 
+### Using the Nevermined Web App
+
+1.  **Discover**: Find agents in the [Nevermined App](https://app.nevermined.io) or other marketplaces.
+2.  **Purchase**: Select a payment plan and purchase it with crypto or a credit card.
+3.  **Get Credentials**: Once purchased, you'll receive API credentials to access the agent.
+
+### Using the SDKs
+
+<Tabs>
+<Tab title="TypeScript">
 ```typescript
-async function queryAgent() {
-  // Get agent details
-  const agent = await payments.getAgent(agentId)
-  
-  // Purchase a plan
-  const plan = agent.plans[0]
-  await payments.orderPlan(plan.planId)
-  
-  // Get access credentials
-  const credentials = await payments.getAgentHTTPOptions(plan.planId, agentId)
-  
-  // Query the agent
-  const result = await payments.query(agentId, credentials, {
-    prompt: "Hello, how can you help me?"
+// 1. Discover the agent and its plans
+const agent = await payments.agents.getAgent('AGENT_ID');
+const plan = agent.plans[0];
+
+// 2. Purchase the plan
+const orderResult = await payments.plans.orderPlan(plan.planId);
+console.log('Order transaction:', orderResult.transactionHash);
+
+// 3. Get access credentials
+const credentials = await payments.agents.getAgentAccessToken(
+  plan.planId,
+  agent.agentId
+);
+
+// 4. Query the agent using the access token
+const response = await fetch(agent.endpoints[0].url, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${credentials.accessToken}`
+  },
+  body: JSON.stringify({ 
+    prompt: "Hello, how can you help me?" 
   })
-  
-  console.log(result)
-}
+});
+
+const result = await response.json();
+console.log('Agent response:', result);
 ```
+</Tab>
+<Tab title="Python">
+```python
+import requests
 
-## What's Next?
+# 1. Discover the agent and its plans
+agent = payments.agents.get_agent('AGENT_ID')
+plan = agent['plans'][0]
 
-<CardGroup cols={2}>
-  <Card title="Core Concepts" icon="lightbulb" href="/introduction/core-concepts">
-    Understand the key concepts behind Nevermined
-  </Card>
-  <Card title="Payment Plans" icon="money-bill" href="/introduction/payment-plans">
-    Learn about different pricing models
-  </Card>
-  <Card title="Integration Guide" icon="plug" href="/introduction/integration-guide">
-    Integrate Nevermined into your existing services
-  </Card>
-  <Card title="Best Practices" icon="check" href="/introduction/best-practices">
-    Learn security and performance best practices
+# 2. Purchase the plan
+order_result = payments.plans.order_plan(plan['planId'])
+print(f'Order transaction: {order_result["transactionHash"]}')
+
+# 3. Get access credentials
+credentials = payments.agents.get_agent_access_token(
+    plan['planId'],
+    agent['agentId']
+)
+
+# 4. Query the agent using the access token
+response = requests.post(
+    agent['endpoints'][0]['url'],
+    headers={
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {credentials["accessToken"]}'
+    },
+    json={'prompt': 'Hello, how can you help me?'}
+)
+
+result = response.json()
+print(f'Agent response: {result}')
+```
+</Tab>
+</Tabs>
+
+## Demos and Examples
+
+Explore our collection of demos and real-world examples to see what's possible with Nevermined.
+
+<CardGroup>
+  <Card title="Example Apps" icon="code" href="/introduction/example-apps">
+    See full-stack implementations and integration patterns.
   </Card>
 </CardGroup>
-
-## Quick Links
-
-- [API Reference](/api-reference) - Complete API documentation
-- [Example Apps](/introduction/example-apps) - See real-world implementations
-- [Discord Community](https://discord.gg/nevermined) - Get help from the community
-- [GitHub Repository](https://github.com/nevermined-io/payments) - View the source code

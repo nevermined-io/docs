@@ -1,14 +1,16 @@
 ---
-title: 'Best Practices'
-description: 'Security, performance, and implementation best practices for Nevermined Payments'
-icon: 'shield-check'
+title: "Best Practices"
+description: "Security, performance, and implementation best practices for building robust agents with Nevermined."
+icon: "shield-check"
 ---
 
-## Security Best Practices
+Follow these best practices to build secure, high-performance, and user-friendly AI services with Nevermined.
 
-### Always Validate Requests
+## Security
 
-Before processing any request, always validate that the subscriber has proper access:
+<AccordionGroup>
+<Accordion title="Always Validate Requests" icon="shield-halved">
+This is the most critical security practice. Before processing any request to a protected endpoint, you must validate the incoming request to ensure the user is an authorized subscriber with sufficient credits.
 
 ```typescript
 const isValid = await payments.isValidRequest(
@@ -16,176 +18,139 @@ const isValid = await payments.isValidRequest(
   agentId, 
   subscriberAddress, 
   signature
-)
+);
 
 if (!isValid) {
-  const paymentCard = await payments.getAgentPaymentCard(agentId)
-  return response.status(402).json(paymentCard)
+  // Always return a 402 Payment Required response
+  const paymentCard = await payments.getAgentPaymentCard(agentId);
+  return response.status(402).json(paymentCard);
 }
 ```
+</Accordion>
 
-### Secure API Keys
-
-Never hardcode API keys or sensitive information:
+<Accordion title="Secure Your API Keys" icon="key">
+Never hardcode API keys or other secrets in your source code. Use environment variables to manage your credentials securely.
 
 ```typescript
 // Good ✅
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY,
-  environment: process.env.NODE_ENV === 'production' ? 'production' : 'testing'
-})
+});
 
 // Bad ❌
 const payments = Payments.getInstance({
   nvmApiKey: 'sk_live_abcd1234...',
-  environment: 'production'
-})
+});
 ```
+</Accordion>
 
-### Implement Rate Limiting
-
-Protect your agents from abuse with rate limiting:
+<Accordion title="Implement Rate Limiting" icon="hourglass">
+Protect your agent from denial-of-service (DoS) attacks and abuse by implementing rate limiting. This ensures fair usage and maintains service availability.
 
 ```typescript
-import rateLimit from 'express-rate-limit'
+import rateLimit from 'express-rate-limit';
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per window
-  message: 'Too many requests, please try again later'
-})
+  max: 100, // Limit each IP to 100 requests per window
+  message: 'Too many requests. Please try again later.'
+});
 
-app.use('/api/', limiter)
+app.use('/api/', limiter);
 ```
+</Accordion>
 
-### Fail Closed for Security
-
-Always default to denying access when validation errors occur:
+<Accordion title="Fail Closed" icon="lock">
+In case of an unexpected error during the validation process, your application should "fail closed"—meaning it should deny access by default rather than granting it.
 
 ```typescript
-const isValid = await payments.isValidRequest(planId, agentId, subscriber, signature)
-  .catch(error => {
-    console.error('Validation error:', error)
-    return false // Fail closed
-  })
+const isValid = await payments.isValidRequest(
+  planId, agentId, subscriber, signature
+).catch(error => {
+  console.error('CRITICAL: Validation check failed with error:', error);
+  return false; // Fail closed for security
+});
 ```
+</Accordion>
+</AccordionGroup>
 
-## Performance Optimization
+## Performance
 
-### Cache Agent and Plan Data
-
-Reduce API calls by caching frequently accessed data:
+<AccordionGroup>
+<Accordion title="Cache Agent and Plan Data" icon="bolt">
+Your agent's metadata and its payment plans don't change frequently. Cache this data in your application to reduce latency and minimize API calls to Nevermined.
 
 ```typescript
-const cache = new Map()
+const cache = new Map();
 
 async function getCachedAgent(agentId: string) {
-  if (!cache.has(agentId)) {
-    const agent = await payments.getAgent(agentId)
-    cache.set(agentId, agent)
-    // Set TTL for cache invalidation
-    setTimeout(() => cache.delete(agentId), 5 * 60 * 1000) // 5 minutes
+  const cacheKey = `agent:${agentId}`;
+  if (!cache.has(cacheKey)) {
+    const agent = await payments.getAgent(agentId);
+    // Cache for 5 minutes
+    cache.set(cacheKey, agent, 300); 
   }
-  return cache.get(agentId)
+  return cache.get(cacheKey);
 }
 ```
+</Accordion>
 
-### Batch Operations
-
-When dealing with multiple operations, batch them for better performance:
+<Accordion title="Batch Operations When Possible" icon="box-archive">
+When you need to perform the same operation multiple times (e.g., fetching details for several agents), use `Promise.all` to run them in parallel instead of sequentially.
 
 ```typescript
-// Good ✅ - Parallel execution
-const [agent1, agent2, agent3] = await Promise.all([
+// Good ✅ (Parallel execution)
+const [agent1, agent2] = await Promise.all([
   payments.getAgent(agentId1),
-  payments.getAgent(agentId2),
-  payments.getAgent(agentId3)
-])
+  payments.getAgent(agentId2)
+]);
 
-// Bad ❌ - Sequential execution
-const agent1 = await payments.getAgent(agentId1)
-const agent2 = await payments.getAgent(agentId2)
-const agent3 = await payments.getAgent(agentId3)
+// Bad ❌ (Sequential execution)
+const agent1 = await payments.getAgent(agentId1);
+const agent2 = await payments.getAgent(agentId2);
 ```
-
-### Implement Retry Logic
-
-Handle transient failures gracefully:
-
-```typescript
-async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn()
-    } catch (error) {
-      if (attempt === maxRetries) throw error
-      
-      // Exponential backoff
-      const delay = 1000 * Math.pow(2, attempt - 1)
-      await new Promise(resolve => setTimeout(resolve, delay))
-    }
-  }
-  throw new Error('Max retries exceeded')
-}
-
-// Usage
-const result = await withRetry(() => 
-  payments.redeemCredits(planId, credits, proof)
-)
-```
+</Accordion>
+</AccordionGroup>
 
 ## User Experience
 
-### Clear Error Messages
-
-Provide helpful error responses for payment requirements:
+<AccordionGroup>
+<Accordion title="Provide Clear Payment-Required Messages" icon="credit-card">
+When a user without access tries to use your service, provide a clear error message along with the `paymentCard` so they know exactly how to gain access.
 
 ```typescript
 if (!isValid) {
-  const paymentCard = await payments.getAgentPaymentCard(agentId)
-  const agent = await payments.getAgent(agentId)
+  const paymentCard = await payments.getAgentPaymentCard(agentId);
+  const agent = await getCachedAgent(agentId); // Use cached data
   
   return response.status(402).json({
-    error: 'Payment required to access this service',
-    message: 'Please purchase a plan to continue',
+    error: 'Payment required to access this service.',
+    message: 'Please purchase one of the available plans to continue.',
     paymentCard,
     availablePlans: agent.plans.map(p => ({
       name: p.metadata.name,
       price: p.price.amounts[0],
-      credits: p.credits.amount,
-      duration: p.credits.durationOfThePlan
+      // Add other relevant plan details
     }))
-  })
+  });
 }
 ```
+</Accordion>
 
-### Usage Information Headers
-
-Include usage information in response headers:
-
-```typescript
-const balance = await payments.getPlanBalance(planId, subscriberAddress)
-
-response.setHeader('X-Credits-Remaining', balance.credits.toString())
-response.setHeader('X-Credits-Used', (balance.totalCredits - balance.credits).toString())
-response.setHeader('X-Plan-Type', balance.planType)
-```
-
-### Monitor Credit Usage
-
-Notify users when their credits are running low:
+<Accordion title="Inform Users About Their Usage" icon="receipt">
+Use response headers to provide subscribers with real-time information about their credit balance. This transparency helps build trust and improves the user experience.
 
 ```typescript
-const balance = await payments.getPlanBalance(planId, subscriberAddress)
+const balance = await payments.getPlanBalance(planId, subscriberAddress);
+
+response.setHeader('X-Credits-Remaining', balance.credits.toString());
 
 if (balance.credits < 10) {
-  // Include warning in response
-  response.setHeader('X-Low-Balance-Warning', 'true')
-  
-  // Optional: Send notification
-  await notifyLowBalance(subscriberAddress, balance.credits)
+  response.setHeader('X-Low-Balance-Warning', 'Your credits are running low.');
 }
 ```
+</Accordion>
+</AccordionGroup>
 
 ## Implementation Patterns
 

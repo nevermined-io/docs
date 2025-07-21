@@ -1,24 +1,236 @@
 ---
 title: 'Integration Guide'
-description: 'Step-by-step guide to integrate Nevermined into your AI service'
+description: 'A comprehensive guide to integrating Nevermined into your AI services.'
 icon: 'plug'
 ---
 
-## Integration Options
+This guide provides a deep dive into integrating Nevermined. We'll cover the core components you'll interact with and the different patterns you can use to add a payment layer to your AI agents.
 
-Choose the integration approach that best fits your architecture:
+## Core Integration Concepts
+
+Before diving into integration patterns, it's important to understand the fundamental components of the Nevermined SDK.
+
+### 1. The Payments Client
+
+The Payments Client is your primary interface for all interactions with the Nevermined protocol. It's a singleton instance that abstracts away the complexities of blockchain interactions.
+
+**Key Responsibilities:**
+-   **Agent & Plan Management**: Handles the registration and configuration of your agents and their payment plans.
+-   **Access Validation**: Verifies subscriber permissions through bearer token validation.
+-   **Credit Redemption**: Manages the lifecycle of credits, from issuance to consumption.
+-   **Query Routing**: Facilitates communication between subscribers and agents.
+
+**Modular Architecture:**
+```typescript
+const payments = Payments.getInstance({ nvmApiKey, environment })
+
+payments.agents     // Agent registration and management
+payments.plans      // Plan creation and ordering
+payments.requests   // Request validation and tracking
+payments.a2a        // Agent-to-Agent communication
+```
+
+### 2. AI Agents
+
+In Nevermined, an AI Agent is your monetizable service. It's defined by its metadata, its API endpoints, and the payment plans associated with it.
+
+**Agent Structure:**
+```typescript
+interface Agent {
+  agentId: string;
+  metadata: {
+    name: string;
+    description?: string;
+    tags: string[];
+    dateCreated: Date;
+    image?: string;
+  };
+  api: {
+    endpoints: Array<{ [method: string]: string }>; // Protected endpoints
+    openEndpoints?: string[]; // Public, non-monetized endpoints
+  };
+  plans: PaymentPlan[];
+}
+```
+
+### 3. The Credits System
+
+Credits are the unit of consumption in Nevermined, providing a flexible way to bill for AI services.
+
+**Credit Lifecycle:**
+1.  **Purchase**: A subscriber buys a plan and receives credits.
+2.  **Validation**: On each API call, the system checks if the subscriber has sufficient credits.
+3.  **Consumption**: After a successful request, the specified number of credits is redeemed (burned).
+4.  **Tracking**: The subscriber's balance is updated in real-time.
+5.  **Expiration**: For time-based plans, access expires after the duration ends.
+
+### 4. Access Control
+
+Nevermined uses bearer token authentication to secure your agent's endpoints, ensuring only authorized subscribers can access them.
+
+**How it Works:**
+<Steps>
+  <Step title="Plan Purchase">
+    A subscriber purchases a plan through the SDK or Web App.
+  </Step>
+  <Step title="Token Generation">
+    Upon purchase, the subscriber receives a bearer token via `getAgentAccessToken()`.
+  </Step>
+  <Step title="Request Authentication">
+    The subscriber includes the token in the Authorization header of their requests.
+  </Step>
+  <Step title="Validation">
+    The Nevermined Proxy or your agent validates the token, checks credit balance, and authorizes access.
+  </Step>
+  <Step title="Service Delivery">
+    If validated, your agent processes the request and credits are automatically deducted.
+  </Step>
+</Steps>
+
+---
+
+## Integration Patterns
+
+Choose the integration pattern that best fits your application's architecture.
 
 <CardGroup cols={3}>
   <Card title="Direct Integration" icon="code" href="#direct-integration">
-    Add Nevermined to your code
-  </Card>
-  <Card title="Middleware Pattern" icon="layer-group" href="#middleware-pattern">
-    Reusable authentication layer
+    Integrate the SDK directly into your agent's code for full control.
   </Card>
   <Card title="Proxy Integration" icon="shield" href="#proxy-integration">
-    No code changes required
+    No code changes - Nevermined Proxy handles payments.
+  </Card>
+  <Card title="Middleware Pattern" icon="layer-group" href="#middleware-pattern">
+    Create a reusable authentication layer for Node.js applications.
   </Card>
 </CardGroup>
+
+### Direct Integration
+
+This pattern is best for new services or when you want maximum control over the request lifecycle.
+
+**Example: Protecting an Express.js Endpoint**
+```typescript
+app.post('/api/query', async (req, res) => {
+  try {
+    // Extract bearer token from Authorization header
+    const authHeader = req.headers['authorization'];
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const token = authHeader.substring(7);
+    
+    // 1. Validate access token
+    const validation = await payments.requests.isValidRequest(
+      token,
+      req.body
+    );
+    
+    if (!validation.isValid) {
+      // Return available payment plans
+      return res.status(402).json({
+        error: 'Payment Required',
+        plans: validation.plans
+      });
+    }
+
+    // 2. Process the AI request
+    const result = await processAIRequest(req.body.prompt);
+
+    // 3. Credits are automatically redeemed by the proxy
+    // For direct integration without proxy, you can manually track:
+    // await payments.requests.logRequest(token, { usage: 1 });
+
+    // 4. Return response
+    res.json(result);
+
+  } catch (error) {
+    console.error('Request failed:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+```
+
+### Proxy Integration
+
+For existing services that can't be modified, use the Nevermined Proxy. The proxy handles all payment validation automatically.
+
+**How It Works:**
+1. Register your existing API endpoints with Nevermined
+2. Subscribers access your service through the proxy URL
+3. The proxy validates tokens and manages credits
+4. Your service receives forwarded requests without modification
+
+**Example Registration:**
+```typescript
+const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+  {
+    name: 'My Existing Service',
+    tags: ['ai', 'proxy']
+  },
+  {
+    endpoints: [
+      { POST: 'https://my-api.com/process' },
+      { GET: 'https://my-api.com/status' }
+    ],
+    openEndpoints: ['https://my-api.com/health']
+  },
+  planMetadata,
+  priceConfig,
+  creditsConfig
+);
+
+// Your service is now accessible at:
+// https://proxy.nevermined.app/api/v1/agents/{agentId}/invoke
+```
+
+### Middleware Pattern
+
+For Node.js applications, create reusable middleware to protect multiple routes.
+
+**Example: Express.js Auth Middleware**
+```typescript
+export function createNeverminedAuth(payments: Payments) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authHeader = req.headers['authorization'];
+      
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Missing bearer token' });
+      }
+      
+      const token = authHeader.substring(7);
+      const validation = await payments.requests.isValidRequest(token, req.body);
+      
+      if (!validation.isValid) {
+        return res.status(402).json({
+          error: 'Payment required',
+          plans: validation.plans
+        });
+      }
+
+      // Attach validation info to request
+      (req as any).nevermined = {
+        token,
+        planId: validation.planId,
+        subscriberAddress: validation.subscriberAddress
+      };
+      
+      next();
+    } catch (error) {
+      console.error('Auth error:', error);
+      res.status(500).json({ error: 'Authentication failed' });
+    }
+  };
+}
+
+// Usage
+const auth = createNeverminedAuth(payments);
+
+app.post('/api/query', auth, handleQuery);
+app.post('/api/generate', auth, handleGenerate);
+```
 
 ## Direct Integration
 
@@ -51,49 +263,40 @@ const payments = Payments.getInstance({
 ```typescript
 app.post('/api/query', async (req, res) => {
   try {
-    // Extract payment information
-    const { planId, agentId, subscriberAddress, prompt } = req.body
-    const signature = req.headers['x-nvm-query-signature'] as string
-
+    // Extract bearer token
+    const authHeader = req.headers['authorization']
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized - Bearer token required' })
+    }
+    
+    const token = authHeader.substring(7)
+    
     // Validate access
-    const isValid = await payments.isValidRequest(
-      planId,
-      agentId,
-      subscriberAddress,
-      signature
-    )
-
-    if (!isValid) {
-      const paymentCard = await payments.getAgentPaymentCard(agentId)
+    const validation = await payments.requests.isValidRequest(token, req.body)
+    
+    if (!validation.isValid) {
       return res.status(402).json({
         error: 'Payment required',
         message: 'Please purchase a plan to access this service',
-        paymentCard
+        plans: validation.plans // Available payment plans
       })
     }
 
     // Process the AI request
-    const result = await processAIRequest(prompt)
+    const result = await processAIRequest(req.body.prompt)
 
-    // Redeem credits
-    await payments.redeemCredits(
-      planId,
-      1n, // Credits to consume
-      { 
-        requestId: req.id,
-        prompt: prompt.substring(0, 100),
-        timestamp: Date.now()
-      }
-    )
-
-    // Return response with usage info
-    const balance = await payments.getPlanBalance(planId, subscriberAddress)
+    // For direct integration, optionally track usage:
+    // await payments.requests.logRequest(token, { 
+    //   creditsUsed: 1,
+    //   requestData: { prompt: req.body.prompt.substring(0, 100) }
+    // })
     
+    // Return response
     res.json({
       result,
       usage: {
         creditsUsed: 1,
-        creditsRemaining: balance.credits.toString()
+        planId: validation.planId
       }
     })
 
@@ -130,14 +333,14 @@ import {
 } from '@nevermined-io/payments'
 
 async function setupAgent() {
-  const metadata = {
+  const agentMetadata = {
     name: 'My AI Service',
     tags: ['ai', 'nlp'],
     dateCreated: new Date(),
     description: 'Advanced AI processing service'
   }
 
-  const api = {
+  const agentApi = {
     endpoints: [
       { POST: 'https://api.myservice.com/api/query' }
     ],
@@ -145,24 +348,32 @@ async function setupAgent() {
       'https://api.myservice.com/health'
     ]
   }
+  
+  const planMetadata = {
+    name: 'Basic Plan',
+    description: '100 queries with advanced AI processing',
+    dateCreated: new Date()
+  }
 
-  const price = getERC20PriceConfig(
-    10_000_000n, // 10 USDC
+  const priceConfig = getERC20PriceConfig(
+    10_000_000n, // 10 USDC (6 decimals)
     USDC_ADDRESS,
     process.env.BUILDER_ADDRESS
   )
 
-  const credits = getFixedCreditsConfig(100n, 1n)
+  const creditsConfig = getFixedCreditsConfig(100n, 1n)
 
-  const { agentId, planId } = await payments.registerAgentAndPlan(
-    metadata,
-    api,
-    price,
-    credits
+  const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+    agentMetadata,
+    agentApi,
+    planMetadata,
+    priceConfig,
+    creditsConfig
   )
 
-  console.log('Agent ID:', agentId)
-  console.log('Plan ID:', planId)
+  console.log('Agent registered:', agentId)
+  console.log('Plan created:', planId)
+  console.log('Access via proxy:', `https://proxy.nevermined.app/api/v1/agents/${agentId}`)
 }
 ```
 
@@ -235,25 +446,24 @@ export function createNeverminedAuth(payments: Payments) {
 const app = express()
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY,
-  environment: 'production'
+  environment: 'testing'
 })
 
 const auth = createNeverminedAuth(payments)
-const agentId = process.env.AGENT_ID
 
 // Apply to all protected routes
-app.use('/api/*', auth(agentId))
+app.use('/api/*', auth)
 
 // Or apply to specific routes
-app.post('/api/query', auth(agentId), async (req, res) => {
-  // Access payment info from req.nevermined
-  const { planId } = req.nevermined
+app.post('/api/query', auth, async (req, res) => {
+  // Access validation info from req.nevermined
+  const { token, planId } = req.nevermined
   
   // Process request...
   const result = await processQuery(req.body)
   
-  // Redeem credits
-  await payments.redeemCredits(planId, 1n, { query: req.body })
+  // Optionally log usage for direct integration
+  // await payments.requests.logRequest(token, { creditsUsed: 1 })
   
   res.json(result)
 })
@@ -269,21 +479,23 @@ export function createAdvancedAuth(payments: Payments, options?: {
 }) {
   const requestCounts = new Map<string, number[]>()
 
-  return (agentId: string) => {
-    return async (req: NeverminedRequest, res: Response, next: NextFunction) => {
-      try {
-        // Basic validation
-        const isValid = await payments.isValidRequest(
-          req.body.planId,
-          agentId,
-          req.body.subscriberAddress,
-          req.headers['x-nvm-query-signature'] as string
-        )
-
-        if (!isValid) {
-          const paymentCard = await payments.getAgentPaymentCard(agentId)
-          return res.status(402).json({ error: 'Payment required', paymentCard })
-        }
+  return async (req: NeverminedRequest, res: Response, next: NextFunction) => {
+    try {
+      // Extract and validate token
+      const authHeader = req.headers['authorization']
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized' })
+      }
+      
+      const token = authHeader.substring(7)
+      const validation = await payments.requests.isValidRequest(token, req.body)
+      
+      if (!validation.isValid) {
+        return res.status(402).json({ 
+          error: 'Payment required',
+          plans: validation.plans 
+        })
+      }
 
         // Check balance if requested
         if (options?.checkBalance) {

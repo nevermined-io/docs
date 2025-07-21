@@ -65,18 +65,28 @@ import {
 } from '@nevermined-io/payments'
 
 // 10 USDC for 100 API calls
-const price = getERC20PriceConfig(
+const planMetadata = {
+  name: 'Basic Usage Plan',
+  description: '100 API calls with standard processing',
+  dateCreated: new Date()
+}
+
+const priceConfig = getERC20PriceConfig(
   10_000_000n, // 10 USDC (6 decimals)
   '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C', // USDC address
   builderAddress
 )
 
-const credits = getFixedCreditsConfig(
+const creditsConfig = getFixedCreditsConfig(
   100n, // Total credits
   1n    // 1 credit per request
 )
 
-const { planId } = await payments.registerCreditsPlan(price, credits)
+const { planId } = await payments.plans.registerCreditsPlan(
+  planMetadata,
+  priceConfig,
+  creditsConfig
+)
 ```
 
 ### Dynamic Credits Example
@@ -85,20 +95,28 @@ For services where usage varies by request:
 
 ```typescript
 // 50 USDC for 1000 credits (variable consumption)
-const price = getERC20PriceConfig(50_000_000n, USDC_ADDRESS, builderAddress)
+const planMetadata = {
+  name: 'Dynamic Usage Plan',
+  description: 'Variable credit consumption based on complexity'
+}
 
-const dynamicCredits = {
+const priceConfig = getERC20PriceConfig(50_000_000n, USDC_ADDRESS, builderAddress)
+
+const dynamicCreditsConfig = {
   creditsType: 'DYNAMIC',
   amount: 1000n,
   minCreditsPerRequest: 1n,   // Minimum 1 credit
   maxCreditsPerRequest: 50n   // Maximum 50 credits
 }
 
-const { planId } = await payments.registerCreditsPlan(price, dynamicCredits)
+const { planId } = await payments.plans.registerCreditsPlan(
+  planMetadata,
+  priceConfig,
+  dynamicCreditsConfig
+)
 
-// In your endpoint, calculate credits based on complexity
-const creditsUsed = calculateComplexity(request) // Returns 1-50
-await payments.redeemCredits(planId, creditsUsed, proof)
+// In your endpoint, credits are automatically calculated
+// based on the request complexity by the Nevermined system
 ```
 
 ## Time-Based Plans
@@ -114,26 +132,44 @@ import {
 } from '@nevermined-io/payments'
 
 // $29.99/month via Stripe
-const price = getFiatPriceConfig(
+const planMetadata = {
+  name: 'Monthly Subscription',
+  description: 'Unlimited access for 30 days'
+}
+
+const priceConfig = getFiatPriceConfig(
   29_990_000n, // $29.99 (8 decimals)
   builderAddress
 )
 
-const credits = getExpirablePlanCreditsConfig(
+const timeConfig = getExpirableDurationConfig(
   86400n * 30n // 30 days in seconds
 )
 
-const { planId } = await payments.registerTimePlan(price, credits)
+const { planId } = await payments.plans.registerTimePlan(
+  planMetadata,
+  priceConfig,
+  timeConfig
+)
 ```
 
 ### Annual Subscription
 
 ```typescript
 // $299/year (with discount)
-const price = getFiatPriceConfig(299_000_000n, builderAddress)
-const credits = getExpirablePlanCreditsConfig(86400n * 365n)
+const planMetadata = {
+  name: 'Annual Subscription',
+  description: 'Best value - save 20% with annual billing'
+}
 
-const { planId } = await payments.registerTimePlan(price, credits)
+const priceConfig = getFiatPriceConfig(299_000_000n, builderAddress)
+const timeConfig = getExpirableDurationConfig(86400n * 365n)
+
+const { planId } = await payments.plans.registerTimePlan(
+  planMetadata,
+  priceConfig,
+  timeConfig
+)
 ```
 
 ## Hybrid Plans
@@ -144,16 +180,25 @@ Combine time limits with usage limits for maximum flexibility.
 
 ```typescript
 // $49/month for up to 1000 requests
-const price = getFiatPriceConfig(49_000_000n, builderAddress)
-
-const hybridCredits = {
-  creditsType: 'FIXED',
-  amount: 1000n,
-  creditsPerRequest: 1n,
-  durationOfThePlan: 86400n * 30n // Also expires after 30 days
+const planMetadata = {
+  name: 'Pro Monthly',
+  description: '1000 requests per month with priority processing'
 }
 
-const { planId } = await payments.registerCreditsPlan(price, hybridCredits)
+const priceConfig = getFiatPriceConfig(49_000_000n, builderAddress)
+
+const hybridCreditsConfig = {
+  creditsType: 'EXPIRABLE',
+  amount: 1000n,
+  creditsPerRequest: 1n,
+  durationOfThePlan: 86400n * 30n // Expires after 30 days
+}
+
+const { planId } = await payments.plans.registerCreditsPlan(
+  planMetadata,
+  priceConfig,
+  hybridCreditsConfig
+)
 ```
 
 ## Multi-Tier Pricing
@@ -168,31 +213,37 @@ async function createTieredPricing() {
   })
 
   // Basic Tier - $9.99 for 100 requests
+  const basicMetadata = { name: 'Basic', description: 'For individuals' }
   const basicPrice = getFiatPriceConfig(9_990_000n, builderAddress)
   const basicCredits = getFixedCreditsConfig(100n, 1n)
-  const { planId: basicPlan } = await payments.registerCreditsPlan(
+  const { planId: basicPlan } = await payments.plans.registerCreditsPlan(
+    basicMetadata,
     basicPrice, 
     basicCredits
   )
 
   // Pro Tier - $49.99 for 1000 requests
+  const proMetadata = { name: 'Pro', description: 'For growing teams' }
   const proPrice = getFiatPriceConfig(49_990_000n, builderAddress)
   const proCredits = getFixedCreditsConfig(1000n, 1n)
-  const { planId: proPlan } = await payments.registerCreditsPlan(
+  const { planId: proPlan } = await payments.plans.registerCreditsPlan(
+    proMetadata,
     proPrice, 
     proCredits
   )
 
   // Enterprise Tier - $199/month unlimited
+  const enterpriseMetadata = { name: 'Enterprise', description: 'For large organizations' }
   const enterprisePrice = getFiatPriceConfig(199_000_000n, builderAddress)
-  const enterpriseCredits = getExpirablePlanCreditsConfig(86400n * 30n)
-  const { planId: enterprisePlan } = await payments.registerTimePlan(
+  const enterpriseTime = getExpirableDurationConfig(86400n * 30n)
+  const { planId: enterprisePlan } = await payments.plans.registerTimePlan(
+    enterpriseMetadata,
     enterprisePrice, 
-    enterpriseCredits
+    enterpriseTime
   )
 
   // Register agent with all plans
-  const { agentId } = await payments.registerAgent(
+  const { agentId } = await payments.agents.registerAgent(
     agentMetadata,
     agentApi,
     [basicPlan, proPlan, enterprisePlan]
@@ -246,9 +297,13 @@ const plans = [
 ]
 
 for (const tier of plans) {
+  const metadata = {
+    name: `${tier.credits} Credits Pack`,
+    description: `$${tier.price / 1_000_000} per credit`
+  }
   const price = getERC20PriceConfig(tier.price, USDC_ADDRESS, builderAddress)
   const credits = getFixedCreditsConfig(tier.credits, 1n)
-  await payments.registerCreditsPlan(price, credits)
+  await payments.plans.registerCreditsPlan(metadata, price, credits)
 }
 ```
 
@@ -268,15 +323,17 @@ async function processRequest(feature: string, req: Request) {
 
   const creditsRequired = creditCosts[feature] || 1n
   
-  // Check balance first
-  const balance = await payments.getPlanBalance(planId, subscriberAddress)
-  if (balance.credits < creditsRequired) {
-    throw new Error('Insufficient credits for this feature')
-  }
-
-  // Process and redeem
+  // With bearer token authentication, validation happens automatically
+  // The proxy or your validation middleware handles credit checks
+  
+  // Process the request - credits are deducted automatically
   const result = await processFeature(feature, req)
-  await payments.redeemCredits(planId, creditsRequired, { feature })
+  
+  // Optionally log the usage for analytics
+  // await payments.requests.logRequest(token, { 
+  //   feature,
+  //   creditsUsed: creditsRequired 
+  // })
   
   return result
 }
@@ -302,7 +359,13 @@ const revenueSharePrice = {
   ]
 }
 
-const { planId } = await payments.registerCreditsPlan(
+const planMetadata = {
+  name: 'Revenue Share Plan',
+  description: 'Collaborative pricing with multiple beneficiaries'
+}
+
+const { planId } = await payments.plans.registerCreditsPlan(
+  planMetadata,
   revenueSharePrice,
   creditsConfig
 )
@@ -319,9 +382,19 @@ Plans are immutable once created, but you can:
 3. Deprecate old plans (stop promoting them)
 
 ```typescript
-// Add a new plan to existing agent
-const newPlanId = await createNewPlan()
-await payments.addPlanToAgent(agentId, newPlanId)
+// Create and add a new plan to existing agent
+const newPlanMetadata = { name: 'Limited Time Offer', description: '50% off' }
+const newPriceConfig = getFiatPriceConfig(14_990_000n, builderAddress)
+const newCreditsConfig = getFixedCreditsConfig(500n, 1n)
+
+const { planId: newPlanId } = await payments.plans.registerCreditsPlan(
+  newPlanMetadata,
+  newPriceConfig,
+  newCreditsConfig
+)
+
+// Associate the new plan with the agent
+await payments.agents.addPlanToAgent(agentId, newPlanId)
 ```
 
 ### Plan Analytics
@@ -330,14 +403,18 @@ Track plan performance:
 
 ```typescript
 async function analyzePlanPerformance(planId: string) {
-  const plan = await payments.getPlan(planId)
+  const plan = await payments.plans.getPlan(planId)
+  const balance = await payments.plans.getPlanBalance(planId, subscriberAddress)
   
   // Get subscriber count and usage metrics
   const metrics = {
     planId,
-    price: plan.price.amounts[0],
-    totalCredits: plan.credits.amount,
-    creditsPerRequest: plan.credits.creditsPerRequest,
+    planName: plan.metadata.name,
+    price: plan.priceConfig.amounts[0],
+    totalCredits: plan.creditsConfig.amount,
+    creditsPerRequest: plan.creditsConfig.creditsPerRequest,
+    currentBalance: balance.credits,
+    subscriberStatus: balance.subscriberStatus
     // Add your custom analytics
   }
   
@@ -403,39 +480,48 @@ class PricingManager {
     const plans = []
 
     // Free Trial - 10 requests
+    const trialMeta = { name: 'Free Trial', description: 'Try before you buy' }
     const trialPrice = getERC20PriceConfig(0n, USDC_ADDRESS, builderAddress)
     const trialCredits = getFixedCreditsConfig(10n, 1n)
-    const trial = await this.payments.registerCreditsPlan(trialPrice, trialCredits)
+    const trial = await this.payments.plans.registerCreditsPlan(
+      trialMeta, trialPrice, trialCredits
+    )
     plans.push(trial.planId)
 
     // Pay-as-you-go - $0.10 per request
+    const paygoMeta = { name: 'Pay as You Go', description: 'Perfect for testing' }
     const paygoPrice = getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
     const paygoCredits = getFixedCreditsConfig(100n, 1n)
-    const paygo = await this.payments.registerCreditsPlan(paygoPrice, paygoCredits)
+    const paygo = await this.payments.plans.registerCreditsPlan(
+      paygoMeta, paygoPrice, paygoCredits
+    )
     plans.push(paygo.planId)
 
     // Monthly Pro - $49/month for 1000 requests
+    const proMeta = { name: 'Pro Monthly', description: 'Best for regular users' }
     const proPrice = getFiatPriceConfig(49_000_000n, builderAddress)
     const proCredits = {
-      creditsType: 'FIXED',
+      creditsType: 'EXPIRABLE',
       amount: 1000n,
       creditsPerRequest: 1n,
       durationOfThePlan: 86400n * 30n
     }
-    const pro = await this.payments.registerCreditsPlan(proPrice, proCredits)
+    const pro = await this.payments.plans.registerCreditsPlan(
+      proMeta, proPrice, proCredits
+    )
     plans.push(pro.planId)
 
     // Enterprise - Custom pricing
+    const entMeta = { name: 'Enterprise', description: 'Unlimited monthly access' }
     const enterprisePrice = getFiatPriceConfig(499_000_000n, builderAddress)
-    const enterpriseCredits = getExpirablePlanCreditsConfig(86400n * 30n)
-    const enterprise = await this.payments.registerTimePlan(
-      enterprisePrice, 
-      enterpriseCredits
+    const enterpriseTime = getExpirableDurationConfig(86400n * 30n)
+    const enterprise = await this.payments.plans.registerTimePlan(
+      entMeta, enterprisePrice, enterpriseTime
     )
     plans.push(enterprise.planId)
 
     // Register agent with all plans
-    const { agentId } = await this.payments.registerAgent(
+    const { agentId } = await this.payments.agents.registerAgent(
       agentMetadata,
       agentApi,
       plans
