@@ -63,3 +63,4 @@ Ensure you’re running mintlify dev from a directory that includes a valid docs
 ⸻
 
 Built with ❤️ by the Nevermined team
+https://nevermined.ai
