@@ -1,0 +1,266 @@
+---
+title: "Purchase Plans"
+description: "Learn how users can purchase Payment Plans to access AI services"
+icon: "credit-card"
+---
+
+With the Payments Library, users/subscribers can order Payment Plans by paying. The process is simple and secure. The Subscriber needs to have enough funds in their wallet to pay for the Plan in the token selected by the creator of the Plan. In Nevermined, the Payment Plan creators can request the payments in any valid ERC20 or Native token (depending on the network where the Plan is created).
+
+When the Payment Plan requires a payment in Fiat, the payment can be initiated with the libraries, but the final step needs to be done in the Nevermined App. The App will handle the payment in Fiat (Stripe integration) and will return the user to the application with the Payment Plan ordered.
+
+## Ordering a Plan
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Here we are ordering the plan created in the previous steps
+    const orderResult = await payments.plans.orderPlan(planId)
+    // OUTPUT: orderResult: 
+    // {
+    //   txHash: '0x5b95ebaec594b6d87e688faddf85eec3d708e6a06e61864699e5a366af1343f6',
+    //   success: true
+    // }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Here we are ordering the Plan created in the previous steps
+    order_result = payments.order_plan(plan_DID)  
+    # OUTPUT: orderResult: 
+    #  { success: True, agreementId: '0xaabbcc' }   
+    ```
+  </Tab>
+</Tabs>
+
+## Ordering Plans with Fiat Payment
+
+For fiat payments, the process involves redirecting users to a Stripe checkout session:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Get fiat payment configuration
+    const fiatConfig = await payments.plans.getFiatPriceConfig(planId)
+    
+    // Order plan with fiat payment
+    const { sessionId, url } = await payments.plans.orderFiatPlan(planId)
+    
+    // Redirect user to Stripe checkout
+    window.location.href = url
+    
+    // After successful payment, user will be redirected back with the plan active
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Get fiat payment configuration
+    fiat_config = payments.plans.get_fiat_price_config(plan_id)
+    
+    # Order plan with fiat payment
+    fiat_result = payments.plans.order_fiat_plan(plan_id)
+    
+    # Redirect user to Stripe checkout
+    print(f'Stripe checkout URL: {fiat_result["url"]}')
+    # User completes payment on Stripe and returns to your application
+    ```
+  </Tab>
+</Tabs>
+
+## Checking the Balance of a Payment Plan
+
+After a user orders a plan, they can check their balance for that plan. The balance represents the number of credits the user has available to use within the plan.
+
+<Note>
+Time-based plans provide a balance of 1 credit for subscribers. When the plan expires, this balance will be zero.
+</Note>
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    const balanceResult = await payments.plans.getPlanBalance(planId)
+    // OUTPUT: balanceResult:
+    // {
+    //   planId: '84262690312400469275420649384078993542777341811308941725027729655403981619104',
+    //   planType: 'credits',
+    //   holderAddress: '0x8924803472bb453b7c27a3C982A08f7515D7aA72',
+    //   creditsContract: '0x17FaFabF74312EdaBEB1DB9f0CaAccd44aAFDE39',
+    //   balance: '100',
+    //   isSubscriber: true
+    // }
+    ```  
+  </Tab>
+  <Tab title="Python">
+    ```python
+    balance_result = payments.get_plan_balance(plan_DID)
+    # OUTPUT: balanceResult:
+    # {
+    #   "planType": "credits",
+    #   "isSubscriptor": True,
+    #   "isOwner": False,
+    #   "balance": 10000000
+    # }  
+    ```
+  </Tab>
+</Tabs>
+
+## Understanding Plan Types and Balances
+
+<CardGroup cols={2}>
+  <Card title="Credits-Based Plans" icon="coins">
+    Users receive a specific number of credits upon purchase. Each API call consumes credits based on your configuration.
+  </Card>
+  <Card title="Time-Based Plans" icon="clock">
+    Users receive 1 credit that grants unlimited access for the specified duration. Balance becomes 0 when expired.
+  </Card>
+</CardGroup>
+
+## Payment Flow Examples
+
+### Complete Purchase Flow
+
+<Steps>
+  <Step title="Discover Plans">
+    Users browse available payment plans and select one that fits their needs
+  </Step>
+  <Step title="Initiate Purchase">
+    Call `orderPlan()` or `orderFiatPlan()` depending on payment method
+  </Step>
+  <Step title="Complete Payment">
+    For crypto: transaction is processed on-chain
+    For fiat: user completes Stripe checkout
+  </Step>
+  <Step title="Verify Purchase">
+    Check balance to confirm the plan was successfully purchased
+  </Step>
+  <Step title="Access Services">
+    Use the plan to access AI agents and services
+  </Step>
+</Steps>
+
+### Error Handling
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    try {
+      const orderResult = await payments.plans.orderPlan(planId)
+      
+      if (orderResult.success) {
+        console.log('Plan purchased successfully!')
+        console.log('Transaction hash:', orderResult.txHash)
+        
+        // Check balance to confirm
+        const balance = await payments.plans.getPlanBalance(planId)
+        console.log('Available credits:', balance.balance)
+      }
+    } catch (error) {
+      console.error('Purchase failed:', error.message)
+      
+      if (error.message.includes('insufficient funds')) {
+        console.log('Please ensure you have enough tokens in your wallet')
+      } else if (error.message.includes('user rejected')) {
+        console.log('Transaction was cancelled by user')
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    try:
+        order_result = payments.order_plan(plan_id)
+        
+        if order_result.get('success'):
+            print('Plan purchased successfully!')
+            print(f'Agreement ID: {order_result.get("agreementId")}')
+            
+            # Check balance to confirm
+            balance = payments.get_plan_balance(plan_id)
+            print(f'Available credits: {balance.get("balance")}')
+            
+    except Exception as error:
+        print(f'Purchase failed: {error}')
+        
+        if 'insufficient funds' in str(error):
+            print('Please ensure you have enough tokens in your wallet')
+        elif 'user rejected' in str(error):
+            print('Transaction was cancelled by user')
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices for Plan Purchasing
+
+<AccordionGroup>
+  <Accordion title="User Experience">
+    - Always show clear pricing and what users get for their purchase
+    - Provide both crypto and fiat payment options when possible
+    - Display estimated transaction fees for crypto payments
+    - Show plan benefits and limitations clearly
+  </Accordion>
+  
+  <Accordion title="Error Handling">
+    - Handle network failures gracefully with retry mechanisms
+    - Provide clear error messages for common issues
+    - Allow users to check their balance before making additional purchases
+    - Implement transaction status checking for pending purchases
+  </Accordion>
+  
+  <Accordion title="Security">
+    - Never store private keys or sensitive wallet information
+    - Validate plan purchases on the backend before granting access
+    - Implement rate limiting to prevent abuse
+    - Log purchase events for audit trails
+  </Accordion>
+</AccordionGroup>
+
+## Integration Examples
+
+### Web Application Integration
+
+```typescript
+// React component example
+const PlanPurchase = ({ planId, planDetails }) => {
+  const [purchasing, setPurchasing] = useState(false)
+  const [balance, setBalance] = useState(null)
+  
+  const handlePurchase = async () => {
+    setPurchasing(true)
+    try {
+      const result = await payments.plans.orderPlan(planId)
+      if (result.success) {
+        const newBalance = await payments.plans.getPlanBalance(planId)
+        setBalance(newBalance.balance)
+        toast.success('Plan purchased successfully!')
+      }
+    } catch (error) {
+      toast.error(`Purchase failed: ${error.message}`)
+    } finally {
+      setPurchasing(false)
+    }
+  }
+  
+  return (
+    <div>
+      <h3>{planDetails.name}</h3>
+      <p>Price: {planDetails.price} {planDetails.token}</p>
+      <button onClick={handlePurchase} disabled={purchasing}>
+        {purchasing ? 'Processing...' : 'Purchase Plan'}
+      </button>
+      {balance && <p>Available credits: {balance}</p>}
+    </div>
+  )
+}
+```
+
+## Next Steps
+
+After users purchase plans, they can:
+
+<CardGroup cols={2}>
+  <Card title="Query AI Agents" icon="search" href="/integration-guide/query-agents">
+    Learn how to access AI services with purchased plans
+  </Card>
+  <Card title="Monitor Usage" icon="chart-line" href="/introduction/troubleshooting">
+    Track credit usage and plan status
+  </Card>
+</CardGroup>
