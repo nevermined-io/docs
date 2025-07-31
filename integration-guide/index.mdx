@@ -1,0 +1,278 @@
+---
+title: "Integration Guide"
+description: "A comprehensive guide to integrating Nevermined into your AI services"
+icon: "plug"
+---
+
+This guide provides a comprehensive walkthrough for integrating Nevermined Payment Libraries into your AI services. We'll cover setup, core components, and the different patterns you can use to add a payment layer to your AI agents.
+
+## The Nevermined Payment Libraries
+
+The Nevermined Payment Libraries are software components that enable programmatic interaction with the Nevermined ecosystem.
+
+Payment Libraries allow AI Builders and developers to monetize their AI Applications (such as AI Agents or Services) and integrate them seamlessly.
+
+The Payment Libraries are designed for two main scenarios:
+1. **Human to Agent**: The libraries can be used in browser or CLI environments, allowing human users to interact with AI Agents. They support registering and listing AI Agents, purchasing access, and querying agents as subscribers.
+2. **Agent to Agent**: The libraries can be embedded within AI Agents, enabling them to interact with other AI Agents, purchase access to APIs, and query them programmatically.
+
+The libraries are provided in [Python](https://github.com/nevermined-io/payments-py) and
+[TypeScript](https://github.com/nevermined-io/payments).
+
+Both language implementations provide the same API but the Python one is more suited for AI
+Builders, Data Scientists, and Data Engineers.
+
+<Note>
+The TypeScript implementation can be used for building AI Agents and also for building Web applications like AI Marketplaces.
+</Note>
+
+## Main Features
+
+- Register AI Agents
+- Create Pricing Plans defining the conditions (price & usage) for subscribers
+- Associate Pricing Plans to AI Agents, so when a subscriber purchases a payment plan they can query all the agents associated to it
+- Order Pricing Plans (payments in Fiat & Crypto) giving access to the AI Agents
+- Query AI Agents programmatically
+- Build AI Agents able to process tasks sent by users
+- Easy integration with Agent orchestration frameworks like Google A2A and MCP
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+<Steps>
+  <Step title="Development Environment">
+    - Node.js 16+ and npm/yarn (for TypeScript)
+    - Python 3.8+ (for Python)
+    - A code editor (VS Code recommended)
+  </Step>
+  <Step title="Blockchain Wallet">
+    - MetaMask or compatible wallet
+    - Some test tokens for the testing environment
+  </Step>
+  <Step title="Nevermined API Key">
+    Get your API key from the [Nevermined App](https://app.nevermined.io)
+  </Step>
+</Steps>
+
+## Installation
+
+<Tabs>
+  <Tab title="TypeScript/JavaScript">
+    ```bash
+    npm install @nevermined-io/payments
+    # or
+    yarn add @nevermined-io/payments
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    pip install payments-py
+    ```
+  </Tab>
+</Tabs>
+
+## Getting Your API Key
+
+1. Go to the [Nevermined App](https://app.nevermined.io)
+2. Log in with your wallet
+3. Navigate to the **Settings** section in the user menu
+4. Click on the **API Keys** tab
+5. Generate a new key, give it a descriptive name, and copy it
+6. Store this key securely as an environment variable (e.g., `NVM_API_KEY`)
+
+<Warning>
+Never expose your API key in client-side code or commit it to version control. Always use environment variables.
+</Warning>
+
+## Initialize the SDK
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+    
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'testing' // or 'production'
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py import Payments
+    import os
+    
+    payments = Payments(
+        api_key=os.environ.get('NVM_API_KEY'),
+        environment='testing'  # or 'production'
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Configuration
+
+Choose the appropriate environment for your use case:
+
+<AccordionGroup>
+  <Accordion title="Testing Environment">
+    - **Network**: Base Sepolia testnet
+    - **Use case**: Development and testing
+    - **Tokens**: Test tokens (free)
+    - **Environment**: `'testing'`
+  </Accordion>
+  
+  <Accordion title="Production Environment">
+    - **Network**: Base Mainnet
+    - **Use case**: Live applications
+    - **Tokens**: Real tokens (paid)
+    - **Environment**: `'production'`
+  </Accordion>
+</AccordionGroup>
+
+## Basic Configuration Example
+
+Here's a complete example of setting up the Payments client:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+    import dotenv from 'dotenv'
+    
+    // Load environment variables
+    dotenv.config()
+    
+    // Initialize the Payments client
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'testing', // Start with testing
+      // Optional: specify custom RPC endpoints
+      // web3ProviderUri: 'https://your-custom-rpc-endpoint.com'
+    })
+    
+    // Verify the connection
+    console.log('Payments client initialized successfully')
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py import Payments
+    import os
+    from dotenv import load_dotenv
+    
+    # Load environment variables
+    load_dotenv()
+    
+    # Initialize the Payments client
+    payments = Payments(
+        api_key=os.environ.get('NVM_API_KEY'),
+        environment='testing',  # Start with testing
+        # Optional: specify custom RPC endpoints
+        # web3_provider_uri='https://your-custom-rpc-endpoint.com'
+    )
+    
+    print('Payments client initialized successfully')
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Variables Setup
+
+Create a `.env` file in your project root:
+
+```bash
+# Required
+NVM_API_KEY=your_api_key_here
+
+# Optional - for custom configurations
+WEB3_PROVIDER_URI=https://your-custom-rpc-endpoint.com
+BUILDER_ADDRESS=your_wallet_address_here
+```
+
+## Verification
+
+Test your setup with a simple verification:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    async function verifySetup() {
+      try {
+        // Test the connection by checking if the client is properly initialized
+        const config = await payments.getConfig()
+        console.log('Setup verified! Environment:', config.environment)
+        return true
+      } catch (error) {
+        console.error('Setup verification failed:', error)
+        return false
+      }
+    }
+    
+    verifySetup()
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    def verify_setup():
+        try:
+            # Test the connection by checking if the client is properly initialized
+            config = payments.get_config()
+            print(f'Setup verified! Environment: {config["environment"]}')
+            return True
+        except Exception as error:
+            print(f'Setup verification failed: {error}')
+            return False
+    
+    verify_setup()
+    ```
+  </Tab>
+</Tabs>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Invalid API Key Error">
+    Make sure your API key is correctly set in your environment variables and has the proper permissions.
+  </Accordion>
+  
+  <Accordion title="Network Connection Issues">
+    Check that you're using the correct environment ('testing' or 'production') and that your network connection is stable.
+  </Accordion>
+  
+  <Accordion title="Wallet Connection Problems">
+    Ensure your wallet has some test tokens for the testing environment or real tokens for production.
+  </Accordion>
+</AccordionGroup>
+
+## Need Help?
+
+If you have questions about Nevermined Payment Libraries, you're always welcome to ask our community on [Discord](https://discord.gg/GZju2qScKq) or [Twitter](https://twitter.com/nevermined_io).
+
+If you encounter any issues, check our [Troubleshooting Guide](/introduction/troubleshooting) or reach out to our community.
+
+## Next Steps
+
+Now that you have the Nevermined Payment Libraries set up, explore the integration workflow:
+
+<CardGroup cols={2}>
+  <Card title="Payment Library Capabilities" icon="sparkles" href="/integration-guide/what-can-you-do">
+    Discover what you can build with Nevermined Payment Libraries
+  </Card>
+  <Card title="Register Plans & Agents" icon="user-plus" href="/integration-guide/registration">
+    Learn how to register payment plans and AI agents
+  </Card>
+  <Card title="Purchase Plans" icon="credit-card" href="/integration-guide/order-plans">
+    How users can purchase payment plans
+  </Card>
+  <Card title="Query Agents" icon="magnifying-glass" href="/integration-guide/query-agents">
+    How to query AI agents after purchasing access
+  </Card>
+  <Card title="Handle Requests" icon="server" href="/integration-guide/process-requests">
+    How AI agents can accept and validate paid requests
+  </Card>
+  <Card title="View Examples" icon="code" href="/introduction/example-apps">
+    See complete implementation examples
+  </Card>
+</CardGroup>
