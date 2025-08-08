@@ -3,23 +3,41 @@ title: "Register Plans & Agents"
 description: "Learn how AI Builders can register Payment Plans and AI Agents"
 icon: "user-plus"
 ---
+
+You can register your Payment Plans and AI Agents manually or programatically:
+
+<CardGroup cols={2}>
+  <Card title="Nevermined App" icon="calculator">
+    Go to the [Nevermined App](https://nevermined.app) and click on "My agents" or "My pricing plans" to register your AI Agents and Payment Plans.
+  </Card>
+  <Card title="Payments Libraries" icon="calendar">
+    Use the Payments Libraries to programmatically register your AI Agents and Payment Plans.
+  </Card>
+</CardGroup>
+
+
+
+<Note>
+In this guide, we will focus on how to register Payment Plans and AI Agents using the Payments Libraries.
+</Note>
+
 Once you have a Payments instance, you can start registering Payment Plans and AI Agents.
 
-## Creating a Payment Plan
+## Registering a Payment Plan
 
 Payment Plans give AI Builders the ability to control how and when users can use an AI agent or service. They are entirely controlled and managed by the AI Builder that creates them with no interference from Nevermined.
 
 Nevermined Payment Plans enable the setup of time-based or request-based gating of a Builder's AI.
 
-* **Request-Based or Credits-Based**: Provides user access with request-gating. Builders can manage the number of requests a user can make to access their AI service. This is done by setting the number of credits required to make a request to the AI service/app when adding that service to a Payment Plan. Each time a request is made, Nevermined will redeem the specified number of credits. If the user does not have enough credits, they will be prompted to purchase more and denied access until they do.
-* **Time-Based**: Provides user access with time-gating. Builders can set the time period that a user is allowed access to the AI (e.g., 1 year, 1 month, 1 week, 1 day, 1 hour, etc.). When a user makes a request, the corresponding access credit is redeemed, granting access for the designated period. Once the time period has elapsed, the user will no longer have access and will need to redeem another credit for continued access.
-
 ## Registering a Credit-Based Payment Plan
+
+Provides user access with request-gating. Builders can manage the number of requests a user can make to access their AI service. This is done by setting the number of credits required to make a request to the AI service/app when adding that service to a Payment Plan. Each time a request is made, Nevermined will redeem the specified number of credits. If the user does not have enough credits, they will be prompted to purchase more and denied access until they do.
 
 <Tabs>
   <Tab title="TypeScript">
-    ```typescript    
-    const USDC_ERC20_TESTING = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // This is the USDC ERC20 address in the test network (sandbox)
+    ```typescript 
+    // This is the USDC ERC20 address in the test network (sandbox)    
+    const USDC_ERC20_TESTING = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 
     const planMetadata = {
       name: 'My Credits Plan',
@@ -65,7 +83,9 @@ Nevermined Payment Plans enable the setup of time-based or request-based gating 
   </Tab>
 </Tabs>
 
-## Creating a Time-Based Payment Plan
+## Registering a Time-Based Payment Plan
+
+Provides user access with time-gating. Builders can set the time period that a user is allowed access to the AI (e.g., 1 year, 1 month, 1 week, 1 day, 1 hour, etc.). When a user makes a request, the corresponding access credit is redeemed, granting access for the designated period. Once the time period has elapsed, the user will no longer have access and will need to redeem another credit for continued access.
 
 <Tabs>
   <Tab title="TypeScript">
@@ -163,6 +183,8 @@ Before registering an AI Agent, you need to have a Payment Plan created.
       dateCreated: new Date(),
       description: 'Description for the E2E Payments Agent'
     }
+
+    // You can use wildcards (like :agentId in the example) to match any string in your endpoints
     const agentApi = {
       endpoints: [
         { 'POST': 'https://example.com/api/v1/agents/:agentId/tasks' },
@@ -194,6 +216,8 @@ Before registering an AI Agent, you need to have a Payment Plan created.
         "dateCreated": datetime.now().isoformat(),
         "description": "Description for the E2E Payments Agent"
     }
+
+    # You can use wildcards (like :agentId in the example) to match any string in your endpoints
     agent_api = {
         "endpoints": [
             {"POST": "https://example.com/api/v1/agents/:agentId/tasks"},
@@ -213,7 +237,7 @@ Before registering an AI Agent, you need to have a Payment Plan created.
   </Tab>
 </Tabs>
 
-## Creating a Payment Plan and AI Agent in One Step
+## Registering a Payment Plan and AI Agent in One Step
 
 <Note>
 This method allows you to create the plan and attach the agent to it in one step.
