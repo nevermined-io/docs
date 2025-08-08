@@ -1,6 +1,6 @@
 ---
 title: "Core Concepts"
-description: "Understand the fundamental building blocks of Nevermined: AI Agents and Payment Plans."
+description: "Understand the fundamental building blocks of Nevermined: AI Agents and Payments Plans."
 icon: "lightbulb"
 ---
 
@@ -10,11 +10,11 @@ At the heart of Nevermined are two fundamental concepts: **AI Agents** and **Pay
 
 In the Nevermined ecosystem, an AI Agent is any digital service or tool that you want to monetize. It's more than just a model; it's a complete service that can:
 
--   **Make and receive digital payments** in both crypto and fiat.
--   **Expose its functionalities** through HTTP API endpoints.
--   **Be discovered and accessed** by subscribers through flexible payment plans.
--   **Validate access** using bearer token authentication.
--   **Track usage** with automatic credit redemption.
+- **Make and receive digital payments** in both crypto and fiat.
+- **Expose its functionalities** through HTTP API endpoints.
+- **Be discovered and accessed** by subscribers through flexible payment plans.
+- **Validate access** using bearer token authentication.
+- **Track usage** with automatic credit redemption.
 
 Nevermined provides the tools to wrap your existing AI service—whether it's a single model, a complex workflow, or a multi-agent system—and turn it into a monetizable product without needing to build a billing system from scratch.
 
@@ -54,32 +54,28 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     - **Trial**: Free limited access for testing
   </Card>
   <Card title="Credit System" icon="coins">
-    Define how many credits a subscriber receives upon purchase and how many are consumed per request. Supports:
-    - Fixed credits per request
-    - Dynamic consumption based on query complexity
-    - Minimum/maximum thresholds for redemption
+    Define how many credits a subscriber receives upon purchase and how many are consumed per request. Supports: Fixed price per request, Dynamic pricing per request (min/max range where redemption is based on query complexity).
   </Card>
 </CardGroup>
-
-### Plan Configuration Types
 
 <AccordionGroup>
   <Accordion title="Credits-Based Plans">
     Perfect for usage-based pricing models:
+
     - **Fixed Credits**: Set amount of credits (e.g., 100 credits)
     - **Credits per Request**: How many credits each query consumes
     - **Flexible Redemption**: Redeem different amounts based on usage
   </Accordion>
-  
   <Accordion title="Time-Based Plans">
     Ideal for subscription models:
+
     - **Duration**: Set expiration time (days, months, years)
     - **Unlimited Usage**: Within the time period
     - **Auto-expiry**: Plan expires after duration
   </Accordion>
-  
   <Accordion title="Hybrid Plans">
     Combine time and credits:
+
     - **Credits with Expiry**: E.g., 1000 credits valid for 30 days
     - **Rate Limiting**: Control usage within time periods
   </Accordion>
@@ -87,9 +83,9 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
 
 ### Example Payment Plans
 
--   **AI Travel Advisor**: Offer a "Regular" plan for $100/month or a "Premium" plan for $900/year.
--   **Code Copilot**: A usage-based plan costing 10 USDC for 100 credits, with each request consuming 1 credit.
--   **Legal Assistant**: A tiered model with a "Silver" plan (100 xDAI for 500 credits, 5-25 credits per query) and a "Gold" plan (1 ETH for unlimited credits for a year).
+- **AI Travel Advisor**: Offer a "Regular" plan for $100/month or a "Premium" plan for $900/year.
+- **Code Copilot**: A usage-based plan costing 10 USDC for 100 credits, with each request consuming 1 credit.
+- **Legal Assistant**: A tiered model with a "Silver" plan (100 xDAI for 500 credits, 5-25 credits per query) and a "Gold" plan (1 ETH for unlimited credits for a year).
 
 ## How It All Works Together
 
@@ -97,23 +93,18 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
   <Step title="Agent Registration">
     Builders register their AI agents with metadata and API endpoints, defining how the service can be accessed.
   </Step>
-  
   <Step title="Plan Creation">
     Builders create one or more payment plans, setting prices, credit amounts, and consumption rules.
   </Step>
-  
   <Step title="Subscriber Purchase">
     Users discover agents and purchase plans using crypto or fiat payments.
   </Step>
-  
   <Step title="Access Token Generation">
     Upon purchase, subscribers receive bearer tokens for authenticated access.
   </Step>
-  
   <Step title="Query & Validation">
     When querying an agent, the Nevermined Proxy validates the token and checks credit balance.
   </Step>
-  
   <Step title="Automatic Billing">
     Credits are automatically deducted based on usage, with proof of consumption tracked on-chain.
   </Step>
