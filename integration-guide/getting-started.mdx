@@ -16,12 +16,11 @@ Before you begin, make sure you have:
     - Python 3.8+ (for Python)
     - A code editor (VS Code recommended)
   </Step>
-  <Step title="Blockchain Wallet">
-    - MetaMask or compatible wallet
-    - Some test tokens for the testing environment
-  </Step>
   <Step title="Nevermined API Key">
-    Get your API key from the [Nevermined App](https://app.nevermined.io)
+    Get your API key from the [Nevermined App](https://nevermined.app)
+  </Step>
+  <Step title="Test Tokens (Optional)">
+    Some test tokens for testing (you can [get some USDC from here](https://faucet.circle.com/))
   </Step>
 </Steps>
 
@@ -44,10 +43,10 @@ Before you begin, make sure you have:
 
 ## Getting Your API Key
 
-1. Go to the [Nevermined App](https://app.nevermined.io)
-2. Log in with your wallet
-3. Navigate to the **Settings** section in the user menu
-4. Click on the **API Keys** tab
+1. Go to the [Nevermined App](https://nevermined.app)
+2. Log in with your credentials (email, Google account, or GitHub)
+3. Navigate to the **API Keys** section in the left user menu
+4. Click on the **New API Key** button at the top right of the page
 5. Generate a new key, give it a descriptive name, and copy it
 6. Store this key securely as an environment variable (e.g., `NVM_API_KEY`)
 
@@ -55,7 +54,7 @@ Before you begin, make sure you have:
 Never expose your API key in client-side code or commit it to version control. Always use environment variables.
 </Warning>
 
-## Initialize the SDK
+## Initialize the Payments Libraries
 
 <Tabs>
   <Tab title="TypeScript">
@@ -64,7 +63,7 @@ Never expose your API key in client-side code or commit it to version control. A
     
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'testing' // or 'production'
+      environment: 'sandbox' // or 'live'
     })
     ```
   </Tab>
@@ -75,7 +74,7 @@ Never expose your API key in client-side code or commit it to version control. A
     
     payments = Payments(
         api_key=os.environ.get('NVM_API_KEY'),
-        environment='testing'  # or 'production'
+        environment='sandbox'  # or 'live'
     )
     ```
   </Tab>
@@ -86,138 +85,21 @@ Never expose your API key in client-side code or commit it to version control. A
 Choose the appropriate environment for your use case:
 
 <AccordionGroup>
-  <Accordion title="Testing Environment">
-    - **Network**: Base Sepolia testnet
+  <Accordion title="Sandbox Environment">
     - **Use case**: Development and testing
-    - **Tokens**: Test tokens (free)
-    - **Environment**: `'testing'`
+    - **Payments**: Test fiat and tokens (free)
+    - **Environment**: `'sandbox'`
+    - **Network**: [Base Sepolia testnet](https://sepolia.basescan.org/)
   </Accordion>
   
-  <Accordion title="Production Environment">
-    - **Network**: Base Mainnet
+  <Accordion title="Live Environment">
     - **Use case**: Live applications
-    - **Tokens**: Real tokens (paid)
-    - **Environment**: `'production'`
+    - **Payments**: Fiat (via Stripe) and any ERC-20 tokens
+    - **Environment**: `'live'`
+    - **Network**: [Base](https://basescan.org/)
   </Accordion>
 </AccordionGroup>
 
-## Basic Configuration Example
-
-Here's a complete example of setting up the Payments client:
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    import { Payments } from '@nevermined-io/payments'
-    import dotenv from 'dotenv'
-    
-    // Load environment variables
-    dotenv.config()
-    
-    // Initialize the Payments client
-    const payments = Payments.getInstance({
-      nvmApiKey: process.env.NVM_API_KEY!,
-      environment: 'testing', // Start with testing
-      // Optional: specify custom RPC endpoints
-      // web3ProviderUri: 'https://your-custom-rpc-endpoint.com'
-    })
-    
-    // Verify the connection
-    console.log('Payments client initialized successfully')
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    from payments_py import Payments
-    import os
-    from dotenv import load_dotenv
-    
-    # Load environment variables
-    load_dotenv()
-    
-    # Initialize the Payments client
-    payments = Payments(
-        api_key=os.environ.get('NVM_API_KEY'),
-        environment='testing',  # Start with testing
-        # Optional: specify custom RPC endpoints
-        # web3_provider_uri='https://your-custom-rpc-endpoint.com'
-    )
-    
-    print('Payments client initialized successfully')
-    ```
-  </Tab>
-</Tabs>
-
-## Environment Variables Setup
-
-Create a `.env` file in your project root:
-
-```bash
-# Required
-NVM_API_KEY=your_api_key_here
-
-# Optional - for custom configurations
-WEB3_PROVIDER_URI=https://your-custom-rpc-endpoint.com
-BUILDER_ADDRESS=your_wallet_address_here
-```
-
-## Verification
-
-Test your setup with a simple verification:
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    async function verifySetup() {
-      try {
-        // Test the connection by checking if the client is properly initialized
-        const config = await payments.getConfig()
-        console.log('Setup verified! Environment:', config.environment)
-        return true
-      } catch (error) {
-        console.error('Setup verification failed:', error)
-        return false
-      }
-    }
-    
-    verifySetup()
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    def verify_setup():
-        try:
-            # Test the connection by checking if the client is properly initialized
-            config = payments.get_config()
-            print(f'Setup verified! Environment: {config["environment"]}')
-            return True
-        except Exception as error:
-            print(f'Setup verification failed: {error}')
-            return False
-    
-    verify_setup()
-    ```
-  </Tab>
-</Tabs>
-
-## Next Steps
-
-Now that you have the Nevermined Payment Libraries set up, you can:
-
-<CardGroup cols={2}>
-  <Card title="Register Your First Agent" icon="robot" href="/integration-guide/registration">
-    Learn how to register AI agents and create payment plans
-  </Card>  
-  <Card title="Explore Use Cases" icon="lightbulb" href="/integration-guide/what-can-you-do">
-    Discover what you can build with Nevermined
-  </Card>
-  <Card title="View Code Examples" icon="code" href="/introduction/example-apps">
-    See complete implementation examples
-  </Card>
-  <Card title="Best Practices" icon="shield" href="/introduction/best-practices">
-    Learn security and optimization tips
-  </Card>
-</CardGroup>
 
 ## Common Issues
 
@@ -227,12 +109,9 @@ Now that you have the Nevermined Payment Libraries set up, you can:
   </Accordion>
   
   <Accordion title="Network Connection Issues">
-    Check that you're using the correct environment ('testing' or 'production') and that your network connection is stable.
+    Check that you're using the correct environment ('sandbox' or 'live') and that your network connection is stable.
   </Accordion>
   
-  <Accordion title="Wallet Connection Problems">
-    Ensure your wallet has some test tokens for the testing environment or real tokens for production.
-  </Accordion>
 </AccordionGroup>
 
-If you encounter any issues, check our [Troubleshooting Guide](/introduction/troubleshooting) or reach out to our community on [Discord](https://discord.gg/nevermined).
+If you encounter any issues, check our [Frequently Asked Questions](/integration-guide/faq) or reach out to our community on [Discord](https://discord.com/invite/GZju2qScKq).

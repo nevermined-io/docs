@@ -4,9 +4,9 @@ description: "Learn how users can purchase Payment Plans to access AI services"
 icon: "credit-card"
 ---
 
-With the Payments Library, users/subscribers can order Payment Plans by paying. The process is simple and secure. The Subscriber needs to have enough funds in their wallet to pay for the Plan in the token selected by the creator of the Plan. In Nevermined, the Payment Plan creators can request the payments in any valid ERC20 or Native token (depending on the network where the Plan is created).
+With the Payments Library, users and AI agents can order Payment Plans by paying for them. The process is simple and secure. The subscriber needs to have enough funds to pay for the plan in the token selected by the creator of the plan. In Nevermined, Payment Plan creators can request payments in any valid ERC-20 or native token (depending on the network where the plan is created).
 
-When the Payment Plan requires a payment in Fiat, the payment can be initiated with the libraries, but the final step needs to be done in the Nevermined App. The App will handle the payment in Fiat (Stripe integration) and will return the user to the application with the Payment Plan ordered.
+As we discussed in the previous sections, Payment Plans can require payment in fiat (via Stripe integration) or crypto. Because the payment of a fiat payment plan requires the use of a credit card in a web application (via the Nevermined App), crypto payments are recommended for AI agents. That way, the payment and fetching of credits associated with the Payment Plan can be done in a single step.
 
 ## Ordering a Plan
 
@@ -15,7 +15,7 @@ When the Payment Plan requires a payment in Fiat, the payment can be initiated w
     ```typescript
     // Here we are ordering the plan created in the previous steps
     const orderResult = await payments.plans.orderPlan(planId)
-    // OUTPUT: orderResult: 
+    // OUTPUT: orderResult:
     // {
     //   txHash: '0x5b95ebaec594b6d87e688faddf85eec3d708e6a06e61864699e5a366af1343f6',
     //   success: true
@@ -26,13 +26,15 @@ When the Payment Plan requires a payment in Fiat, the payment can be initiated w
     ```python
     # Here we are ordering the Plan created in the previous steps
     order_result = payments.order_plan(plan_DID)  
-    # OUTPUT: orderResult: 
-    #  { success: True, agreementId: '0xaabbcc' }   
+    # OUTPUT: orderResult:
+    # { success: True, agreementId: '0xaabbcc' }
     ```
   </Tab>
 </Tabs>
 
 ## Ordering Plans with Fiat Payment
+
+When the Payment Plan requires a payment in fiat, the payment can be initiated with the libraries, but the final step needs to be done in the Nevermined App. The app will handle the payment in fiat (Stripe integration) and will return the user to the application with the Payment Plan ordered.
 
 For fiat payments, the process involves redirecting users to a Stripe checkout session:
 
@@ -66,9 +68,9 @@ For fiat payments, the process involves redirecting users to a Stripe checkout s
   </Tab>
 </Tabs>
 
-## Checking the Balance of a Payment Plan
+## Checking the Credit Balance of a Payment Plan
 
-After a user orders a plan, they can check their balance for that plan. The balance represents the number of credits the user has available to use within the plan.
+After a user purchases a plan, they can check their balance for that plan. The balance represents the number of credits the user has available to use within the plan.
 
 <Note>
 Time-based plans provide a balance of 1 credit for subscribers. When the plan expires, this balance will be zero.
@@ -123,17 +125,17 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
     Users browse available payment plans and select one that fits their needs
   </Step>
   <Step title="Initiate Purchase">
-    Call `orderPlan()` or `orderFiatPlan()` depending on payment method
+    Call `payments.plans.orderPlan()` or `payments.plans.orderFiatPlan()` depending on payment method
   </Step>
   <Step title="Complete Payment">
-    For crypto: transaction is processed on-chain
-    For fiat: user completes Stripe checkout
+    For crypto: transaction is processed on-chain and happens in one transaction.
+    For fiat: user completes Stripe checkout, and the credits will be distributed automatically after the payment.
   </Step>
   <Step title="Verify Purchase">
-    Check balance to confirm the plan was successfully purchased
+    Check balance to confirm the plan was successfully purchased and get the balance. Call `payments.plans.getPlanBalance()`.
   </Step>
   <Step title="Access Services">
-    Use the plan to access AI agents and services
+    Use the plan to access AI agents and services. Call `payments.agents.getAgentAccessToken()`.
   </Step>
 </Steps>
 
@@ -155,12 +157,6 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
       }
     } catch (error) {
       console.error('Purchase failed:', error.message)
-      
-      if (error.message.includes('insufficient funds')) {
-        console.log('Please ensure you have enough tokens in your wallet')
-      } else if (error.message.includes('user rejected')) {
-        console.log('Transaction was cancelled by user')
-      }
     }
     ```
   </Tab>
@@ -180,10 +176,6 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
     except Exception as error:
         print(f'Purchase failed: {error}')
         
-        if 'insufficient funds' in str(error):
-            print('Please ensure you have enough tokens in your wallet')
-        elif 'user rejected' in str(error):
-            print('Transaction was cancelled by user')
     ```
   </Tab>
 </Tabs>
@@ -193,8 +185,7 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
 <AccordionGroup>
   <Accordion title="User Experience">
     - Always show clear pricing and what users get for their purchase
-    - Provide both crypto and fiat payment options when possible
-    - Display estimated transaction fees for crypto payments
+    - Create different plans for crypto and fiat payments if you want to support both
     - Show plan benefits and limitations clearly
   </Accordion>
   
@@ -213,44 +204,6 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
   </Accordion>
 </AccordionGroup>
 
-## Integration Examples
-
-### Web Application Integration
-
-```typescript
-// React component example
-const PlanPurchase = ({ planId, planDetails }) => {
-  const [purchasing, setPurchasing] = useState(false)
-  const [balance, setBalance] = useState(null)
-  
-  const handlePurchase = async () => {
-    setPurchasing(true)
-    try {
-      const result = await payments.plans.orderPlan(planId)
-      if (result.success) {
-        const newBalance = await payments.plans.getPlanBalance(planId)
-        setBalance(newBalance.balance)
-        toast.success('Plan purchased successfully!')
-      }
-    } catch (error) {
-      toast.error(`Purchase failed: ${error.message}`)
-    } finally {
-      setPurchasing(false)
-    }
-  }
-  
-  return (
-    <div>
-      <h3>{planDetails.name}</h3>
-      <p>Price: {planDetails.price} {planDetails.token}</p>
-      <button onClick={handlePurchase} disabled={purchasing}>
-        {purchasing ? 'Processing...' : 'Purchase Plan'}
-      </button>
-      {balance && <p>Available credits: {balance}</p>}
-    </div>
-  )
-}
-```
 
 ## Next Steps
 
