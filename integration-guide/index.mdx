@@ -28,10 +28,10 @@ The TypeScript implementation can be used for building AI Agents and also for bu
 
 ## Main Features
 
-- Register AI Agents
-- Create Pricing Plans defining the conditions (price & usage) for subscribers
-- Associate Pricing Plans to AI Agents, so when a subscriber purchases a payment plan they can query all the agents associated to it
-- Order Pricing Plans (payments in Fiat & Crypto) giving access to the AI Agents
+- Import AI Agents, including their metadata and the endpoints they expose
+- Register Payment Plans defining how much users/agents pay for them, and how they can be used
+- Associate Payment Plans to AI Agents, so when a user/agent purchases a payment plan they can query all the agents associated to it
+- Purchase Payment Plans (payments in Fiat & Crypto) giving access to the AI Agents associted to them
 - Query AI Agents programmatically
 - Build AI Agents able to process tasks sent by users
 - Easy integration with Agent orchestration frameworks like Google A2A and MCP
@@ -46,12 +46,11 @@ Before you begin, make sure you have:
     - Python 3.8+ (for Python)
     - A code editor (VS Code recommended)
   </Step>
-  <Step title="Blockchain Wallet">
-    - MetaMask or compatible wallet
-    - Some test tokens for the testing environment
-  </Step>
   <Step title="Nevermined API Key">
-    Get your API key from the [Nevermined App](https://app.nevermined.io)
+    Get your API key from the [Nevermined App](https://nevermined.app)
+  </Step>
+  <Step title="Some Test Tokens (optional)">
+    - Some test tokens for testing (you can [get some USDC from here](https://faucet.circle.com/))
   </Step>
 </Steps>
 
@@ -74,10 +73,10 @@ Before you begin, make sure you have:
 
 ## Getting Your API Key
 
-1. Go to the [Nevermined App](https://app.nevermined.io)
-2. Log in with your wallet
-3. Navigate to the **Settings** section in the user menu
-4. Click on the **API Keys** tab
+1. Go to the [Nevermined App](https://nevermined.app)
+2. Log in with your credentials (Email, Google Account or Github)
+3. Navigate to the **API Keys** section in the left user menu
+4. Click on the **New API Key** button at the top right of the page
 5. Generate a new key, give it a descriptive name, and copy it
 6. Store this key securely as an environment variable (e.g., `NVM_API_KEY`)
 
@@ -94,7 +93,7 @@ Never expose your API key in client-side code or commit it to version control. A
     
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'testing' // or 'production'
+      environment: 'sandbox' // or 'live'
     })
     ```
   </Tab>
@@ -105,7 +104,7 @@ Never expose your API key in client-side code or commit it to version control. A
     
     payments = Payments(
         api_key=os.environ.get('NVM_API_KEY'),
-        environment='testing'  # or 'production'
+        environment='sandbox'  # or 'live'
     )
     ```
   </Tab>
