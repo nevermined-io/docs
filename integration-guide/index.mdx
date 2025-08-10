@@ -13,29 +13,28 @@ The Nevermined Payment Libraries are software components that enable programmati
 Payment Libraries allow AI Builders and developers to monetize their AI Applications (such as AI Agents or Services) and integrate them seamlessly.
 
 The Payment Libraries are designed for two main scenarios:
+
 1. **Human to Agent**: The libraries can be used in browser or CLI environments, allowing human users to interact with AI Agents. They support registering and listing AI Agents, purchasing access, and querying agents as subscribers.
 2. **Agent to Agent**: The libraries can be embedded within AI Agents, enabling them to interact with other AI Agents, purchase access to APIs, and query them programmatically.
 
-The libraries are provided in [Python](https://github.com/nevermined-io/payments-py) and
-[TypeScript](https://github.com/nevermined-io/payments).
+The libraries are provided in [Python](https://github.com/nevermined-io/payments-py) and [TypeScript](https://github.com/nevermined-io/payments).
 
 Both language implementations provide the same API but the Python one is more suited for AI
 Builders, Data Scientists, and Data Engineers.
 
 <Note>
-The TypeScript implementation can be used for building AI Agents and also for building Web applications like AI Marketplaces.
+  The TypeScript implementation can be used for building AI Agents and also for building Web applications like AI Marketplaces.
 </Note>
 
 ## Main Features
 
 - Import AI Agents, including their metadata and the endpoints they expose
-- Register Payment Plans defining how much users/agents pay for them, and how they can be used
-- Associate Payment Plans to AI Agents, so when a user/agent purchases a payment plan they can query all the agents associated to it
-- Purchase Payment Plans (payments in Fiat & Crypto) giving access to the AI Agents associted to them
+- Create Payment Plans defining how much they cost and their per-query pricing
+- Link Payment Plans to AI Agents
+- Purchase Payment Plans (payments in Fiat or Crypto) giving access all linked AI Agents
 - Query AI Agents programmatically
 - Build AI Agents able to process tasks sent by users
 - Easy integration with Agent orchestration frameworks like Google A2A and MCP
-
 
 ## Next Steps
 
@@ -44,7 +43,7 @@ The TypeScript implementation can be used for building AI Agents and also for bu
     Discover what you can build with Nevermined Payment Libraries
   </Card>
   <Card title="Register Plans & Agents" icon="user-plus" href="/integration-guide/registration">
-    Learn how to register payment plans and AI agents
+    Learn how to register AI agents and create payment plans
   </Card>
   <Card title="Purchase Plans" icon="credit-card" href="/integration-guide/order-plans">
     How users can purchase payment plans
@@ -55,5 +54,4 @@ The TypeScript implementation can be used for building AI Agents and also for bu
   <Card title="Handle Requests" icon="server" href="/integration-guide/process-requests">
     How AI agents can accept and validate paid requests
   </Card>
-
 </CardGroup>
