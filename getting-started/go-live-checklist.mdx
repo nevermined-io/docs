@@ -12,13 +12,13 @@ Before launching your AI agent to production, ensure you've completed these esse
   <Accordion title="1. API Key & Environment Setup" icon="key">
     - Generate production API key from [Nevermined App](https://nevermined.app/)
     - Store API key securely in environment variables
-    - Switch from `testing` to `production` environment
+    - Switch from `sandbox` to `live` environment
     - Verify connection to production services
 
     ```typescript
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'production'
+      environment: 'live'
     })
     ```
   </Accordion>
@@ -26,12 +26,12 @@ Before launching your AI agent to production, ensure you've completed these esse
     - Complete agent metadata (name, description, tags, image)
     - Define all API endpoints correctly
     - Specify open endpoints that don't require payment
-    - Test agent registration on production
+    - Test agent registration in live environment
 
     ```typescript
     const agentMetadata = {
-      name: 'Production AI Agent',
-      tags: ['production', 'ai', 'v1.0'],
+      name: 'Live AI Agent',
+      tags: ['live', 'ai', 'v1.0'],
       dateCreated: new Date(),
       description: 'Production-ready AI service',
       image: 'https://yourdomain.com/agent-logo.png'
@@ -46,7 +46,7 @@ Before launching your AI agent to production, ensure you've completed these esse
     - Set up multiple tiers if needed
 
     ```typescript
-    // Production pricing
+    // Live pricing
     const priceConfig = getERC20PriceConfig(
       25_000_000n, // 25 USDC
       '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
@@ -80,7 +80,7 @@ Before launching your AI agent to production, ensure you've completed these esse
     const cache = new NodeCache({ stdTTL: 300 }) // 5 min TTL
     ```
   </Accordion>
-  <Accordion title="6. Monitoring & Analytics" icon="monitor">
+  <Accordion title="6. Monitoring & Analytics" icon="monitor-waveform">
     - Set up application monitoring (APM)
     - Configure error tracking (Sentry, etc.)
     - Implement revenue tracking
@@ -116,7 +116,7 @@ Before launching your AI agent to production, ensure you've completed these esse
   </Accordion>
 </AccordionGroup>
 
-## Production Configuration
+## Live Configuration
 
 ### Environment Variables
 
@@ -124,9 +124,9 @@ Ensure all required environment variables are set:
 
 ```bash
 # Required
-NVM_API_KEY=your_production_api_key
+NVM_API_KEY=your_live_api_key
 BUILDER_ADDRESS=your_wallet_address
-NODE_ENV=production
+NODE_ENV=live
 
 # Recommended
 REDIS_URL=redis://your-redis-instance
@@ -162,7 +162,7 @@ RATE_LIMIT_WINDOW_MS=900000
 ### Final Verification
 
 - All tests passing in CI/CD pipeline
-- Production API key working correctly
+- Live API key working correctly
 - Payment flow tested with real transactions
 - Monitoring dashboards configured
 - Support channels ready
@@ -173,7 +173,7 @@ RATE_LIMIT_WINDOW_MS=900000
 
    ```bash
    npm run build
-   npm run deploy:production
+   npm run deploy:live
    ```
 2. **Verify Deployment**
 
@@ -183,7 +183,7 @@ RATE_LIMIT_WINDOW_MS=900000
 3. **Test Live Endpoints**
 
    ```typescript
-   const agent = await payments.getAgent(productionAgentId)
+   const agent = await payments.getAgent(liveAgentId)
    console.log('Agent live:', agent.metadata.name)
    ```
 4. **Monitor Initial Traffic**
@@ -213,12 +213,12 @@ RATE_LIMIT_WINDOW_MS=900000
 ## Troubleshooting Common Issues
 
 <AccordionGroup>
-  <Accordion title="Invalid API Key Errors" icon="exclamation-triangle">
-    **Problem**: Getting "Invalid API key" errors in production
+  <Accordion title="Invalid API Key Errors" icon="brake-warning">
+    **Problem**: Getting "Invalid API key" errors in live environment
 
     **Solution**:
 
-    - Verify you're using production API key
+    - Verify you're using a live API key
     - Check environment variable is set correctly
     - Ensure API key hasn't expired
     - Generate new key if needed
