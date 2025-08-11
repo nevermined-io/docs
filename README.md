@@ -1,6 +1,6 @@
 # Nevermined Documentation
 
-Welcome to the Nevermined Docs — a Mintlify-powered developer hub for AI-native payment infrastructure. This repository contains the complete source for Nevermined’s documentation, covering:
+Welcome to the Nevermined Docs: a Mintlify-powered developer hub for AI-native payment infrastructure. This repository contains the complete source for Nevermined’s documentation, covering:
 
 - Agent registration and metadata structure
 - Payment plan configuration and pricing models
@@ -64,3 +64,4 @@ Ensure you’re running mintlify dev from a directory that includes a valid docs
 
 Built with ❤️ by the Nevermined team
 https://nevermined.ai
+```
