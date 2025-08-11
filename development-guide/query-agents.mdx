@@ -1,15 +1,15 @@
 ---
 title: "Query Agents"
-description: "Learn how users can query AI Agents after purchasing access"
+description: "Learn how users (or agents) can query AI Agents"
 icon: "magnifying-glass"
 ---
 
-Once a user (or agent) purchases a Payment Plan, the user can query all the AI Agents associated to that plan.
+Once purchased a Payment Plan, user(s) can query all the AI Agents linked to that plan.
 
 For identifying the user as a valid subscriber, they need to send HTTP requests to the AI Agent via a Nevermined Proxy instance and include a valid **Access Token**. This is sent using the standard **HTTP Authorization header**.
 
 <Info>
-Nevermined Proxy instances are **standard HTTP Proxies** in charge of **authorizing users** trying to access AI Agents or Services.
+  Nevermined Proxy instances are **standard HTTP Proxies** in charge of **authorizing users** trying to access AI Agents or Services.
 </Info>
 
 Once a user is a subscriber, sending a request is quite simple.
@@ -25,7 +25,7 @@ Once a user is a subscriber, sending a request is quite simple.
     //   accessToken: 'eJyNj0sKgDAURP9lJQ ....',
     //   proxies: [ 'https://proxy.nevermined.app' ]
     // }  
-    ```  
+    ```
   </Tab>
   <Tab title="Python">
     ```python
@@ -43,10 +43,11 @@ Once a user is a subscriber, sending a request is quite simple.
 ## Sending a query to the AI Agent
 
 If the response of the `getAgentAccessToken` method contains a valid `accessToken`, the user can query the AI Agent making a standard HTTP request.
+
 This request must be sent directly to the Agent (the description of the Agent API is in the Agent Metadata) or if the `agentAccessParams` includes an entry in the `proxies` array, through one of the Nevermined Proxy instances listed in the `proxies` array of the response.
 
 <Info>
-Because Nevermined authorizes standard HTTP requests, they can be used to protect any kind of AI Agent or Service exposing an HTTP API.
+  Because Nevermined authorizes standard HTTP requests, they can be used to protect any kind of AI Agent or Service exposing an HTTP API.
 </Info>
 
 ### Using cURL
@@ -80,30 +81,30 @@ curl -k -X POST \
         }
       })
     }
-
+    
     const response = await fetch(new URL('https://my.agent.io/prompt'), agentHTTPOptions)
     const result = await response.json()
     console.log('Agent response:', result)
-    ```  
+    ```
   </Tab>
   <Tab title="Python">
     ```python
     import requests
-
+    
     # HTTP options for the agent request
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "Authorization": f"Bearer {credentials['accessToken']}",
     }
-
+    
     payload = {
         "query": "What's the weather like today?",
         "parameters": {
             "location": "New York"
         }
     }
-
+    
     response = requests.post(
         "https://my.agent.io/prompt", 
         headers=headers, 
@@ -170,7 +171,7 @@ Here's a complete example showing the full flow from getting access tokens to qu
         throw error
       }
     }
-
+    
     // Usage
     const result = await queryAIAgent(planId, agentId, "Explain quantum computing")
     console.log('AI Response:', result)
@@ -180,7 +181,7 @@ Here's a complete example showing the full flow from getting access tokens to qu
     ```python
     import requests
     import json
-
+    
     def query_ai_agent(plan_id, agent_id, query):
         try:
             # Step 1: Get access credentials
@@ -222,7 +223,7 @@ Here's a complete example showing the full flow from getting access tokens to qu
         except Exception as error:
             print(f'Query failed: {error}')
             raise error
-
+    
     # Usage
     result = query_ai_agent(plan_id, agent_id, "Explain quantum computing")
     print('AI Response:', result)
@@ -284,23 +285,18 @@ AI agents can return various types of responses. Here's how to handle them:
   <Accordion title="200 - Success">
     Request was successful and credits were deducted from the user's balance
   </Accordion>
-  
   <Accordion title="401 - Unauthorized">
     Invalid or missing access token. User needs to get a new token
   </Accordion>
-  
   <Accordion title="402 - Payment Required">
     User doesn't have sufficient credits or their plan has expired
   </Accordion>
-  
   <Accordion title="403 - Forbidden">
     User has access but the specific endpoint is not allowed for their plan
   </Accordion>
-  
   <Accordion title="429 - Rate Limited">
     Too many requests. User should wait before trying again
   </Accordion>
-  
   <Accordion title="500 - Server Error">
     Agent internal error. This doesn't consume credits
   </Accordion>
@@ -314,19 +310,16 @@ AI agents can return various types of responses. Here's how to handle them:
     - Refresh tokens when they expire
     - Never expose tokens in client-side logs
   </Card>
-  
   <Card title="Error Handling" icon="shield">
     - Always check response status codes
     - Implement retry logic for network failures
     - Handle 402 responses by prompting for plan renewal
   </Card>
-  
   <Card title="Performance" icon="gauge">
     - Reuse access tokens across multiple requests
     - Implement request timeouts
     - Use appropriate HTTP methods (GET, POST)
   </Card>
-  
   <Card title="Monitoring" icon="chart-line">
     - Track credit usage patterns
     - Monitor response times and error rates
@@ -350,7 +343,7 @@ For efficiency, you can send multiple queries in a single request:
         { id: '3', query: 'Define neural networks' }
       ]
     }
-
+    
     const response = await fetch(agentEndpoint, {
       method: 'POST',
       headers: {
@@ -370,7 +363,7 @@ For efficiency, you can send multiple queries in a single request:
             {'id': '3', 'query': 'Define neural networks'}
         ]
     }
-
+    
     response = requests.post(
         agent_endpoint,
         headers={'Authorization': f'Bearer {access_token}'},
@@ -419,4 +412,3 @@ Now that you know how to query AI agents, learn how to:
     Learn how to process requests and manage responses
   </Card>
 </CardGroup>
-
