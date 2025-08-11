@@ -32,8 +32,8 @@ For developers who need to automate and integrate directly, our SDKs are the per
     5. Generate a new key, give it a descriptive name, and copy it.
     6. Store this key securely as an environment variable (e.g., `NVM_API_KEY`).
   </Step>
-  <Step title="2. Install and Initialize the SDK">
-    Install the SDK and initialize the `Payments` client with your API key.
+  <Step title="2. Install and Initialize the Payments Library">
+    Install the PaymentsLibrary and initialize the `Payments` client with your API key.
 
     <Tabs>
       <Tab title="TypeScript">
@@ -42,12 +42,12 @@ For developers who need to automate and integrate directly, our SDKs are the per
         ```
 
         ```typescript
-        import { Payments } from '@nevermined-io/payments';
+        import { Payments } from '@nevermined-io/payments'
         
         const payments = Payments.getInstance({
           nvmApiKey: process.env.NVM_API_KEY,
           environment: 'testing' // or 'production'
-        });
+        })
         ```
       </Tab>
       <Tab title="Python">
