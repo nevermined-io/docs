@@ -4,46 +4,44 @@ description: "Learn how AI Builders can register Payment Plans and AI Agents"
 icon: "user-plus"
 ---
 
-You can register your Payment Plans and AI Agents manually or programatically:
+You can create Payment Plans and register AI Agents manually or programatically:
 
 <CardGroup cols={2}>
   <Card title="Nevermined App" icon="calculator">
-    Go to the [Nevermined App](https://nevermined.app) and click on "My agents" or "My pricing plans" to register your AI Agents and Payment Plans.
+    Go to the [Nevermined App](https://nevermined.app) and click on "My agents" or "My pricing plans" to crete Payment Plans and register your AI Agents.
   </Card>
   <Card title="Payments Libraries" icon="calendar">
-    Use the Payments Libraries to programmatically register your AI Agents and Payment Plans.
+    Use the Payments Libraries to programmatically create Payment Plans and register AI Agents.
   </Card>
 </CardGroup>
 
-
-
 <Note>
-In this guide, we will focus on how to register Payment Plans and AI Agents using the Payments Libraries.
+  In this guide, we will focus on how to register AI Agents and create Payment Plans using the Payments Libraries.
 </Note>
 
-Once you have a Payments instance, you can start registering Payment Plans and AI Agents.
+Once you have a Payments instance, you can start creating Plans and registering AI Agents.
 
-## Registering a Payment Plan
+## Creating a Payment Plan
 
-Payment Plans give AI Builders the ability to control how and when users can use an AI agent or service. They are entirely controlled and managed by the AI Builder that creates them with no interference from Nevermined.
+Payment Plans give AI Builders the ability to control how and when users can use an AI Agent or service. They are entirely controlled and managed by the AI Builder that creates them with no interference from Nevermined.
 
-Nevermined Payment Plans enable the setup of time-based or request-based gating of a Builder's AI.
+Nevermined Payment Plans enable time-based or request-based gating of an AI Agent.
 
-## Registering a Credit-Based Payment Plan
+## Creating Credit-Based Plans
 
-Provides user access with request-gating. Builders can manage the number of requests a user can make to access their AI service. This is done by setting the number of credits required to make a request to the AI service/app when adding that service to a Payment Plan. Each time a request is made, Nevermined will redeem the specified number of credits. If the user does not have enough credits, they will be prompted to purchase more and denied access until they do.
+Provides user access with per-request pricing. Builders can manage the cost per request to access their AI service. This is done by setting the price to purchase a bundle of credits and the number of credits redeemed for each request (call onfigured during Plan creation). Each time a request is made, user credits are validated and redeemed . If the user does not have enough credits, they will be prompted to purchase more and denied access until they do so.
 
 <Tabs>
   <Tab title="TypeScript">
-    ```typescript 
+    ```typescript
     // This is the USDC ERC20 address in the test network (sandbox)    
     const USDC_ERC20_TESTING = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
-
+    
     const planMetadata = {
       name: 'My Credits Plan',
       tags: ['test']
     }
-
+    
     // The price is 20 USDC (20_000_000) in the sandbox network
     const priceConfig = getERC20PriceConfig(20_000_000n, USDC_ERC20_TESTING, builderAddress)
     // The subscriber receives 100 credits upon purchasing the plan
@@ -60,18 +58,18 @@ Provides user access with request-gating. Builders can manage the number of requ
     ```python
     # This is the USDC ERC20 address in the test network (sandbox)
     USDC_ERC20_TESTING = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
-
+    
     # Plan metadata
     plan_metadata = PlanMetadata(
         name="My Credits Plan",
         tags=["test"]
     )
-
+    
     # The price is 20 USDC (20_000_000) in the sandbox network
     price_config = get_erc20_price_config(20_000_000, USDC_ERC20_TESTING, builder_address)
     # The subscriber receives 100 credits upon purchasing the plan
     credits_config = get_fixed_credits_config(100)
-
+    
     # Register the plan
     response = payments_builder.plans.register_credits_plan(
         plan_metadata,
@@ -83,13 +81,13 @@ Provides user access with request-gating. Builders can manage the number of requ
   </Tab>
 </Tabs>
 
-## Registering a Time-Based Payment Plan
+## Creating a Time-Based Plan
 
-Provides user access with time-gating. Builders can set the time period that a user is allowed access to the AI (e.g., 1 year, 1 month, 1 week, 1 day, 1 hour, etc.). When a user makes a request, the corresponding access credit is redeemed, granting access for the designated period. Once the time period has elapsed, the user will no longer have access and will need to redeem another credit for continued access.
+Provides user access on a time-gating basis. Builders can set the time period that a user is allowed access to the AI (e.g. 1 year, 1 month, 1 hour, etc.). When a user makes their first request, the corresponding access credit is redeemed, granting access for the designated period. Once the time period has elapsed, the user will no longer have access and will need to redeem another credit for continued access.
 
 <Tabs>
   <Tab title="TypeScript">
-    ```typescript  
+    ```typescript
     // The price is 5 USDC (5_000_000) in the sandbox network
     const priceConfig = getERC20PriceConfig(5_000_000n, ERC20_ADDRESS, builderAddress)
     // The plan is valid for 1 day
@@ -119,13 +117,13 @@ Provides user access with time-gating. Builders can set the time period that a u
   </Tab>
 </Tabs>
 
-## Registering a Trial Plan
+## Creating a Trial Plan
 
 A Trial Plan is a special type of Payment Plan that allows users to try out an AI Agent for a limited time (typically for free). A Trial Plan can only be obtained once by each user.
 
 <Tabs>
   <Tab title="TypeScript">
-    ```typescript  
+    ```typescript
     const trialPlanMetadata: PlanMetadata = {
       name: 'Try it for one day before you buy it',
     }
@@ -147,7 +145,7 @@ A Trial Plan is a special type of Payment Plan that allows users to try out an A
     trial_plan_metadata = PlanMetadata(
         name="Try it for one day before you buy it"
     )
-
+    
     # The price is free
     free_config = get_free_price_config()
     # The plan is valid for 1 day
@@ -165,25 +163,27 @@ A Trial Plan is a special type of Payment Plan that allows users to try out an A
 
 ## Registering an AI Agent
 
+When you register an Agent, you need to provide the API endpoints for accessing the AI Agent, including all relevant HTTP(s) methods, URL patterns and wildcards.
+
 <Note>
-Before registering an AI Agent, you need to have a Payment Plan created.
+  Before registering an AI Agent, you need to have a Payment Plan created.
 </Note>
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    // When you create an agent, you need to provide the endpoints that the agent exposes and are protected by the Payment Plan
+    // When you register an agent, you need to provide the endpoints that the agent exposes and are protected by the Payment Plan
     // You must specify the HTTP method and the URL pattern that the agent exposes
     // You can use wildcards (like :agentId in the example) to match any string
     // See more information about the wildcards supported here: https://github.com/pillarjs/path-to-regexp
-
+    
     const agentMetadata: AgentMetadata = {
       name: 'E2E Payments Agent',
       tags: ['test'],
       dateCreated: new Date(),
       description: 'Description for the E2E Payments Agent'
     }
-
+    
     // You can use wildcards (like :agentId in the example) to match any string in your endpoints
     const agentApi = {
       endpoints: [
@@ -193,7 +193,7 @@ Before registering an AI Agent, you need to have a Payment Plan created.
       openEndpoints: ['https://example.com/api/v1/rest/docs-json']
     }
     const paymentPlans = [creditsPlanId, expirablePlanId]
-
+    
     const { agentId } = await payments.agents.registerAgent(
       agentMetadata, 
       agentApi, 
@@ -203,20 +203,20 @@ Before registering an AI Agent, you need to have a Payment Plan created.
   </Tab>
   <Tab title="Python">
     ```python
-    # When you create an agent, you need to provide the endpoints that the agent exposes and are protected by the Payment Plan
+    # When you register an agent, you need to provide the endpoints that the agent exposes and are protected by the Payment Plan
     # You must specify the HTTP method and the URL pattern that the agent exposes
     # You can use wildcards (like :agentId in the example) to match any string
     # See more information about the wildcards supported here: https://github.com/pillarjs/path-to-regexp
-
+    
     from datetime import datetime
-
+    
     agent_metadata = {
         "name": "E2E Payments Agent",
         "tags": ["test"],
         "dateCreated": datetime.now().isoformat(),
         "description": "Description for the E2E Payments Agent"
     }
-
+    
     # You can use wildcards (like :agentId in the example) to match any string in your endpoints
     agent_api = {
         "endpoints": [
@@ -226,7 +226,7 @@ Before registering an AI Agent, you need to have a Payment Plan created.
         "openEndpoints": ["https://example.com/api/v1/rest/docs-json"]
     }
     payment_plans = [credits_plan_id, expirable_plan_id]
-
+    
     response = payments_builder.agents.register_agent(
         agent_metadata,
         agent_api,
@@ -237,10 +237,10 @@ Before registering an AI Agent, you need to have a Payment Plan created.
   </Tab>
 </Tabs>
 
-## Registering a Payment Plan and AI Agent in One Step
+## Register an AI Agent and Payment Plan in One Step
 
 <Note>
-This method allows you to create the plan and attach the agent to it in one step.
+  This method allows you to create the plan and attach the agent to it in one step.
 </Note>
 
 <Tabs>
@@ -252,11 +252,11 @@ This method allows you to create the plan and attach the agent to it in one step
       description: 'Description for my AI Payments Agent' 
     }
     const agentApi = { endpoints: [{ 'POST': 'http://example.com/test/:agentId/tasks' }] }
-
+    
     const cryptoPriceConfig = getNativeTokenPriceConfig(500n, builderAddress)
     // Non expirable payment plan
     const nonExpirableConfig = getNonExpirableDurationConfig()
-
+    
     const { agentId, planId } = await paymentsBuilder.agents.registerAgentAndPlan(
       agentMetadata,
       agentApi,
@@ -267,7 +267,7 @@ This method allows you to create the plan and attach the agent to it in one step
     ```
   </Tab>
   <Tab title="Python">
-    ```python 
+    ```python
     # Agent metadata and API definition
     agent_metadata = {
         "name": "My AI Payments Agent",
@@ -279,12 +279,12 @@ This method allows you to create the plan and attach the agent to it in one step
             {"POST": "http://example.com/test/:agentId/tasks"}
         ]
     }
-
+    
     # The price is 500 native tokens
     crypto_price_config = get_native_token_price_config(500, builder_address)
     # Non expirable payment plan
     non_expirable_config = get_non_expirable_duration_config()
-
+    
     response = payments_builder.agents.register_agent_and_plan(
         agent_metadata,
         agent_api,
@@ -305,6 +305,7 @@ This method allows you to create the plan and attach the agent to it in one step
 ### Endpoint Protection
 
 When registering an AI Agent, you specify:
+
 - **Protected Endpoints**: Require payment/subscription to access
 - **Open Endpoints**: Free to access (e.g., documentation, health checks)
 - **URL Patterns**: Support wildcards for dynamic routing
@@ -313,7 +314,7 @@ When registering an AI Agent, you specify:
 
 <CardGroup cols={3}>
   <Card title="Credits-Based" icon="coins">
-    Users pay for a specific number of credits. Each request consumes credits based on your configuration.
+    Sets the price per-request. Users buy a bundle of credits that are redeemed against usage.
   </Card>
   <Card title="Time-Based" icon="clock">
     Users get unlimited access for a specific time period (hours, days, months).
@@ -329,15 +330,12 @@ When registering an AI Agent, you specify:
   <Accordion title="Plan Naming">
     Use descriptive names that clearly indicate what the plan offers (e.g., "Basic API Access - 1000 requests").
   </Accordion>
-  
   <Accordion title="Pricing Strategy">
     Start with competitive pricing and adjust based on usage patterns and user feedback.
   </Accordion>
-  
   <Accordion title="Endpoint Design">
     Group related functionality under the same payment plan to provide better value to subscribers.
   </Accordion>
-  
   <Accordion title="Trial Plans">
     Always offer trial plans to reduce barriers to entry and increase conversion rates.
   </Accordion>
@@ -345,7 +343,7 @@ When registering an AI Agent, you specify:
 
 ## Next Steps
 
-Once you have registered your payment plans and agents, you can:
+Once you have registered your agents and plans, you can:
 
 <CardGroup cols={2}>
   <Card title="Test Purchasing" icon="shopping-cart" href="/integration-guide/order-plans">
