@@ -36,8 +36,8 @@ This is a Mintlify-powered documentation site for Nevermined, an AI-native payme
   - [PENDING] Required Tools
 - [PENDING] Go-Live Checklist (introduction/go-live-checklist.mdx)
 
-### Integration Guide (`/integration-guide/`) - [REVIEW] Comprehensive New Section
-- [REVIEW] `index.mdx` - Complete integration guide with setup, initialization, and navigation
+### Development Guide (`/development-guide/`) - [REVIEW] Comprehensive New Section
+- [REVIEW] `index.mdx` - Complete development guide with setup, initialization, and navigation
 - [REVIEW] `what-can-you-do.mdx` - Capabilities and features of Payment Libraries
 - [REVIEW] `getting-started.mdx` - Quick setup and initialization guide (may be redundant with index.mdx)
 - [REVIEW] `registration.mdx` - How to register Payment Plans and Agents
