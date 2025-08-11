@@ -4,11 +4,11 @@ description: "Learn how users can purchase Payment Plans to access AI services"
 icon: "credit-card"
 ---
 
-With the Payments Library, users and AI agents can order Payment Plans by paying for them. The process is simple and secure. The subscriber needs to have enough funds to pay for the plan in the token selected by the creator of the plan. In Nevermined, Payment Plan creators can request payments in any valid ERC-20 or native token (depending on the network where the plan is created).
+With the Payments Library it's easy for users and AI agents to buy Payment Plans. The user only needs to hold sufficient balance in the plan currency (set on plan creation). With Nevermined, plan creators can set payments currency to any valid ERC-20 or native token.
 
-As we discussed in the previous sections, Payment Plans can require payment in fiat (via Stripe integration) or crypto. Because the payment of a fiat payment plan requires the use of a credit card in a web application (via the Nevermined App), crypto payments are recommended for AI agents. That way, the payment and fetching of credits associated with the Payment Plan can be done in a single step.
+Payment Plans can also be purchased in fiat (via Stripe). The Stripe Checkout flow requires the use of credit cards and is fully integrated into the Nevermined Web App. Nevermined likes to recommend stablecoin payments. That way, the payment and fetching of credits associated with the Payment Plan can be done in a single step.
 
-## Ordering a Plan
+## Buying a Plan
 
 <Tabs>
   <Tab title="TypeScript">
@@ -32,11 +32,11 @@ As we discussed in the previous sections, Payment Plans can require payment in f
   </Tab>
 </Tabs>
 
-## Ordering Plans with Fiat Payment
+## Buying Plans with Fiat via Stripe
 
-When the Payment Plan requires a payment in fiat, the payment can be initiated with the libraries, but the final step needs to be done in the Nevermined App. The app will handle the payment in fiat (Stripe integration) and will return the user to the application with the Payment Plan ordered.
+When the Payment Plan requires a payment in fiat, the payment can be initiated with the libraries, but the final step needs to be done in the Nevermined App. The app will handle the payment in fiat (via Stripe Checkout) and will return the user to the application that initiated the purchase flow.
 
-For fiat payments, the process involves redirecting users to a Stripe checkout session:
+For fiat payments, the process involves redirecting users to a Stripe Checkout session:
 
 <Tabs>
   <Tab title="TypeScript">
@@ -73,7 +73,7 @@ For fiat payments, the process involves redirecting users to a Stripe checkout s
 After a user purchases a plan, they can check their balance for that plan. The balance represents the number of credits the user has available to use within the plan.
 
 <Note>
-Time-based plans provide a balance of 1 credit for subscribers. When the plan expires, this balance will be zero.
+  Time-based plans provide a balance of 1 credit for subscribers. When the plan expires, this balance will be zero.
 </Note>
 
 <Tabs>
@@ -89,7 +89,7 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
     //   balance: '100',
     //   isSubscriber: true
     // }
-    ```  
+    ```
   </Tab>
   <Tab title="Python">
     ```python
@@ -109,7 +109,7 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
 
 <CardGroup cols={2}>
   <Card title="Credits-Based Plans" icon="coins">
-    Users receive a specific number of credits upon purchase. Each API call consumes credits based on your configuration.
+    Users receive a specific number of credits upon purchase. Each API call consumes credits based on your pricing configuration.
   </Card>
   <Card title="Time-Based Plans" icon="clock">
     Users receive 1 credit that grants unlimited access for the specified duration. Balance becomes 0 when expired.
@@ -188,14 +188,12 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
     - Create different plans for crypto and fiat payments if you want to support both
     - Show plan benefits and limitations clearly
   </Accordion>
-  
   <Accordion title="Error Handling">
     - Handle network failures gracefully with retry mechanisms
     - Provide clear error messages for common issues
     - Allow users to check their balance before making additional purchases
     - Implement transaction status checking for pending purchases
   </Accordion>
-  
   <Accordion title="Security">
     - Never store private keys or sensitive wallet information
     - Validate plan purchases on the backend before granting access
@@ -203,7 +201,6 @@ Time-based plans provide a balance of 1 credit for subscribers. When the plan ex
     - Log purchase events for audit trails
   </Accordion>
 </AccordionGroup>
-
 
 ## Next Steps
 
