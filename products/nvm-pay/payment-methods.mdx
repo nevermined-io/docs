@@ -120,9 +120,10 @@ window.location.href = url
 ```
 
 <Note>
-The `orderFiatPlan()` method returns:
-- `sessionId`: Stripe checkout session ID for tracking
-- `url`: Stripe checkout URL for redirect
+  The `orderFiatPlan()` method returns:
+
+  - `sessionId`: Stripe checkout session ID for tracking
+  - `url`: Stripe checkout URL for redirect
 </Note>
 
 ### Complete Fiat Payment Example
@@ -191,7 +192,7 @@ const singleReceiverPrice = {
 }
 ```
 
-### Multiple Receivers
+### Multiple Receivers (i.e. Royalties, Split Revenue Models, etc.)
 
 Split payments between parties:
 
@@ -256,14 +257,12 @@ const multiReceiverPrice = {
     - Provide multiple options
     - Display clear conversion rates
   </Accordion>
-  
   <Accordion title="Pricing Display">
     - Show prices in familiar units
     - Include network fees if applicable
     - Update exchange rates regularly
     - Offer currency selection
   </Accordion>
-  
   <Accordion title="Payment Validation">
     - Wait for sufficient confirmations
     - Handle failed transactions gracefully

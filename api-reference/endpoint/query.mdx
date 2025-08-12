@@ -1,6 +1,6 @@
 ---
-title: 'Query Agent'
-openapi: 'POST /agent/{agentId}/query'
+title: "Query Agent"
+openapi: "POST /agent/{agentId}/query"
 ---
 
 Queries a registered AI agent via the Nevermined Proxy or directly, using a valid payment plan and signature-based access token.
@@ -37,6 +37,7 @@ const response = await fetch(agentEndpoint, {
 ## Response
 
 The access credentials object structure:
+
 ```json
 {
   "accessToken": "eJyNj0sKgDAURP9lJQ....",
@@ -50,4 +51,4 @@ The access credentials object structure:
   - Validate the subscriber's plan and credits
   - Send the request to the agent's registered endpoint
   - Redeem the appropriate number of credits (defined by the plan)
-- Fails with a 402 if the subscriber is unauthorized 
+- Fails with a 402 code if the subscriber is unauthorized

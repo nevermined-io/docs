@@ -8,15 +8,15 @@ At the heart of Nevermined are two fundamental concepts: **AI Agents** and **Pay
 
 ## What is an AI Agent?
 
-In the Nevermined ecosystem, an AI Agent is any digital service or tool that you want to monetize. It's more than just a model; it's a complete service that can:
+In the Nevermined ecosystem, an AI Agent is any AI service or tool that you want to monetize. It's more than just a model; it's a complete service that can:
 
-- **Make and receive digital payments** in both crypto and fiat.
+- **Make and receive digital payments** in both fiat and crypto.
 - **Expose its functionalities** through HTTP API endpoints.
 - **Be discovered and accessed** by subscribers through flexible payment plans.
 - **Validate access** using bearer token authentication.
 - **Track usage** with automatic credit redemption.
 
-Nevermined provides the tools to wrap your existing AI service—whether it's a single model, a complex workflow, or a multi-agent system—and turn it into a monetizable product without needing to build a billing system from scratch.
+Nevermined provides the tools to wrap your existing AI agent or service, whether it's a single model, a complex workflow, or a multi-agent system, and turn it into a monetizable product without needing to build a billing system from scratch.
 
 ### Agent Components
 
@@ -63,7 +63,7 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     Perfect for usage-based pricing models:
 
     - **Fixed Credits**: Set amount of credits (e.g., 100 credits)
-    - **Credits per Request**: How many credits each query consumes
+    - **Credits per Request**: Set how many credits each query consumes
     - **Flexible Redemption**: Redeem different amounts based on usage
   </Accordion>
   <Accordion title="Time-Based Plans">
@@ -83,9 +83,9 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
 
 ### Example Payment Plans
 
-- **AI Travel Advisor**: Offer a "Regular" plan for 100/month or a "Premium" plan for 900/year.
-- **Code Copilot**: A usage-based plan costing 10 USDC for 100 credits, with each request consuming 1 credit.
-- **Legal Assistant**: A tiered model with a "Silver" plan (100 xDAI for 500 credits, 5-25 credits per query) and a "Gold" plan (1 ETH for unlimited access for a year).
+- **AI Travel Advisor**: Offer a "Regular" plan for \$100/month or a "Premium" plan for \$900/year.
+- **Code Copilot**: A usage-based plan costing \$10 for 100 credits, with each request consuming 1 credit.
+- **Legal Assistant**: A tiered model with a "Silver" plan (\$100 for 500 credits, 5-25 credits per query) and a "Gold" plan (\$10,000 for unlimited access for a year).
 
 ## How It All Works Together
 
@@ -97,13 +97,13 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     Builders create one or more payment plans, setting prices, credit amounts, and consumption rules.
   </Step>
   <Step title="Subscriber Purchase">
-    Users discover agents and purchase plans using crypto or fiat payments.
+    Users discover agents and purchase plans using fiat or crypto payments.
   </Step>
   <Step title="Access Token Generation">
     Upon purchase, subscribers receive bearer tokens for authenticated access.
   </Step>
   <Step title="Query & Validation">
-    When querying an agent, the Nevermined Proxy validates the token and checks credit balance.
+    When querying an agent, the Nevermined system validates the token and checks credit balance.
   </Step>
   <Step title="Automatic Billing">
     Credits are automatically deducted based on usage, with proof of consumption tracked on-chain.
