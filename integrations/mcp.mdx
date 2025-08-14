@@ -1,10 +1,10 @@
 ---
 title: "Model Context Protocol (MCP)"
-description: "Learn how to protect your MCP servers with Nevermined Payments."
+description: "Learn how to protect your MCP servers with Nevermined Payments Library."
 icon: "wave-square"
 ---
 
-Nevermined Payments provides robust tools to add a paywall to your [Model Context Protocol (MCP)](https://spec.modelcontextprotocol.io/) server. This allows you to monetize your AI tools, resources, and prompts by restricting access to subscribers with valid payment plans.
+Nevermined Payments Library provides robust tools to add a paywall to your [Model Context Protocol (MCP)](https://spec.modelcontextprotocol.io/) server. This allows you to monetize your AI tools, resources, and prompts by restricting access to subscribers with valid payment plans.
 
 The integration is designed to be seamless, whether you are using a high-level framework like the official MCP SDKs or a custom low-level JSON-RPC router.
 
@@ -23,9 +23,9 @@ Think of MCP as a universal language that allows any AI agent to ask a server, "
 *   **Resources**: These are stable pointers to data, identified by a URI. While a tool call might give a human-readable summary, a resource link (`weather://today/Paris`) provides the raw, structured data (like a JSON object) that an agent can parse and use for further tasks.
 *   **Prompts**: These are pre-defined templates that help guide an agent's behavior, ensuring it requests information in the correct format or follows a specific interaction pattern.
 
-## Why integrate MCP with Nevermined Payments?
+## Why integrate MCP with Nevermined Payments Library?
 
-While MCP provides a powerful standard for *what* an AI agent can do, it doesn't specify *who* is allowed to do it or *how* those services are paid for. This is where Nevermined Payments comes in. By integrating Nevermined, you can transform your open MCP server into a secure, monetizable platform.
+While MCP provides a powerful standard for *what* an AI agent can do, it doesn't specify *who* is allowed to do it or *how* those services are paid for. This is where Nevermined Payments Library comes in. By integrating Nevermined, you can transform your open MCP server into a secure, monetizable platform.
 
 The core idea is to place a "paywall" in front of your MCP handlers. This paywall acts as a gatekeeper, intercepting every incoming request to a tool, resource, or prompt. Before executing your logic, it checks the user's `Authorization` header to verify they have a valid subscription and sufficient credits through the Nevermined protocol. If they don't, the request is blocked. If they do, the request proceeds, and after your handler successfully completes, the paywall automatically deducts the configured number of credits.
 
@@ -33,7 +33,7 @@ This integration allows you to build a sustainable business model around your AI
 
 ## Step-by-step Tutorial
 
-In this tutorial, we will embark on a practical journey to build a secure, monetizable MCP server. Our starting point will be a standard, unprotected server—a common scenario for developers who have already created useful AI tools and now wish to commercialize them. From there, we will layer on the security and monetization capabilities of Nevermined Payments step by step.
+In this tutorial, we will embark on a practical journey to build a secure, monetizable MCP server. Our starting point will be a standard, unprotected server—a common scenario for developers who have already created useful AI tools and now wish to commercialize them. From there, we will layer on the security and monetization capabilities of Nevermined Payments Library step by step.
 
 ### 0) Requirements & Installation
 
