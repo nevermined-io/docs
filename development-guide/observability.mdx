@@ -1,0 +1,283 @@
+---
+title: "Observability & Monitoring"
+description: "Learn how to add comprehensive observability and monitoring to your AI agents using Nevermined Payment Libraries"
+icon: "chart-line"
+---
+
+# Observability & Monitoring for AI Agents
+
+The Nevermined Payment Libraries include built-in observability capabilities that allow you to monitor, track, and analyze your AI agent's performance, usage patterns, and costs. This integration provides comprehensive logging and analytics for your AI operations.
+
+## Overview
+
+The observability API provides:
+
+- **Request/Response Logging**: Automatic logging of all AI API calls with full context
+- **Usage Tracking**: Token usage, costs, and performance metrics
+- **Custom Properties**: Add custom metadata to your logs for better analysis
+- **Real-time Monitoring**: View logs and metrics in the Nevermined dashboard
+
+## Basic Integration
+
+### 1. Initialize the Observability API
+
+The observability functionality is automatically available through the `Payments` class:
+
+```typescript
+import { Payments } from "@nevermined-io/payments";
+
+const payments = Payments.getInstance({
+  nvmApiKey: "your-api-key",
+  environment: "staging_sandbox",
+});
+
+// Access observability through payments.observability
+const observability = payments.observability;
+```
+
+### 2. Configure OpenAI with Observability Logging
+
+Use the `withHeliconeOpenAI` method to wrap your OpenAI client with automatic logging:
+
+```typescript
+import OpenAI from "openai";
+
+// Create OpenAI client with observability
+const openai = new OpenAI(
+  payments.observability.withHeliconeOpenAI(
+    "your-openai-api-key",
+    agentRequest, // From payment validation
+    {
+      userid: "your-user-id", // optional custom property
+      operation: "financial_advice", // optional custom property
+    }
+  )
+);
+
+// All OpenAI calls will be automatically logged
+const completion = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: messages,
+  temperature: 0.3,
+  max_tokens: 250,
+});
+```
+
+### 3. Configure Langchain with Observability Logging
+
+Use the `withHeliconeLangchain` method to wrap your Langchain client with automatic logging:
+
+```typescript
+import { ChatOpenAI } from "@langchain/openai";
+
+const llm = new ChatOpenAI(
+  payments.observability.withHeliconeLangchain(
+    "gpt-4o-mini",
+    "your-openai-api-key",
+    agentRequest,
+    {
+      userid: "your-user-id", // optional custom property
+      operation: "financial_advice", // optional custom property
+    }
+  )
+);
+```
+
+## Advanced Usage
+
+### Manual Operation Logging
+
+<Note>
+  Documentation for Manual Operation Logging is coming soon. This section will
+  cover how to wrap custom operations with observability logging for non-OpenAI
+  or Langchain services.
+</Note>
+
+### Custom Properties and Metadata
+
+Add custom properties to track additional context:
+
+```typescript
+const customProperties = {
+  sessionid: sessionId,
+  operation: "investment_analysis",
+  userId: "user-123",
+  requestType: "portfolio_review",
+  timestamp: new Date().toISOString(),
+};
+```
+
+### Usage Calculation Helpers
+
+<Note>
+  Documentation for usage calculation helpers for video and audio operations is
+  coming soon. This section will cover how to calculate usage metrics for
+  different types of AI operations.
+</Note>
+
+## Complete Example
+
+Here's a complete example showing how to integrate observability into an AI agent:
+
+```typescript
+import express from "express";
+import OpenAI from "openai";
+import { Payments } from "@nevermined-io/payments";
+
+const app = express();
+app.use(express.json());
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: "staging_sandbox",
+});
+
+app.post("/ask", async (req, res) => {
+  try {
+    // Validate payment and get agent request
+    const agentRequest = await payments.requests.startProcessingRequest(
+      process.env.AGENT_ID!,
+      req.headers.authorization as string,
+      req.url,
+      req.method
+    );
+
+    // Check user has sufficient balance
+    if (
+      !agentRequest.balance.isSubscriber ||
+      agentRequest.balance.balance < 1n
+    ) {
+      return res.status(402).json({ error: "Payment Required" });
+    }
+
+    const { input_query, sessionId, userId } = req.body;
+
+    // Set up observability metadata
+    const customProperties = {
+      sessionid: sessionId
+      operation: "financial_advice",
+      userid: userId,
+    };
+
+    // Create OpenAI client with observability
+    const openai = new OpenAI(
+      payments.observability.withHeliconeOpenAI(
+        process.env.OPENAI_API_KEY!,
+        agentRequest,
+        customProperties
+      )
+    );
+
+    // Make the AI call (automatically logged)
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a financial advisor..." },
+        { role: "user", content: input_query },
+      ],
+      temperature: 0.3,
+      max_tokens: 250,
+    });
+
+    const response = completion.choices[0]?.message?.content;
+
+    // Redeem credits
+    await payments.requests.redeemCreditsFromRequest(
+      agentRequest.agentRequestId,
+      req.headers.authorization?.replace("Bearer ", "")!,
+      BigInt(10) // Credit amount
+    );
+
+    res.json({
+      output: response,
+      sessionId: customProperties.sessionid,
+      tokensUsed: completion.usage?.total_tokens,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+```
+
+## Monitoring and Analytics
+
+### Events Log Table
+
+The frontend provides a comprehensive events log table showing:
+
+![Events Log Table](/images/events-log-table.png)
+
+_Screenshot of the events log table showing detailed request information, timestamps, costs, and status_
+
+![Events Log Table Detailed View](/images/events-log-table-detailed.png)
+
+_Screenshot of the events log table showing details of a specific request_
+
+#### Key Metrics Tracked
+
+The observability integration automatically tracks:
+
+- **Timestamp**: When each request was made
+- **User**: Account address and session information
+- **Agent**: Agent name and operation type
+- **Request**: Input query and context
+- **Response**: AI-generated response
+- **Cost Analysis**: Credit consumption and cost per request
+- **Status**: Success/failure status
+- **Performance Metrics**: Response times, success rates, error rates, token usage, and more
+
+### Data Analytics Dashboard
+
+Once your agent is running with observability enabled, you can view detailed data analytics in the Nevermined dashboard:
+
+![Data Analytics Dashboard](/images/analytics-dashboard-overview.png)
+
+_Screenshot showing the Nevermined analytics dashboard_
+
+![Data Analytics Dashboard Cumulative Analysis](/images/analytics-dashboard-cumulative-analysis.png)
+
+_Screenshot showing the Nevermined analytics dashboard cumulative analysis_
+
+![Data Analytics Dashboard Summmary Analysis](/images/analytics-dashboard-summary-analysis.png)
+
+_Screenshot showing the Nevermined analytics dashboard summary analysis_
+
+#### Key Metrics Tracked
+
+The observability integration automatically tracks:
+
+- **Per Request Analysis**: Cost, credit revenue, PnL, by agent, model, and more
+- **Cumulative Analysis**: Cost, credit revenue, PnL, by agent, model, and more
+- **Summary Analysis**: Cost, credit revenue, PnL, by agent, model, and more
+
+### Filtering and Search
+
+Use the built-in filtering capabilities to analyze specific patterns:
+
+![Event Log Filtering Options](/images/events-log-filtering.png)
+
+_Screenshot showing filtering options for date range, agent type, user, and more_
+
+![Data Analytics Filtering Options](/images/data-analytics-filtering.png)
+
+_Screenshot showing filtering options for agent, model, provider, and more_
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Process Requests"
+    icon="server"
+    href="/development-guide/process-requests"
+  >
+    Learn how to handle and validate paid requests in your agents
+  </Card>
+  <Card
+    title="Query Agents"
+    icon="magnifying-glass"
+    href="/development-guide/query-agents"
+  >
+    Learn how to query AI agents programmatically
+  </Card>
+</CardGroup>
