@@ -23,28 +23,40 @@ The observability API provides:
 
 The observability functionality is automatically available through the `Payments` class:
 
+<Tabs>
+  <Tab title="TypeScript">
 ```typescript
 import { Payments } from "@nevermined-io/payments";
 
 const payments = Payments.getInstance({
   nvmApiKey: "your-api-key",
-  environment: "staging_sandbox",
+  environment: "sandbox",
 });
 
 // Access observability through payments.observability
 const observability = payments.observability;
 ```
 
+  </Tab>
+  <Tab title="Python">
+```python
+# Coming soon
+```
+  </Tab>
+</Tabs>
+
 ### 2. Configure OpenAI with Observability Logging
 
-Use the `withHeliconeOpenAI` method to wrap your OpenAI client with automatic logging:
+Use the `withOpenAI` method to wrap your OpenAI client with automatic logging:
 
+<Tabs>
+  <Tab title="TypeScript">
 ```typescript
 import OpenAI from "openai";
 
 // Create OpenAI client with observability
 const openai = new OpenAI(
-  payments.observability.withHeliconeOpenAI(
+  payments.observability.withOpenAI(
     "your-openai-api-key",
     agentRequest, // From payment validation
     {
@@ -62,16 +74,25 @@ const completion = await openai.chat.completions.create({
   max_tokens: 250,
 });
 ```
+  </Tab>
+  <Tab title="Python">
+```python
+# Coming soon
+```
+  </Tab>
+</Tabs>
 
 ### 3. Configure Langchain with Observability Logging
 
-Use the `withHeliconeLangchain` method to wrap your Langchain client with automatic logging:
+Use the `withLangchain` method to wrap your Langchain client with automatic logging:
 
+<Tabs>
+  <Tab title="TypeScript">
 ```typescript
 import { ChatOpenAI } from "@langchain/openai";
 
 const llm = new ChatOpenAI(
-  payments.observability.withHeliconeLangchain(
+  payments.observability.withLangchain(
     "gpt-4o-mini",
     "your-openai-api-key",
     agentRequest,
@@ -82,6 +103,13 @@ const llm = new ChatOpenAI(
   )
 );
 ```
+  </Tab>
+  <Tab title="Python">
+```python
+# Coming soon
+```
+  </Tab>
+</Tabs>
 
 ## Advanced Usage
 
@@ -97,6 +125,8 @@ const llm = new ChatOpenAI(
 
 Add custom properties to track additional context:
 
+<Tabs>
+  <Tab title="TypeScript">
 ```typescript
 const customProperties = {
   sessionid: sessionId,
@@ -106,6 +136,14 @@ const customProperties = {
   timestamp: new Date().toISOString(),
 };
 ```
+
+  </Tab>
+  <Tab title="Python">
+```python
+# Coming soon
+```
+  </Tab>
+</Tabs>
 
 ### Usage Calculation Helpers
 
@@ -119,6 +157,8 @@ const customProperties = {
 
 Here's a complete example showing how to integrate observability into an AI agent:
 
+<Tabs>
+  <Tab title="TypeScript">
 ```typescript
 import express from "express";
 import OpenAI from "openai";
@@ -129,7 +169,7 @@ app.use(express.json());
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: "staging_sandbox",
+  environment: "sandbox",
 });
 
 app.post("/ask", async (req, res) => {
@@ -154,14 +194,14 @@ app.post("/ask", async (req, res) => {
 
     // Set up observability metadata
     const customProperties = {
-      sessionid: sessionId
+      sessionid: sessionId,
       operation: "financial_advice",
       userid: userId,
     };
 
     // Create OpenAI client with observability
     const openai = new OpenAI(
-      payments.observability.withHeliconeOpenAI(
+      payments.observability.withOpenAI(
         process.env.OPENAI_API_KEY!,
         agentRequest,
         customProperties
@@ -193,12 +233,20 @@ app.post("/ask", async (req, res) => {
       sessionId: customProperties.sessionid,
       tokensUsed: completion.usage?.total_tokens,
     });
+
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 ```
+  </Tab>
+  <Tab title="Python">
+```python
+# Coming soon
+```
+  </Tab>
+</Tabs>
 
 ## Monitoring and Analytics
 
