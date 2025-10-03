@@ -310,6 +310,28 @@ When registering an AI Agent, you specify:
 - **Open Endpoints**: Free to access (e.g., documentation, health checks)
 - **URL Patterns**: Support wildcards for dynamic routing
 
+### URL Patterns (path-to-regexp)
+
+We use `path-to-regexp` to define and validate the URL patterns of your agent endpoints. This allows dynamic routing via named parameters and wildcards. See the project documentation for full syntax and options: [path-to-regexp](https://github.com/pillarjs/path-to-regexp).
+
+- Wildcard example:
+
+```
+https://example.com/api/v1/agents/*path
+```
+
+Matches one or more segments after `agents/` and captures them into the `path` array.
+
+- Parameters example:
+
+```
+https://example.com/api/v1/agents/:agentId/tasks/:taskId
+```
+
+Captures `agentId` and `taskId` as named parameters.
+
+
+
 ### Payment Plan Types
 
 <CardGroup cols={3}>
