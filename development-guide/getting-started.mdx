@@ -1,0 +1,117 @@
+---
+title: "Getting Started"
+description: "Quick setup and initialization guide for Nevermined Payment Libraries"
+icon: "rocket"
+---
+
+This guide will help you set up and initialize the Nevermined Payment Libraries to start monetizing your AI services.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+<Steps>
+  <Step title="Development Environment">
+    - Node.js 16+ and npm/yarn (for TypeScript)
+    - Python 3.8+ (for Python)
+    - A code editor (VS Code recommended)
+  </Step>
+  <Step title="Nevermined API Key">
+    Get your API key from the [Nevermined App](https://nevermined.app)
+  </Step>
+  <Step title="Test Tokens (Optional)">
+    Some test tokens for testing (you can [get some USDC from here](https://faucet.circle.com/))
+  </Step>
+</Steps>
+
+## Installation
+
+<Tabs>
+  <Tab title="TypeScript/JavaScript">
+    ```bash
+    npm install @nevermined-io/payments
+    # or
+    yarn add @nevermined-io/payments
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    pip install payments-py
+    ```
+  </Tab>
+</Tabs>
+
+## Getting Your API Key
+
+1. Go to the [Nevermined App](https://nevermined.app)
+2. Log in with your credentials (email, Google account, or GitHub)
+3. Navigate to the **API Keys** section in the left user menu
+4. Click on the **New API Key** button at the top right of the page
+5. Generate a new key, give it a descriptive name, and copy it
+6. Store this key securely as an environment variable (e.g., `NVM_API_KEY`)
+
+<Warning>
+Never expose your API key in client-side code or commit it to version control. Always use environment variables.
+</Warning>
+
+## Initialize the Payments Libraries
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+    
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'sandbox' // or 'live'
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py import Payments
+    import os
+    
+    payments = Payments(
+        api_key=os.environ.get('NVM_API_KEY'),
+        environment='sandbox'  # or 'live'
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Configuration
+
+Choose the appropriate environment for your use case:
+
+<AccordionGroup>
+  <Accordion title="Sandbox Environment">
+    - **Use case**: Development and testing
+    - **Payments**: Test fiat and tokens (free)
+    - **Environment**: `'sandbox'`
+    - **Network**: [Base Sepolia testnet](https://sepolia.basescan.org/)
+  </Accordion>
+  
+  <Accordion title="Live Environment">
+    - **Use case**: Live applications
+    - **Payments**: Fiat (via Stripe) and any ERC-20 tokens
+    - **Environment**: `'live'`
+    - **Network**: [Base](https://basescan.org/)
+  </Accordion>
+</AccordionGroup>
+
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Invalid API Key Error">
+    Make sure your API key is correctly set in your environment variables and has the proper permissions.
+  </Accordion>
+  
+  <Accordion title="Network Connection Issues">
+    Check that you're using the correct environment ('sandbox' or 'live') and that your network connection is stable.
+  </Accordion>
+  
+</AccordionGroup>
+
+If you encounter any issues, check our [Frequently Asked Questions](/development-guide/faq) or reach out to our community on [Discord](https://discord.com/invite/GZju2qScKq).

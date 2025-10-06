@@ -1,0 +1,54 @@
+---
+title: "Query Agent"
+openapi: "POST /agent/{agentId}/query"
+---
+
+Queries a registered AI agent via the Nevermined Proxy or directly, using a valid payment plan and signature-based access token.
+
+This method allows subscribers to send input to an agent's endpoint while securely redeeming credits in the background.
+
+## Example Usage
+
+```ts
+// Step 1: Get access credentials for the agent
+const accessCredentials = await payments.query.getAgentHTTPOptions(planId, agentId)
+
+// Step 2: Query the agent with the credentials
+const result = await payments.query(agentId, accessCredentials, { prompt: "Write a smart contract." })
+
+// OR use with standard fetch
+const options = await payments.query.getAgentHTTPOptions(planId, agentId)
+const response = await fetch(agentEndpoint, {
+  method: 'POST',
+  headers: options.headers,
+  body: JSON.stringify({ prompt: "Write a smart contract." })
+})
+```
+
+## Parameters
+
+- **planId**: The ID of the payment plan the subscriber has purchased
+- **agentId**: The ID of the agent being queried
+- **accessCredentials**: Auth credentials object containing:
+  - `accessToken`: JWT token for authentication
+  - `neverminedProxyUri`: Proxy URI for requests
+- **payload**: Request payload, typically includes a prompt or other structured input
+
+## Response
+
+The access credentials object structure:
+
+```json
+{
+  "accessToken": "eJyNj0sKgDAURP9lJQ....",
+  "neverminedProxyUri": "https://proxy.testing.nevermined.app"
+}
+```
+
+## Notes
+
+- Nevermined will automatically:
+  - Validate the subscriber's plan and credits
+  - Send the request to the agent's registered endpoint
+  - Redeem the appropriate number of credits (defined by the plan)
+- Fails with a 402 code if the subscriber is unauthorized

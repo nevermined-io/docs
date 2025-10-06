@@ -1,0 +1,113 @@
+---
+title: "Core Concepts"
+description: "Understand the fundamental building blocks of Nevermined: AI Agents and Payments Plans."
+icon: "lightbulb"
+---
+
+At the heart of Nevermined are two fundamental concepts: **AI Agents** and **Payment Plans**. Understanding how they work together is key to monetizing your AI services.
+
+## What is an AI Agent?
+
+In the Nevermined ecosystem, an AI Agent is any AI service or tool that you want to monetize. It's more than just a model; it's a complete service that can:
+
+- **Make and receive digital payments** in both fiat and crypto.
+- **Expose its functionalities** through HTTP API endpoints.
+- **Be discovered and accessed** by subscribers through flexible payment plans.
+- **Validate access** using bearer token authentication.
+- **Track usage** with automatic credit redemption.
+
+Nevermined provides the tools to wrap your existing AI agent or service, whether it's a single model, a complex workflow, or a multi-agent system, and turn it into a monetizable product without needing to build a billing system from scratch.
+
+### Agent Components
+
+<CardGroup cols={2}>
+  <Card title="Metadata" icon="tags">
+    Name, description, tags, and creation date for discovery.
+  </Card>
+  <Card title="API Endpoints" icon="plug">
+    HTTP endpoints that define how to interact with your agent.
+  </Card>
+  <Card title="Payment Plans" icon="money-bill">
+    One or more plans that define pricing and access terms.
+  </Card>
+  <Card title="Access Control" icon="shield">
+    Token-based authentication through Nevermined Proxy or direct validation.
+  </Card>
+</CardGroup>
+
+## What is a Payment Plan?
+
+A Payment Plan is a set of rules and conditions that define how subscribers pay to access your AI Agent. Plans are highly flexible and are defined by two main components: their **price** and the **consumption** model.
+
+### Key Attributes of a Payment Plan:
+
+<CardGroup cols={2}>
+  <Card title="Payment Type" icon="credit-card">
+    Choose whether to charge in **Crypto** (any ERC-20 token or native coin) or **Fiat** (via Stripe integration).
+  </Card>
+  <Card title="Price Configuration" icon="sack-dollar">
+    Set the total price for the plan and define how the revenue is distributed among one or more receivers. Supports multi-receiver splits.
+  </Card>
+  <Card title="Plan Types" icon="calendar-days">
+    - **Time-based**: Limited by duration (e.g., 30 days, 1 year)
+    - **Credits-based**: Limited by usage (e.g., 100 queries)
+    - **Trial**: Free limited access for testing
+  </Card>
+  <Card title="Credit System" icon="coins">
+    Define how many credits a subscriber receives upon purchase and how many are consumed per request. Supports: Fixed price per request, Dynamic pricing per request (min/max range where redemption is based on query complexity).
+  </Card>
+</CardGroup>
+
+<AccordionGroup>
+  <Accordion title="Credits-Based Plans">
+    Perfect for usage-based pricing models:
+
+    - **Fixed Credits**: Set amount of credits (e.g., 100 credits)
+    - **Credits per Request**: Set how many credits each query consumes
+    - **Flexible Redemption**: Redeem different amounts based on usage
+  </Accordion>
+  <Accordion title="Time-Based Plans">
+    Ideal for subscription models:
+
+    - **Duration**: Set expiration time (days, months, years)
+    - **Unlimited Usage**: Within the time period
+    - **Auto-expiry**: Plan expires after duration
+  </Accordion>
+  <Accordion title="Hybrid Plans">
+    Combine time and credits:
+
+    - **Credits with Expiry**: E.g., 1000 credits valid for 30 days
+    - **Rate Limiting**: Control usage within time periods
+  </Accordion>
+</AccordionGroup>
+
+### Example Payment Plans
+
+- **AI Travel Advisor**: Offer a "Regular" plan for \$100/month or a "Premium" plan for \$900/year.
+- **Code Copilot**: A usage-based plan costing \$10 for 100 credits, with each request consuming 1 credit.
+- **Legal Assistant**: A tiered model with a "Silver" plan (\$100 for 500 credits, 5-25 credits per query) and a "Gold" plan (\$10,000 for unlimited access for a year).
+
+## How It All Works Together
+
+<Steps>
+  <Step title="Agent Registration">
+    Builders register their AI agents with metadata and API endpoints, defining how the service can be accessed.
+  </Step>
+  <Step title="Plan Creation">
+    Builders create one or more payment plans, setting prices, credit amounts, and consumption rules.
+  </Step>
+  <Step title="Subscriber Purchase">
+    Users discover agents and purchase plans using fiat or crypto payments.
+  </Step>
+  <Step title="Access Token Generation">
+    Upon purchase, subscribers receive bearer tokens for authenticated access.
+  </Step>
+  <Step title="Query & Validation">
+    When querying an agent, the Nevermined system validates the token and checks credit balance.
+  </Step>
+  <Step title="Automatic Billing">
+    Credits are automatically deducted based on usage, with proof of consumption tracked on-chain.
+  </Step>
+</Steps>
+
+By combining AI Agents with flexible Payment Plans, Nevermined empowers you to create sophisticated and scalable business models for your AI services.

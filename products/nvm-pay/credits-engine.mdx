@@ -1,0 +1,308 @@
+---
+title: "Credits Engine"
+description: "Token-based metering system for AI service usage"
+icon: "gauge"
+---
+
+## Overview
+
+The Credits Engine is the core metering system that tracks and manages usage of AI services. It provides flexible consumption models while preventing abuse and ensuring fair usage.
+
+## How Credits Work
+
+<Steps>
+  <Step title="Issuance">
+    Credits are issued when a user purchases a plan
+  </Step>
+  <Step title="Storage">
+    Balance stored on-chain in smart contracts
+  </Step>
+  <Step title="Validation">
+    Each request checks available balance
+  </Step>
+  <Step title="Redemption">
+    Credits deducted after successful requests
+  </Step>
+  <Step title="Tracking">
+    Usage history maintained for audit
+  </Step>
+</Steps>
+
+## Credit Types
+
+### Fixed Credits
+
+Most common model - fixed amount per request:
+
+```typescript
+const fixedCredits = getFixedCreditsConfig(
+  1000n,  // Total credits issued
+  1n      // Credits consumed per request
+)
+
+// User gets 1000 credits, each request uses 1
+```
+
+### Dynamic Credits
+
+Variable consumption based on request complexity:
+
+```typescript
+const dynamicCredits = {
+  creditsType: 'DYNAMIC',
+  amount: 5000n,              // Total credits
+  minCreditsPerRequest: 1n,   // Minimum charge
+  maxCreditsPerRequest: 100n  // Maximum charge
+}
+
+// Usage determined by request parameters
+```
+
+### Time-Expiring Credits
+
+Credits that expire after a duration:
+
+```typescript
+const expiringCredits = {
+  creditsType: 'EXPIRABLE',
+  amount: 1000n,
+  creditsPerRequest: 1n,
+  durationOfThePlan: 86400n * 30n // 30 days
+}
+```
+
+## Credit Redemption
+
+### Automatic Redemption (Proxy)
+
+When using Nevermined Proxy, credits are automatically deducted:
+
+```typescript
+// Credits deducted automatically by proxy
+const response = await fetch(proxyUrl, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ prompt: 'Hello AI' })
+})
+```
+
+### Manual Redemption (Direct)
+
+For direct integrations, manually track usage:
+
+```typescript
+// In your API endpoint
+app.post('/api/query', async (req, res) => {
+  // Validate token
+  const validation = await payments.requests.isValidRequest(
+    req.headers.authorization,
+    req.body
+  )
+  
+  if (!validation.isValid) {
+    return res.status(402).json({ error: 'Payment required' })
+  }
+  
+  // Process request
+  const result = await processQuery(req.body)
+  
+  // Log usage (optional for direct integration)
+  await payments.requests.logRequest(
+    validation.token,
+    { creditsUsed: calculateCredits(req.body) }
+  )
+  
+  res.json(result)
+})
+```
+
+## Balance Management
+
+### Check Balance
+
+```typescript
+// Get plan balance for a user
+const balance = await payments.plans.getPlanBalance(
+  planId,
+  userAddress
+)
+
+console.log({
+  credits: balance.credits,
+  isActive: balance.isSubscriber,
+  planType: balance.planType
+})
+```
+
+### Balance Response
+
+```typescript
+interface PlanBalance {
+  planId: string
+  planType: 'credits' | 'time'
+  currentBalance: bigint
+  isSubscriber: boolean
+  subscriberAddress: string
+  expiresAt?: number // For time-based plans
+}
+```
+
+## Usage Tracking
+
+### Proof System
+
+Every credit redemption includes a proof:
+
+```typescript
+interface UsageProof {
+  requestId: string      // Unique request identifier
+  timestamp: number      // When request was made
+  creditsUsed: bigint   // Amount consumed
+  requestData?: any     // Optional request details
+}
+```
+
+### Query Usage History
+
+```typescript
+// Get usage history for analysis
+const usage = await payments.requests.getUsageHistory(
+  planId,
+  userAddress
+)
+
+// Analyze patterns
+const totalUsed = usage.reduce((sum, record) => 
+  sum + record.creditsUsed, 0n
+)
+```
+
+## Threshold Management
+
+### Minimum Thresholds
+
+Prevent micro-transaction failures:
+
+```typescript
+const minThresholdConfig = {
+  creditsType: 'DYNAMIC',
+  amount: 1000n,
+  minCreditsPerRequest: 10n,  // Minimum 10 credits
+  maxCreditsPerRequest: 100n
+}
+```
+
+### Maximum Thresholds
+
+Prevent abuse:
+
+```typescript
+// Rate limiting by credits
+const rateLimitedConfig = {
+  creditsType: 'FIXED',
+  amount: 1000n,
+  creditsPerRequest: 1n,
+  maxCreditsPerHour: 60n  // Extension example
+}
+```
+
+## Advanced Features
+
+### Credit Calculation
+
+Dynamic credit calculation based on request:
+
+```typescript
+function calculateCredits(request: any): bigint {
+  let credits = 1n // Base cost
+  
+  // Add based on complexity
+  if (request.model === 'gpt-4') credits += 5n
+  if (request.maxTokens > 1000) credits += 3n
+  if (request.temperature > 0.8) credits += 2n
+  
+  return credits
+}
+```
+
+### Credit Packages
+
+Offer bonus credits for larger purchases:
+
+```typescript
+const creditPackages = [
+  { price: 10_000_000n, credits: 100n },   // $10 = 100 credits
+  { price: 50_000_000n, credits: 600n },   // $50 = 600 credits (20% bonus)
+  { price: 100_000_000n, credits: 1500n }  // $100 = 1500 credits (50% bonus)
+]
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Credit Pricing">
+    - Align credits with actual costs
+    - Provide transparent pricing
+    - Consider bulk discounts
+    - Monitor profitability
+  </Accordion>
+  <Accordion title="Usage Monitoring">
+    - Track patterns regularly
+    - Identify heavy users
+    - Detect unusual activity
+    - Adjust limits as needed
+  </Accordion>
+  <Accordion title="User Experience">
+    - Show remaining balance
+    - Warn before expiration
+    - Provide usage analytics
+    - Enable auto-renewal
+  </Accordion>
+</AccordionGroup>
+
+## Implementation Example
+
+```typescript
+class CreditManager {
+  private payments: Payments
+  
+  async validateAndConsume(
+    token: string,
+    request: any
+  ): Promise<boolean> {
+    // Check validity
+    const validation = await this.payments.requests.isValidRequest(
+      token,
+      request
+    )
+    
+    if (!validation.isValid) {
+      throw new Error('Invalid token or insufficient credits')
+    }
+    
+    // Calculate required credits
+    const creditsNeeded = this.calculateCredits(request)
+    
+    // Get current balance
+    const balance = await this.payments.plans.getPlanBalance(
+      validation.planId,
+      validation.subscriberAddress
+    )
+    
+    if (balance.credits < creditsNeeded) {
+      throw new Error(`Insufficient credits. Need ${creditsNeeded}, have ${balance.credits}`)
+    }
+    
+    // Process will deduct credits automatically via proxy
+    return true
+  }
+  
+  private calculateCredits(request: any): bigint {
+    // Implement your logic
+    return 1n
+  }
+}
+```

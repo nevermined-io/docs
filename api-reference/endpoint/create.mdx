@@ -1,0 +1,66 @@
+---
+title: 'Register Agent and Plan'
+openapi: 'POST /agent'
+---
+
+Registers a new AI agent along with a payment plan in a single transaction using the Nevermined Payments API.
+
+This is the most common entrypoint for AI Builders looking to monetize their services immediately after deploying them.
+
+## Example Usage
+
+```ts
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY,
+  environment: 'production'
+})
+
+const agentMetadata = {
+  name: 'Corporate Swiss Law assistant',
+  tags: ['legal', 'assistant'],
+  dateCreated: new Date('2024-12-31')
+}
+
+const agentApi = {
+  endpoints: [{ POST: 'https://example.com/api/query' }]
+}
+
+// Configure pricing - 10 USDC fixed price
+const priceInUSDC = getERC20PriceConfig(10_000_000n, USDC_ERC20_ADDRESS, builderAddress)
+
+// Configure credits - 100 credits with 5 credits per request
+const fiveCreditsPerRequest = getFixedCreditsConfig(100n, 5n)
+
+const { agentId, planId } = await payments.registerAgentAndPlan(
+  agentMetadata,
+  agentApi,
+  priceInUSDC,
+  fiveCreditsPerRequest
+)
+```
+
+## Parameters
+
+- `agentMetadata`: Metadata about the AI agent including name, tags, and creation date.
+- `agentApi`: Defines the query endpoints the agent exposes.
+- `price`: Configuration object describing cost, token type, and receiver(s).
+- `credits`: Defines what the subscriber gets (number of credits, expiration, etc.).
+
+## Returns
+
+```ts
+{
+  agentId: string
+  planId: string
+}
+```
+
+Returns the unique identifiers of the newly created agent and the payment plan.
+
+## Notes
+
+- You must initialize the `Payments` client before calling this method.
+- The plan will immediately be associated with the registered agent.
+- All pricing and credit logic is enforced on-chain.
