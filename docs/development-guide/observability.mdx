@@ -86,6 +86,7 @@ const completion = await openai.chat.completions.create({
   <Tab title="Python">
 ```python
 import openai
+from dataclasses import asdict
 
 # Set up observability metadata
 custom_properties = {
@@ -100,11 +101,7 @@ openai_config = payments.observability.with_openai(
     custom_properties
 )
 
-openai_client = openai.OpenAI(
-    api_key=openai_config.api_key,
-    base_url=openai_config.base_url,
-    default_headers=openai_config.default_headers
-)
+openai_client = openai.OpenAI(**asdict(openai_config))
 
 # All OpenAI calls will be automatically logged
 completion = openai_client.chat.completions.create(
@@ -476,6 +473,7 @@ app.post("/ask", async (req, res) => {
   <Tab title="Python">
 ```python
 import os
+from dataclasses import asdict
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
@@ -536,11 +534,7 @@ async def ask(
             custom_properties
         )
 
-        openai_client = openai.OpenAI(
-            api_key=openai_config.api_key,
-            base_url=openai_config.base_url,
-            default_headers=openai_config.default_headers
-        )
+        openai_client = openai.OpenAI(**asdict(openai_config))
 
         # Make the AI call (automatically logged)
         completion = openai_client.chat.completions.create(
@@ -673,11 +667,7 @@ openai_config = payments.observability.with_openai(
     {"operation": "batch_analysis"}
 )
 
-openai_client = openai.OpenAI(
-    api_key=openai_config.api_key,
-    base_url=openai_config.base_url,
-    default_headers=openai_config.default_headers
-)
+openai_client = openai.OpenAI(**asdict(openai_config))
 
 # Make multiple AI calls in the same batch
 # Call 1: Analyze user query
@@ -861,11 +851,7 @@ openai_config = payments.observability.with_openai(
     {"operation": "batch_analysis"}
 )
 
-openai_client = openai.OpenAI(
-    api_key=openai_config.api_key,
-    base_url=openai_config.base_url,
-    default_headers=openai_config.default_headers
-)
+openai_client = openai.OpenAI(**asdict(openai_config))
 
 # Make multiple AI calls in the same batch
 # Call 1: Analyze user query
