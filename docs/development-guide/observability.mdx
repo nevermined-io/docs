@@ -138,6 +138,7 @@ const llm = new ChatOpenAI(
   </Tab>
   <Tab title="Python">
 ```python
+from dataclasses import asdict
 from langchain_openai import ChatOpenAI
 
 # Configure Langchain with observability
@@ -151,7 +152,7 @@ langchain_config = payments.observability.with_langchain(
     }
 )
 
-llm = ChatOpenAI(**langchain_config)
+llm = ChatOpenAI(**asdict(langchain_config))
 ```
   </Tab>
 </Tabs>
