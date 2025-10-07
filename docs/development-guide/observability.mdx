@@ -211,8 +211,8 @@ custom_properties = {
 
 You can process requests in two modes:
 
-- **Regular Requests**: Process one request at a time
-- **Batch Requests**: Process multiple requests together for efficiency
+- **Regular Requests**: Process one request at a time. Each request gets its own unique agent request ID.
+- **Batch Requests**: Process multiple requests together using the same agent request ID. This is useful when you need to make multiple AI calls (e.g., multiple OpenAI requests) within a single user request, and you want to redeem credits once at the end for all operations combined.
 
 <Tabs>
   <Tab title="TypeScript">
@@ -578,6 +578,339 @@ async def ask(
 ```
   </Tab>
 </Tabs>
+
+### Additional Examples
+
+<AccordionGroup>
+  <Accordion title="Batch Mode">
+    Complete example using batch request processing. This example shows making multiple AI calls within a single batch request, all sharing the same agent request ID:
+
+    <Tabs>
+      <Tab title="TypeScript">
+```typescript
+// Use batch processing - all operations will share the same agent request ID
+const agentRequest = await payments.requests.startProcessingBatchRequest(
+  process.env.AGENT_ID!,
+  req.headers.authorization as string,
+  req.url,
+  req.method
+);
+
+// Check user has sufficient balance
+if (!agentRequest.balance.isSubscriber || agentRequest.balance.balance < 1n) {
+  return res.status(402).json({ error: "Payment Required" });
+}
+
+const requestAccessToken = req.headers.authorization?.replace("Bearer ", "")!;
+
+// Create OpenAI client with observability
+const openai = new OpenAI(
+  payments.observability.withOpenAI(
+    process.env.OPENAI_API_KEY!,
+    agentRequest,
+    { operation: "batch_analysis" }
+  )
+);
+
+// Make multiple AI calls in the same batch
+// Call 1: Analyze user query
+const analysis = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Analyze this investment strategy..." }],
+  max_tokens: 100,
+});
+
+// Call 2: Generate recommendations
+const recommendations = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Provide investment recommendations..." }],
+  max_tokens: 100,
+});
+
+// Call 3: Create summary
+const summary = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Summarize the analysis..." }],
+  max_tokens: 50,
+});
+
+// Calculate total credits for all operations
+const totalCredits = BigInt(30); // Or calculate based on actual token usage
+
+// Redeem credits once for all operations in the batch
+await payments.requests.redeemCreditsFromBatchRequest(
+  agentRequest.agentRequestId,
+  requestAccessToken,
+  totalCredits
+);
+
+res.json({
+  analysis: analysis.choices[0]?.message?.content,
+  recommendations: recommendations.choices[0]?.message?.content,
+  summary: summary.choices[0]?.message?.content,
+});
+```
+      </Tab>
+      <Tab title="Python">
+```python
+# Use batch processing - all operations will share the same agent request ID
+agent_request = payments.requests.start_processing_batch_request(
+    os.getenv("AGENT_ID"),
+    authorization,
+    "/ask",
+    "POST"
+)
+
+# Check user has sufficient balance
+balance_info = agent_request.get("balance", {})
+if not balance_info.get("is_subscriber") or balance_info.get("balance", 0) < 1:
+    raise HTTPException(status_code=402, detail="Payment Required")
+
+request_access_token = authorization.replace("Bearer ", "", 1)
+
+# Create OpenAI client with observability
+openai_config = payments.observability.with_openai(
+    os.getenv("OPENAI_API_KEY"),
+    agent_request,
+    {"operation": "batch_analysis"}
+)
+
+openai_client = openai.OpenAI(
+    api_key=openai_config.api_key,
+    base_url=openai_config.base_url,
+    default_headers=openai_config.default_headers
+)
+
+# Make multiple AI calls in the same batch
+# Call 1: Analyze user query
+analysis = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Analyze this investment strategy..."}],
+    max_tokens=100,
+)
+
+# Call 2: Generate recommendations
+recommendations = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Provide investment recommendations..."}],
+    max_tokens=100,
+)
+
+# Call 3: Create summary
+summary = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Summarize the analysis..."}],
+    max_tokens=50,
+)
+
+# Calculate total credits for all operations
+total_credits = 30  # Or calculate based on actual token usage
+
+# Redeem credits once for all operations in the batch
+payments.requests.redeem_credits_from_batch_request(
+    agent_request.get("agent_request_id"),
+    request_access_token,
+    total_credits
+)
+
+return {
+    "analysis": analysis.choices[0].message.content,
+    "recommendations": recommendations.choices[0].message.content,
+    "summary": summary.choices[0].message.content,
+}
+```
+      </Tab>
+    </Tabs>
+  </Accordion>
+
+  <Accordion title="Margin-based Pricing">
+    Complete example using margin-based credit redemption:
+
+    <Tabs>
+      <Tab title="TypeScript">
+```typescript
+// Regular request processing
+const agentRequest = await payments.requests.startProcessingRequest(
+  process.env.AGENT_ID!,
+  req.headers.authorization as string,
+  req.url,
+  req.method
+);
+
+// ... rest of your agent logic ...
+
+// Redeem with margin percentage (e.g., 20% markup on API costs)
+const marginPercent = 0.2;
+await payments.requests.redeemWithMarginFromRequest(
+  agentRequest.agentRequestId,
+  requestAccessToken,
+  marginPercent
+);
+```
+      </Tab>
+      <Tab title="Python">
+```python
+# Regular request processing
+agent_request = payments.requests.start_processing_request(
+    os.getenv("AGENT_ID"),
+    authorization,
+    "/ask",
+    "POST"
+)
+
+# ... rest of your agent logic ...
+
+# Redeem with margin percentage (e.g., 20% markup on API costs)
+margin_percent = 0.2
+payments.requests.redeem_with_margin_from_request(
+    agent_request.get("agent_request_id"),
+    request_access_token,
+    margin_percent
+)
+```
+      </Tab>
+    </Tabs>
+  </Accordion>
+
+  <Accordion title="Batch Mode + Margin-based Pricing">
+    Complete example combining batch processing with margin-based pricing. All operations share the same agent request ID, and credits are redeemed once at the end based on actual API costs plus margin:
+
+    <Tabs>
+      <Tab title="TypeScript">
+```typescript
+// Use batch processing - all operations will share the same agent request ID
+const agentRequest = await payments.requests.startProcessingBatchRequest(
+  process.env.AGENT_ID!,
+  req.headers.authorization as string,
+  req.url,
+  req.method
+);
+
+// Check user has sufficient balance
+if (!agentRequest.balance.isSubscriber || agentRequest.balance.balance < 1n) {
+  return res.status(402).json({ error: "Payment Required" });
+}
+
+const requestAccessToken = req.headers.authorization?.replace("Bearer ", "")!;
+
+// Create OpenAI client with observability
+const openai = new OpenAI(
+  payments.observability.withOpenAI(
+    process.env.OPENAI_API_KEY!,
+    agentRequest,
+    { operation: "batch_analysis" }
+  )
+);
+
+// Make multiple AI calls in the same batch
+// Call 1: Analyze user query
+const analysis = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Analyze this investment strategy..." }],
+  max_tokens: 100,
+});
+
+// Call 2: Generate recommendations
+const recommendations = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Provide investment recommendations..." }],
+  max_tokens: 100,
+});
+
+// Call 3: Create summary
+const summary = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Summarize the analysis..." }],
+  max_tokens: 50,
+});
+
+// Redeem with margin using batch method
+// The margin is applied to the total API cost of all three calls
+const marginPercent = 0.2; // 20% markup on total API costs
+await payments.requests.redeemWithMarginFromBatchRequest(
+  agentRequest.agentRequestId,
+  requestAccessToken,
+  marginPercent
+);
+
+res.json({
+  analysis: analysis.choices[0]?.message?.content,
+  recommendations: recommendations.choices[0]?.message?.content,
+  summary: summary.choices[0]?.message?.content,
+});
+```
+      </Tab>
+      <Tab title="Python">
+```python
+# Use batch processing - all operations will share the same agent request ID
+agent_request = payments.requests.start_processing_batch_request(
+    os.getenv("AGENT_ID"),
+    authorization,
+    "/ask",
+    "POST"
+)
+
+# Check user has sufficient balance
+balance_info = agent_request.get("balance", {})
+if not balance_info.get("is_subscriber") or balance_info.get("balance", 0) < 1:
+    raise HTTPException(status_code=402, detail="Payment Required")
+
+request_access_token = authorization.replace("Bearer ", "", 1)
+
+# Create OpenAI client with observability
+openai_config = payments.observability.with_openai(
+    os.getenv("OPENAI_API_KEY"),
+    agent_request,
+    {"operation": "batch_analysis"}
+)
+
+openai_client = openai.OpenAI(
+    api_key=openai_config.api_key,
+    base_url=openai_config.base_url,
+    default_headers=openai_config.default_headers
+)
+
+# Make multiple AI calls in the same batch
+# Call 1: Analyze user query
+analysis = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Analyze this investment strategy..."}],
+    max_tokens=100,
+)
+
+# Call 2: Generate recommendations
+recommendations = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Provide investment recommendations..."}],
+    max_tokens=100,
+)
+
+# Call 3: Create summary
+summary = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Summarize the analysis..."}],
+    max_tokens=50,
+)
+
+# Redeem with margin using batch method
+# The margin is applied to the total API cost of all three calls
+margin_percent = 0.2  # 20% markup on total API costs
+payments.requests.redeem_with_margin_from_batch_request(
+    agent_request.get("agent_request_id"),
+    request_access_token,
+    margin_percent
+)
+
+return {
+    "analysis": analysis.choices[0].message.content,
+    "recommendations": recommendations.choices[0].message.content,
+    "summary": summary.choices[0].message.content,
+}
+```
+      </Tab>
+    </Tabs>
+  </Accordion>
+</AccordionGroup>
 
 ## Monitoring and Analytics
 
