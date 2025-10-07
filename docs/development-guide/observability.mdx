@@ -516,8 +516,7 @@ async def ask(
         )
 
         # Check user has sufficient balance
-        balance_info = agent_request.get("balance", {})
-        if not balance_info.get("is_subscriber") or balance_info.get("balance", 0) < 1:
+        if not agent_request.balance.is_subscriber or agent_request.balance.balance < 1:
             raise HTTPException(status_code=402, detail="Payment Required")
 
         # Extract access token for credit redemption
@@ -559,7 +558,7 @@ async def ask(
 
         # Redeem credits
         payments.requests.redeem_credits_from_request(
-            agent_request.get("agent_request_id"),
+            agent_request.agent_request_id,
             request_access_token,
             10  # Credit amount
         )
@@ -662,8 +661,7 @@ agent_request = payments.requests.start_processing_batch_request(
 )
 
 # Check user has sufficient balance
-balance_info = agent_request.get("balance", {})
-if not balance_info.get("is_subscriber") or balance_info.get("balance", 0) < 1:
+if not agent_request.balance.is_subscriber or agent_request.balance.balance < 1:
     raise HTTPException(status_code=402, detail="Payment Required")
 
 request_access_token = authorization.replace("Bearer ", "", 1)
@@ -708,7 +706,7 @@ total_credits = 30  # Or calculate based on actual token usage
 
 # Redeem credits once for all operations in the batch
 payments.requests.redeem_credits_from_batch_request(
-    agent_request.get("agent_request_id"),
+    agent_request.agent_request_id,
     request_access_token,
     total_credits
 )
@@ -851,8 +849,7 @@ agent_request = payments.requests.start_processing_batch_request(
 )
 
 # Check user has sufficient balance
-balance_info = agent_request.get("balance", {})
-if not balance_info.get("is_subscriber") or balance_info.get("balance", 0) < 1:
+if not agent_request.balance.is_subscriber or agent_request.balance.balance < 1:
     raise HTTPException(status_code=402, detail="Payment Required")
 
 request_access_token = authorization.replace("Bearer ", "", 1)
@@ -896,7 +893,7 @@ summary = openai_client.chat.completions.create(
 # The margin is applied to the total API cost of all three calls
 margin_percent = 0.2  # 20% markup on total API costs
 payments.requests.redeem_with_margin_from_batch_request(
-    agent_request.get("agent_request_id"),
+    agent_request.agent_request_id,
     request_access_token,
     margin_percent
 )
