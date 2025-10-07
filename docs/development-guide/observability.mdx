@@ -40,7 +40,15 @@ const observability = payments.observability;
   </Tab>
   <Tab title="Python">
 ```python
-# Coming soon
+from payments_py import Payments, PaymentOptions
+
+payments = Payments.get_instance(PaymentOptions(
+    nvm_api_key="your-api-key",
+    environment="sandbox",
+))
+
+# Access observability through payments.observability
+observability = payments.observability
 ```
   </Tab>
 </Tabs>
@@ -77,7 +85,34 @@ const completion = await openai.chat.completions.create({
   </Tab>
   <Tab title="Python">
 ```python
-# Coming soon
+import openai
+
+# Set up observability metadata
+custom_properties = {
+    "userid": "your-user-id",  # optional custom property
+    "operation": "financial_advice",  # optional custom property
+}
+
+# Create OpenAI client with observability
+openai_config = payments.observability.with_openai(
+    "your-openai-api-key",
+    agent_request,  # From payment validation
+    custom_properties
+)
+
+openai_client = openai.OpenAI(
+    api_key=openai_config.api_key,
+    base_url=openai_config.base_url,
+    default_headers=openai_config.default_headers
+)
+
+# All OpenAI calls will be automatically logged
+completion = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages,
+    temperature=0.3,
+    max_tokens=250,
+)
 ```
   </Tab>
 </Tabs>
@@ -106,7 +141,20 @@ const llm = new ChatOpenAI(
   </Tab>
   <Tab title="Python">
 ```python
-# Coming soon
+from langchain_openai import ChatOpenAI
+
+# Configure Langchain with observability
+langchain_config = payments.observability.with_langchain(
+    "gpt-4o-mini",
+    "your-openai-api-key",
+    agent_request,
+    {
+        "userid": "your-user-id",  # optional custom property
+        "operation": "financial_advice",  # optional custom property
+    }
+)
+
+llm = ChatOpenAI(**langchain_config)
 ```
   </Tab>
 </Tabs>
@@ -140,7 +188,13 @@ const customProperties = {
   </Tab>
   <Tab title="Python">
 ```python
-# Coming soon
+custom_properties = {
+    "sessionid": session_id,
+    "operation": "investment_analysis",
+    "userId": "user-123",
+    "requestType": "portfolio_review",
+    "timestamp": datetime.now().isoformat(),
+}
 ```
   </Tab>
 </Tabs>
@@ -152,6 +206,184 @@ const customProperties = {
   coming soon. This section will cover how to calculate usage metrics for
   different types of AI operations.
 </Note>
+
+### Batch vs Regular Requests
+
+You can process requests in two modes:
+
+- **Regular Requests**: Process one request at a time
+- **Batch Requests**: Process multiple requests together for efficiency
+
+<Tabs>
+  <Tab title="TypeScript">
+```typescript
+// Regular request - process one request at a time
+const agentRequest = await payments.requests.startProcessingRequest(
+  agentId,
+  authHeader,
+  requestedUrl,
+  httpVerb
+);
+
+// Batch request - process multiple requests together
+const agentRequest = await payments.requests.startProcessingBatchRequest(
+  agentId,
+  authHeader,
+  requestedUrl,
+  httpVerb
+);
+```
+  </Tab>
+  <Tab title="Python">
+```python
+# Regular request - process one request at a time
+agent_request = payments.requests.start_processing_request(
+    agent_id,
+    auth_header,
+    requested_url,
+    http_verb
+)
+
+# Batch request - process multiple requests together
+agent_request = payments.requests.start_processing_batch_request(
+    agent_id,
+    auth_header,
+    requested_url,
+    http_verb
+)
+```
+  </Tab>
+</Tabs>
+
+### Credit Redemption Strategies
+
+There are two ways to redeem credits after processing a request:
+
+<Note>
+**Important:** The redemption method you use must match how you started the request:
+- If you used `startProcessingRequest()`, use `redeemCreditsFromRequest()` or `redeemWithMarginFromRequest()`
+- If you used `startProcessingBatchRequest()`, use `redeemCreditsFromBatchRequest()` or `redeemWithMarginFromBatchRequest()`
+</Note>
+
+#### Fixed Credit Redemption
+
+Charges a specific number of credits per request. Useful for predictable, pay-per-use models.
+
+The credit amount can be a static value or calculated dynamically (e.g., based on token usage, API calls made, or other metrics).
+
+<Tabs>
+  <Tab title="TypeScript">
+```typescript
+// Credit amount can be static or dynamically computed
+const creditAmount = BigInt(10); // Static value
+// OR
+const creditAmount = calculateCreditAmount(tokensUsed, maxTokens); // Computed value
+
+// Redeem fixed credits from a regular request
+const redemptionResult = await payments.requests.redeemCreditsFromRequest(
+  agentRequestId,
+  requestAccessToken,
+  creditAmount
+);
+
+// Redeem fixed credits from a batch request
+const redemptionResult = await payments.requests.redeemCreditsFromBatchRequest(
+  agentRequestId,
+  requestAccessToken,
+  creditAmount
+);
+
+// Extract credits redeemed
+const creditsRedeemed = redemptionResult.data?.amountOfCredits || 0;
+```
+  </Tab>
+  <Tab title="Python">
+```python
+# Credit amount can be static or dynamically computed
+credit_amount = 10  # Static value
+# OR
+credit_amount = calculate_credit_amount(tokens_used, max_tokens)  # Computed value
+
+# Redeem fixed credits from a regular request
+redemption_response = payments.requests.redeem_credits_from_request(
+    agent_request_id,
+    request_access_token,
+    credit_amount
+)
+
+# Redeem fixed credits from a batch request
+redemption_response = payments.requests.redeem_credits_from_batch_request(
+    agent_request_id,
+    request_access_token,
+    credit_amount
+)
+
+# Extract credits redeemed
+credits_redeemed = redemption_response.get("data", {}).get("amountOfCredits", 0)
+```
+  </Tab>
+</Tabs>
+
+#### Margin-based Redemption
+
+Charges the actual API cost plus a margin percentage. Useful for adding a service fee on top of API costs.
+
+The margin percentage can be a static value or calculated dynamically (e.g., based on business logic, user tier, or market conditions).
+
+For example, if an API call costs 10 cents and you set a 20% margin (0.2), the total charge will be 10 + (10 × 0.2) = 12 cents in dollar-equivalent credits.
+
+<Tabs>
+  <Tab title="TypeScript">
+```typescript
+// Margin percentage can be static or dynamically computed
+const marginPercent = 0.2; // Static 20% margin
+// OR
+const marginPercent = calculateMargin(userTier, apiCost); // Computed value
+
+// Redeem with margin from a regular request
+const redemptionResult = await payments.requests.redeemWithMarginFromRequest(
+  agentRequestId,
+  requestAccessToken,
+  marginPercent
+);
+
+// Redeem with margin from a batch request
+const redemptionResult = await payments.requests.redeemWithMarginFromBatchRequest(
+  agentRequestId,
+  requestAccessToken,
+  marginPercent
+);
+
+// Extract credits redeemed
+const creditsRedeemed = redemptionResult.data?.amountOfCredits || 0;
+```
+  </Tab>
+  <Tab title="Python">
+```python
+# Margin percentage can be static or dynamically computed
+margin_percent = 0.2  # Static 20% margin
+# OR
+margin_percent = calculate_margin(user_tier, api_cost)  # Computed value
+
+# Redeem with margin from a regular request
+redemption_response = payments.requests.redeem_with_margin_from_request(
+    agent_request_id,
+    request_access_token,
+    margin_percent
+)
+
+# Redeem with margin from a batch request
+redemption_response = payments.requests.redeem_with_margin_from_batch_request(
+    agent_request_id,
+    request_access_token,
+    margin_percent
+)
+
+# Extract credits redeemed
+credits_redeemed = redemption_response.get("data", {}).get("amountOfCredits", 0)
+```
+  </Tab>
+</Tabs>
 
 ## Complete Example
 
@@ -243,7 +475,106 @@ app.post("/ask", async (req, res) => {
   </Tab>
   <Tab title="Python">
 ```python
-# Coming soon
+import os
+from fastapi import FastAPI, HTTPException, Header
+from pydantic import BaseModel
+from typing import Optional
+import openai
+from payments_py import Payments, PaymentOptions
+
+app = FastAPI()
+
+payments = Payments.get_instance(PaymentOptions(
+    nvm_api_key=os.getenv("NVM_API_KEY"),
+    environment="sandbox",
+))
+
+class AskRequest(BaseModel):
+    input_query: str
+    sessionId: Optional[str] = None
+    userId: Optional[str] = None
+
+@app.post("/ask")
+async def ask(
+    request: AskRequest,
+    authorization: Optional[str] = Header(default=None)
+):
+    try:
+        # Validate Bearer token format
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header must be in format: Bearer <token>"
+            )
+
+        # Validate payment and get agent request
+        agent_request = payments.requests.start_processing_request(
+            os.getenv("AGENT_ID"),
+            authorization,
+            "/ask",
+            "POST"
+        )
+
+        # Check user has sufficient balance
+        balance_info = agent_request.get("balance", {})
+        if not balance_info.get("is_subscriber") or balance_info.get("balance", 0) < 1:
+            raise HTTPException(status_code=402, detail="Payment Required")
+
+        # Extract access token for credit redemption
+        request_access_token = authorization.replace("Bearer ", "", 1)
+
+        # Set up observability metadata
+        custom_properties = {
+            "sessionid": request.sessionId,
+            "operation": "financial_advice",
+            "userid": request.userId,
+        }
+
+        # Create OpenAI client with observability
+        openai_config = payments.observability.with_openai(
+            os.getenv("OPENAI_API_KEY"),
+            agent_request,
+            custom_properties
+        )
+
+        openai_client = openai.OpenAI(
+            api_key=openai_config.api_key,
+            base_url=openai_config.base_url,
+            default_headers=openai_config.default_headers
+        )
+
+        # Make the AI call (automatically logged)
+        completion = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a financial advisor..."},
+                {"role": "user", "content": request.input_query},
+            ],
+            temperature=0.3,
+            max_tokens=250,
+        )
+
+        response = completion.choices[0].message.content
+        tokens_used = completion.usage.completion_tokens if completion.usage else 0
+
+        # Redeem credits
+        payments.requests.redeem_credits_from_request(
+            agent_request.get("agent_request_id"),
+            request_access_token,
+            10  # Credit amount
+        )
+
+        return {
+            "output": response,
+            "sessionId": custom_properties["sessionid"],
+            "tokensUsed": tokens_used,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as error:
+        print(f"Error: {error}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 ```
   </Tab>
 </Tabs>
