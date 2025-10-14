@@ -1,0 +1,104 @@
+---
+title: "BuildShip Integration"
+description: "Protect your BuildShip workflows and monetize access with Nevermined Payments"
+icon: "lock"
+---
+Integrating Nevermined's access control and payment system with your existing BuildShip workflows is the quickest way to turn your low-code backend logic into a fully monetized API. This process requires setting up an **AI Agent** in Nevermined and configuring the **Nevermined Trigger** in BuildShip.
+
+<Note>
+This guide assumes you have an active BuildShip account and have signed up for a Nevermined account.
+</Note>
+
+## The Nevermined BuildShip Trigger
+
+The Nevermined Trigger is a specialized node in BuildShip that is placed at the beginning of your workflow. Its function is to act as a security layer and payment middleware, validating subscriber access before your workflow logic executes.
+
+<CardGroup cols={2}>
+    <Card title="Primary Purpose" icon="plug">
+        To secure HTTP access to a BuildShip workflow endpoint for monetization.
+    </Card>
+    <Card title="Security Mechanism" icon="shield">
+        It validates the user's **Access Token** (Bearer Token) and verifies their subscription status against a Nevermined plan.
+    </Card>
+</CardGroup>
+
+## Step-by-step Tutorial: Monetizing a BuildShip Workflow
+
+The goal is to secure a BuildShip endpoint so it is only accessible by users who have purchased a **Payment Plan** and provide a valid **Access Token**.
+
+<Steps>
+  <Step title="Get Your API Key">
+    To interact with the Nevermined API, you need an API key.
+
+    1. Go to the [Nevermined App](https://nevermined.app/).
+    2. Log in via Web3Auth.
+    3. Navigate to the **Settings** section in the user menu.
+    4. Click on the **API Keys** tab.
+    5. Generate a new key, give it a descriptive name, and copy it.
+    6. **Copy the generated key** and store it securely.
+  </Step>
+
+  <Step title="Configure Nevermined Integration in BuildShip">
+    You must configure the API key as a secure integration in your BuildShip workspace.
+
+    1. In your BuildShip Workspace, go to **Settings** > **Integrations**.
+    2. Search for **Nevermined** and click to add a new integration.
+    3. Provide a **Key Name** (e.g., `NVM_API_KEY`). This name will be selectable in the Trigger later.
+    4. Paste your Nevermined API Key (from Step 1) into the **Value** field.
+    5. Save the integration to activate it in your workspace.
+  </Step>
+
+  <Step title="3. Initial Trigger Setup in BuildShip (Part 1)">
+    Now, set up the entry point of your workflow using the configured integration.
+
+    - Add the **Nevermined Trigger** node as the first node in your workflow.
+    - **Authentication Key**: In the trigger's configuration, select the **Key Name** you defined in Step 2 (e.g., `NVM_API_KEY`) from the dropdown menu.
+    - Define your desired endpoint: set the **`Path`** (e.g., `/my-backend-logic`) and the **`Method`** (e.g., `POST`).
+    - Connect the **`prompt`** output of the trigger to the input of the next node (your core logic).
+
+    <Note>
+    The user's JSON request body, including the prompt, will be passed through the **`prompt`** output. Leave the **`Agent ID`** parameter empty for now.
+    </Note>
+  </Step>
+  <Step title="4. Create the Payment Plan and Agent in Nevermined">
+    Define the monetization rules and register your service as an AI Agent.
+
+    1. **Create Plan**: Create a **Payment Plan** that defines the pricing and consumption model for your service.
+    2. **Register Agent**: Create a new **AI Agent**.
+    3. **Associate Plan**: Attach the new Payment Plan to this Agent.
+    4. **Register Endpoint**: In the Agent configuration, register the BuildShip endpoint. Ensure the **Path** and **Method** match exactly what you configured in BuildShip (Step 3).
+  </Step>
+  <Step title="5. Finalize the Trigger Setup in BuildShip (Part 2)">
+    Link the configured Agent back to your BuildShip workflow.
+
+    - Return to your BuildShip workflow and open the **Nevermined Trigger** configuration.
+    - In the **`Agent Name`** field, select the **Agent Name** you just registered in Nevermined from the dropdown list.
+
+    *If the ID does not appear*, close the configuration panel and reopen it to refresh the list of available Agents.
+    - Click **Ship 🚀** to deploy the workflow.
+  </Step>
+
+</Steps>
+
+## User Access Flow
+
+Once deployed, this is the complete process a subscriber must follow to successfully access your secured workflow.
+
+
+<Steps>
+  <Step title="1. Purchase and Token Generation">
+  The user must purchase the Payment Plan associated with your AI Agent. Upon purchase, they **generate an Access Token** (Bearer Token) from their Nevermined profile.
+  </Step>
+  <Step title="2. Call the Secured Endpoint">
+  The user sends an HTTP request to the deployed BuildShip endpoint with two key components:
+
+  - **Header**: The **Access Token** must be included in the `Authorization` header:
+  ` Authorization: Bearer [User's Access Token]   `
+  - **Body**: The input data (*prompt*) for your workflow must be sent in the request body as a **JSON object** using the key **`prompt`**:
+
+  ` json  {  "prompt": "PROMPT_TO_THE_BUILDSHIP_AGENT"  }   `
+  </Step>
+  <Step title="3. Validation and Execution">
+  The **Nevermined Trigger** intercepts the request, validates the token, checks the subscription status, deducts the necessary credits, and allows the JSON `prompt` data to flow into your BuildShip logic for processing.
+  </Step>
+</Steps>
