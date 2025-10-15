@@ -31,11 +31,14 @@ The goal is to secure a BuildShip endpoint so it is only accessible by users who
     To interact with the Nevermined API, you need an API key.
 
     1. Go to the [Nevermined App](https://nevermined.app/).
-    2. Log in via Web3Auth.
-    3. Navigate to the **Settings** section in the user menu.
-    4. Click on the **API Keys** tab.
-    5. Generate a new key, give it a descriptive name, and copy it.
+    ![Nevermined Login Page](/images/agents-and-plans/nevermined-login-page.png)
+    2. Log in with your preferred method.
+    4. In the dashboard, click on the **API Keys** menu item.
+    ![Nevermined API Key Generation (1)](/images/agents-and-plans/nevermined-dashboard-api-key.png)
+    5. Click on **New API Key** button, generate a new key, give it a descriptive name, and copy it.
+    ![Nevermined API Key Generation (2)](/images/agents-and-plans/nevermined-api-key-new.png)
     6. **Copy the generated key** and store it securely.
+    ![Nevermined API Key Generation (3)](/images/agents-and-plans/nevermined-api-key-created.png)
   </Step>
 
   <Step title="Configure Nevermined Integration in BuildShip">
@@ -43,8 +46,10 @@ The goal is to secure a BuildShip endpoint so it is only accessible by users who
 
     1. In your BuildShip Workspace, go to **Settings** > **Integrations**.
     2. Search for **Nevermined** and click to add a new integration.
+    ![Buildship Settings > Integrations](/images/buildship/buildship-integrations.png)
     3. Provide a **Key Name** (e.g., `NVM_API_KEY`). This name will be selectable in the Trigger later.
     4. Paste your Nevermined API Key (from Step 1) into the **Value** field.
+    ![Buildship New Integration](/images/buildship/buildship-new-integration.png)
     5. Save the integration to activate it in your workspace.
   </Step>
 
@@ -61,18 +66,25 @@ The goal is to secure a BuildShip endpoint so it is only accessible by users who
     </Note>
   </Step>
   <Step title="4. Create the Payment Plan and Agent in Nevermined">
-    Define the monetization rules and register your service as an AI Agent.
+    Define the monetization rules and register your service as an AI Agent in Nevermined.
 
     1. **Create Plan**: Create a **Payment Plan** that defines the pricing and consumption model for your service.
+    ![Nevermined Plan Creation (1)](/images/agents-and-plans/nevermined-dashboard-plan.png)
+    ![Nevermined Plan Creation (2)](/images/agents-and-plans/nevermined-plan-new.png)
+    ![Nevermined Plan Creation (3)](/images/agents-and-plans/nevermined-plan-new-2.png)
     2. **Register Agent**: Create a new **AI Agent**.
-    3. **Associate Plan**: Attach the new Payment Plan to this Agent.
-    4. **Register Endpoint**: In the Agent configuration, register the BuildShip endpoint. Ensure the **Path** and **Method** match exactly what you configured in BuildShip (Step 3).
+    ![Nevermined Agent Registration](/images/agents-and-plans/nevermined-dashboard-agent.png)
+    3. **Register Endpoint**: In the Agent configuration, register the BuildShip endpoint. Ensure the **Path** and **Method** match exactly what you configured in BuildShip (Step 3).
+    ![Nevermined Agent Endpoint Registration](/images/agents-and-plans/nevermined-agent-new.png)
+    4. **Associate Plan**: Attach the new Payment Plan to this Agent.
+    ![Nevermined Agent and Plan](/images/agents-and-plans/nevermined-agent-plan.png)
   </Step>
   <Step title="5. Finalize the Trigger Setup in BuildShip (Part 2)">
     Link the configured Agent back to your BuildShip workflow.
 
-    - Return to your BuildShip workflow and open the **Nevermined Trigger** configuration.
+    - Return to your BuildShip workflow and open the **Nevermined Payment Trigger** configuration.
     - In the **`Agent Name`** field, select the **Agent Name** you just registered in Nevermined from the dropdown list.
+    ![Buildship Trigger configuration](/images/buildship/buildship-select-agent.png)
 
     *If the ID does not appear*, close the configuration panel and reopen it to refresh the list of available Agents.
     - Click **Ship 🚀** to deploy the workflow.
