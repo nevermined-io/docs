@@ -10,11 +10,11 @@ This is the most common entrypoint for AI Builders looking to monetize their ser
 ## Example Usage
 
 ```ts
-import { Payments } from '@nevermined-io/payments'
+import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY,
-  environment: 'production'
+      environment: 'live' // Or 'sandbox' for testing
 })
 
 const agentMetadata = {
@@ -27,17 +27,24 @@ const agentApi = {
   endpoints: [{ POST: 'https://example.com/api/query' }]
 }
 
+const planMetadata = {
+  name: 'Corporate Swiss Law Plan',
+  description: 'Payment plan for legal assistant'
+}
+
 // Configure pricing - 10 USDC fixed price
 const priceInUSDC = getERC20PriceConfig(10_000_000n, USDC_ERC20_ADDRESS, builderAddress)
 
 // Configure credits - 100 credits with 5 credits per request
-const fiveCreditsPerRequest = getFixedCreditsConfig(100n, 5n)
+const creditsConfig = getFixedCreditsConfig(100n, 5n)
 
-const { agentId, planId } = await payments.registerAgentAndPlan(
+const { agentId, planId } = await payments.agents.registerAgentAndPlan(
   agentMetadata,
   agentApi,
+  planMetadata,
   priceInUSDC,
-  fiveCreditsPerRequest
+  creditsConfig,
+  'credits' // Optional: accessLimit ('credits' or 'time')
 )
 ```
 
@@ -45,8 +52,10 @@ const { agentId, planId } = await payments.registerAgentAndPlan(
 
 - `agentMetadata`: Metadata about the AI agent including name, tags, and creation date.
 - `agentApi`: Defines the query endpoints the agent exposes.
-- `price`: Configuration object describing cost, token type, and receiver(s).
-- `credits`: Defines what the subscriber gets (number of credits, expiration, etc.).
+- `planMetadata`: Metadata about the payment plan including name and description.
+- `priceConfig`: Configuration object describing cost, token type, and receiver(s).
+- `creditsConfig`: Defines what the subscriber gets (number of credits, expiration, etc.).
+- `accessLimit` (optional): Type of access limit. Can be `'credits'` or `'time'`. If not specified, it's automatically inferred based on `creditsConfig.durationSecs`.
 
 ## Returns
 

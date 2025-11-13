@@ -121,26 +121,88 @@ Provides user access on a time-gating basis. Builders can set the time period th
 
 A Trial Plan is a special type of Payment Plan that allows users to try out an AI Agent for a limited time (typically for free). A Trial Plan can only be obtained once by each user.
 
+There are two types of trial plans:
+
+### Credits-Based Trial Plan
+
+Perfect for giving users a fixed number of free credits to test your service:
+
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    const trialPlanMetadata: PlanMetadata = {
-      name: 'Try it for one day before you buy it',
+    import { getFreePriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+
+    const trialPlanMetadata = {
+      name: 'Free Trial - 10 Credits'
     }
+    
+    // The price is free
+    const freeConfig = getFreePriceConfig()
+    // Give 10 credits for free
+    const trialCreditsConfig = getFixedCreditsConfig(10n)
+    
+    // Register the credits-based trial plan
+    const { planId } = await payments.plans.registerCreditsTrialPlan(
+      trialPlanMetadata,
+      freeConfig,
+      trialCreditsConfig
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.plans import get_free_price_config, get_fixed_credits_config
+    
+    trial_plan_metadata = PlanMetadata(
+        name="Free Trial - 10 Credits"
+    )
+    
+    # The price is free
+    free_config = get_free_price_config()
+    # Give 10 credits for free
+    trial_credits_config = get_fixed_credits_config(10)
+    
+    # Register the credits-based trial plan
+    response = payments_builder.plans.register_credits_trial_plan(
+        trial_plan_metadata,
+        free_config,
+        trial_credits_config
+    )
+    plan_id = response.get("planId")
+    ```
+  </Tab>
+</Tabs>
+
+### Time-Based Trial Plan
+
+Perfect for giving users free access for a limited time period:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { getFreePriceConfig, getExpirableDurationConfig, ONE_DAY_DURATION } from '@nevermined-io/payments'
+
+    const trialPlanMetadata = {
+      name: 'Try it for one day before you buy it'
+    }
+    
     // The price is free
     const freeConfig = getFreePriceConfig()
     // The plan is valid for 1 day
     const oneDayPlanConfig = getExpirableDurationConfig(ONE_DAY_DURATION)
-    // Register the trial plan
+    
+    // Register the time-based trial plan
     const { planId } = await payments.plans.registerTimeTrialPlan(
-      trialPlanMetadata, 
-      freeConfig, 
+      trialPlanMetadata,
+      freeConfig,
       oneDayPlanConfig
     )
     ```
   </Tab>
   <Tab title="Python">
     ```python
+    from payments_py.plans import get_free_price_config, get_expirable_duration_config, ONE_DAY_DURATION
+    
     # Plan metadata for the trial plan
     trial_plan_metadata = PlanMetadata(
         name="Try it for one day before you buy it"
@@ -150,7 +212,8 @@ A Trial Plan is a special type of Payment Plan that allows users to try out an A
     free_config = get_free_price_config()
     # The plan is valid for 1 day
     one_day_plan_config = get_expirable_duration_config(ONE_DAY_DURATION)
-    # Register the trial plan
+    
+    # Register the time-based trial plan
     response = payments_builder.plans.register_time_trial_plan(
         trial_plan_metadata,
         free_config,
@@ -243,6 +306,12 @@ When you register an Agent, you need to provide the API endpoints for accessing 
   This method allows you to create the plan and attach the agent to it in one step.
 </Note>
 
+**Note:** The `accessLimit` parameter is optional. If not specified, it is automatically inferred based on `creditsConfig.durationSecs`:
+- `"credits"` if `durationSecs === 0n` (non-expirable plans)
+- `"time"` if `durationSecs > 0n` (expirable plans)
+
+You can explicitly set it if needed:
+
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
@@ -263,6 +332,7 @@ When you register an Agent, you need to provide the API endpoints for accessing 
       planMetadata,
       cryptoPriceConfig,
       nonExpirableConfig,
+      'credits' // Optional: accessLimit ('credits' or 'time'). Auto-inferred if not specified
     )
     ```
   </Tab>
@@ -290,7 +360,8 @@ When you register an Agent, you need to provide the API endpoints for accessing 
         agent_api,
         plan_metadata,
         crypto_price_config,
-        non_expirable_config
+        non_expirable_config,
+        'credits'  # Optional: access_limit ('credits' or 'time'). Auto-inferred if not specified
     )
     agent_id = response.get("agentId")
     plan_id = response.get("planId")

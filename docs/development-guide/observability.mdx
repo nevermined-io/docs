@@ -205,6 +205,88 @@ custom_properties = {
   different types of AI operations.
 </Note>
 
+### Pricing Simulation
+
+The pricing simulation feature allows you to test and estimate costs without requiring agent registration, plans, or user subscriptions. This is perfect for development, testing, and cost estimation before going to production.
+
+<Tabs>
+  <Tab title="TypeScript">
+```typescript
+// Start a simulation request (no agent/plan needed)
+const agentRequest = await payments.requests.startSimulationRequest({
+  pricePerCredit: 0.01, // Optional: USD per credit (default: 0.01)
+  batch: false, // Optional: batch mode (default: false)
+  agentName: "My Test Agent", // Optional: display name
+  planName: "Test Plan", // Optional: plan name
+});
+
+// Make LLM calls with observability
+const openai = new OpenAI(
+  payments.observability.withOpenAI(
+    process.env.OPENAI_API_KEY!,
+    agentRequest,
+    {}
+  )
+);
+
+const completion = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Hello, world!" }],
+});
+
+// Finish simulation with custom margin
+await payments.requests.finishSimulationRequest(
+  agentRequest.agentRequestId,
+  0.2, // 20% profit margin (default)
+  false // batch mode
+);
+```
+  </Tab>
+  <Tab title="Python">
+```python
+# Start a simulation request (no agent/plan needed)
+agent_request = payments.requests.start_simulation_request(
+    price_per_credit=0.01,  # Optional: USD per credit (default: 0.01)
+    batch=False,  # Optional: batch mode (default: False)
+    agent_name="My Test Agent",  # Optional: display name
+    plan_name="Test Plan",  # Optional: plan name
+)
+
+# Make LLM calls with observability
+openai_config = payments.observability.with_openai(
+    os.getenv("OPENAI_API_KEY"),
+    agent_request,
+    {}
+)
+
+openai_client = openai.OpenAI(**asdict(openai_config))
+
+completion = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Hello, world!"}],
+)
+
+# Finish simulation with custom margin
+payments.requests.finish_simulation_request(
+    agent_request.agent_request_id,
+    0.2,  # 20% profit margin (default)
+    False  # batch mode
+)
+```
+  </Tab>
+</Tabs>
+
+**Key Features:**
+- No agent or plan registration required
+- No user subscriptions needed
+- Automatic cost calculation with configurable profit margins
+- Full observability tracking included
+- Perfect for testing, development, and cost estimation
+
+**Learn More:** Check out the complete tutorials for full working examples:
+- [Pricing Simulation Tutorial (TypeScript)](https://github.com/nevermined-io/tutorials/tree/main/pricing-simulation)
+- [Pricing Simulation Tutorial (Python)](https://github.com/nevermined-io/tutorials/tree/main/pricing-simulation-py)
+
 ### Batch vs Regular Requests
 
 You can process requests in two modes:

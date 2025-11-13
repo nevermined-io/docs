@@ -37,7 +37,7 @@ import { Payments } from '@nevermined-io/payments'
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY,
-  environment: 'production'
+      environment: 'live' // Or 'sandbox' for testing
 })
 ```
 
@@ -58,14 +58,24 @@ const agentApi = {
   endpoints: [{ POST: 'https://yourdomain.com/api/query' }]
 }
 
-const price = getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
-const credits = getExpirablePlanCreditsConfig(86400n * 30n)
+import { getERC20PriceConfig, getExpirableDurationConfig } from '@nevermined-io/payments'
+import { ONE_MONTH_DURATION } from '@nevermined-io/payments'
 
-const { agentId, planId } = await payments.registerAgentAndPlan(
+const planMetadata = {
+  name: 'Legal Assistant Plan',
+  description: 'Monthly subscription plan'
+}
+
+const priceConfig = getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
+const creditsConfig = getExpirableDurationConfig(ONE_MONTH_DURATION)
+
+const { agentId, planId } = await payments.agents.registerAgentAndPlan(
   agentMetadata,
   agentApi,
-  price,
-  credits
+  planMetadata,
+  priceConfig,
+  creditsConfig,
+  'time' // Optional: accessLimit ('credits' or 'time')
 )
 ```
 
