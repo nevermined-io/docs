@@ -24,7 +24,8 @@ const agentMetadata = {
 }
 
 const agentApi = {
-  endpoints: [{ POST: 'https://example.com/api/query' }]
+  endpoints: [{ POST: 'https://example.com/api/query' }],
+  agentDefinitionUrl: 'https://example.com/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
 }
 
 const planMetadata = {
@@ -51,7 +52,9 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
 ## Parameters
 
 - `agentMetadata`: Metadata about the AI agent including name, tags, and creation date.
-- `agentApi`: Defines the query endpoints the agent exposes.
+- `agentApi`: Defines the query endpoints the agent exposes. Must include:
+  - `endpoints`: Array of endpoint objects with HTTP verb and URL pattern
+  - `agentDefinitionUrl`: URL to the agent definition. Can be an OpenAPI spec, MCP Manifest, or A2A agent card. This field is mandatory.
 - `planMetadata`: Metadata about the payment plan including name and description.
 - `priceConfig`: Configuration object describing cost, token type, and receiver(s).
 - `creditsConfig`: Defines what the subscriber gets (number of credits, expiration, etc.).

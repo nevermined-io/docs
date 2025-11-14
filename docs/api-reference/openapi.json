@@ -38,12 +38,24 @@
                   },
                   "agentApi": {
                     "type": "object",
+                    "required": ["endpoints", "agentDefinitionUrl"],
                     "properties": {
                       "endpoints": {
                         "type": "array",
                         "items": {
                           "type": "object"
                         }
+                      },
+                      "agentDefinitionUrl": {
+                        "type": "string",
+                        "description": "URL to the agent definition. Can be an OpenAPI spec, MCP Manifest, or A2A agent card. This field is mandatory."
+                      },
+                      "openEndpoints": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "List of endpoints that don't require authentication"
                       }
                     }
                   },
@@ -341,10 +353,7 @@
   "components": {
     "schemas": {
       "Error": {
-        "required": [
-          "error",
-          "message"
-        ],
+        "required": ["error", "message"],
         "type": "object",
         "properties": {
           "error": {

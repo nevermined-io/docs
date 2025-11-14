@@ -170,6 +170,17 @@ const pro = await payments.plans.registerCreditsPlan(
 )
 plans.push(pro.planId)
 
+// Define agent metadata and API
+const agentMetadata = {
+  name: 'My AI Service',
+  tags: ['ai', 'service']
+}
+
+const agentApi = {
+  endpoints: [{ POST: 'https://api.example.com/query' }],
+  agentDefinitionUrl: 'https://api.example.com/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
+}
+
 // Register agent with all plans
 const { agentId } = await payments.agents.registerAgent(
   agentMetadata,

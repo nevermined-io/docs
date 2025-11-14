@@ -253,7 +253,8 @@ When you register an Agent, you need to provide the API endpoints for accessing 
         { 'POST': 'https://example.com/api/v1/agents/:agentId/tasks' },
         { 'GET': 'https://example.com/api/v1/agents/:agentId/tasks/invoke' }
       ],
-      openEndpoints: ['https://example.com/api/v1/rest/docs-json']
+      openEndpoints: ['https://example.com/api/v1/rest/docs-json'],
+      agentDefinitionUrl: 'https://example.com/api/v1/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
     }
     const paymentPlans = [creditsPlanId, expirablePlanId]
     
@@ -286,7 +287,8 @@ When you register an Agent, you need to provide the API endpoints for accessing 
             {"POST": "https://example.com/api/v1/agents/:agentId/tasks"},
             {"GET": "https://example.com/api/v1/agents/:agentId/tasks/invoke"}
         ],
-        "openEndpoints": ["https://example.com/api/v1/rest/docs-json"]
+        "openEndpoints": ["https://example.com/api/v1/rest/docs-json"],
+        "agentDefinitionUrl": "https://example.com/api/v1/openapi.json"  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
     }
     payment_plans = [credits_plan_id, expirable_plan_id]
     
@@ -320,7 +322,10 @@ You can explicitly set it if needed:
       tags: ['test2'], 
       description: 'Description for my AI Payments Agent' 
     }
-    const agentApi = { endpoints: [{ 'POST': 'http://example.com/test/:agentId/tasks' }] }
+    const agentApi = { 
+      endpoints: [{ 'POST': 'http://example.com/test/:agentId/tasks' }],
+      agentDefinitionUrl: 'http://example.com/test/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
+    }
     
     const cryptoPriceConfig = getNativeTokenPriceConfig(500n, builderAddress)
     // Non expirable payment plan
@@ -347,7 +352,8 @@ You can explicitly set it if needed:
     agent_api = {
         "endpoints": [
             {"POST": "http://example.com/test/:agentId/tasks"}
-        ]
+        ],
+        "agentDefinitionUrl": "http://example.com/test/openapi.json"  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
     }
     
     # The price is 500 native tokens
