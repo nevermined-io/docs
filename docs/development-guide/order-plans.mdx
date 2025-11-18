@@ -25,7 +25,7 @@ Payment Plans can also be purchased in fiat (via Stripe). The Stripe Checkout fl
   <Tab title="Python">
     ```python
     # Here we are ordering the Plan created in the previous steps
-    order_result = payments.order_plan(plan_DID)  
+    order_result = payments.plans.order_plan(plan_id)
     # OUTPUT: orderResult:
     # { success: True, agreementId: '0xaabbcc' }
     ```
@@ -93,7 +93,7 @@ After a user purchases a plan, they can check their balance for that plan. The b
   </Tab>
   <Tab title="Python">
     ```python
-    balance_result = payments.get_plan_balance(plan_DID)
+    balance_result = payments.plans.get_plan_balance(plan_id)
     # OUTPUT: balanceResult:
     # {
     #   "planType": "credits",
@@ -163,14 +163,14 @@ After a user purchases a plan, they can check their balance for that plan. The b
   <Tab title="Python">
     ```python
     try:
-        order_result = payments.order_plan(plan_id)
+        order_result = payments.plans.order_plan(plan_id)
         
         if order_result.get('success'):
             print('Plan purchased successfully!')
             print(f'Agreement ID: {order_result.get("agreementId")}')
             
             # Check balance to confirm
-            balance = payments.get_plan_balance(plan_id)
+            balance = payments.plans.get_plan_balance(plan_id)
             print(f'Available credits: {balance.get("balance")}')
             
     except Exception as error:

@@ -48,12 +48,13 @@ const fixedCredits = getFixedCreditsConfig(
 Variable consumption based on request complexity:
 
 ```typescript
-const dynamicCredits = {
-  creditsType: 'DYNAMIC',
-  amount: 5000n,              // Total credits
-  minCreditsPerRequest: 1n,   // Minimum charge
-  maxCreditsPerRequest: 100n  // Maximum charge
-}
+import { getDynamicCreditsConfig } from '@nevermined-io/payments'
+
+const dynamicCredits = getDynamicCreditsConfig(
+  5000n,              // Total credits
+  1n,                 // Minimum credits per request
+  100n                // Maximum credits per request
+)
 
 // Usage determined by request parameters
 ```
@@ -63,12 +64,11 @@ const dynamicCredits = {
 Credits that expire after a duration:
 
 ```typescript
-const expiringCredits = {
-  creditsType: 'EXPIRABLE',
-  amount: 1000n,
-  creditsPerRequest: 1n,
-  durationOfThePlan: 86400n * 30n // 30 days
-}
+import { getExpirableDurationConfig } from '@nevermined-io/payments'
+import { ONE_MONTH_DURATION } from '@nevermined-io/payments'
+
+const expiringCredits = getExpirableDurationConfig(ONE_MONTH_DURATION)
+// Note: For time-based plans, credits per request is always 1
 ```
 
 ## Credit Redemption
@@ -187,12 +187,13 @@ const totalUsed = usage.reduce((sum, record) =>
 Prevent micro-transaction failures:
 
 ```typescript
-const minThresholdConfig = {
-  creditsType: 'DYNAMIC',
-  amount: 1000n,
-  minCreditsPerRequest: 10n,  // Minimum 10 credits
-  maxCreditsPerRequest: 100n
-}
+import { getDynamicCreditsConfig } from '@nevermined-io/payments'
+
+const minThresholdConfig = getDynamicCreditsConfig(
+  1000n,              // Total credits
+  10n,                // Minimum credits per request
+  100n                // Maximum credits per request
+)
 ```
 
 ### Maximum Thresholds

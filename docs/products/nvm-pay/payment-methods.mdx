@@ -30,12 +30,12 @@ const wethPrice = getERC20PriceConfig(
 )
 
 // Accept native token (ETH, MATIC, etc.)
-const nativePrice = {
-  priceType: 'FIXED_PRICE',
-  tokenAddress: '0x0000000000000000000000000000000000000000',
-  amounts: [1_000_000_000_000_000n], // 0.001 ETH
-  receivers: [builderAddress]
-}
+import { getNativeTokenPriceConfig } from '@nevermined-io/payments'
+
+const nativePrice = getNativeTokenPriceConfig(
+  1_000_000_000_000_000n, // 0.001 ETH
+  builderAddress
+)
 ```
 
 ### Multi-Chain Support
@@ -134,7 +134,7 @@ async function purchaseWithCreditCard(planId: string) {
     // Initialize payments SDK
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'production'
+      environment: 'live' // Or 'sandbox' for testing
     })
     
     // Get plan details to show user
@@ -159,7 +159,7 @@ async function purchaseWithCreditCard(planId: string) {
 async function handlePaymentReturn() {
   const payments = Payments.getInstance({
     nvmApiKey: process.env.NVM_API_KEY,
-    environment: 'production'
+    environment: 'live' // Or 'sandbox' for testing
   })
   
   // Check if payment was successful
