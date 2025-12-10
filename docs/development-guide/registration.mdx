@@ -224,6 +224,89 @@ Perfect for giving users free access for a limited time period:
   </Tab>
 </Tabs>
 
+## Creating a Pay As You Go Plan
+
+Pay As You Go plan is a type of payment plan that allows users to pay for each request they make to an AI Agent without having to purchase a bundle of credits upfront.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import {
+      Payments,
+      getPayAsYouGoCreditsConfig,
+    } from '@nevermined-io/payments'
+
+    // USDC on the sandbox network
+    const USDC_ERC20_TESTING = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'sandbox',
+    })
+
+    const planMetadata = {
+      name: 'My PAYG Plan',
+      description: 'Pay per request',
+    }
+
+    // The SDK fetches the PAYG template address from the API info endpoint
+    const priceConfig = await payments.plans.getPayAsYouGoPriceConfig(
+      100n,                 // amount per request (token minor units)
+      '0x9dDD02D4E111ab5cE47511987B2500fcB56252c6', // receiver
+      USDC_ERC20_TESTING,   // ERC20 token
+    )
+
+    // Credits config is required for validation but not used to mint credits
+    const creditsConfig = getPayAsYouGoCreditsConfig()
+
+    const { planId } = await payments.plans.registerPlan(
+      planMetadata,
+      priceConfig,
+      creditsConfig,
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py import Payments
+    from payments_py.common.types import PaymentOptions, PlanMetadata
+    from payments_py.plans import get_pay_as_you_go_credits_config
+
+    USDC_ERC20_TESTING = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+
+    payments = Payments(
+        PaymentOptions(
+            nvm_api_key="YOUR_NVM_API_KEY",
+            environment="sandbox",
+        )
+    )
+
+    plan_metadata = PlanMetadata(
+        name="My PAYG Plan",
+        description="Pay per request",
+    )
+
+    # SDK fetches PAYG template address from the API info endpoint
+    price_config = payments.plans.get_pay_as_you_go_price_config(
+        amount=100,
+        receiver="0x9dDD02D4E111ab5cE47511987B2500fcB56252c6",
+        token_address=USDC_ERC20_TESTING,
+    )
+
+    # Credits config is required for validation but credits are not minted upfront
+    credits_config = get_pay_as_you_go_credits_config()
+
+    response = payments.plans.register_credits_plan(
+        plan_metadata,
+        price_config,
+        credits_config,
+    )
+    plan_id = response.get("planId")
+    ```
+  </Tab>
+</Tabs>
+
+
 ## Registering an AI Agent
 
 When you register an Agent, you need to provide the API endpoints for accessing the AI Agent, including all relevant HTTP(s) methods, URL patterns and wildcards.
@@ -420,6 +503,9 @@ Captures `agentId` and `taskId` as named parameters.
   </Card>
   <Card title="Trial Plans" icon="gift">
     Free access for limited time or credits to let users test your service.
+  </Card>
+  <Card title="Pay As You Go" icon="dollar-sign">
+    Pay for each request they make to an AI Agent without having to purchase a bundle of credits upfront.
   </Card>
 </CardGroup>
 
