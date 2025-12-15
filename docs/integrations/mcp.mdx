@@ -40,22 +40,235 @@ The core idea is to place a "paywall" in front of your MCP handlers. This paywal
 
 This integration allows you to build a sustainable business model around your AI services. You can offer different subscription tiers (plans), charge dynamically based on usage, and maintain a complete audit trail of every transaction, all without cluttering your core application logic with complex payment code.
 
-## Step-by-step Tutorial
+## OAuth 2.1 Support for Remote MCP Servers
 
-In this tutorial, we will embark on a practical journey to build a secure, monetizable MCP server. Our starting point will be a standard, unprotected server—a common scenario for developers who have already created useful AI tools and now wish to commercialize them. From there, we will layer on the security and monetization capabilities of Nevermined Payments Library step by step.
+Nevermined Payments Library implements **complete OAuth 2.1 authentication** for MCP servers, acting as both:
+- **OAuth Authorization Server** (RFC 8414)
+- **OAuth Protected Resource Server** (RFC 8414)
+- **OpenID Connect Provider** (OIDC Discovery 1.0)
+
+All OAuth discovery endpoints (`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, `/.well-known/openid-configuration`) are **automatically generated and configured**. Your MCP server becomes instantly compatible with any OAuth-enabled MCP client (Claude Desktop, custom agents, etc.) without any manual OAuth setup.
+
+## Simplified API: Complete MCP Server in Minutes
+
+The Nevermined Payments Library provides a high-level API that handles everything for you:
+- ✅ MCP Server creation
+- ✅ Express.js setup with CORS
+- ✅ OAuth 2.1 endpoints (auto-generated)
+- ✅ HTTP transport (POST/GET/DELETE `/mcp`)
+- ✅ Session management for streaming
+- ✅ Paywall protection for all tools/resources/prompts
+
+### Quick Example
+
+Here's how to create a complete, production-ready MCP server with OAuth authentication:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from "@nevermined-io/payments"
+    import { z } from "zod"
+
+    // 1. Initialize Payments
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: "staging"
+    })
+
+    // 2. Register tools with built-in paywall
+    payments.mcp.registerTool(
+      "weather.today",
+      {
+        title: "Today's Weather",
+        description: "Get weather for a city",
+        inputSchema: z.object({ 
+          city: z.string().min(2).max(80).describe("City name") 
+        })
+      },
+      async (args, extra, context) => {
+        // Access authentication context for observability
+        console.log(`Request ID: ${context?.authResult.requestId}`)
+        console.log(`Credits charged: ${context?.credits}`)
+        
+        // Your business logic here
+        const weather = await fetchWeather(args.city)
+        
+        return {
+          content: [{ 
+            type: "text", 
+            text: `Weather in ${args.city}: ${weather.description}, ${weather.temp}°C` 
+          }]
+        }
+      },
+      { credits: 5n }  // Fixed credits (5 per call)
+    )
+
+    // 3. Start everything (MCP Server + Express + OAuth)
+    const { info, stop } = await payments.mcp.start({
+      port: 3000,
+      agentId: process.env.NVM_AGENT_ID!,
+      serverName: "my-weather-server",
+      version: "1.0.0",
+      description: "Weather MCP server with OAuth authentication"
+    })
+
+    console.log(`🚀 Server running at ${info.baseUrl}/mcp`)
+    console.log(`🔐 OAuth endpoints: ${info.baseUrl}/.well-known/`)
+    console.log(`🛠️  Tools: ${info.tools.join(", ")}`)
+
+    // Graceful shutdown
+    process.on("SIGINT", async () => {
+      await stop()
+      process.exit(0)
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Python SDK support coming soon
+    # For now, use the TypeScript API shown in the advanced sections
+    ```
+  </Tab>
+</Tabs>
+
+**That's it!** Your MCP server is now:
+- ✅ Running with OAuth 2.1 authentication
+- ✅ Protected by Nevermined paywall
+- ✅ Compatible with Claude Desktop and any MCP client
+- ✅ Monetizable with automatic credit deduction
+
+### What `payments.mcp.start()` Does for You
+
+This single function call handles:
+
+1. **Express Server Setup**: Creates and configures an Express.js application
+2. **OAuth Endpoints**: Auto-generates RFC-compliant discovery endpoints:
+   - `/.well-known/oauth-authorization-server`
+   - `/.well-known/oauth-protected-resource`
+   - `/.well-known/openid-configuration`
+   - `/register` (Dynamic Client Registration - RFC 7591)
+3. **MCP Transport**: Sets up HTTP transport endpoints (POST/GET/DELETE `/mcp`)
+4. **Session Management**: Handles SSE streaming and session lifecycle
+5. **CORS & Middleware**: Configures CORS, JSON parsing, and HTTP logging
+6. **Graceful Shutdown**: Returns a `stop()` function for clean server termination
+
+### Complete Working Example
+
+See the full production-ready example with advanced features:
+- **GitHub**: [weather-mcp/src/server/main.ts](https://github.com/nevermined-io/tutorials/tree/main/mcp-examples/weather-mcp)
+
+This example includes:
+- Dynamic credit calculation based on response size
+- Resources with URI templates (`weather://today/{city}`)
+- Prompts for LLM guidance
+- OpenAI observability integration
+
+### Dynamic Credits
+
+Instead of fixed credits, you can calculate them dynamically based on the handler's result:
+
+```typescript
+// Dynamic credits based on response complexity
+const weatherCreditsCalculator = (ctx: CreditsContext): bigint => {
+  const result = ctx.result as { structuredContent?: { forecast?: string } }
+  const forecast = result?.structuredContent?.forecast || ""
+  
+  // Charge 1 credit for short forecasts, 2-19 for longer ones
+  return forecast.length <= 100 ? 1n : BigInt(Math.floor(Math.random() * 18) + 2)
+}
+
+payments.mcp.registerTool(
+  "weather.today",
+  config,
+  handler,
+  { credits: weatherCreditsCalculator }  // Function instead of fixed value
+)
+```
+
+**Important:**
+- **Fixed credits**: Calculated BEFORE handler execution (available in `context.credits`)
+- **Dynamic credits**: Calculated AFTER handler execution (based on `ctx.result`)
+
+### Client Usage
+
+**Step 1: Get Access Token**
+
+Users need to subscribe to your agent's plan and obtain an access token:
+
+```typescript
+// As a subscriber
+const { accessToken } = await paymentsClient.agents.getAgentAccessToken(
+  planId,   // The plan they subscribed to
+  agentId   // Your MCP server's agent ID
+)
+```
+
+**Step 2: Connect with MCP Client**
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client"
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
+
+const transport = new StreamableHTTPClientTransport(
+  new URL("http://localhost:3000/mcp"),
+  {
+    requestInit: {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }
+  }
+)
+
+const client = new Client({ name: "my-client" })
+await client.connect(transport)
+
+// Call tool
+const result = await client.callTool({
+  name: "weather.today",
+  arguments: { city: "Madrid" }
+})
+```
+
+**Step 3: Use in Claude Desktop**
+
+Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "weather": {
+      "url": "http://localhost:3000/mcp",
+      "auth": {
+        "type": "bearer",
+        "token": "YOUR_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Advanced Usage: Low-Level APIs
+
+<Note>
+The sections below show **advanced, low-level APIs** for users who need custom server implementations or fine-grained control. 
+
+**For most use cases, we recommend using the simplified API above** with `payments.mcp.start()`.
+</Note>
+
+This advanced tutorial covers low-level APIs for building custom MCP servers. These approaches give you full control over the server implementation, but require more manual setup compared to the simplified API.
 
 ### 0) Requirements & Installation
 
 <Tabs>
   <Tab title="TypeScript">
     - Node.js >= 18
-    - MCP SDK (`@modelcontextprotocol/sdk`)
-    - `@nevermined-io/payments` (Nevermined SDK)
-    - Express.js
+    - `@nevermined-io/payments` (includes everything needed)
+    - `zod` for schema validation
 
     ```bash
-    yarn add express @modelcontextprotocol/sdk @nevermined-io/payments zod
-    yarn add -D typescript ts-node @types/express
+    npm install @nevermined-io/payments zod dotenv
+    npm install -D typescript @types/node ts-node
     ```
   </Tab>
   <Tab title="Python">
@@ -80,21 +293,18 @@ First, let's create a basic MCP server without any paywall to ensure the core se
 
     ```typescript
     // server.ts
-    import { McpServer } from "@modelcontextprotocol/sdk/server";
+    import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
     import { z } from "zod";
 
     export function createMcpServer() {
         const server = new McpServer({
-            name: "weather-mcp-ts",
-            version: "0.1.0",
+            name: "weather-mcp",
+            version: "1.0.0",
         });
 
-        server.registerTool(
+        server.tool(
             "weather.today",
-            {
-                title: "Today's Weather",
-                inputSchema: z.object({ city: z.string() }),
-            },
+            { title: "Today's Weather", inputSchema: z.object({ city: z.string() }) },
             async (args) => ({
                 content: [{ type: "text", text: `Weather for ${args.city}: Sunny, 25C.` }],
             })
@@ -121,7 +331,7 @@ First, let's create a basic MCP server without any paywall to ensure the core se
 
 ### 2) Initialize Nevermined Payments
 
-Next, initialize the Nevermined Payments SDK. This requires your builder/agent owner API key and the environment (`sandbox` or `live`).
+Initialize the Nevermined Payments SDK with your builder/agent owner API key and environment.
 
 <Tabs>
   <Tab title="TypeScript">
@@ -131,15 +341,14 @@ Next, initialize the Nevermined Payments SDK. This requires your builder/agent o
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
-      environment: (process.env.NVM_ENV || "sandbox") as EnvironmentName,
-    });
-
-    // Configure MCP defaults once
-    payments.mcp.configure({
-        agentId: process.env.NVM_AGENT_ID!,
-        serverName: "weather-mcp-ts",
+      environment: (process.env.NVM_ENVIRONMENT as EnvironmentName) || "staging_sandbox",
     });
     ```
+    
+    <Note>
+    When using low-level APIs, you may need to call `payments.mcp.configure()` to set defaults. 
+    With the simplified API (`payments.mcp.start()`), configuration is handled automatically.
+    </Note>
   </Tab>
   <Tab title="Python">
     ```python
@@ -150,316 +359,372 @@ Next, initialize the Nevermined Payments SDK. This requires your builder/agent o
         "nvm_api_key": os.environ["NVM_API_KEY"],
         "environment": os.environ.get("NVM_ENV", "sandbox"),
     })
-
-    # In a FastMCP server, it's crucial to also provide getContext
-    # payments.mcp.configure({
-    #     "agentId": os.environ["NVM_AGENT_ID"],
-    #     "serverName": "weather-mcp",
-    #     "getContext": fastmcp.get_context,
-    # })
     ```
   </Tab>
 </Tabs>
 
-### 3) Protect Handlers with a Paywall
+### 3) Dynamic Credits (Optional)
 
-The `withPaywall` (TS) or `with_paywall` (PY) decorator is the core of the integration. It wraps your business logic, checks for authentication, and burns credits.
+Instead of charging fixed credits, you can calculate them dynamically based on input arguments or response content.
 
-First, define your handler. It should contain only your business logic, returning a standard MCP `content` object.
+#### Understanding CreditsContext
 
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    // handlers.ts
-    import { ToolHandler } from "@modelcontextprotocol/sdk/server";
+When using a function for `credits`, it receives a `CreditsContext` object with:
 
-    export const weatherToolHandler: ToolHandler = async (args) => {
-        const city = (args as any).city || "Madrid";
-        return {
-            content: [
-                { type: "text", text: `Weather for ${city}: Sunny, 25C.` },
-                {
-                    type: "resource_link",
-                    uri: `weather://today/${city}`,
-                    name: `weather today ${city}`,
-                    mimeType: "application/json",
-                },
-            ],
-        };
-    };
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    # handlers.py
-    from typing import Any, Dict
+```typescript
+interface CreditsContext {
+  args: unknown       // Input arguments passed to the tool/resource/prompt
+  result: any         // The response returned by your handler
+  request: {
+    authHeader: string   // Authorization Bearer token
+    logicalUrl: string   // Full MCP logical URL (e.g., "mcp://server/tools/weather")
+    toolName: string     // Name of the tool/resource/prompt
+  }
+}
+```
 
-    async def weather_tool_handler(args: Dict[str, Any]) -> Dict[str, Any]:
-        city = str(args.get("city", ""))
-        text = f"Weather for {city}: Sunny, 25C."
-        return {
-            "content": [
-                {"type": "text", "text": text},
-                {
-                    "type": "resource_link",
-                    "uri": f"weather://today/{city}",
-                    "name": f"weather today {city}",
-                    "mimeType": "application/json",
-                },
-            ]
-        }
-    ```
-  </Tab>
-</Tabs>
+**Key Properties:**
+- **`ctx.args`**: The input arguments the user sent (e.g., `{ city: "London" }`)
+- **`ctx.result`**: The complete response your handler returned
+- **`ctx.request.toolName`**: The name of the tool being called
+- **`ctx.request.logicalUrl`**: The full logical URL for observability
+- **`ctx.request.authHeader`**: The auth token (for advanced logging)
 
-Now, use the decorator to create a protected version of the handler and register it.
+#### Examples
 
 <Tabs>
-  <Tab title="TypeScript">
-    The `extra` object, containing request headers, is passed automatically by the MCP server to the handler. The paywall uses this to extract the `Authorization` token.
+  <Tab title="Based on Response Size">
+    Charge credits proportional to the response length:
 
     ```typescript
-    // server-factory.ts
-    import { McpServer } from "@modelcontextprotocol/sdk/server";
-    import { z } from "zod";
-    import { weatherToolHandler } from "./handlers";
+    import type { CreditsContext } from "@nevermined-io/payments"
 
-    // Assume 'payments' is initialized and configured
-    const protectedWeatherHandler = payments.mcp.withPaywall(
-        weatherToolHandler,
-        { 
-            kind: "tool",
-            name: "weather.today",
-            credits: 1n // 1 credit per call (use BigInt)
-        } 
-    );
+    const dynamicCredits = (ctx: CreditsContext): bigint => {
+      // Access the result returned by your handler
+      const result = ctx.result as { content: Array<{ text: string }> }
+      const text = result.content[0]?.text || ""
+      
+      // Charge 1 credit per 100 characters
+      const credits = Math.ceil(text.length / 100)
+      return BigInt(credits)
+    }
 
-    const server = new McpServer(/* ... */);
-    server.registerTool(
-        "weather.today",
-        { inputSchema: z.object({ city: z.string() }) },
-        protectedWeatherHandler // Use the wrapped handler
-    );
-    ```
-  </Tab>
-  <Tab title="Python">
-    With `FastMCP`, it's critical to provide the `getContext` function during configuration. This allows the paywall to access the request headers.
-
-    ```python
-    # app_fastmcp_paywalled.py
-    from handlers import weather_tool_handler
-    
-    # Assume 'payments' and 'fastmcp' are initialized
-    payments.mcp.configure({
-        "agentId": os.environ["NVM_AGENT_ID"],
-        "serverName": "weather-mcp",
-        "getContext": fastmcp.get_context,
-    })
-
-    protected_weather = payments.mcp.with_paywall(
-        weather_tool_handler,
-        {"kind": "tool", "name": "weather.today", "credits": 1},
+    payments.mcp.registerTool(
+      "weather.today",
+      config,
+      handler,
+      { credits: dynamicCredits }
     )
-
-    @fastmcp.tool(name="weather.today", title="Today's Weather")
-    async def weather_today(city: str) -> str:
-        # The FastMCP tool calls the protected handler
-        res = await protected_weather({"city": city})
-        # Adapt the MCP dict response to a simple string
-        return (res["content"][0] as any)["text"];
     ```
   </Tab>
-</Tabs>
+  <Tab title="Based on Input Arguments">
+    Charge different rates based on input complexity:
 
-### 4) Dynamic Credit Calculation
-
-For flexible pricing, provide a function to the `credits` option. It receives a context object (`ctx`) with request `args`, the handler's `result`, and `extra` metadata.
-
-<Tabs>
-  <Tab title="TypeScript">
     ```typescript
-    const dynamicCreditsHandler = payments.mcp.withPaywall(
-        weatherToolHandler,
-        {
-            kind: "tool",
-            name: "weather.today",
-            credits: (ctx) => {
-                const city = (ctx.args as any).city || "";
-                return city.length <= 5 ? 1n : 2n;
-            },
-        }
-    );
+    const dynamicCredits = (ctx: CreditsContext): bigint => {
+      // Access input arguments
+      const args = ctx.args as { city: string; forecast_days?: number }
+      
+      // Base cost: 5 credits
+      let credits = 5n
+      
+      // Add 2 credits per additional forecast day
+      if (args.forecast_days && args.forecast_days > 1) {
+        credits += BigInt((args.forecast_days - 1) * 2)
+      }
+      
+      return credits
+    }
+
+    payments.mcp.registerTool(
+      "weather.forecast",
+      config,
+      handler,
+      { credits: dynamicCredits }
+    )
+    ```
+  </Tab>
+  <Tab title="Conditional Pricing">
+    Apply different pricing models based on result type:
+
+    ```typescript
+    const dynamicCredits = (ctx: CreditsContext): bigint => {
+      const result = ctx.result as { 
+        structuredContent?: any
+        rawData?: any 
+      }
+      
+      // Structured responses cost more
+      if (result.structuredContent) {
+        return 10n
+      }
+      
+      // Raw data costs less
+      if (result.rawData) {
+        return 3n
+      }
+      
+      // Default
+      return 5n
+    }
     ```
   </Tab>
   <Tab title="Python">
     ```python
     def dynamic_credits(ctx: Dict[str, Any]) -> int:
-        city = str((ctx.get("args") or {}).get("city", ""))
-        return 1 if len(city) <= 5 else 2
+        # Access arguments
+        args = ctx.get("args", {})
+        city = args.get("city", "")
+        
+        # Access result
+        result = ctx.get("result", {})
+        content = result.get("content", [])
+        text = content[0].get("text", "") if content else ""
+        
+        # Calculate based on response length
+        return max(1, len(text) // 100)
 
-    protected_dynamic = payments.mcp.with_paywall(
-        weather_tool_handler,
-        {"kind": "tool", "name": "weather.today", "credits": dynamic_credits},
-    )
-    ```
-  </Tab>
-</Tabs>
-
-
-### 5) Alternative: Declarative Registration with `attach`
-
-While `withPaywall` is useful, it can be repetitive. The `attach` method provides a more streamlined alternative by combining registration and protection into a single call. It takes your server instance and returns a registrar object with protected `registerTool`, `registerResource`, and `registerPrompt` methods.
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    // server-factory-with-attach.ts
-    const server = new McpServer(/* ... */);
-    const protectedRegistrar = payments.mcp.attach(server);
-
-    // Register and protect in one step
-    protectedRegistrar.registerTool(
+    payments.mcp.registerTool(
         "weather.today",
-        resourceTemplate,
-        weatherResourceConfig,
-        weatherResourceHandler,
-        { credits: weatherToolCreditsCalculator }
-    );
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    # app_fastmcp_with_attach.py
-    server = McpServer() # A generic MCP server instance
-    protected_registrar = payments.mcp.attach(server)
-
-    protected_registrar.registerTool(
-      "weather.today",
-      {"title": "Today's Weather"},
-      weather_tool_handler,
-      {"credits": 1}
+        config,
+        handler,
+        {"credits": dynamic_credits}
     )
     ```
   </Tab>
 </Tabs>
 
+**Important:**
+- ✅ **Fixed credits** (`credits: 5n`): Calculated BEFORE handler execution, available in `context.credits`
+- ✅ **Dynamic credits** (function): Calculated AFTER handler execution, based on `ctx.args` and `ctx.result`
+- ✅ **Return type**: Must return `bigint` (TypeScript) or `int` (Python)
+- ⚠️ **Performance**: Keep calculations lightweight to avoid delays
 
-### 6) Alternative: Custom Low-Level Server
+### 4) Connecting MCP Clients
 
-If you prefer full control, you can implement a low-level JSON-RPC router. You are responsible for parsing the request, routing it, and manually passing an `extra` object (containing request headers) to the protected handler.
+Once your server is running with `payments.mcp.start()`, connecting clients is straightforward. **Nevermined handles OAuth authentication automatically** - clients just need to know the server URL.
+
+#### Claude Desktop
+
+Add to your Claude Desktop config file:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "weather": {
+      "url": "http://localhost:3000/mcp",
+      "type": "http"
+    }
+  }
+}
+```
+
+#### Cursor IDE
+
+Add to your Cursor MCP config file:
+- **Location**: `~/.cursor/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "weather": {
+      "url": "http://localhost:3000/mcp",
+      "type": "http"
+    }
+  }
+}
+```
+
+#### Custom MCP Client (TypeScript/JavaScript)
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client"
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
+
+// Simple connection - no auth headers needed
+const transport = new StreamableHTTPClientTransport(
+  new URL("http://localhost:3000/mcp")
+)
+
+const client = new Client({ name: "my-client", version: "1.0.0" })
+await client.connect(transport)
+
+// Use tools
+const result = await client.callTool({
+  name: "weather.today",
+  arguments: { city: "Madrid" }
+})
+
+console.log(result)
+```
+
+#### How OAuth Works Behind the Scenes
+
+When a client connects to your MCP server:
+
+1. **Discovery**: Client reads `/.well-known/oauth-authorization-server` to find OAuth endpoints
+2. **Registration**: Client registers itself via `/register` (dynamic client registration)
+3. **Authorization**: Client obtains access token via OAuth 2.1 flow
+4. **Authenticated Requests**: All subsequent MCP requests include the token automatically
+
+**You don't need to handle any of this manually** - `payments.mcp.start()` configures everything automatically!
+
+<Note>
+**For production servers**, replace `http://localhost:3000` with your public domain (e.g., `https://weather-mcp.yourdomain.com`).
+</Note>
+
+---
+
+## Advanced Usage
+
+<Note>
+The methods below are for advanced use cases requiring custom server setup. For most applications, use the simplified `payments.mcp.start()` approach shown above.
+</Note>
+
+### Using `withPaywall` for Custom Servers
+
+If you're building a custom MCP server and want granular control, use `withPaywall`:
+
+```typescript
+const protectedHandler = payments.mcp.withPaywall(
+  myHandler,
+  { 
+    kind: "tool",
+    name: "my.tool",
+    credits: 5n
+  }
+)
+```
+
+### Using `attach` for Declarative Registration
+
+```typescript
+const server = new McpServer({ name: "my-server", version: "1.0.0" })
+const registrar = payments.mcp.attach(server)
+
+registrar.registerTool(
+  "weather.today",
+  config,
+  handler,
+  { credits: 1n }
+)
+```
+
+### Custom Low-Level Server
+
+<Warning>
+**Only for advanced use cases.** Most users should use `payments.mcp.start()`.
+</Warning>
+
+For custom Express servers, you can use `payments.mcp.createApp()`:
 
 <Tabs>
   <Tab title="TypeScript">
-    This example shows a minimal router using Express.js.
-
     ```typescript
-    // low-level-server.ts
-    import express from "express";
+    // custom-server.ts
+    import { Payments } from "@nevermined-io/payments"
 
-    const app = express();
-    app.use(express.json());
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: "staging_sandbox"
+    })
 
-    app.post("/mcp-low", async (req, res) => {
-        const { method, params, id } = req.body;
-        if (method === "tools/call" && params.name === "weather.today") {
-            try {
-                const result = await protectedHandler(params.arguments, {
-                    requestInfo: { headers: req.headers },
-                });
-                res.json({ jsonrpc: "2.0", id, result });
-            } catch (e: any) {
-                res.status(500).json({ error: { code: e.code, message: e.message } });
-            }
+    payments.mcp.configure({
+      agentId: process.env.NVM_AGENT_ID!,
+      serverName: "custom-server"
+    })
+
+    const app = payments.mcp.createApp({
+      baseUrl: "http://localhost:3000",
+      serverName: "custom-server",
+      tools: ["weather.today"]
+    })
+
+    // Add your custom JSON-RPC routing
+    app.post("/mcp", async (req, res) => {
+      const { method, params } = req.body
+      
+      // Build extra object from request
+      const extra = {
+        requestInfo: {
+          headers: req.headers,
+          method: req.method,
+          url: req.url
         }
-    });
+      }
+      
+      // Route to handler and pass extra
+      if (method === "tools/call") {
+        const handler = getToolHandler(params.name)
+        const result = await handler(params.arguments, extra)
+        res.json({ jsonrpc: "2.0", id: req.body.id, result })
+      }
+    })
+
+    app.listen(3000, () => {
+      console.log("Custom server running on http://localhost:3000")
+    })
     ```
   </Tab>
   <Tab title="Python">
-    This example uses a minimal ASGI application.
+    For complete custom control with ASGI:
 
     ```python
     # lowlevel_app.py
-    import json
     from payments_py.mcp import build_extra_from_http_headers
 
     async def app(scope, receive, send):
-        # ... read request body ...
+        # Parse request
         headers = {k.decode(): v.decode() for k, v in scope.get("headers", [])}
         extra = build_extra_from_http_headers(headers)
         
+        # Read body...
+        body = await receive()
+        req = json.loads(body.get("body", b"{}"))
+        
+        # Route and call handler
         if req.get("method") == "tools/call":
-            # ... find handler ...
-            result = await handler(arguments, extra) # Pass extra
-            # ... send response ...
+            handler = get_tool_handler(req["params"]["name"])
+            result = await handler(req["params"]["arguments"], extra)
+            # Send response...
     ```
   </Tab>
 </Tabs>
 
-### 7) Client: Getting Access & Calling
+---
 
-On the client side, the process is to get a Nevermined `accessToken` and include it in the `Authorization` header of every MCP request.
+## Error Handling
 
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    // client-sdk.ts
-    import { Client as McpClient } from "@modelcontextprotocol/sdk/client";
-    import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
+| Error Code | Description |
+|------------|-------------|
+| `-32003` | Payment Required - No token / Invalid token / Insufficient credits |
+| `-32002` | Misconfiguration - Server setup error |
+| `-32603` | Internal Error - Handler execution failed |
 
-    // 1. Get Access Token
-    const { accessToken } = await payments.agents.getAgentAccessToken(planId, agentId);
-
-    // 2. Create Transport with Authorization Header
-    const transport = new StreamableHTTPClientTransport(
-        new URL("http://localhost:3000/mcp"),
-        {
-            requestInit: {
-                headers: { Authorization: `Bearer ${accessToken}` },
-            },
-        }
-    );
-
-    // 3. Connect and Call Tool
-    const client = new McpClient({ name: "my-client" });
-    await client.connect(transport);
-    const result = await client.callTool({
-        name: "weather.today",
-        arguments: { city: "London" },
-    });
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    # client_call_tool.py
-    import requests
-
-    # 1. Get Access Token
-    creds = subscriber.agents.get_agent_access_token(plan_id, agent_id)
-    access_token = creds.get("accessToken")
-
-    # 2. Make authenticated JSON-RPC call
-    def rpc(method, params):
-        r = requests.post(
-            "http://localhost:8000/mcp",
-            json={"jsonrpc": "2.0", "method": method, "params": params},
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        return r.json()
-
-    # 3. Call Tool
-    result = rpc("tools/call", {"name": "weather.today", "arguments": {"city": "Madrid"}})
-    ```
-  </Tab>
-</Tabs>
-
-### Error Handling
-
--   **No token / Invalid token / Insufficient credits** → JSON-RPC error `-32003`
--   **Other server errors** → JSON-RPC error `-32002`
+---
 
 ## Full Code Examples
 
-You can find the complete working examples used in this tutorial in the following GitHub repositories:
+### Production-Ready Example
 
--   **Python**: [nevermined-io/weather-mcp-demo-py](https://github.com/nevermined-io/weather-mcp-demo-py)
--   **TypeScript**: [nevermined-io/weather-mcp-demo](https://github.com/nevermined-io/weather-mcp-demo)
+The **Weather MCP Server** is a complete, production-ready example that demonstrates all features:
+
+- **Repository**: [tutorials/mcp-examples/weather-mcp](https://github.com/nevermined-io/tutorials/tree/main/mcp-examples/weather-mcp)
+- **Main Server**: [weather-mcp/src/server/main.ts](https://github.com/nevermined-io/tutorials/blob/main/mcp-examples/weather-mcp/src/server/main.ts)
+
+**Features demonstrated:**
+- ✅ Complete OAuth 2.1 authentication with `payments.mcp.start()`
+- ✅ Tools with dynamic credit calculation based on response size
+- ✅ Resources with URI templates (`weather://today/{city}`)
+- ✅ Prompts for LLM guidance
+- ✅ OpenAI integration with Nevermined observability
+- ✅ Graceful shutdown handling
+- ✅ Environment-based configuration
+
+### Additional Examples
+
+Advanced and low-level API examples:
+-   **TypeScript (Low-level)**: [nevermined-io/weather-mcp-demo](https://github.com/nevermined-io/weather-mcp-demo) - Examples using `withPaywall` and `attach` for custom servers
+-   **Python**: [nevermined-io/weather-mcp-demo-py](https://github.com/nevermined-io/weather-mcp-demo-py) - Python implementation with FastMCP
