@@ -1,0 +1,112 @@
+---
+title: "Nevermined x402 and Google AP2"
+description: "Run the ADK demo to combine Nevermined x402 payments with Google AP2/A2A messaging—covering session tokens, facilitator verify/settle, and AP2 payment intents."
+icon: "sparkles"
+---
+
+This guide shows how the ADK demo wires Nevermined x402 payments into Google AP2/A2A messaging. It reuses the core primitives (plan + agent + session token + facilitator) and transports them over AP2 messages between a client agent and a merchant server. Source: [ADK demo README](https://github.com/nevermined-io/a2a-x402/tree/feat/a2a-nvm/python/examples/adk-demo#readme).
+
+## What this covers
+
+- Uses the `python/examples/adk-demo` from `a2a-x402` ([demo repo](https://github.com/nevermined-io/a2a-x402/tree/feat/a2a-nvm))
+- Client agent (subscriber) generates x402 session tokens
+- Merchant server verifies and settles via Nevermined facilitator over REST
+- AP2 carries `payment-required` and `payment-submitted` messages between agents
+- Real on-chain credit burns on Base Sepolia (sandbox)
+
+## Prerequisites
+
+- Nevermined API keys: one for the merchant (`NVM_API_KEY_SERVER`), one for the subscriber (`NVM_API_KEY_CLIENT`)
+- A credits plan and agent registered in Nevermined (`NVM_CREDITS_PLAN_ID`, `NVM_AGENT_ID`)
+- Python 3.11+, `uv` (for the demo env)
+- Google GenAI API key (for the AP2/ADK flow)
+
+## Configure the demo
+
+From the root of `a2a-x402`:
+
+```bash
+uv sync --directory=python/examples/adk-demo
+cp python/examples/adk-demo/.env.sample python/examples/adk-demo/.env
+```
+
+Set the key environment variables (sandbox defaults):
+
+```bash
+NVM_API_KEY_SERVER="nvm:merchant-jwt"
+NVM_API_KEY_CLIENT="nvm:subscriber-jwt"
+NVM_ENVIRONMENT="sandbox"
+NVM_CREDITS_PLAN_ID="your-plan-id"
+NVM_AGENT_ID="your-agent-id"
+NVM_PAYMENT_AMOUNT="2"
+NVM_NETWORK="base-sepolia"
+GOOGLE_GENAI_API_KEY="your-google-api-key"
+```
+
+Key roles (from the README):
+
+- **Client Agent (subscriber)**: Generates x402 session tokens using `payments_py`.
+- **Merchant Server (agent)**: Serves AP2 `payment-required`, verifies/settles via Nevermined facilitator.
+- **Facilitator**: Nevermined service that enforces permissions and burns/orders credits.
+- **Blockchain**: Executes the settlement transactions (Base Sepolia in sandbox).
+
+## Run it
+
+1) Start the merchant server (facilitator + AP2 handler):
+
+```bash
+uv --directory=python/examples/adk-demo run server
+```
+
+2) Start the client agent + web UI:
+
+```bash
+uv --directory=python/examples/adk-demo run adk web --port=8000
+```
+
+3) In the UI, trigger a purchase (e.g., “buy a laptop”). The flow:
+
+- Merchant replies with AP2 `payment-required` (plan/agent/amount/network)
+- Client **generates x402 session token** via Nevermined (`payments_py.x402.get_x402_access_token`)
+- Client sends `payment-submitted` carrying the x402 payload + Nevermined extension
+- Merchant **verifies** with facilitator → does the work → **settles** (burns credits)
+- Response includes receipt + transaction hash; balance decrements (e.g., 10 → 8)
+
+## Message shapes (adapted from the README)
+
+- `payment-required`:
+  - Includes plan_id, agent_id, amount, network, scheme, and any metadata the merchant wants to expose.
+- `payment-submitted`:
+  - Carries the x402 payload with `session_key` plus the copied Nevermined extension.
+- `payment-completed`:
+  - Contains the facilitator’s verification/settlement result and transaction hash.
+
+## Key SDK touchpoints
+
+- Session token generation (subscriber):
+
+```python
+token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+session_key = token_res["accessToken"]
+```
+
+- Facilitator verification + settlement (merchant):
+
+```python
+verify = await facilitator.verify(payment_payload, requirements)
+if not verify.is_valid:
+    raise Exception("Payment Required")
+
+await facilitator.settle(payment_payload, requirements)
+```
+
+## When to use this pattern
+
+- You need AP2/A2A messaging but want enforceable on-chain payments
+- You want to keep REST facilitators for verification/settlement while agents talk over AP2
+- You need a working reference with real settlement (Base Sepolia) that mirrors the library E2E tests
+
+## Links
+
+- Demo repo: https://github.com/nevermined-io/a2a-x402/tree/feat/a2a-nvm
+- Demo README: https://github.com/nevermined-io/a2a-x402/tree/feat/a2a-nvm/python/examples/adk-demo#readme
