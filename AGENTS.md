@@ -505,7 +505,7 @@ description: "Register AI agents and create payment plans in 5 minutes using the
 - **Nevermined Website**: https://nevermined.ai
 - **Nevermined App**: https://nevermined.app
 - **Mintlify Docs**: https://mintlify.com/docs
-- **Discord Community**: [Link if available]
+- **Discord Community**: https://discord.com/invite/GZju2qScKq
 
 ### Before You Write
 
