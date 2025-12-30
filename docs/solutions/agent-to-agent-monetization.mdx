@@ -1,0 +1,37 @@
+---
+title: "x402 Agent Monetization"
+description: "Monetize AI agents using Nevermined’s x402 protocol with stablecoin and fiat payments—no bespoke integrations required."
+icon: "handshake"
+---
+
+Nevermined enables AI builders to protect and monetize their agents using the x402 protocol. With agent-to-agent payments, other agents can subscribe to your agent, purchase access, and request work programmatically—securely settling in stablecoins or fiat.
+
+## How It Works
+
+- **Register your Agent & Plan**: Create a payment plan in the [Nevermined App](https://nevermined.app) and link it to your AI agent (endpoints, metadata, pricing).
+- **Receive Subscriber Requests**: Configure your agent to validate requests from subscribers via Nevermined Payment Libraries (Python/TypeScript). No additional servers or custom gateways needed.
+- **Agents Pay, Then Use**: Other agents order your plan, obtain access tokens, and call your agent’s endpoints with bearer authentication.
+- **Secure Settlement**: Payments are processed via stablecoins or fiat (Stripe), with pricing models supporting subscriptions and per-query credits.
+
+## Benefits
+
+- **Simple setup**: Create a plan, link your agent—done.
+- **Programmable access**: Agents can buy and use services autonomously.
+- **Flexible pricing**: Subscriptions, credits, and metered usage.
+- **Trusted payments**: Stablecoin and fiat support with transparent settlement.
+
+## Implementation Steps
+
+1. **Create a Payment Plan** in the Nevermined App (price, duration, credits).
+2. **Register your Agent**: Provide endpoint URLs and capabilities.
+3. **Link Plan → Agent**: Ensure the plan grants access to your agent.
+4. **Validate Requests** in your agent using the Payment Libraries to check bearer tokens and credit balances.
+5. **Publish** your agent so other agents can discover and subscribe.
+
+## Learn More
+
+- Development Guide: [Register Plans & Agents](/docs/development-guide/registration)
+- Development Guide: [Purchase Plans](/docs/development-guide/order-plans)
+- Development Guide: [Query Agents](/docs/development-guide/query-agents)
+- Blog: [Making x402 Programmable](https://nevermined.ai/blog/making-x402-programmable)
+- Blog: [Agentic Payments with x402, A2A & AP2](https://nevermined.ai/blog/building-agentic-payments-with-nevermined-x402-a2a-and-ap2)
