@@ -378,7 +378,7 @@ Before finalizing any documentation:
 
 ### Navigation & Cross-References
 
-- Link to related pages at the end: "See also: [X Guide](link)"
+- Link to related pages at the end
 - Use breadcrumbs in sidebar navigation via docs.json
 - Reference architecture.md for feature status
 
