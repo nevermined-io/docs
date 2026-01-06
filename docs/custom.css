@@ -1,0 +1,114 @@
+/* Nevermined Custom Styles */
+
+/* Hero Banner Styles */
+.nvm-hero-banner {
+  position: relative;
+  background-color: #0d3f48;
+  border-radius: 24px;
+  padding: 48px 32px;
+  margin-bottom: 32px;
+  overflow: hidden;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.nvm-hero-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/images/product_hero.jpg');
+  background-size: cover;
+  background-position: center right;
+  opacity: 0.9;
+}
+
+.nvm-hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+}
+
+.nvm-hero-label {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+
+.nvm-hero-title {
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 300;
+  line-height: 1.1;
+  margin-bottom: 20px;
+}
+
+.nvm-gradient-text {
+  background: linear-gradient(114.57deg, #bcdc4a 23%, #abe2dd 60%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-style: italic;
+}
+
+.nvm-hero-title-white {
+  color: white;
+  display: block;
+  margin-top: 4px;
+}
+
+.nvm-hero-description {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  max-width: 500px;
+}
+
+.nvm-hero-button {
+  display: inline-block;
+  background-color: white;
+  color: #0d3f48 !important;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.nvm-hero-button:hover {
+  background-color: #f0f0f0;
+  transform: translateY(-1px);
+  text-decoration: none !important;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .nvm-hero-banner {
+    padding: 32px 24px;
+    min-height: 280px;
+  }
+
+  .nvm-hero-banner::before {
+    background-position: center center;
+    opacity: 0.7;
+  }
+
+  .nvm-hero-title {
+    font-size: 28px;
+  }
+
+  .nvm-hero-description {
+    font-size: 14px;
+  }
+}
