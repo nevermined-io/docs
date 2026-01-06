@@ -1,4 +1,4 @@
-# AGENTS.md - Content Guidelines for AI Agents
+# CLAUDE.md
 
 This document provides comprehensive guidelines for AI agents to write and maintain documentation for the Nevermined documentation repository, a Mintlify-based developer hub for AI-native payment infrastructure.
 
@@ -8,9 +8,10 @@ This document provides comprehensive guidelines for AI agents to write and maint
 
 **Nevermined** is building financial rails for AI agents, enabling real-time monetization, access control, and payments. This documentation covers:
 
-- Agent registration and metadata structure
+- Nevermined product information, and solutions that can be built with it
+- Nevermined Payments Library (Agent registration, Payment Plans, etc).
 - Payment plan configuration (fixed, usage-based, outcome-based, value-based)
-- Credit metering, redemption, and usage control
+- Payments, Credit metering, redemption, and usage control
 - Proxy-based and SDK integrations
 - API references and endpoint examples
 - Integration guides and troubleshooting
@@ -85,30 +86,32 @@ Use H2 headings (#) for major topics, H3 (#) for subsections.
 3. Step-by-step instructions (using `<Steps>` component)
 4. Next steps or related guides
 
-**API Reference Pages**
+**Solutions & Use Case Pages**
+
+1. x402 Agents monetization
+2. Static resources monetization and access control
+3. MCP integration for tool/plugin payments
+4. AI Agents Observability and cost tracking
+
+**Development Guide**
 
 1. Brief description
-2. Request/response examples
-3. Error handling
-4. Usage examples in TypeScript and Python
-5. Related endpoints
+2. Features
+3. Getting Started
+4. Register agents and plans
+5. Purchase payment plans
+6. Query agents
+7. Usage examples in TypeScript and Python
+8. x402
 
 **Integration Guides**
 
-1. Overview and use case
-2. Architecture/flow diagram reference
-3. Setup instructions
-4. Implementation examples
-5. Testing and troubleshooting
-6. Best practices
+1. x402
+2. Google A2A
+3. MCP
+4. Buildship
+5. Organizations
 
-**Conceptual Pages**
-
-1. Definition and context
-2. Why it matters
-3. Key concepts (using Cards or Lists)
-4. Examples and use cases
-5. Related features
 
 ### Mintlify Components to Use
 
@@ -331,26 +334,26 @@ Before finalizing any documentation:
 - **Examples**: Agent-to-Agent monetization, Access Control, MCP integration
 - **Key**: Compare old vs. new approaches
 
-### 3. API Reference
+### 3. Development Guide
+
+- **Purpose**: Explanation about how to use the Payments library
+- **Structure**: Overview → Core concepts → Getting Started → Examples
+- **Tone**: Detailed yet accessible
+- **Examples**: Registration, Payment plans, credit engines, payments
+
+### 4. API Reference
 
 - **Purpose**: Document all Payments library methods and endpoints
 - **Structure**: Overview → Setup → Method details → Examples → Error handling
 - **Tone**: Technical and precise
 - **Examples**: [api-reference/introduction.mdx](docs/api-reference/introduction.mdx)
 
-### 4. Integration Guides
+### 5. Integration Guides
 
 - **Purpose**: Help developers integrate Nevermined into existing systems
 - **Structure**: Prerequisites → Architecture → Implementation → Testing
 - **Tone**: Practical and step-by-step
 - **Examples**: SDK integration, proxy-based flows, agent registration
-
-### 5. Product Guides (NVM Pay, NVM ID, etc.)
-
-- **Purpose**: Deep-dive into specific products
-- **Structure**: Overview → Core concepts → Configuration → Examples → Troubleshooting
-- **Tone**: Detailed yet accessible
-- **Examples**: Payment plans, credit engines, payment methods
 
 ---
 
@@ -564,8 +567,9 @@ When submitting documentation changes:
 1. Describe what pages were added/modified
 2. Link to the preview deployment
 3. Confirm you tested locally with `mintlify dev`
-4. List any new cross-references added
-5. Update architecture.md status if needed
+4. Confirm links are not broken with `mintlify broken-links`
+5. List any new cross-references added
+6. Update architecture.md status if needed
 
 ### Review Checklist
 
@@ -590,5 +594,5 @@ For questions about documentation:
 
 ---
 
-**Last Updated**: December 2025
-**Maintained By**: Nevermined Documentation Team
+**Last Updated**: January 2026
+**Maintained By**: Nevermined Team
