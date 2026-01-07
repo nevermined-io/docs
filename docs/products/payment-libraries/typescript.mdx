@@ -1,0 +1,402 @@
+---
+title: "TypeScript SDK"
+description: "Complete guide to the @nevermined-io/payments TypeScript library"
+icon: "js"
+---
+
+The `@nevermined-io/payments` package provides full TypeScript support for integrating Nevermined payments into your Node.js applications, web apps, and AI agents.
+
+## Installation
+
+```bash
+npm install @nevermined-io/payments
+```
+
+Or with yarn:
+
+```bash
+yarn add @nevermined-io/payments
+```
+
+## Quick Start
+
+```typescript
+import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+
+// Initialize the client
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'testing'
+})
+
+// Register an agent with a payment plan
+const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+  { name: 'My AI Agent', tags: ['ai'], dateCreated: new Date() },
+  { endpoints: [{ POST: 'https://api.example.com/query' }] },
+  { name: 'Pro Plan', description: '100 queries', dateCreated: new Date() },
+  getERC20PriceConfig(10_000_000n, USDC_ADDRESS, BUILDER_ADDRESS),
+  getFixedCreditsConfig(100n, 1n),
+  'credits'
+)
+
+console.log(`Agent: ${agentId}, Plan: ${planId}`)
+```
+
+## Initialization Options
+
+```typescript
+interface PaymentsConfig {
+  nvmApiKey: string           // Your Nevermined API key
+  environment: Environment    // 'testing' | 'staging' | 'production'
+  appId?: string              // Optional app identifier
+  version?: string            // Optional version string
+}
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'production',
+  appId: 'my-app',
+  version: '1.0.0'
+})
+```
+
+## Agents Module
+
+### Register an Agent
+
+```typescript
+const { agentId } = await payments.agents.registerAgent({
+  name: 'Legal Document Analyzer',
+  description: 'AI-powered legal document analysis',
+  tags: ['legal', 'ai', 'documents'],
+  dateCreated: new Date()
+}, {
+  endpoints: [
+    { POST: 'https://api.legalai.com/analyze' },
+    { GET: 'https://api.legalai.com/status/{id}' }
+  ],
+  agentDefinitionUrl: 'https://api.legalai.com/openapi.json'
+})
+```
+
+### Register Agent with Plan (Combined)
+
+```typescript
+import { getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+
+const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+  // Agent metadata
+  {
+    name: 'Code Review Assistant',
+    description: 'AI-powered code review',
+    tags: ['code', 'review', 'ai'],
+    dateCreated: new Date()
+  },
+  // Agent API
+  {
+    endpoints: [{ POST: 'https://api.codereview.com/review' }],
+    agentDefinitionUrl: 'https://api.codereview.com/mcp.json'
+  },
+  // Plan metadata
+  {
+    name: 'Developer Plan',
+    description: '500 code reviews',
+    dateCreated: new Date()
+  },
+  // Price config: 25 USDC
+  getERC20PriceConfig(
+    25_000_000n,
+    '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    process.env.BUILDER_ADDRESS!
+  ),
+  // Credits config: 500 reviews, 1 credit each
+  getFixedCreditsConfig(500n, 1n),
+  'credits'
+)
+```
+
+### Get Agent Details
+
+```typescript
+const agent = await payments.agents.getAgent('did:nv:agent-123')
+
+console.log(agent.name)        // Agent name
+console.log(agent.endpoints)   // API endpoints
+console.log(agent.plans)       // Associated payment plans
+```
+
+### Get Access Token
+
+```typescript
+// For subscribers to access an agent
+const { accessToken } = await payments.agents.getAgentAccessToken(
+  'did:nv:plan-123',
+  'did:nv:agent-123'
+)
+
+// Use in requests
+const response = await fetch(agent.endpoints[0].url, {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`
+  }
+})
+```
+
+## Plans Module
+
+### Create a Plan
+
+```typescript
+const { planId } = await payments.plans.createPlan({
+  agentId: 'did:nv:agent-123',
+  name: 'Enterprise Plan',
+  description: 'Unlimited access for 30 days',
+  priceConfig: getERC20PriceConfig(100_000_000n, usdcAddress, builderAddress),
+  timeConfig: getTimeBasedConfig(30 * 24 * 60 * 60), // 30 days
+  accessLimit: 'time'
+})
+```
+
+### Order a Plan (Crypto)
+
+```typescript
+const result = await payments.plans.orderPlan('did:nv:plan-123')
+
+console.log(result.transactionHash)  // Blockchain tx hash
+console.log(result.agreementId)      // Access agreement ID
+```
+
+### Order a Plan (Fiat/Stripe)
+
+```typescript
+const { sessionId, url } = await payments.plans.orderFiatPlan('did:nv:plan-123')
+
+// Redirect user to Stripe checkout
+window.location.href = url
+```
+
+### Get Plan Balance
+
+```typescript
+const balance = await payments.plans.getPlanBalance('did:nv:plan-123')
+
+console.log(balance.credits)     // Remaining credits
+console.log(balance.expiresAt)   // Expiration timestamp (for time-based)
+```
+
+### Create Trial Plans
+
+```typescript
+// Free credits trial
+const { planId: trialPlanId } = await payments.plans.registerCreditsTrialPlan({
+  agentId: 'did:nv:agent-123',
+  name: 'Free Trial',
+  description: '10 free queries',
+  credits: 10n,
+  creditsPerRequest: 1n
+})
+
+// Free time trial
+const { planId: timeTrial } = await payments.plans.registerTimeTrialPlan({
+  agentId: 'did:nv:agent-123',
+  name: '7-Day Trial',
+  description: 'Full access for 7 days',
+  duration: 7 * 24 * 60 * 60
+})
+```
+
+## Requests Module
+
+### Validate a Request
+
+```typescript
+const validation = await payments.requests.isValidRequest(
+  accessToken,
+  requestBody
+)
+
+if (!validation.isValid) {
+  return res.status(402).json({
+    error: 'Payment Required',
+    reason: validation.reason,
+    plans: validation.availablePlans
+  })
+}
+
+// Process the valid request
+const result = await processAIQuery(requestBody)
+```
+
+### Get Request History
+
+```typescript
+const requests = await payments.requests.getRequests({
+  agentId: 'did:nv:agent-123',
+  limit: 100,
+  offset: 0
+})
+
+for (const req of requests) {
+  console.log(`${req.timestamp}: ${req.creditsUsed} credits`)
+}
+```
+
+## x402 Module
+
+### Generate x402 Access Token
+
+```typescript
+const { accessToken } = await payments.x402.getX402AccessToken(
+  'did:nv:plan-123',
+  'did:nv:agent-123'
+)
+```
+
+### Build x402 Payment Payload
+
+```typescript
+const paymentPayload = {
+  x402Version: 2,
+  scheme: 'contract',
+  network: 'base-sepolia',
+  payload: { session_key: accessToken },
+  extensions: {
+    nevermined: {
+      info: {
+        plan_id: planId,
+        agent_id: agentId,
+        max_amount: '1000000',
+        network: 'base-sepolia'
+      }
+    }
+  }
+}
+
+// Encode for header
+const encoded = Buffer.from(JSON.stringify(paymentPayload)).toString('base64')
+```
+
+## Facilitator Module
+
+### Verify Permissions
+
+```typescript
+const verification = await payments.facilitator.verifyPermissions({
+  planId: 'did:nv:plan-123',
+  maxAmount: BigInt(1000000),
+  x402AccessToken: accessToken,
+  subscriberAddress: '0x...'
+})
+
+if (!verification.success) {
+  throw new Error('Payment verification failed')
+}
+```
+
+### Settle Permissions
+
+```typescript
+const settlement = await payments.facilitator.settlePermissions({
+  planId: 'did:nv:plan-123',
+  maxAmount: BigInt(1000000),
+  x402AccessToken: accessToken,
+  subscriberAddress: '0x...'
+})
+
+console.log(settlement.transactionHash)
+```
+
+## Price Configuration Helpers
+
+```typescript
+import {
+  getERC20PriceConfig,
+  getNativePriceConfig,
+  getFixedCreditsConfig,
+  getTimeBasedConfig,
+  getDynamicCreditsConfig
+} from '@nevermined-io/payments'
+
+// ERC-20 token payment (e.g., USDC)
+const erc20Config = getERC20PriceConfig(
+  10_000_000n,                    // Amount (with decimals)
+  '0xA0b8...eB48',                // Token address
+  '0xYour...Address'              // Receiver address
+)
+
+// Native token payment (e.g., ETH)
+const nativeConfig = getNativePriceConfig(
+  1_000_000_000_000_000n,         // 0.001 ETH
+  '0xYour...Address'
+)
+
+// Fixed credits
+const fixedCredits = getFixedCreditsConfig(
+  100n,   // Total credits
+  1n      // Credits per request
+)
+
+// Time-based access
+const timeConfig = getTimeBasedConfig(
+  30 * 24 * 60 * 60               // 30 days in seconds
+)
+
+// Dynamic credits (variable per request)
+const dynamicCredits = getDynamicCreditsConfig(
+  1n,     // Minimum per request
+  10n     // Maximum per request
+)
+```
+
+## Error Handling
+
+```typescript
+import { PaymentsError, ValidationError, InsufficientCreditsError } from '@nevermined-io/payments'
+
+try {
+  await payments.plans.orderPlan(planId)
+} catch (error) {
+  if (error instanceof InsufficientCreditsError) {
+    console.log('User needs to add funds')
+  } else if (error instanceof ValidationError) {
+    console.log('Invalid request:', error.message)
+  } else if (error instanceof PaymentsError) {
+    console.log('Payments error:', error.code, error.message)
+  }
+}
+```
+
+## TypeScript Types
+
+The SDK exports all types for full type safety:
+
+```typescript
+import type {
+  Agent,
+  Plan,
+  PriceConfig,
+  CreditsConfig,
+  ValidationResult,
+  OrderResult
+} from '@nevermined-io/payments'
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Express Integration" icon="node-js" href="/docs/integrate/add-to-your-agent/express">
+    Add payments to your Express.js app
+  </Card>
+
+  <Card title="Next.js Integration" icon="react" href="/docs/integrate/add-to-your-agent/nextjs">
+    Add payments to your Next.js app
+  </Card>
+
+  <Card title="API Reference" icon="book" href="/docs/api-reference/typescript/installation">
+    Complete API documentation
+  </Card>
+
+  <Card title="Examples" icon="code" href="/docs/integrate/platforms/x402-protocol">
+    Real-world integration examples
+  </Card>
+</CardGroup>

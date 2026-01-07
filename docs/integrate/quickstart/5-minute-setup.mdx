@@ -1,0 +1,394 @@
+---
+title: "5-Minute Setup"
+description: "Get your AI agent accepting payments in 5 minutes"
+icon: "rocket"
+---
+
+This guide gets you from zero to a working payment integration in 5 minutes. By the end, you'll have an AI agent registered with Nevermined and accepting payments.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Get Your API Key">
+    1. Go to [nevermined.app](https://nevermined.app) and sign in
+    2. Navigate to **Settings > API Keys**
+    3. Generate a new key and copy it
+
+    ```bash
+    export NVM_API_KEY="nvm:your-api-key-here"
+    ```
+  </Step>
+
+  <Step title="Install the SDK">
+    <Tabs>
+      <Tab title="TypeScript">
+        ```bash
+        npm install @nevermined-io/payments
+        ```
+      </Tab>
+      <Tab title="Python">
+        ```bash
+        pip install payments-py
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+## Register Your Agent (2 minutes)
+
+Create a file to register your agent and payment plan:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript filename="register-agent.ts"
+    import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+
+    const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // Base Sepolia USDC
+
+    async function main() {
+      // 1. Initialize the SDK
+      const payments = Payments.getInstance({
+        nvmApiKey: process.env.NVM_API_KEY!,
+        environment: 'testing'
+      })
+
+      // 2. Register agent with payment plan
+      const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+        // Agent metadata
+        {
+          name: 'My AI Assistant',
+          description: 'An AI assistant that helps with tasks',
+          tags: ['ai', 'assistant'],
+          dateCreated: new Date()
+        },
+        // Agent API - replace with your endpoint
+        {
+          endpoints: [{ POST: 'https://your-api.com/query' }]
+        },
+        // Plan metadata
+        {
+          name: 'Starter Plan',
+          description: '100 queries for $10',
+          dateCreated: new Date()
+        },
+        // Price: 10 USDC
+        getERC20PriceConfig(
+          10_000_000n, // 10 USDC (6 decimals)
+          USDC_ADDRESS,
+          process.env.BUILDER_ADDRESS! // Your wallet address
+        ),
+        // Credits: 100 queries, 1 credit each
+        getFixedCreditsConfig(100n, 1n),
+        'credits'
+      )
+
+      console.log('Agent registered!')
+      console.log(`Agent ID: ${agentId}`)
+      console.log(`Plan ID: ${planId}`)
+      console.log('\nSave these IDs for your agent configuration.')
+    }
+
+    main().catch(console.error)
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python filename="register_agent.py"
+    import os
+    from payments_py import Payments, PaymentOptions
+    from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+
+    USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'  # Base Sepolia USDC
+
+    def main():
+        # 1. Initialize the SDK
+        payments = Payments.get_instance(
+            PaymentOptions(
+                nvm_api_key=os.environ['NVM_API_KEY'],
+                environment='testing'
+            )
+        )
+
+        # 2. Register agent with payment plan
+        result = payments.agents.register_agent_and_plan(
+            # Agent metadata
+            agent_metadata={
+                'name': 'My AI Assistant',
+                'description': 'An AI assistant that helps with tasks',
+                'tags': ['ai', 'assistant']
+            },
+            # Agent API - replace with your endpoint
+            agent_api={
+                'endpoints': [{'POST': 'https://your-api.com/query'}]
+            },
+            # Plan metadata
+            plan_metadata={
+                'name': 'Starter Plan',
+                'description': '100 queries for $10'
+            },
+            # Price: 10 USDC
+            price_config=get_erc20_price_config(
+                10_000_000,  # 10 USDC (6 decimals)
+                USDC_ADDRESS,
+                os.environ['BUILDER_ADDRESS']  # Your wallet address
+            ),
+            # Credits: 100 queries, 1 credit each
+            credits_config=get_fixed_credits_config(100, 1),
+            access_limit='credits'
+        )
+
+        print('Agent registered!')
+        print(f"Agent ID: {result['agentId']}")
+        print(f"Plan ID: {result['planId']}")
+        print('\nSave these IDs for your agent configuration.')
+
+    if __name__ == '__main__':
+        main()
+    ```
+  </Tab>
+</Tabs>
+
+Run it:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```bash
+    npx ts-node register-agent.ts
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    python register_agent.py
+    ```
+  </Tab>
+</Tabs>
+
+## Add Payment Validation (3 minutes)
+
+Add this middleware to your agent's API to validate payments:
+
+<Tabs>
+  <Tab title="TypeScript (Express)">
+    ```typescript filename="middleware/payments.ts"
+    import { Payments } from '@nevermined-io/payments'
+    import { Request, Response, NextFunction } from 'express'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'testing'
+    })
+
+    // Your registered IDs
+    const PLAN_ID = 'did:nv:your-plan-id'
+    const AGENT_ID = 'did:nv:your-agent-id'
+
+    export async function validatePayment(
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ) {
+      const authHeader = req.headers['authorization']
+
+      // Check for Bearer token
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(402).json({
+          error: 'Payment Required',
+          message: 'Purchase a plan to access this API',
+          plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
+        })
+      }
+
+      const token = authHeader.substring(7)
+
+      // Validate the request
+      const { isValid, balance } = await payments.requests.isValidRequest(
+        token,
+        req.body
+      )
+
+      if (!isValid) {
+        return res.status(402).json({
+          error: 'Payment Required',
+          message: 'Insufficient credits or invalid token',
+          plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
+        })
+      }
+
+      // Attach balance to request for optional use
+      req.creditsRemaining = balance
+
+      next()
+    }
+    ```
+  </Tab>
+  <Tab title="Python (FastAPI)">
+    ```python filename="middleware/payments.py"
+    import os
+    from fastapi import Request, HTTPException
+    from payments_py import Payments, PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ['NVM_API_KEY'],
+            environment='testing'
+        )
+    )
+
+    # Your registered IDs
+    PLAN_ID = 'did:nv:your-plan-id'
+    AGENT_ID = 'did:nv:your-agent-id'
+
+    async def validate_payment(request: Request):
+        auth_header = request.headers.get('Authorization')
+
+        # Check for Bearer token
+        if not auth_header or not auth_header.startswith('Bearer '):
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Payment Required',
+                    'message': 'Purchase a plan to access this API',
+                    'plans': [{'planId': PLAN_ID, 'agentId': AGENT_ID}]
+                }
+            )
+
+        token = auth_header[7:]
+        body = await request.json()
+
+        # Validate the request
+        result = payments.requests.is_valid_request(token, body)
+
+        if not result['isValid']:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Payment Required',
+                    'message': 'Insufficient credits or invalid token',
+                    'plans': [{'planId': PLAN_ID, 'agentId': AGENT_ID}]
+                }
+            )
+
+        return result['balance']
+    ```
+  </Tab>
+</Tabs>
+
+## Use the Middleware
+
+<Tabs>
+  <Tab title="TypeScript (Express)">
+    ```typescript filename="server.ts"
+    import express from 'express'
+    import { validatePayment } from './middleware/payments'
+
+    const app = express()
+    app.use(express.json())
+
+    // Protected endpoint
+    app.post('/query', validatePayment, async (req, res) => {
+      // Your AI logic here
+      const result = await processQuery(req.body.prompt)
+
+      res.json({
+        result,
+        creditsRemaining: req.creditsRemaining
+      })
+    })
+
+    app.listen(3000, () => {
+      console.log('Agent running on http://localhost:3000')
+    })
+    ```
+  </Tab>
+  <Tab title="Python (FastAPI)">
+    ```python filename="server.py"
+    from fastapi import FastAPI, Depends
+    from middleware.payments import validate_payment
+
+    app = FastAPI()
+
+    @app.post("/query")
+    async def query(request: dict, credits: int = Depends(validate_payment)):
+        # Your AI logic here
+        result = await process_query(request['prompt'])
+
+        return {
+            'result': result,
+            'creditsRemaining': credits
+        }
+
+    if __name__ == '__main__':
+        import uvicorn
+        uvicorn.run(app, host='0.0.0.0', port=3000)
+    ```
+  </Tab>
+</Tabs>
+
+## Test It
+
+### 1. Try without payment (should fail)
+
+```bash
+curl -X POST http://localhost:3000/query \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello"}'
+```
+
+Response:
+```json
+{
+  "error": "Payment Required",
+  "message": "Purchase a plan to access this API",
+  "plans": [{"planId": "did:nv:...", "agentId": "did:nv:..."}]
+}
+```
+
+### 2. Purchase a plan and get access token
+
+```typescript
+// As a subscriber
+const payments = Payments.getInstance({ nvmApiKey: subscriberKey, environment: 'testing' })
+
+// Order the plan
+await payments.plans.orderPlan(PLAN_ID)
+
+// Get access token
+const { accessToken } = await payments.agents.getAgentAccessToken(PLAN_ID, AGENT_ID)
+```
+
+### 3. Query with payment
+
+```bash
+curl -X POST http://localhost:3000/query \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{"prompt": "Hello"}'
+```
+
+Response:
+```json
+{
+  "result": "Hello! How can I help you today?",
+  "creditsRemaining": 99
+}
+```
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Express Integration" icon="node-js" href="/docs/integrate/add-to-your-agent/express">
+    Complete Express.js integration guide
+  </Card>
+
+  <Card title="FastAPI Integration" icon="python" href="/docs/integrate/add-to-your-agent/fastapi">
+    Complete FastAPI integration guide
+  </Card>
+
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/validate-requests">
+    Advanced validation and charging patterns
+  </Card>
+
+  <Card title="x402 Protocol" icon="link" href="/docs/integrate/platforms/x402-protocol">
+    Implement HTTP 402 payment flows
+  </Card>
+</CardGroup>

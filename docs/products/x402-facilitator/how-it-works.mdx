@@ -1,0 +1,372 @@
+---
+title: "How the x402 Facilitator Works"
+description: "Technical deep-dive into x402 payment verification and settlement"
+icon: "gears"
+---
+
+This guide explains the complete x402 flow from both the subscriber (client) and agent (server) perspectives.
+
+## The x402 Smart Account Extension
+
+Nevermined introduces a custom x402 extension for smart account support:
+
+```json
+{
+  "x402Version": 2,
+  "scheme": "contract",
+  "network": "base-sepolia",
+  "extensions": {
+    "nevermined": {
+      "info": {
+        "plan_id": "did:nv:plan-123",
+        "agent_id": "did:nv:agent-456",
+        "max_amount": "1000000",
+        "network": "base-sepolia"
+      }
+    }
+  },
+  "payload": {
+    "session_key": "eyJhbGciOiJFUzI1NiIs..."
+  }
+}
+```
+
+## Subscriber Flow (Client Side)
+
+### Step 1: Discover Payment Requirements
+
+When calling a protected endpoint, the agent returns a 402 response with payment details:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'testing'
+    })
+
+    // Call protected endpoint - get 402 response
+    const response = await fetch('https://api.example.com/protected')
+
+    if (response.status === 402) {
+      const paymentRequired = await response.json()
+      const { plan_id, agent_id, max_amount, network } =
+        paymentRequired.extensions.nevermined.info
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import requests
+    from payments_py import Payments, PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+    )
+
+    # Call protected endpoint - get 402 response
+    response = requests.get('https://api.example.com/protected')
+
+    if response.status_code == 402:
+        payment_required = response.json()
+        nvm_info = payment_required['extensions']['nevermined']['info']
+    ```
+  </Tab>
+</Tabs>
+
+### Step 2: Generate x402 Access Token
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Generate the x402 session token
+    const { accessToken } = await payments.x402.getX402AccessToken(
+      plan_id,
+      agent_id
+    )
+
+    // Build the payment payload
+    const paymentPayload = {
+      x402Version: 2,
+      scheme: 'contract',
+      network,
+      payload: { session_key: accessToken },
+      extensions: paymentRequired.extensions
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Generate the x402 session token
+    token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+    access_token = token_res['accessToken']
+
+    # Build the payment payload
+    payment_payload = {
+        'x402Version': 2,
+        'scheme': 'contract',
+        'network': nvm_info['network'],
+        'payload': {'session_key': access_token},
+        'extensions': payment_required['extensions']
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Step 3: Submit Request with Payment Header
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { encodeBase64 } from '@nevermined-io/payments'
+
+    // Encode and send with payment header
+    const encodedPayload = encodeBase64(JSON.stringify(paymentPayload))
+
+    const result = await fetch('https://api.example.com/protected', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'PAYMENT-SIGNATURE': encodedPayload
+      },
+      body: JSON.stringify({ prompt: 'Hello' })
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import base64
+    import json
+
+    # Encode and send with payment header
+    encoded_payload = base64.b64encode(
+        json.dumps(payment_payload).encode()
+    ).decode()
+
+    result = requests.post(
+        'https://api.example.com/protected',
+        headers={
+            'Content-Type': 'application/json',
+            'PAYMENT-SIGNATURE': encoded_payload
+        },
+        json={'prompt': 'Hello'}
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Agent Flow (Server Side)
+
+### Step 1: Return 402 on Unauthorized Requests
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Check for payment header
+    const paymentHeader = req.headers['payment-signature']
+
+    if (!paymentHeader) {
+      return res.status(402).json({
+        error: 'Payment Required',
+        x402Version: 2,
+        extensions: {
+          nevermined: {
+            info: {
+              plan_id: process.env.PLAN_ID,
+              agent_id: process.env.AGENT_ID,
+              max_amount: '1000000',
+              network: 'base-sepolia'
+            }
+          }
+        }
+      })
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Check for payment header
+    payment_header = request.headers.get('PAYMENT-SIGNATURE')
+
+    if not payment_header:
+        return jsonify({
+            'error': 'Payment Required',
+            'x402Version': 2,
+            'extensions': {
+                'nevermined': {
+                    'info': {
+                        'plan_id': os.environ['PLAN_ID'],
+                        'agent_id': os.environ['AGENT_ID'],
+                        'max_amount': '1000000',
+                        'network': 'base-sepolia'
+                    }
+                }
+            }
+        }), 402
+    ```
+  </Tab>
+</Tabs>
+
+### Step 2: Verify with the Facilitator
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'testing'
+    })
+
+    // Decode and parse the payment payload
+    const paymentPayload = JSON.parse(
+      Buffer.from(paymentHeader, 'base64').toString()
+    )
+
+    const { plan_id, max_amount } = paymentPayload.extensions.nevermined.info
+
+    // Verify with facilitator
+    const verification = await payments.facilitator.verifyPermissions({
+      planId: plan_id,
+      maxAmount: BigInt(max_amount),
+      x402AccessToken: paymentPayload.payload.session_key,
+      subscriberAddress: req.body.subscriber_address
+    })
+
+    if (!verification.success) {
+      return res.status(402).json({ error: 'Payment verification failed' })
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402 import NeverminedFacilitator, PaymentRequirements
+
+    facilitator = NeverminedFacilitator(
+        nvm_api_key=os.environ['NVM_API_KEY'],
+        environment='testing'
+    )
+
+    # Decode and parse the payment payload
+    payment_payload = json.loads(base64.b64decode(payment_header))
+    nvm_info = payment_payload['extensions']['nevermined']['info']
+
+    # Verify with facilitator
+    requirements = PaymentRequirements(
+        plan_id=nvm_info['plan_id'],
+        agent_id=nvm_info['agent_id'],
+        max_amount=nvm_info['max_amount'],
+        extra={'subscriber_address': request.json.get('subscriber_address')}
+    )
+
+    verify_result = await facilitator.verify(payment_payload, requirements)
+
+    if not verify_result.is_valid:
+        return jsonify({'error': 'Payment verification failed'}), 402
+    ```
+  </Tab>
+</Tabs>
+
+### Step 3: Execute Workload
+
+```typescript
+// Only execute after verification succeeds
+const result = await processAIRequest(req.body)
+```
+
+### Step 4: Settle Payment
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Settle after work is complete
+    const settlement = await payments.facilitator.settlePermissions({
+      planId: plan_id,
+      maxAmount: BigInt(max_amount),
+      x402AccessToken: paymentPayload.payload.session_key,
+      subscriberAddress: req.body.subscriber_address
+    })
+
+    // Return response with transaction hash
+    res.json({
+      result,
+      receipt: {
+        txHash: settlement.transactionHash,
+        creditsCharged: settlement.amount
+      }
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Settle after work is complete
+    settlement = await facilitator.settle(payment_payload, requirements)
+
+    # Return response with transaction hash
+    return jsonify({
+        'result': result,
+        'receipt': {
+            'txHash': settlement.transaction_hash,
+            'creditsCharged': settlement.amount
+        }
+    })
+    ```
+  </Tab>
+</Tabs>
+
+## Complete Request Lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Agent as AI Agent
+    participant Facilitator
+    participant Chain as Blockchain
+
+    Client->>Agent: GET /resource (no payment)
+    Agent->>Client: 402 Payment Required + plan info
+
+    Client->>Client: Generate x402 token via SDK
+    Client->>Agent: POST /resource + PAYMENT-SIGNATURE
+
+    Agent->>Facilitator: POST /verify
+    Facilitator->>Facilitator: Validate signature & session keys
+    Facilitator->>Chain: Check balance
+    Chain-->>Facilitator: Balance OK
+    Facilitator-->>Agent: Verification OK
+
+    Agent->>Agent: Execute AI workload
+
+    Agent->>Facilitator: POST /settle
+    Facilitator->>Chain: Execute burn operation
+    Chain-->>Facilitator: Tx confirmed
+    Facilitator-->>Agent: Settlement OK + txHash
+
+    Agent-->>Client: Response + receipt
+```
+
+## Error Handling
+
+| Error | HTTP Status | Cause |
+|-------|-------------|-------|
+| Missing payment header | 402 | No `PAYMENT-SIGNATURE` header |
+| Invalid signature | 402 | Signature verification failed |
+| Insufficient balance | 402 | User needs to purchase more credits |
+| Expired session | 402 | Session key has expired |
+| Settlement failed | 500 | On-chain transaction failed |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
+    Configure credits, subscriptions, and dynamic pricing
+  </Card>
+
+  <Card title="x402 Integration" icon="plug" href="/docs/integrate/platforms/x402-protocol">
+    Complete integration guide with code examples
+  </Card>
+</CardGroup>

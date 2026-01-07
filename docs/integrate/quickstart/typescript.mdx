@@ -1,0 +1,292 @@
+---
+title: "TypeScript Quick Start"
+description: "Get started with Nevermined payments in TypeScript/Node.js"
+icon: "js"
+---
+
+Complete TypeScript quick start for adding payments to your AI agent or service.
+
+## Installation
+
+```bash
+npm install @nevermined-io/payments
+```
+
+## Environment Setup
+
+```bash
+# Your Nevermined API key from nevermined.app
+export NVM_API_KEY="nvm:your-api-key"
+
+# Your wallet address to receive payments
+export BUILDER_ADDRESS="0xYourWalletAddress"
+
+# After registration, set these
+export AGENT_ID="did:nv:your-agent-id"
+export PLAN_ID="did:nv:your-plan-id"
+```
+
+## Complete Example
+
+```typescript filename="index.ts"
+import express from 'express'
+import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+
+const app = express()
+app.use(express.json())
+
+// Base Sepolia USDC for testing
+const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+
+// Initialize payments
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'testing'
+})
+
+// Store IDs after registration
+let agentId: string
+let planId: string
+
+// ============================================
+// SETUP: Run once to register your agent
+// ============================================
+async function registerAgent() {
+  const result = await payments.agents.registerAgentAndPlan(
+    {
+      name: 'My TypeScript AI Agent',
+      description: 'AI assistant built with TypeScript',
+      tags: ['ai', 'typescript'],
+      dateCreated: new Date()
+    },
+    {
+      endpoints: [{ POST: `http://localhost:3000/query` }]
+    },
+    {
+      name: 'Starter Plan',
+      description: '100 queries',
+      dateCreated: new Date()
+    },
+    getERC20PriceConfig(10_000_000n, USDC_ADDRESS, process.env.BUILDER_ADDRESS!),
+    getFixedCreditsConfig(100n, 1n),
+    'credits'
+  )
+
+  agentId = result.agentId
+  planId = result.planId
+
+  console.log(`Agent ID: ${agentId}`)
+  console.log(`Plan ID: ${planId}`)
+  console.log('Add these to your .env file!')
+
+  return result
+}
+
+// ============================================
+// MIDDLEWARE: Validate payments
+// ============================================
+async function validatePayment(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  const authHeader = req.headers['authorization']
+
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(402).json({
+      error: 'Payment Required',
+      plans: [{ planId, agentId }]
+    })
+  }
+
+  const token = authHeader.substring(7)
+  const { isValid, balance } = await payments.requests.isValidRequest(token, req.body)
+
+  if (!isValid) {
+    return res.status(402).json({
+      error: 'Insufficient credits',
+      plans: [{ planId, agentId }]
+    })
+  }
+
+  // Attach balance to request
+  ;(req as any).credits = balance
+  next()
+}
+
+// ============================================
+// ROUTES
+// ============================================
+
+// Health check (public)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', agentId, planId })
+})
+
+// Protected AI endpoint
+app.post('/query', validatePayment, async (req, res) => {
+  const { prompt } = req.body
+
+  // Your AI logic here
+  const result = `You asked: "${prompt}". Here's my response...`
+
+  res.json({
+    result,
+    creditsRemaining: (req as any).credits
+  })
+})
+
+// Setup endpoint (call once)
+app.post('/setup', async (req, res) => {
+  try {
+    const result = await registerAgent()
+    res.json(result)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================
+// START SERVER
+// ============================================
+const PORT = process.env.PORT || 3000
+
+app.listen(PORT, () => {
+  // Load IDs from environment if available
+  agentId = process.env.AGENT_ID || ''
+  planId = process.env.PLAN_ID || ''
+
+  console.log(`Server running on http://localhost:${PORT}`)
+
+  if (!agentId || !planId) {
+    console.log('No agent registered yet. POST to /setup to register.')
+  } else {
+    console.log(`Agent: ${agentId}`)
+    console.log(`Plan: ${planId}`)
+  }
+})
+```
+
+## Run the Example
+
+```bash
+# Install dependencies
+npm install express @nevermined-io/payments
+
+# Run in development
+npx ts-node index.ts
+```
+
+## Test the Flow
+
+### 1. Register your agent (first time only)
+
+```bash
+curl -X POST http://localhost:3000/setup
+```
+
+Save the returned `agentId` and `planId` to your environment.
+
+### 2. Try without payment
+
+```bash
+curl -X POST http://localhost:3000/query \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello"}'
+```
+
+### 3. As a subscriber, purchase and query
+
+```typescript
+// subscriber.ts
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.SUBSCRIBER_API_KEY!,
+  environment: 'testing'
+})
+
+async function purchaseAndQuery() {
+  // 1. Order the plan
+  console.log('Purchasing plan...')
+  await payments.plans.orderPlan(process.env.PLAN_ID!)
+
+  // 2. Get access token
+  console.log('Getting access token...')
+  const { accessToken } = await payments.agents.getAgentAccessToken(
+    process.env.PLAN_ID!,
+    process.env.AGENT_ID!
+  )
+
+  // 3. Query the agent
+  console.log('Querying agent...')
+  const response = await fetch('http://localhost:3000/query', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ prompt: 'What is 2+2?' })
+  })
+
+  const result = await response.json()
+  console.log('Result:', result)
+}
+
+purchaseAndQuery()
+```
+
+## Project Structure
+
+```
+my-ai-agent/
+├── src/
+│   ├── index.ts           # Main server
+│   ├── middleware/
+│   │   └── payments.ts    # Payment validation
+│   ├── routes/
+│   │   └── query.ts       # AI endpoints
+│   └── services/
+│       └── ai.ts          # Your AI logic
+├── package.json
+├── tsconfig.json
+└── .env
+```
+
+## TypeScript Configuration
+
+```json filename="tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Express Integration" icon="node-js" href="/docs/integrate/add-to-your-agent/express">
+    Complete Express.js patterns and best practices
+  </Card>
+
+  <Card title="Next.js Integration" icon="react" href="/docs/integrate/add-to-your-agent/nextjs">
+    Add payments to Next.js API routes
+  </Card>
+
+  <Card title="TypeScript SDK Reference" icon="book" href="/docs/api-reference/typescript/installation">
+    Full API documentation
+  </Card>
+
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/validate-requests">
+    Advanced patterns for production
+  </Card>
+</CardGroup>

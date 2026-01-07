@@ -1,0 +1,176 @@
+---
+title: "Agents Module"
+description: "Register and manage AI agents with the Python SDK"
+icon: "robot"
+---
+
+The `agents` module handles AI agent registration, retrieval, and access token generation.
+
+## Methods
+
+### register_agent
+
+Register a new AI agent.
+
+```python
+result = payments.agents.register_agent(
+    metadata=agent_metadata,
+    api=api_config
+)
+agent_id = result['agentId']
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `metadata` | `dict` | Agent name, description, tags |
+| `api` | `dict` | API endpoints and definition URL |
+
+**Example:**
+
+```python
+result = payments.agents.register_agent(
+    metadata={
+        'name': 'My AI Assistant',
+        'description': 'Helpful AI assistant',
+        'tags': ['ai', 'assistant']
+    },
+    api={
+        'endpoints': [{'POST': 'https://api.example.com/query'}],
+        'agentDefinitionUrl': 'https://api.example.com/openapi.json'
+    }
+)
+agent_id = result['agentId']
+```
+
+### register_agent_and_plan
+
+Register an agent and payment plan in one call.
+
+```python
+result = payments.agents.register_agent_and_plan(
+    agent_metadata,
+    agent_api,
+    plan_metadata,
+    price_config,
+    credits_config,
+    access_limit
+)
+```
+
+**Example:**
+
+```python
+from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+
+result = payments.agents.register_agent_and_plan(
+    agent_metadata={'name': 'My Agent', 'tags': ['ai']},
+    agent_api={'endpoints': [{'POST': 'https://api.example.com/query'}]},
+    plan_metadata={'name': 'Pro Plan', 'description': '100 queries'},
+    price_config=get_erc20_price_config(10_000_000, usdc_address, builder_address),
+    credits_config=get_fixed_credits_config(100, 1),
+    access_limit='credits'
+)
+
+agent_id = result['agentId']
+plan_id = result['planId']
+```
+
+### get_agent
+
+Retrieve agent details by ID.
+
+```python
+agent = payments.agents.get_agent(agent_id)
+```
+
+**Returns:**
+
+```python
+{
+    'agentId': 'did:nv:...',
+    'name': 'My Agent',
+    'description': '...',
+    'tags': ['ai'],
+    'endpoints': [...],
+    'plans': [...]
+}
+```
+
+### get_agent_access_token
+
+Get an access token for querying an agent.
+
+```python
+credentials = payments.agents.get_agent_access_token(
+    plan_id,
+    agent_id
+)
+access_token = credentials['accessToken']
+```
+
+**Example:**
+
+```python
+import requests
+
+credentials = payments.agents.get_agent_access_token(
+    'did:nv:plan-123',
+    'did:nv:agent-456'
+)
+
+response = requests.post(
+    agent_endpoint,
+    headers={
+        'Authorization': f"Bearer {credentials['accessToken']}"
+    },
+    json={'prompt': 'Hello'}
+)
+```
+
+### list_agents
+
+List agents (optionally filtered).
+
+```python
+agents = payments.agents.list_agents(
+    owner='0x...',
+    limit=10,
+    offset=0
+)
+```
+
+## Types
+
+```python
+# Agent metadata
+agent_metadata = {
+    'name': str,           # Required
+    'description': str,    # Optional
+    'tags': List[str],     # Optional
+}
+
+# API configuration
+api_config = {
+    'endpoints': List[Dict[str, str]],  # e.g., [{'POST': 'url'}]
+    'agentDefinitionUrl': str           # Optional
+}
+
+# Access token response
+{
+    'accessToken': str,
+    'expiresAt': str  # ISO timestamp
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Plans Module" icon="credit-card" href="/docs/api-reference/python/plans-module">
+    Create and manage payment plans
+  </Card>
+  <Card title="Requests Module" icon="shield-check" href="/docs/api-reference/python/requests-module">
+    Validate incoming requests
+  </Card>
+</CardGroup>

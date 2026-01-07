@@ -1,0 +1,519 @@
+---
+title: "Validate Requests"
+description: "Patterns for validating payment tokens in your AI agent"
+icon: "shield-check"
+---
+
+Copy-paste patterns for validating payment requests in your AI agent.
+
+## Basic Validation
+
+The simplest validation pattern - check if a request has valid payment:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'testing'
+    })
+
+    async function validateRequest(token: string, body: any) {
+      const result = await payments.requests.isValidRequest(token, body)
+
+      return {
+        isValid: result.isValid,
+        balance: result.balance,
+        reason: result.reason
+      }
+    }
+
+    // Usage
+    const authHeader = req.headers['authorization']
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(402).json({ error: 'Payment Required' })
+    }
+
+    const token = authHeader.substring(7)
+    const { isValid, balance } = await validateRequest(token, req.body)
+
+    if (!isValid) {
+      return res.status(402).json({ error: 'Invalid token' })
+    }
+
+    // Process request...
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py import Payments, PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+    )
+
+    def validate_request(token: str, body: dict) -> dict:
+        result = payments.requests.is_valid_request(token, body)
+
+        return {
+            'is_valid': result['isValid'],
+            'balance': result['balance'],
+            'reason': result.get('reason')
+        }
+
+    # Usage
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Payment Required'}), 402
+
+    token = auth_header[7:]
+    result = validate_request(token, request.json)
+
+    if not result['is_valid']:
+        return jsonify({'error': 'Invalid token'}), 402
+
+    # Process request...
+    ```
+  </Tab>
+</Tabs>
+
+## Validation with Minimum Credits
+
+Check that the user has enough credits for the operation:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    async function validateWithMinimum(
+      token: string,
+      body: any,
+      minCredits: number
+    ) {
+      const result = await payments.requests.isValidRequest(token, body)
+
+      if (!result.isValid) {
+        return { valid: false, reason: 'invalid_token' }
+      }
+
+      if (result.balance < minCredits) {
+        return {
+          valid: false,
+          reason: 'insufficient_credits',
+          required: minCredits,
+          available: result.balance
+        }
+      }
+
+      return { valid: true, balance: result.balance }
+    }
+
+    // Usage for expensive operation
+    const validation = await validateWithMinimum(token, body, 10)
+
+    if (!validation.valid) {
+      return res.status(402).json({
+        error: 'Payment Required',
+        ...validation
+      })
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    def validate_with_minimum(token: str, body: dict, min_credits: int) -> dict:
+        result = payments.requests.is_valid_request(token, body)
+
+        if not result['isValid']:
+            return {'valid': False, 'reason': 'invalid_token'}
+
+        if result['balance'] < min_credits:
+            return {
+                'valid': False,
+                'reason': 'insufficient_credits',
+                'required': min_credits,
+                'available': result['balance']
+            }
+
+        return {'valid': True, 'balance': result['balance']}
+
+    # Usage for expensive operation
+    validation = validate_with_minimum(token, body, 10)
+
+    if not validation['valid']:
+        return jsonify({
+            'error': 'Payment Required',
+            **validation
+        }), 402
+    ```
+  </Tab>
+</Tabs>
+
+## Express Middleware
+
+Reusable middleware for Express.js:
+
+```typescript filename="middleware/payment.ts"
+import { Request, Response, NextFunction } from 'express'
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'testing'
+})
+
+const PLAN_ID = process.env.PLAN_ID!
+const AGENT_ID = process.env.AGENT_ID!
+
+// Extend Request type
+declare global {
+  namespace Express {
+    interface Request {
+      payment?: {
+        balance: number
+        subscriberAddress?: string
+      }
+    }
+  }
+}
+
+export function requirePayment(minCredits: number = 1) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const auth = req.headers['authorization']
+
+    if (!auth?.startsWith('Bearer ')) {
+      return res.status(402).json({
+        error: 'Payment Required',
+        code: 'MISSING_TOKEN',
+        plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
+      })
+    }
+
+    const token = auth.substring(7)
+
+    try {
+      const result = await payments.requests.isValidRequest(token, req.body)
+
+      if (!result.isValid) {
+        return res.status(402).json({
+          error: 'Payment Required',
+          code: 'INVALID_TOKEN',
+          reason: result.reason,
+          plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
+        })
+      }
+
+      if (result.balance < minCredits) {
+        return res.status(402).json({
+          error: 'Insufficient credits',
+          code: 'INSUFFICIENT_CREDITS',
+          required: minCredits,
+          available: result.balance,
+          plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
+        })
+      }
+
+      req.payment = {
+        balance: result.balance,
+        subscriberAddress: result.subscriberAddress
+      }
+
+      next()
+    } catch (error) {
+      console.error('Payment validation error:', error)
+      return res.status(500).json({ error: 'Validation failed' })
+    }
+  }
+}
+
+// Usage
+app.post('/query', requirePayment(1), async (req, res) => {
+  console.log(`Credits remaining: ${req.payment!.balance}`)
+  // Process request...
+})
+
+app.post('/expensive', requirePayment(10), async (req, res) => {
+  // Requires at least 10 credits
+})
+```
+
+## FastAPI Dependency
+
+Reusable dependency for FastAPI:
+
+```python filename="dependencies/payment.py"
+from fastapi import Request, HTTPException, Depends
+from payments_py import Payments, PaymentOptions
+import os
+
+payments = Payments.get_instance(
+    PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+)
+
+PLAN_ID = os.environ['PLAN_ID']
+AGENT_ID = os.environ['AGENT_ID']
+
+class PaymentInfo:
+    def __init__(self, balance: int, subscriber_address: str = None):
+        self.balance = balance
+        self.subscriber_address = subscriber_address
+
+def require_payment(min_credits: int = 1):
+    async def validate(request: Request) -> PaymentInfo:
+        auth = request.headers.get('Authorization', '')
+
+        if not auth.startswith('Bearer '):
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Payment Required',
+                    'code': 'MISSING_TOKEN',
+                    'plans': [{'planId': PLAN_ID, 'agentId': AGENT_ID}]
+                }
+            )
+
+        token = auth[7:]
+
+        try:
+            body = await request.json()
+        except:
+            body = {}
+
+        result = payments.requests.is_valid_request(token, body)
+
+        if not result['isValid']:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Payment Required',
+                    'code': 'INVALID_TOKEN',
+                    'plans': [{'planId': PLAN_ID, 'agentId': AGENT_ID}]
+                }
+            )
+
+        if result['balance'] < min_credits:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Insufficient credits',
+                    'code': 'INSUFFICIENT_CREDITS',
+                    'required': min_credits,
+                    'available': result['balance']
+                }
+            )
+
+        return PaymentInfo(
+            balance=result['balance'],
+            subscriber_address=result.get('subscriberAddress')
+        )
+
+    return validate
+
+# Usage
+@app.post("/query")
+async def query(
+    request: dict,
+    payment: PaymentInfo = Depends(require_payment(1))
+):
+    print(f"Credits remaining: {payment.balance}")
+    # Process request...
+
+@app.post("/expensive")
+async def expensive(
+    request: dict,
+    payment: PaymentInfo = Depends(require_payment(10))
+):
+    # Requires at least 10 credits
+    pass
+```
+
+## Validation Response Handling
+
+Handle all possible validation outcomes:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    async function handleValidation(token: string, body: any) {
+      try {
+        const result = await payments.requests.isValidRequest(token, body)
+
+        if (!result.isValid) {
+          // Determine specific error
+          switch (result.reason) {
+            case 'TOKEN_EXPIRED':
+              return {
+                status: 402,
+                error: 'Access token has expired',
+                code: 'TOKEN_EXPIRED',
+                action: 'refresh_token'
+              }
+
+            case 'INSUFFICIENT_BALANCE':
+              return {
+                status: 402,
+                error: 'Insufficient credits',
+                code: 'INSUFFICIENT_BALANCE',
+                action: 'purchase_credits'
+              }
+
+            case 'PLAN_EXPIRED':
+              return {
+                status: 402,
+                error: 'Plan has expired',
+                code: 'PLAN_EXPIRED',
+                action: 'renew_plan'
+              }
+
+            default:
+              return {
+                status: 402,
+                error: 'Invalid token',
+                code: 'INVALID_TOKEN',
+                action: 'get_new_token'
+              }
+          }
+        }
+
+        return { status: 200, balance: result.balance }
+      } catch (error) {
+        console.error('Validation error:', error)
+        return {
+          status: 500,
+          error: 'Validation service unavailable',
+          code: 'SERVICE_ERROR'
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    async def handle_validation(token: str, body: dict) -> dict:
+        try:
+            result = payments.requests.is_valid_request(token, body)
+
+            if not result['isValid']:
+                reason = result.get('reason', 'UNKNOWN')
+
+                error_map = {
+                    'TOKEN_EXPIRED': {
+                        'status': 402,
+                        'error': 'Access token has expired',
+                        'code': 'TOKEN_EXPIRED',
+                        'action': 'refresh_token'
+                    },
+                    'INSUFFICIENT_BALANCE': {
+                        'status': 402,
+                        'error': 'Insufficient credits',
+                        'code': 'INSUFFICIENT_BALANCE',
+                        'action': 'purchase_credits'
+                    },
+                    'PLAN_EXPIRED': {
+                        'status': 402,
+                        'error': 'Plan has expired',
+                        'code': 'PLAN_EXPIRED',
+                        'action': 'renew_plan'
+                    }
+                }
+
+                return error_map.get(reason, {
+                    'status': 402,
+                    'error': 'Invalid token',
+                    'code': 'INVALID_TOKEN',
+                    'action': 'get_new_token'
+                })
+
+            return {'status': 200, 'balance': result['balance']}
+
+        except Exception as e:
+            print(f'Validation error: {e}')
+            return {
+                'status': 500,
+                'error': 'Validation service unavailable',
+                'code': 'SERVICE_ERROR'
+            }
+    ```
+  </Tab>
+</Tabs>
+
+## Caching Validation Results
+
+For high-traffic endpoints, cache validation briefly:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { LRUCache } from 'lru-cache'
+
+    const validationCache = new LRUCache<string, any>({
+      max: 1000,
+      ttl: 1000 * 30 // 30 seconds
+    })
+
+    async function validateWithCache(token: string, body: any) {
+      // Create cache key from token hash
+      const cacheKey = hashToken(token)
+      const cached = validationCache.get(cacheKey)
+
+      if (cached) {
+        return cached
+      }
+
+      const result = await payments.requests.isValidRequest(token, body)
+
+      if (result.isValid) {
+        validationCache.set(cacheKey, result)
+      }
+
+      return result
+    }
+
+    function hashToken(token: string): string {
+      return crypto.createHash('sha256').update(token).digest('hex').slice(0, 16)
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from functools import lru_cache
+    from datetime import datetime, timedelta
+    import hashlib
+
+    validation_cache = {}
+    CACHE_TTL = timedelta(seconds=30)
+
+    def validate_with_cache(token: str, body: dict) -> dict:
+        cache_key = hash_token(token)
+
+        # Check cache
+        if cache_key in validation_cache:
+            cached, timestamp = validation_cache[cache_key]
+            if datetime.now() - timestamp < CACHE_TTL:
+                return cached
+
+        result = payments.requests.is_valid_request(token, body)
+
+        if result['isValid']:
+            validation_cache[cache_key] = (result, datetime.now())
+
+        return result
+
+    def hash_token(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()[:16]
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Charge Credits" icon="coins" href="/docs/integrate/patterns/charge-credits">
+    Deduct credits for requests
+  </Card>
+
+  <Card title="Subscription Access" icon="calendar" href="/docs/integrate/patterns/subscription-access">
+    Time-based access patterns
+  </Card>
+</CardGroup>

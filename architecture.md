@@ -1,18 +1,17 @@
-# Nevermined v2 Documentation Architecture
+# Nevermined Documentation Architecture
 
 ## Current Status: Documentation Implementation Tracker
 
-### Latest Update: 2025-07-21
+### Latest Update: 2026-01-06
 
-Major documentation updates completed:
+Major documentation reorganization completed:
 
-- ✅ NVM Pay product documentation fully implemented
-- ✅ Trial plans documentation added (time and credit-based)
-- ✅ Fiat payment flow documented (orderFiatPlan)
-- ✅ Request tracking module documented
-- ✅ A2A (Agent-to-Agent) integration documented
-- 🚧 NVM ID basic documentation started
-- ❌ MCP integration documented but not published (planned feature)
+- ✅ **3-Tab Navigation Structure** implemented (Documentation, Integrate, API Reference)
+- ✅ **Products Section** reorganized with correct products (x402 Facilitator, Nevermined App, Payment Libraries)
+- ✅ **Integrate Tab** with framework-specific guides and copy-paste patterns
+- ✅ **API Reference** reorganized by SDK (TypeScript, Python, REST)
+- ✅ **Solutions Section** with use case documentation
+- ✅ Orphaned files cleaned up (old nvm-pay, nvm-id, integration-guide directories removed)
 
 ### Legend
 
@@ -25,315 +24,218 @@ Major documentation updates completed:
 
 ## Documentation Structure
 
-### System Documentation
+### Tab 1: Documentation (Learning Path)
 
-- ❌ System Status & Health Checks
-- ❌ Changelog & Release Notes
-- ❌ Known Issues & Workarounds
+#### Getting Started
+- ✅ Welcome & Overview (`docs/getting-started/welcome.mdx`)
+- ✅ How It Works (`docs/getting-started/how-it-works.mdx`)
+- ✅ Core Concepts (`docs/getting-started/core-concepts.mdx`)
 
-### Getting Started
+#### Solutions (Use Cases)
+- ✅ Agent-to-Agent Monetization (`docs/solutions/agent-to-agent-monetization.mdx`)
+- ✅ Access Control & Static Resources (`docs/solutions/access-control-monetization-static-resources.mdx`)
+- ✅ MCP Point of Sales (`docs/solutions/mcp-point-of-sales.mdx`)
+- ✅ AI Agents Observability (`docs/solutions/ai-agents-observability.mdx`)
 
-- ✅ Welcome & Overview (index.mdx)
-- ✅ Core Concepts (introduction/core-concepts.mdx)
-  - ✅ Payment Plans
-  - ✅ AI Agents & Services
-  - ✅ Credits System
-  - ✅ Access Control (Bearer Token Authentication)
-- ✅ Quickstart Guide (introduction/quickstart.mdx)
-  - ✅ 5-Minute Tutorial
-  - ✅ Hello World Agent
-  - ✅ First Payment Plan
-- ✅ Example Applications (introduction/example-apps.mdx)
-  - ✅ Simple AI Agent (introduction/development/simple-ai-agent.mdx)
-  - ✅ Multi-Agent System (introduction/development/multi-agent-system.mdx)
-  - ❌ Marketplace Examples
-  - ❌ Integration Patterns
-- ✅ Development Setup (introduction/development.mdx)
-  - ✅ Local Environment
-  - ✅ Testing Environment
-  - ✅ Required Tools
-- ✅ Go-Live Checklist (introduction/go-live-checklist.mdx)
+#### Products
 
-### Use Cases
+##### x402 Facilitator
+- ✅ Overview (`docs/products/x402-facilitator/overview.mdx`)
+- ✅ How It Works (`docs/products/x402-facilitator/how-it-works.mdx`)
+- ✅ Payment Models (`docs/products/x402-facilitator/payment-models.mdx`)
 
-- ✅ Use Cases Overview (introduction/AI/index.mdx)
-- ✅ Integrating with AI (introduction/AI/integrating-nvm-using-ai.mdx)
-- 📝 Building AI Agents (Advanced)
-  - ✅ Agent Architecture (Metadata, API endpoints, Plans)
-  - ✅ Query Protocol (Direct vs Proxy integration)
-  - ✅ Request Validation (Bearer Token Authentication)
-  - ✅ Response Handling (402 Payment Required pattern)
-- 📝 Agent Monetization
-  - ✅ Pricing Strategies
-  - ✅ Credit Calculation
-  - ✅ Dynamic Pricing
+##### Nevermined App
+- ✅ Overview (`docs/products/nevermined-app/overview.mdx`)
+- ✅ Register Agents (`docs/products/nevermined-app/register-agents.mdx`)
+- ✅ Manage Plans (`docs/products/nevermined-app/manage-plans.mdx`)
 
-### Agent Discovery
-
-- ✅ Agent2Agent (introduction/AI/agent-to-agent.mdx)
-- ❌ MCP Server (Planned feature - documentation created but not published)
-- ❌ Agent Marketplace
-
-### Integration Guides
-
-- ✅ Integration Guide (introduction/integration-guide.mdx)
-  - ✅ Direct Integration Pattern
-  - ✅ Proxy Integration Pattern
-  - ✅ Middleware Pattern
-  - ✅ Bearer Token Authentication
-  - ✅ Request Tracking (payments.requests module)
-- ✅ Payment Plans (introduction/payment-plans.mdx)
-  - ✅ Credits-Based Plans
-  - ✅ Time-Based Plans
-  - ✅ Hybrid Plans
-  - ✅ Multi-Tier Pricing
-  - ✅ Trial Plans (registerTimeTrialPlan, registerCreditsTrialPlan)
-- ✅ Error Handling (introduction/error-handling.mdx)
-- 📝 Third-Party Integrations
-  - ✅ Stripe Integration (Fiat payments via getFiatPriceConfig, orderFiatPlan)
-  - ❌ OpenAI Integration
-  - ❌ CrewAI Integration
-  - ❌ Olas Integration
-  - 📝 Webhook Handling
-  - 📝 Coinbase x402 Compatibility (Communication protocol support)
-
-### Product Documentation
-
-#### NVM_ID (Identity & Access) - 🚧 Basic Documentation Started
-
-- ✅ Overview & Architecture (products/nvm-id/overview.mdx)
-- ❌ Account Management
-  - ❌ User Profiles
-  - ❌ KYC/Compliance
-- ❌ Access Tokens
-  - ❌ Token Generation
-  - ❌ Token Validation
-  - ❌ Refresh Patterns
-- ❌ SSO Integration
-
-#### NVM_PAY (Payments & Monetization) - ✅ Fully Documented
-
-- ✅ Overview & Architecture (products/nvm-pay/overview.mdx)
-- ✅ Payment Plans (products/nvm-pay/payment-plans.mdx)
-  - ✅ Time-Based Plans (EXPIRABLE type with duration)
-  - ✅ Credit-Based Plans (FIXED type with credit amounts)
-  - ✅ Dynamic Pricing Models (DYNAMIC type - documented)
-  - ✅ Plan Management (Multiple plans per agent)
-  - ✅ Trial Plans (Free time and credit-based trials)
-- ✅ Payment Methods (products/nvm-pay/payment-methods.mdx)
-  - ✅ Fiat via Stripe (getFiatPriceConfig, orderFiatPlan)
-  - ✅ Crypto Payments (Any ERC20 token)
-  - ✅ Payment Distribution (Split payments to multiple receivers)
-- ✅ Credits Engine (products/nvm-pay/credits-engine.mdx)
-  - ✅ Credit Redemption (With min/max thresholds)
-  - ✅ Balance Management (getPlanBalance)
-  - ✅ Usage Tracking (Request tracking module)
-- ✅ Revenue Management (products/nvm-pay/revenue-management.mdx)
-  - ✅ Fee Structure (Protocol fees)
-  - ✅ Instant Settlement (Direct to builders)
-  - ❌ Analytics & Reporting
-
-### Developer Tools
-
-#### Payments Library
-
-- ✅ TypeScript/JavaScript Library (@nevermined-io/payments)
-  - ✅ Installation & Setup (npm package)
-  - ✅ Core APIs: payments.agents, payments.plans, payments.requests
-  - ✅ Payment Configuration (PlanPriceConfig, PlanCreditsConfig)
-  - ✅ Usage Examples (Builder & Subscriber scenarios)
-- 🚧 Python Library (payments-py)
-  - ✅ Installation & Setup
-  - ✅ Core APIs matching TypeScript Library
-  - 📝 Code Examples
-  - 📝 Best Practices
-- ❌ React Components
-  - ❌ Component Library
-  - ❌ Usage Examples
-  - ❌ Theming & Customization
-- Security & Authentication
-  - ✅ API Keys & Authentication
-    - ✅ Nevermined API Keys (nvmApiKey for Library initialization)
-    - ✅ Access Tokens (Bearer tokens for subscriber queries)
-    - ✅ Request Validation (Token-based authentication)
-  - ✅ Access Control
-    - ✅ Plan-Based Access (Subscribers must have valid plan)
-    - ✅ Credit-Based Permissions (Balance validation)
-    - ✅ Automatic Credit Deduction (Via proxy or manual)
-  - ✅ Best Practices (introduction/best-practices.mdx)
-
-#### APIs
-
-- ✅ REST API Reference (api-reference/)
-  - ✅ Introduction (api-reference/introduction.mdx)
-  - ✅ Core Methods (create, get, query, delete)
-  - ✅ Payment Operations (order, get-plan, get-balance, redeem)
-  - 📝 Additional Endpoints (from API-DRAFT.md):
-    - 📝 Agent Registration & Discovery
-    - 📝 Plan Configuration & Management
-    - 📝 Access Validation (isValidRequest)
-    - 📝 Credit Redemption with Proof
-- ❌ GraphQL API (Mentioned in guide.md)
-- ❌ WebSocket Events
-- 📝 Rate Limits & Quotas (API Rate Limiting mentioned)
-
-### Starter Kits & Demos - ❌ Not Started
-
-- ❌ Next.js Starter Kit
-  - ❌ AI Agent Template
-  - ❌ Marketplace Template
-  - ❌ SaaS Template
-- ❌ Python Flask Starter
-- ❌ FastAPI Starter
-- ❌ Demo Applications
-  - ❌ AI Writing Assistant
-  - ❌ Image Generation Service
-  - ❌ Multi-Agent Marketplace
-  - ❌ Subscription Platform
-  - 📝 Example Agents (from guide.md):
-    - 📝 AI Trips Advisor ($100/month or $900/year)
-    - 📝 Code Copilot (10 USDC for 100 credits)
-    - 📝 Legal Assistant (Silver/Gold tiers)
-    - 📝 Corporate Swiss Law Assistant
-
-### Monitoring & Analytics - ❌ Not Started
-
-- ❌ Dashboard Overview
-- ❌ Usage Metrics
-- ❌ Revenue Analytics
-- ❌ Performance Monitoring
-- ❌ Custom Reports
-
-### Support & Resources
-
-- ✅ Troubleshooting (introduction/troubleshooting.mdx)
-- ❌ Common Issues Database
-- ❌ Error Codes Reference
-- ❌ Debugging Guide
-- ❌ Support Channels Documentation
-- ❌ FAQ
-
-### Additional Resources - ❌ Not Started
-
-- ❌ Glossary
-- ❌ Architecture Diagrams
-- ❌ Video Tutorials
-- ❌ Community Resources
-- ❌ Migration Guides
+##### Payment Libraries
+- ✅ Overview (`docs/products/payment-libraries/overview.mdx`)
+- ✅ TypeScript SDK (`docs/products/payment-libraries/typescript.mdx`)
+- ✅ Python SDK (`docs/products/payment-libraries/python.mdx`)
 
 ---
 
-## Key Architectural Components (From Guide & API Docs)
+### Tab 2: Integrate (Action-Oriented)
 
-### Core Protocol Architecture
+#### Quick Start
+- ✅ 5-Minute Setup (`docs/integrate/quickstart/5-minute-setup.mdx`)
+- ✅ TypeScript Quick Start (`docs/integrate/quickstart/typescript.mdx`)
+- ✅ Python Quick Start (`docs/integrate/quickstart/python.mdx`)
 
-#### Service Layer
+#### Add to Your Agent (Framework-Specific)
+- ✅ Express.js (`docs/integrate/add-to-your-agent/express.mdx`)
+- ✅ FastAPI (`docs/integrate/add-to-your-agent/fastapi.mdx`)
+- ✅ Next.js (`docs/integrate/add-to-your-agent/nextjs.mdx`)
+- ✅ Generic HTTP (`docs/integrate/add-to-your-agent/generic-http.mdx`)
 
-- Nevermined API (Management and access control)
-- NVM Proxy (Gateway for non-integrated agents)
-- Libraries (Python and TypeScript Libraries)
+#### Payment Patterns (Copy-Paste Ready)
+- ✅ Validate Requests (`docs/integrate/patterns/validate-requests.mdx`)
+- ✅ Charge Credits (`docs/integrate/patterns/charge-credits.mdx`)
+- ✅ Subscription Access (`docs/integrate/patterns/subscription-access.mdx`)
+- ✅ Dynamic Pricing (`docs/integrate/patterns/dynamic-pricing.mdx`)
 
-#### Application Layer
+#### Platform Integrations (Symlinks to existing content)
+- ✅ x402 Protocol (`docs/integrate/platforms/x402-protocol.mdx`)
+- ✅ Google A2A (`docs/integrate/platforms/google-a2a.mdx`)
+- ✅ MCP Integration (`docs/integrate/platforms/mcp.mdx`)
+- ✅ BuildShip (`docs/integrate/platforms/buildship.mdx`)
+- ✅ Organizations (`docs/integrate/platforms/organizations.mdx`)
 
-- Marketplaces
-- AI Applications
-- AI Agents (Direct or Proxy integration)
+---
 
-### Payment Flow Architecture
+### Tab 3: API Reference (Technical Reference)
 
-#### 1. Agent & Plan Registration
+#### Overview
+- ✅ Introduction (`docs/api-reference/introduction.mdx`)
 
-- Builders use nvmApiKey for authentication
-- Register via Library, REST API, or Web App
-- Plans support flexible configurations:
-  - FIXED_PRICE, EXPIRABLE, DYNAMIC pricing
-  - Time-based or credit-based limitations
-  - Multi-receiver payment distribution
+#### TypeScript SDK
+- ✅ Installation (`docs/api-reference/typescript/installation.mdx`)
+- ✅ Payments Class (`docs/api-reference/typescript/payments-class.mdx`)
+- ✅ Agents Module (`docs/api-reference/typescript/agents-module.mdx`)
+- ✅ Plans Module (`docs/api-reference/typescript/plans-module.mdx`)
+- ✅ Requests Module (`docs/api-reference/typescript/requests-module.mdx`)
 
-#### 2. Subscriber Flow
+#### Python SDK
+- ✅ Installation (`docs/api-reference/python/installation.mdx`)
+- ✅ Payments Class (`docs/api-reference/python/payments-class.mdx`)
+- ✅ Agents Module (`docs/api-reference/python/agents-module.mdx`)
+- ✅ Plans Module (`docs/api-reference/python/plans-module.mdx`)
+- ✅ Requests Module (`docs/api-reference/python/requests-module.mdx`)
 
-- Order plans via Library/API
-- Receive credits on purchase
-- Query agents with proof of request
-- Automatic credit redemption with thresholds
+#### REST API (OpenAPI Generated)
+- ✅ Create (`docs/api-reference/endpoint/create.mdx`)
+- ✅ Get (`docs/api-reference/endpoint/get.mdx`)
+- ✅ Delete (`docs/api-reference/endpoint/delete.mdx`)
+- ✅ Get Plan (`docs/api-reference/endpoint/get-plan.mdx`)
+- ✅ Order (`docs/api-reference/endpoint/order.mdx`)
+- ✅ Get Balance (`docs/api-reference/endpoint/get-balance.mdx`)
+- ✅ Query (`docs/api-reference/endpoint/query.mdx`)
+- ✅ Redeem (`docs/api-reference/endpoint/redeem.mdx`)
 
-#### 3. Validation & Security
+---
 
-- Bearer token authentication (Authorization header)
-- Balance validation before access
-- Automatic credit deduction
-- No wallet management required (API key based)
+## Legacy Content (Preserved but not in navigation)
 
-### Integration Patterns
+These files contain useful reference content but are not part of the main navigation:
 
-#### Direct Integration
+### Development Guide (Reference)
+Located in `docs/development-guide/`:
+- `index.mdx` - Development guide overview
+- `features.mdx` - Feature documentation
+- `getting-started.mdx` - Legacy getting started
+- `registration.mdx` - Agent registration details
+- `order-plans.mdx` - Plan ordering details
+- `query-agents.mdx` - Query agent details
+- `process-requests.mdx` - Request processing
+- `observability.mdx` - Observability features
+- `nevermined-x402.mdx` - x402 protocol details (symlinked from integrate/platforms)
+- `build-using-nvm-mcp.mdx` - MCP building guide
+- `faq.mdx` - Frequently asked questions
+- `integration-faq.mdx` - Integration FAQ
 
-- Agent uses Nevermined Library
-- Validates requests with payments.requests.isValidRequest()
-- Bearer token validation
-- Returns 402 Payment Required with available plans
+### Integrations (Reference)
+Located in `docs/integrations/`:
+- `index.mdx` - Integrations overview
+- `google-a2a.mdx` - Google A2A (symlinked from integrate/platforms)
+- `mcp.mdx` - MCP integration (symlinked from integrate/platforms)
+- `buildship-integration.mdx` - BuildShip (symlinked from integrate/platforms)
+- `organizations.mdx` - Organizations (symlinked from integrate/platforms)
+- `agent-integration.mdx` - Agent integration patterns
+- `examples.mdx` - Integration examples
+- `nevermined-x402-ap2.mdx` - x402 AP2 details
 
-#### Proxy Integration
+---
 
-- For existing agents without modification
-- NVM Proxy handles validation
-- Transparent credit management
-- No code changes required
+## Key Architectural Decisions
 
-### Key Differentiators from V1
+### 1. Three-Tab Navigation
+- **Documentation**: Learning path for understanding Nevermined
+- **Integrate**: Action-oriented guides for adding payments to existing agents
+- **API Reference**: Technical reference organized by SDK/language
 
-- Single transaction (vs multiple in legacy)
-- No off-chain dependencies
-- Removed query protocol complexity
-- Enhanced decentralization (no delegated accounts)
-- MultiSig governance structure
-- Support for agent-to-agent payments
+### 2. AI Coding Tool Optimization
+The documentation is structured to be easily consumed by AI coding tools:
+- Framework-specific guides with copy-paste code
+- Consistent naming patterns for searchability
+- Complete, working code examples
+- Clear module organization
+
+### 3. Product Organization
+Products are now correctly organized as:
+- **x402 Facilitator**: The payment protocol and verification service
+- **Nevermined App**: The web application for no-code setup
+- **Payment Libraries**: The TypeScript and Python SDKs
+
+### 4. Symlinks for Platform Integrations
+Platform integrations use symlinks to avoid content duplication while maintaining a clean navigation structure.
+
+---
+
+## File Structure
+
+```
+docs/
+├── getting-started/          # Tab 1: Learning path
+│   ├── welcome.mdx
+│   ├── how-it-works.mdx
+│   └── core-concepts.mdx
+├── solutions/                # Tab 1: Use cases
+│   ├── agent-to-agent-monetization.mdx
+│   ├── access-control-monetization-static-resources.mdx
+│   ├── mcp-point-of-sales.mdx
+│   └── ai-agents-observability.mdx
+├── products/                 # Tab 1: Product docs
+│   ├── x402-facilitator/
+│   ├── nevermined-app/
+│   └── payment-libraries/
+├── integrate/                # Tab 2: Integration guides
+│   ├── quickstart/
+│   ├── add-to-your-agent/
+│   ├── patterns/
+│   └── platforms/            # Symlinks
+├── api-reference/            # Tab 3: API docs
+│   ├── typescript/
+│   ├── python/
+│   └── endpoint/             # REST API
+├── development-guide/        # Legacy reference
+├── integrations/             # Legacy reference (source for symlinks)
+└── snippets/                 # Reusable content
+```
 
 ---
 
 ## Priority Implementation Roadmap
 
-### Phase 1: Core Documentation (COMPLETED ✅)
+### Phase 1: Core Restructure (COMPLETED ✅)
+1. ✅ Three-tab navigation implementation
+2. ✅ Products reorganization
+3. ✅ Quick start guides
+4. ✅ Framework-specific integration guides
+5. ✅ Payment patterns documentation
+6. ✅ SDK-specific API reference
 
-1. ✅ Basic getting started guides
-2. ✅ API reference documentation
-3. ✅ Integration guides
-4. ✅ Core Library documentation (TypeScript focus)
+### Phase 2: Content Enhancement (IN PROGRESS 🚧)
+1. 📝 Add more code examples to patterns
+2. 📝 Expand x402 Facilitator documentation
+3. 📝 Add error handling patterns
+4. 📝 Add testing guides
 
-### Phase 2: Developer Experience (IN PROGRESS 🚧)
+### Phase 3: Advanced Features
+1. ❌ Video tutorials
+2. ❌ Interactive examples
+3. ❌ Starter kit templates
+4. ❌ Case studies
 
-1. ✅ Complete Library Documentation (TypeScript completed)
-2. 🚧 Python Library Documentation (Partial)
-3. ❌ Starter Kits & Templates (Next.js, Python frameworks)
-4. ❌ Demo Applications (Working examples)
-5. ✅ Third-Party Integrations (Stripe integration fully documented)
-6. ✅ Code Examples for Common Scenarios:
-   - ✅ Agent Registration & Plan Setup
-   - ✅ Subscriber Ordering & Querying
-   - ✅ Credit Management & Validation
-   - ✅ Bearer Token Authentication
-   - ✅ Multi-Agent Communication (A2A documented)
-   - ✅ Request Tracking & Analytics (payments.requests module)
-   - ✅ Trial Plans Implementation
-   - ✅ Fiat Payment Flow (orderFiatPlan method)
+---
 
-### Phase 3: Product Features
+## Contact & Support
 
-1. 🚧 NVM_ID Documentation (Basic overview completed)
-2. ✅ NVM_PAY Documentation (Fully completed)
-3. ❌ Security & Authentication
-4. ❌ Advanced AI Agent Development
+- **Documentation Issues**: [GitHub Issues](https://github.com/nevermined-io/docs_mintlify/issues)
+- **Discord**: [Nevermined Discord](https://discord.com/invite/GZju2qScKq)
+- **Email**: info@nevermined.ai
 
-### Phase 4: Operations & Support
+---
 
-1. ❌ Monitoring & Analytics
-2. ❌ Troubleshooting & Support
-3. ❌ Video Tutorials
-4. ❌ Community Resources
-
-### Phase 5: Growth & Expansion
-
-1. ❌ Industry Solutions
-2. ❌ Case Studies
-3. ❌ Advanced Use Cases
-4. ❌ Partner Integrations
+**Last Updated**: January 2026
+**Maintained By**: Nevermined Team

@@ -1,0 +1,359 @@
+---
+title: "Payment Models"
+description: "Configure credits-based, time-based, and dynamic pricing for your AI agents"
+icon: "calculator"
+---
+
+The x402 Facilitator supports multiple payment models to match your business needs. Configure how subscribers pay for access to your AI agents.
+
+## Payment Model Types
+
+<CardGroup cols={2}>
+  <Card title="Credits-Based" icon="coins">
+    Charge per request or API call. Users purchase credits and consume them with each query.
+  </Card>
+
+  <Card title="Time-Based" icon="clock">
+    Subscription access for specific durations. Unlimited usage within the time period.
+  </Card>
+
+  <Card title="Dynamic" icon="chart-line">
+    Variable pricing based on request complexity, token count, or custom metrics.
+  </Card>
+
+  <Card title="Hybrid" icon="layer-group">
+    Combine time-based access with credit limits for balanced monetization.
+  </Card>
+</CardGroup>
+
+## Credits-Based Plans
+
+Charge users based on actual usage. Each request consumes a configurable number of credits.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import {
+      Payments,
+      getERC20PriceConfig,
+      getFixedCreditsConfig
+    } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'testing'
+    })
+
+    // Price: 10 USDC for 100 credits
+    const priceConfig = getERC20PriceConfig(
+      10_000_000n,                    // 10 USDC (6 decimals)
+      '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC address
+      process.env.BUILDER_ADDRESS     // Your receiving address
+    )
+
+    // Credits: 100 total, 1 per request
+    const creditsConfig = getFixedCreditsConfig(
+      100n,  // Total credits
+      1n     // Credits per request
+    )
+
+    const { planId } = await payments.plans.createPlan({
+      agentId: 'did:nv:agent-123',
+      name: 'Pro Plan - 100 Queries',
+      description: 'Access to AI assistant with 100 queries',
+      priceConfig,
+      creditsConfig,
+      accessLimit: 'credits'
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py import Payments, PaymentOptions
+    from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+    )
+
+    # Price: 10 USDC for 100 credits
+    price_config = get_erc20_price_config(
+        10_000_000,                    # 10 USDC (6 decimals)
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',  # USDC address
+        os.environ['BUILDER_ADDRESS']  # Your receiving address
+    )
+
+    # Credits: 100 total, 1 per request
+    credits_config = get_fixed_credits_config(
+        100,  # Total credits
+        1     # Credits per request
+    )
+
+    plan = payments.plans.create_plan(
+        agent_id='did:nv:agent-123',
+        name='Pro Plan - 100 Queries',
+        description='Access to AI assistant with 100 queries',
+        price_config=price_config,
+        credits_config=credits_config,
+        access_limit='credits'
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Time-Based Plans
+
+Provide unlimited access for a specific duration. Great for subscription models.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { getTimeBasedConfig } from '@nevermined-io/payments'
+
+    // Price: 50 USDC for 30 days access
+    const priceConfig = getERC20PriceConfig(
+      50_000_000n,
+      '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      process.env.BUILDER_ADDRESS
+    )
+
+    // Duration: 30 days (in seconds)
+    const timeConfig = getTimeBasedConfig(
+      30 * 24 * 60 * 60  // 30 days in seconds
+    )
+
+    const { planId } = await payments.plans.createPlan({
+      agentId: 'did:nv:agent-123',
+      name: 'Monthly Subscription',
+      description: 'Unlimited access for 30 days',
+      priceConfig,
+      timeConfig,
+      accessLimit: 'time'
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.plans import get_time_based_config
+
+    # Price: 50 USDC for 30 days access
+    price_config = get_erc20_price_config(
+        50_000_000,
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        os.environ['BUILDER_ADDRESS']
+    )
+
+    # Duration: 30 days (in seconds)
+    time_config = get_time_based_config(
+        30 * 24 * 60 * 60  # 30 days in seconds
+    )
+
+    plan = payments.plans.create_plan(
+        agent_id='did:nv:agent-123',
+        name='Monthly Subscription',
+        description='Unlimited access for 30 days',
+        price_config=price_config,
+        time_config=time_config,
+        access_limit='time'
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Dynamic Pricing
+
+Charge variable amounts based on request complexity. The x402 `max_amount` field controls the maximum charge per request.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { getDynamicCreditsConfig } from '@nevermined-io/payments'
+
+    // Dynamic: charge 1-10 credits based on request
+    const creditsConfig = getDynamicCreditsConfig(
+      1n,   // Minimum credits per request
+      10n   // Maximum credits per request
+    )
+
+    const { planId } = await payments.plans.createPlan({
+      agentId: 'did:nv:agent-123',
+      name: 'Pay As You Go',
+      description: 'Variable pricing based on complexity',
+      priceConfig,
+      creditsConfig,
+      accessLimit: 'credits'
+    })
+
+    // During settlement, specify actual amount
+    await payments.facilitator.settlePermissions({
+      planId,
+      maxAmount: BigInt(actualCreditsUsed), // 1-10 based on request
+      x402AccessToken: token,
+      subscriberAddress: address
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.plans import get_dynamic_credits_config
+
+    # Dynamic: charge 1-10 credits based on request
+    credits_config = get_dynamic_credits_config(
+        1,   # Minimum credits per request
+        10   # Maximum credits per request
+    )
+
+    plan = payments.plans.create_plan(
+        agent_id='did:nv:agent-123',
+        name='Pay As You Go',
+        description='Variable pricing based on complexity',
+        price_config=price_config,
+        credits_config=credits_config,
+        access_limit='credits'
+    )
+
+    # During settlement, specify actual amount
+    await facilitator.settle(payment_payload, PaymentRequirements(
+        plan_id=plan_id,
+        agent_id=agent_id,
+        max_amount=actual_credits_used,  # 1-10 based on request
+        extra={'subscriber_address': address}
+    ))
+    ```
+  </Tab>
+</Tabs>
+
+## Trial Plans
+
+Offer free trials to attract new users.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Free credits trial
+    const { planId } = await payments.plans.registerCreditsTrialPlan({
+      agentId: 'did:nv:agent-123',
+      name: 'Free Trial',
+      description: '10 free queries to try the service',
+      credits: 10n,
+      creditsPerRequest: 1n
+    })
+
+    // Free time-based trial
+    const { planId: timePlanId } = await payments.plans.registerTimeTrialPlan({
+      agentId: 'did:nv:agent-123',
+      name: '7-Day Trial',
+      description: 'Unlimited access for 7 days',
+      duration: 7 * 24 * 60 * 60  // 7 days in seconds
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Free credits trial
+    plan = payments.plans.register_credits_trial_plan(
+        agent_id='did:nv:agent-123',
+        name='Free Trial',
+        description='10 free queries to try the service',
+        credits=10,
+        credits_per_request=1
+    )
+
+    # Free time-based trial
+    time_plan = payments.plans.register_time_trial_plan(
+        agent_id='did:nv:agent-123',
+        name='7-Day Trial',
+        description='Unlimited access for 7 days',
+        duration=7 * 24 * 60 * 60  # 7 days in seconds
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Multi-Tier Pricing
+
+Create multiple plans for different user segments:
+
+```typescript
+// Basic tier
+const basicPlan = await payments.plans.createPlan({
+  agentId,
+  name: 'Basic',
+  priceConfig: getERC20PriceConfig(5_000_000n, usdcAddress, builderAddress),
+  creditsConfig: getFixedCreditsConfig(50n, 1n)
+})
+
+// Pro tier
+const proPlan = await payments.plans.createPlan({
+  agentId,
+  name: 'Pro',
+  priceConfig: getERC20PriceConfig(20_000_000n, usdcAddress, builderAddress),
+  creditsConfig: getFixedCreditsConfig(250n, 1n)  // Better value
+})
+
+// Enterprise tier
+const enterprisePlan = await payments.plans.createPlan({
+  agentId,
+  name: 'Enterprise',
+  priceConfig: getERC20PriceConfig(100_000_000n, usdcAddress, builderAddress),
+  creditsConfig: getFixedCreditsConfig(2000n, 1n)  // Best value
+})
+```
+
+## Payment Currencies
+
+### Cryptocurrency (ERC-20)
+
+Accept any ERC-20 token on supported networks:
+
+```typescript
+// USDC
+const usdcConfig = getERC20PriceConfig(
+  10_000_000n,
+  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  builderAddress
+)
+
+// USDT
+const usdtConfig = getERC20PriceConfig(
+  10_000_000n,
+  '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+  builderAddress
+)
+```
+
+### Fiat (Stripe)
+
+Accept credit card payments via Stripe integration:
+
+```typescript
+const fiatConfig = await payments.plans.getFiatPriceConfig({
+  amount: 1000,      // $10.00
+  currency: 'USD'
+})
+
+// Users purchase via Stripe checkout
+const { url } = await payments.plans.orderFiatPlan(planId)
+// Redirect user to Stripe checkout URL
+```
+
+## Choosing the Right Model
+
+| Model | Best For | Example |
+|-------|----------|---------|
+| Credits-based | API calls, queries, transactions | AI chatbot, image generation |
+| Time-based | Continuous access, subscriptions | SaaS tools, monitoring |
+| Dynamic | Variable workloads, token-based | LLM inference, batch processing |
+| Hybrid | Balanced usage with limits | Enterprise subscriptions |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Register Your Agent" icon="robot" href="/docs/integrate/quickstart/5-minute-setup">
+    Set up your agent with a payment plan
+  </Card>
+
+  <Card title="Validate Requests" icon="shield-check" href="/docs/integrate/patterns/validate-requests">
+    Implement request validation in your agent
+  </Card>
+</CardGroup>
