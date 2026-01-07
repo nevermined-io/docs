@@ -1,5 +1,143 @@
 /* Nevermined Custom Styles */
 
+/* =====================================================
+   Navigation Tabs - Pill Style
+   Matches the Nevermined website design
+   ===================================================== */
+
+/* Remove border from tabs header container */
+.nav-tabs-container,
+div:has(> .nav-tabs) {
+  border-bottom: none !important;
+}
+
+/* Tabs container - pill style background */
+.nav-tabs {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 4px 6px !important;
+  background-color: #f5f7f2 !important;
+  border-radius: 9999px !important;
+  position: relative !important;
+  height: auto !important;
+}
+
+/* Individual tab items */
+a.nav-tabs-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 8px 20px !important;
+  border-radius: 9999px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  background-color: transparent !important;
+  transition: background-color 0.1s ease, color 0.1s ease !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 1 !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  height: auto !important;
+  border: none !important;
+  border-bottom: none !important;
+}
+
+/* Remove default underline indicator - aggressive override */
+a.nav-tabs-item::after,
+a.nav-tabs-item::before,
+.nav-tabs-item::after,
+.nav-tabs-item::before {
+  display: none !important;
+  content: none !important;
+  border: none !important;
+  background: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  opacity: 0 !important;
+}
+
+/* Remove any underline from the tabs container */
+.nav-tabs::after,
+.nav-tabs::before {
+  display: none !important;
+  content: none !important;
+}
+
+/* Remove any indicator line under tabs */
+.nav-tabs [class*="indicator"],
+.nav-tabs [class*="underline"],
+.nav-tabs [class*="border"],
+[class*="tab-indicator"] {
+  display: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide the actual underline div element inside tabs */
+a.nav-tabs-item > div,
+.nav-tabs-item > div.absolute,
+.nav-tabs-item div[class*="bottom-0"],
+.nav-tabs-item div[class*="bg-primary"] {
+  display: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Ensure no border appears on any state */
+a.nav-tabs-item:focus,
+a.nav-tabs-item:active,
+a.nav-tabs-item.active {
+  border: none !important;
+  border-bottom: none !important;
+  outline: none !important;
+}
+
+/* Hover state for non-active tabs */
+a.nav-tabs-item:hover {
+  color: #1f2937 !important;
+  background-color: rgba(207, 233, 109, 0.3) !important;
+}
+
+/* Active/Selected tab - lime green pill */
+a.nav-tabs-item.font-semibold,
+a.nav-tabs-item[aria-current="page"] {
+  background-color: #cfe96d !important;
+  color: #1a1a1a !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  .nav-tabs {
+    padding: 3px 4px !important;
+    gap: 2px !important;
+  }
+
+  a.nav-tabs-item {
+    padding: 6px 14px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1024px) {
+  a.nav-tabs-item {
+    padding: 10px 28px !important;
+    font-size: 15px !important;
+  }
+}
+
+/* =====================================================
+   Hero Banner Styles
+   ===================================================== */
+
 /* Hero Banner Styles */
 .nvm-hero-banner {
   position: relative;
