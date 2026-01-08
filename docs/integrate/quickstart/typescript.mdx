@@ -179,7 +179,7 @@ npx ts-node index.ts
 
 ## Test the Flow
 
-### 1. Register your agent (first time only)
+**1) Register your agent (first time only)**
 
 ```bash
 curl -X POST http://localhost:3000/setup
@@ -187,7 +187,7 @@ curl -X POST http://localhost:3000/setup
 
 Save the returned `agentId` and `planId` to your environment.
 
-### 2. Try without payment
+**2) Try without payment**
 
 ```bash
 curl -X POST http://localhost:3000/query \
@@ -195,7 +195,7 @@ curl -X POST http://localhost:3000/query \
   -d '{"prompt": "Hello"}'
 ```
 
-### 3. As a subscriber, purchase and query
+**3) As a subscriber, purchase and query**
 
 ```typescript
 // subscriber.ts

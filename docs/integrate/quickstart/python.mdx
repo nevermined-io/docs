@@ -194,7 +194,7 @@ uvicorn main:app --reload --port 8000
 
 ## Test the Flow
 
-### 1. Register your agent (first time only)
+**1) Register your agent (first time only)**
 
 ```bash
 curl -X POST http://localhost:8000/setup
@@ -202,7 +202,7 @@ curl -X POST http://localhost:8000/setup
 
 Save the returned `agent_id` and `plan_id` to your environment.
 
-### 2. Try without payment
+**2) Try without payment**
 
 ```bash
 curl -X POST http://localhost:8000/query \
@@ -210,7 +210,7 @@ curl -X POST http://localhost:8000/query \
   -d '{"prompt": "Hello"}'
 ```
 
-### 3. As a subscriber, purchase and query
+**3) As a subscriber, purchase and query**
 
 ```python filename="subscriber.py"
 import os
