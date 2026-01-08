@@ -77,31 +77,30 @@ class PaymentInfo(BaseModel):
 
 ```python filename="src/dependencies/payment.py"
 from fastapi import Request, HTTPException, Depends
-from typing import Optional
 from src.config import get_payments, config
 from src.models import PaymentInfo
 
-async def get_payment_token(request: Request) -> str:
-    """Extract Bearer token from Authorization header."""
-    auth_header = request.headers.get('Authorization')
+async def get_payment_proof(request: Request) -> str:
+    """Extract x402 payment proof from PAYMENT-SIGNATURE header."""
+    payment_proof = request.headers.get('PAYMENT-SIGNATURE')
 
-    if not auth_header or not auth_header.startswith('Bearer '):
+    if not payment_proof:
         raise HTTPException(
             status_code=402,
             detail={
                 'error': 'Payment Required',
-                'code': 'MISSING_TOKEN',
+                'code': 'PAYMENT_REQUIRED',
                 'plans': [{'planId': config.plan_id, 'agentId': config.agent_id}]
             }
         )
 
-    return auth_header[7:]
+    return payment_proof
 
 async def validate_payment(
     request: Request,
-    token: str = Depends(get_payment_token)
+    payment_proof: str = Depends(get_payment_proof)
 ) -> PaymentInfo:
-    """Validate payment token and return payment info."""
+    """Validate x402 payment proof and return payment info."""
     payments = get_payments()
 
     # Get request body for validation
@@ -110,14 +109,14 @@ async def validate_payment(
     except:
         body = {}
 
-    result = await payments.requests.is_valid_request(token, body)
+    result = await payments.requests.is_valid_request(payment_proof, body)
 
     if not result['isValid']:
         raise HTTPException(
             status_code=402,
             detail={
                 'error': 'Payment Required',
-                'code': 'INVALID_TOKEN',
+                'code': 'INVALID_PAYMENT',
                 'reason': result.get('reason'),
                 'plans': [{'planId': config.plan_id, 'agentId': config.agent_id}]
             }
@@ -376,37 +375,38 @@ async def process_async_query(job_id: str, prompt: str):
 ## Testing
 
 ```python filename="tests/test_payment.py"
+import os
 import pytest
 from fastapi.testclient import TestClient
 from src.main import app
 
 client = TestClient(app)
 
-def test_missing_token():
+def test_missing_payment_proof():
     response = client.post("/api/query", json={"prompt": "test"})
     assert response.status_code == 402
-    assert response.json()["code"] == "MISSING_TOKEN"
+    assert response.json()["code"] == "PAYMENT_REQUIRED"
 
-def test_invalid_token():
+def test_invalid_payment_proof():
     response = client.post(
         "/api/query",
         json={"prompt": "test"},
-        headers={"Authorization": "Bearer invalid-token"}
+        headers={"PAYMENT-SIGNATURE": "invalid-payment-proof"}
     )
     assert response.status_code == 402
-    assert response.json()["code"] == "INVALID_TOKEN"
+    assert response.json()["code"] == "INVALID_PAYMENT"
 
 def test_health_endpoint():
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
-@pytest.mark.skipif(not os.environ.get("TEST_TOKEN"), reason="No test token")
-def test_valid_token():
+@pytest.mark.skipif(not os.environ.get("TEST_PAYMENT_SIGNATURE"), reason="No test payment proof")
+def test_valid_payment_proof():
     response = client.post(
         "/api/query",
         json={"prompt": "test"},
-        headers={"Authorization": f"Bearer {os.environ['TEST_TOKEN']}"}
+        headers={"PAYMENT-SIGNATURE": os.environ["TEST_PAYMENT_SIGNATURE"]}
     )
     assert response.status_code == 200
     assert "result" in response.json()

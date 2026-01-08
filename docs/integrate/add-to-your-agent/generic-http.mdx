@@ -12,48 +12,44 @@ frameworks: ["http", "any", "generic"]
 
 Generic patterns for integrating Nevermined payments into any HTTP server or framework.
 
-## The Payment Flow
+## The x402 Payment Flow
 
-Regardless of your framework, the payment validation flow follows these steps:
+When using x402, the client typically **doesn't start with a token**. Instead, the server advertises payment requirements via `402 Payment Required`, and the client retries with a payment proof.
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant YourServer
-    participant Nevermined
+    participant Facilitator as Nevermined (Facilitator)
 
-    Client->>YourServer: Request + Authorization header
-    YourServer->>YourServer: Extract Bearer token
-    YourServer->>Nevermined: Validate token
-    Nevermined-->>YourServer: Valid/Invalid + balance
-    alt Valid token
-        YourServer->>YourServer: Process request
-        YourServer-->>Client: Response + credits info
-    else Invalid token
-        YourServer-->>Client: 402 Payment Required
-    end
+    Client->>YourServer: Request (no payment proof)
+    YourServer-->>Client: 402 Payment Required + plans/requirements
+    Client->>Client: Build x402 payment proof
+    Client->>YourServer: Retry request + PAYMENT-SIGNATURE
+    YourServer->>Facilitator: Verify/settle (via SDK)
+    Facilitator-->>YourServer: OK (balance/receipt)
+    YourServer-->>Client: 200 OK (response)
 ```
 
 ## Implementation Steps
 
-**1) Extract the Bearer Token**
+**1) Read the payment proof from the request**
+
+Nevermined x402 clients retry requests with a `PAYMENT-SIGNATURE` header:
 
 ```
-Authorization: Bearer <access_token>
+PAYMENT-SIGNATURE: <payment_proof>
 ```
 
-Extract the token from the `Authorization` header:
+Pseudo-code:
 
 ```
-// Pseudo-code
-token = request.headers["Authorization"]
-if token starts with "Bearer ":
-    token = token.substring(7)
-else:
-    return 402 Payment Required
+paymentProof = request.headers["PAYMENT-SIGNATURE"]
+if !paymentProof:
+    return 402 Payment Required + plans
 ```
 
-**2) Validate with Nevermined SDK**
+**2) Validate the payment proof with the Nevermined SDK**
 
 <Tabs>
   <Tab title="TypeScript">
@@ -65,10 +61,10 @@ else:
       environment: 'testing'
     })
 
-    const result = await payments.requests.isValidRequest(token, requestBody)
+    const result = await payments.requests.isValidRequest(paymentProof, requestBody)
 
     if (!result.isValid) {
-      // Return 402
+      // Return 402 (invalid/expired payment proof)
     }
 
     // Process request, result.balance contains remaining credits
@@ -82,7 +78,7 @@ else:
         PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
     )
 
-    result = payments.requests.is_valid_request(token, request_body)
+    result = payments.requests.is_valid_request(payment_proof, request_body)
 
     if not result['isValid']:
         # Return 402
@@ -93,14 +89,14 @@ else:
   </Tab>
 </Tabs>
 
-**3) Return 402 on Failure**
+**3) Return 402 with plans when payment is missing or invalid**
 
-When validation fails, return HTTP 402 with payment information:
+When payment is missing (first request) or invalid, return HTTP 402 with plan information:
 
 ```json
 {
   "error": "Payment Required",
-  "code": "INVALID_TOKEN",
+  "code": "PAYMENT_REQUIRED",
   "plans": [
     {
       "planId": "did:nv:your-plan-id",
@@ -114,9 +110,8 @@ When validation fails, return HTTP 402 with payment information:
 
 | Code | Meaning | When to Use |
 |------|---------|-------------|
-| `200` | Success | Valid payment, request processed |
-| `401` | Unauthorized | Missing authentication |
-| `402` | Payment Required | Invalid/expired token, insufficient credits |
+| `200` | Success | Valid payment proof, request processed |
+| `402` | Payment Required | Missing/invalid payment proof, insufficient credits |
 | `500` | Server Error | Validation system failure |
 
 ## Language-Specific Examples
@@ -130,24 +125,16 @@ import (
     "encoding/json"
     "net/http"
     "os"
-    "strings"
 )
 
-// Simple validation - in production, use the SDK
-func validatePayment(token string, body map[string]interface{}) (bool, int, error) {
-    // Call Nevermined validation endpoint
-    // This is a simplified example - use the actual SDK
-    return true, 100, nil
-}
-
 func queryHandler(w http.ResponseWriter, r *http.Request) {
-    // Extract token
-    auth := r.Header.Get("Authorization")
-    if !strings.HasPrefix(auth, "Bearer ") {
+    // Extract payment proof
+    paymentProof := r.Header.Get("PAYMENT-SIGNATURE")
+    if paymentProof == "" {
         w.WriteHeader(http.StatusPaymentRequired)
         json.NewEncoder(w).Encode(map[string]interface{}{
             "error": "Payment Required",
-            "code":  "MISSING_TOKEN",
+            "code":  "PAYMENT_REQUIRED",
             "plans": []interface{}{map[string]interface{}{
                 "planId": os.Getenv("PLAN_ID"),
                 "agentId": os.Getenv("AGENT_ID"),
@@ -156,19 +143,21 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    token := strings.TrimPrefix(auth, "Bearer ")
-
     // Parse body
     var body map[string]interface{}
     json.NewDecoder(r.Body).Decode(&body)
 
-    // Validate
-    valid, balance, err := validatePayment(token, body)
-    if err != nil || !valid {
+    // Validate with Nevermined (use the SDK for your language)
+    valid, balance := validatePayment(paymentProof, body)
+    if !valid {
         w.WriteHeader(http.StatusPaymentRequired)
         json.NewEncoder(w).Encode(map[string]interface{}{
             "error": "Payment Required",
-            "code":  "INVALID_TOKEN",
+            "code":  "INVALID_PAYMENT",
+            "plans": []interface{}{map[string]interface{}{
+                "planId": os.Getenv("PLAN_ID"),
+                "agentId": os.Getenv("AGENT_ID"),
+            }},
         })
         return
     }
@@ -198,18 +187,17 @@ async fn query_handler(
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> impl IntoResponse {
-    // Extract token
-    let auth = headers
-        .get("authorization")
+    let payment_proof = headers
+        .get("payment-signature")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
 
-    if !auth.starts_with("Bearer ") {
+    if payment_proof.is_empty() {
         return (
             StatusCode::PAYMENT_REQUIRED,
             Json(json!({
                 "error": "Payment Required",
-                "code": "MISSING_TOKEN",
+                "code": "PAYMENT_REQUIRED",
                 "plans": [{
                     "planId": std::env::var("PLAN_ID").unwrap_or_default(),
                     "agentId": std::env::var("AGENT_ID").unwrap_or_default()
@@ -218,22 +206,19 @@ async fn query_handler(
         );
     }
 
-    let token = &auth[7..];
-
     // Validate with Nevermined (implement SDK call)
-    let (valid, balance) = validate_payment(token, &body).await;
+    let (valid, balance) = validate_payment(payment_proof, &body).await;
 
     if !valid {
         return (
             StatusCode::PAYMENT_REQUIRED,
             Json(json!({
                 "error": "Payment Required",
-                "code": "INVALID_TOKEN"
+                "code": "INVALID_PAYMENT"
             })),
         );
     }
 
-    // Process request
     (
         StatusCode::OK,
         Json(json!({
@@ -250,38 +235,28 @@ async fn query_handler(
 require 'sinatra'
 require 'json'
 
-# Validation helper
-def validate_payment(token, body)
-  # Call Nevermined SDK/API
-  # Return [valid, balance]
-  [true, 100]
-end
-
 post '/query' do
   content_type :json
 
-  # Extract token
-  auth = request.env['HTTP_AUTHORIZATION'] || ''
-  unless auth.start_with?('Bearer ')
+  payment_proof = request.env['HTTP_PAYMENT_SIGNATURE'] || ''
+
+  if payment_proof.empty?
     status 402
     return {
       error: 'Payment Required',
-      code: 'MISSING_TOKEN',
+      code: 'PAYMENT_REQUIRED',
       plans: [{ planId: ENV['PLAN_ID'], agentId: ENV['AGENT_ID'] }]
     }.to_json
   end
 
-  token = auth[7..]
   body = JSON.parse(request.body.read)
 
-  # Validate
-  valid, balance = validate_payment(token, body)
+  valid, balance = validate_payment(payment_proof, body)
   unless valid
     status 402
-    return { error: 'Payment Required', code: 'INVALID_TOKEN' }.to_json
+    return { error: 'Payment Required', code: 'INVALID_PAYMENT' }.to_json
   end
 
-  # Process request
   { result: 'Your response here', credits: balance }.to_json
 end
 ```
@@ -291,40 +266,34 @@ end
 ```php
 <?php
 
-function validatePayment($token, $body) {
-    // Call Nevermined SDK/API
-    return ['valid' => true, 'balance' => 100];
-}
-
-// Extract token
 $headers = getallheaders();
-$auth = $headers['Authorization'] ?? '';
+$paymentProof = $headers['PAYMENT-SIGNATURE'] ?? '';
 
-if (strpos($auth, 'Bearer ') !== 0) {
+if ($paymentProof === '') {
     http_response_code(402);
     echo json_encode([
         'error' => 'Payment Required',
-        'code' => 'MISSING_TOKEN'
+        'code' => 'PAYMENT_REQUIRED',
+        'plans' => [[
+            'planId' => getenv('PLAN_ID'),
+            'agentId' => getenv('AGENT_ID')
+        ]]
     ]);
     exit;
 }
 
-$token = substr($auth, 7);
 $body = json_decode(file_get_contents('php://input'), true);
 
-// Validate
-$result = validatePayment($token, $body);
-
+$result = validatePayment($paymentProof, $body);
 if (!$result['valid']) {
     http_response_code(402);
     echo json_encode([
         'error' => 'Payment Required',
-        'code' => 'INVALID_TOKEN'
+        'code' => 'INVALID_PAYMENT'
     ]);
     exit;
 }
 
-// Process request
 header('Content-Type: application/json');
 echo json_encode([
     'result' => 'Your response here',
@@ -341,7 +310,7 @@ curl -X POST https://api.nevermined.app/api/v1/payments/validate \
   -H "Authorization: Bearer YOUR_NVM_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "accessToken": "subscriber_token_here",
+    "paymentSignature": "<PAYMENT-SIGNATURE header value>",
     "requestBody": {}
   }'
 ```

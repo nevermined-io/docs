@@ -49,27 +49,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayments, config } from '@/lib/payments'
 
 export async function POST(request: NextRequest) {
-  // Extract Bearer token
-  const authHeader = request.headers.get('authorization')
+  const paymentProof = request.headers.get('payment-signature')
 
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (!paymentProof) {
     return NextResponse.json(
       {
         error: 'Payment Required',
-        code: 'MISSING_TOKEN',
+        code: 'PAYMENT_REQUIRED',
         plans: [{ planId: config.planId, agentId: config.agentId }]
       },
       { status: 402 }
     )
   }
 
-  const token = authHeader.substring(7)
   const body = await request.json()
 
-  // Validate payment
+  // Validate payment proof
   const payments = getPayments()
   const { isValid, balance, reason } = await payments.requests.isValidRequest(
-    token,
+    paymentProof,
     body
   )
 
@@ -77,7 +75,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Payment Required',
-        code: 'INVALID_TOKEN',
+        code: 'INVALID_PAYMENT',
         reason,
         plans: [{ planId: config.planId, agentId: config.agentId }]
       },
@@ -123,31 +121,29 @@ export type HandlerWithPayment = (
 
 export function withPayment(handler: HandlerWithPayment) {
   return async (request: NextRequest): Promise<NextResponse> => {
-    const authHeader = request.headers.get('authorization')
+    const paymentProof = request.headers.get('payment-signature')
 
-    if (!authHeader?.startsWith('Bearer ')) {
+    if (!paymentProof) {
       return NextResponse.json(
         {
           error: 'Payment Required',
-          code: 'MISSING_TOKEN',
+          code: 'PAYMENT_REQUIRED',
           plans: [{ planId: config.planId, agentId: config.agentId }]
         },
         { status: 402 }
       )
     }
 
-    const token = authHeader.substring(7)
-
     try {
       const body = await request.clone().json()
       const payments = getPayments()
-      const result = await payments.requests.isValidRequest(token, body)
+      const result = await payments.requests.isValidRequest(paymentProof, body)
 
       if (!result.isValid) {
         return NextResponse.json(
           {
             error: 'Payment Required',
-            code: 'INVALID_TOKEN',
+            code: 'INVALID_PAYMENT',
             reason: result.reason,
             plans: [{ planId: config.planId, agentId: config.agentId }]
           },
@@ -200,151 +196,62 @@ async function generateChatResponse(messages: any[]): Promise<string> {
 }
 ```
 
-## Server Actions
+## Client-side helper (x402 retry)
 
-```typescript filename="app/actions/query.ts"
-'use server'
-
-import { getPayments, config } from '@/lib/payments'
-import { cookies } from 'next/headers'
-
-export async function queryAgent(prompt: string) {
-  // Get token from cookie or session
-  const cookieStore = cookies()
-  const token = cookieStore.get('nvm_access_token')?.value
-
-  if (!token) {
-    return {
-      error: 'Payment Required',
-      plans: [{ planId: config.planId, agentId: config.agentId }]
-    }
-  }
-
-  const payments = getPayments()
-  const { isValid, balance } = await payments.requests.isValidRequest(
-    token,
-    { prompt }
-  )
-
-  if (!isValid) {
-    return {
-      error: 'Invalid or expired token',
-      plans: [{ planId: config.planId, agentId: config.agentId }]
-    }
-  }
-
-  // Process query
-  const result = await processQuery(prompt)
-
-  return {
-    result,
-    creditsRemaining: balance
-  }
-}
-```
-
-## Client-Side Token Storage
+The client flow is:
+1) call your endpoint without `PAYMENT-SIGNATURE`
+2) receive `402` with `plans`
+3) acquire/create a payment proof using Nevermined
+4) retry the request with `PAYMENT-SIGNATURE`
 
 ```typescript filename="hooks/usePayment.ts"
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 
 export function usePayment() {
-  const [token, setToken] = useState<string | null>(null)
-  const [credits, setCredits] = useState<number>(0)
-
-  const setAccessToken = useCallback((newToken: string) => {
-    setToken(newToken)
-    // Also store in cookie for server actions
-    document.cookie = `nvm_access_token=${newToken}; path=/; secure; samesite=strict`
-  }, [])
-
   const query = useCallback(async (endpoint: string, data: any) => {
-    if (!token) {
-      throw new Error('No access token')
-    }
-
-    const response = await fetch(endpoint, {
+    // First try (no payment proof)
+    let response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     })
 
+    // If payment is required, your app should build a payment proof and retry.
     if (response.status === 402) {
-      const error = await response.json()
-      throw new Error(error.error)
+      const paymentRequired = await response.json()
+
+      // Use the plan info in paymentRequired.plans to build a payment proof.
+      // (Implementation depends on your chosen client payment flow.)
+      const paymentSignature = await getPaymentSignatureForPlans(paymentRequired.plans)
+
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'PAYMENT-SIGNATURE': paymentSignature
+        },
+        body: JSON.stringify(data)
+      })
     }
 
-    const result = await response.json()
-    setCredits(result.credits?.remaining ?? credits)
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.error || `Request failed (${response.status})`)
+    }
 
-    return result
-  }, [token, credits])
+    return await response.json()
+  }, [])
 
-  return {
-    token,
-    credits,
-    setAccessToken,
-    query,
-    isAuthenticated: !!token
-  }
-}
-```
-
-## Payment UI Component
-
-```tsx filename="components/PaymentGate.tsx"
-'use client'
-
-import { usePayment } from '@/hooks/usePayment'
-import { useState } from 'react'
-
-interface PaymentGateProps {
-  planId: string
-  agentId: string
-  children: React.ReactNode
+  return { query }
 }
 
-export function PaymentGate({ planId, agentId, children }: PaymentGateProps) {
-  const { isAuthenticated, credits, setAccessToken } = usePayment()
-  const [loading, setLoading] = useState(false)
-
-  const handlePurchase = async () => {
-    setLoading(true)
-    // Redirect to purchase flow or open modal
-    window.location.href = `https://nevermined.app/plan/${planId}`
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="p-6 border rounded-lg text-center">
-        <h3 className="text-lg font-semibold mb-2">Access Required</h3>
-        <p className="text-gray-600 mb-4">
-          Purchase a plan to access this feature
-        </p>
-        <button
-          onClick={handlePurchase}
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          {loading ? 'Loading...' : 'Purchase Access'}
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <div className="text-sm text-gray-500 mb-2">
-        Credits remaining: {credits}
-      </div>
-      {children}
-    </div>
-  )
+async function getPaymentSignatureForPlans(_plans: any[]) {
+  // Implement using Nevermined's client payment flow.
+  // This is intentionally left as an integration point because payment proof
+  // generation can vary by environment and wallet/account model.
+  throw new Error('Implement getPaymentSignatureForPlans(plans)')
 }
 ```
 
@@ -419,9 +326,9 @@ import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'edge'
 
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
+  const paymentProof = request.headers.get('payment-signature')
 
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (!paymentProof) {
     return NextResponse.json(
       { error: 'Payment Required' },
       { status: 402 }
@@ -435,7 +342,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader
+        'PAYMENT-SIGNATURE': paymentProof
       },
       body: await request.text()
     }

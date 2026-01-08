@@ -1,14 +1,19 @@
 ---
 title: "How the x402 Facilitator Works"
-description: "Technical deep-dive into x402 payment verification and settlement"
+description: "Technical deep-dive into x402 verification and programmable settlement"
 icon: "gears"
 ---
 
-This guide explains the complete x402 flow from both the subscriber (client) and agent (server) perspectives.
+This guide explains the end-to-end x402 flow from both the subscriber (client) and resource server (API/agent) perspectives.
 
-## The x402 Smart Account Extension
+If you're new to the programmable extension concepts, see:
 
-Nevermined introduces a custom x402 extension for smart account support:
+- [Making x402 programmable](https://nevermined.ai/blog/making-x402-programmable)
+- [Building Agentic Payments with Nevermined, x402, A2A, and AP2](https://nevermined.ai/blog/building-agentic-payments-with-nevermined-x402-a2a-and-ap2)
+
+## The Nevermined x402 programmable extension
+
+Nevermined extends x402 with a smart-account-friendly scheme so the payment payload can authorize **programmable settlement** (credits/subscriptions/PAYG) instead of only an ERC-20 transfer.
 
 ```json
 {
@@ -26,16 +31,46 @@ Nevermined introduces a custom x402 extension for smart account support:
     }
   },
   "payload": {
-    "session_key": "eyJhbGciOiJFUzI1NiIs..."
+    "session_key": "<delegated-session-key-or-proof>"
   }
 }
 ```
 
-## Subscriber Flow (Client Side)
+## Subscriber flow (client side)
 
-### Step 1: Discover Payment Requirements
+### Step 1: Discover payment requirements (HTTP 402)
 
-When calling a protected endpoint, the agent returns a 402 response with payment details:
+When calling a protected endpoint, the server returns a `402 Payment Required` response and includes the payment requirements (plan/agent binding, maximum amount, network, scheme).
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Call protected endpoint - get 402 response
+    const response = await fetch('https://api.example.com/protected')
+
+    if (response.status === 402) {
+      const paymentRequired = await response.json()
+      const nvmInfo = paymentRequired.extensions.nevermined.info
+      // nvmInfo.plan_id, nvmInfo.agent_id, nvmInfo.max_amount, nvmInfo.network
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import requests
+
+    response = requests.get('https://api.example.com/protected')
+
+    if response.status_code == 402:
+        payment_required = response.json()
+        nvm_info = payment_required['extensions']['nevermined']['info']
+    ```
+  </Tab>
+</Tabs>
+
+### Step 2: Build the x402 payment payload
+
+The client creates a payment payload that encodes the allowed permissions (for example, a session-key capability scoped to a plan/agent and a spend cap).
 
 <Tabs>
   <Tab title="TypeScript">
@@ -47,47 +82,12 @@ When calling a protected endpoint, the agent returns a 402 response with payment
       environment: 'testing'
     })
 
-    // Call protected endpoint - get 402 response
-    const response = await fetch('https://api.example.com/protected')
+    const { plan_id, agent_id, network } = paymentRequired.extensions.nevermined.info
 
-    if (response.status === 402) {
-      const paymentRequired = await response.json()
-      const { plan_id, agent_id, max_amount, network } =
-        paymentRequired.extensions.nevermined.info
-    }
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    import requests
-    from payments_py import Payments, PaymentOptions
+    // Create a delegated permission (session key / proof) the facilitator can verify.
+    // The exact mechanics depend on the plan model and scheme (see the blog posts above).
+    const { accessToken } = await payments.x402.getX402AccessToken(plan_id, agent_id)
 
-    payments = Payments.get_instance(
-        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
-    )
-
-    # Call protected endpoint - get 402 response
-    response = requests.get('https://api.example.com/protected')
-
-    if response.status_code == 402:
-        payment_required = response.json()
-        nvm_info = payment_required['extensions']['nevermined']['info']
-    ```
-  </Tab>
-</Tabs>
-
-### Step 2: Generate x402 Access Token
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    // Generate the x402 session token
-    const { accessToken } = await payments.x402.getX402AccessToken(
-      plan_id,
-      agent_id
-    )
-
-    // Build the payment payload
     const paymentPayload = {
       x402Version: 2,
       scheme: 'contract',
@@ -99,11 +99,18 @@ When calling a protected endpoint, the agent returns a 402 response with payment
   </Tab>
   <Tab title="Python">
     ```python
-    # Generate the x402 session token
-    token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+    import os
+    from payments_py import Payments, PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+    )
+
+    token_res = payments.x402.get_x402_access_token(
+        nvm_info['plan_id'], nvm_info['agent_id']
+    )
     access_token = token_res['accessToken']
 
-    # Build the payment payload
     payment_payload = {
         'x402Version': 2,
         'scheme': 'contract',
@@ -115,15 +122,14 @@ When calling a protected endpoint, the agent returns a 402 response with payment
   </Tab>
 </Tabs>
 
-### Step 3: Submit Request with Payment Header
+### Step 3: Retry request with payment header
+
+The payment payload is sent in-band with HTTP (commonly via the `PAYMENT-SIGNATURE` header).
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    import { encodeBase64 } from '@nevermined-io/payments'
-
-    // Encode and send with payment header
-    const encodedPayload = encodeBase64(JSON.stringify(paymentPayload))
+    const encodedPayload = Buffer.from(JSON.stringify(paymentPayload)).toString('base64')
 
     const result = await fetch('https://api.example.com/protected', {
       method: 'POST',
@@ -140,7 +146,6 @@ When calling a protected endpoint, the agent returns a 402 response with payment
     import base64
     import json
 
-    # Encode and send with payment header
     encoded_payload = base64.b64encode(
         json.dumps(payment_payload).encode()
     ).decode()
@@ -157,14 +162,15 @@ When calling a protected endpoint, the agent returns a 402 response with payment
   </Tab>
 </Tabs>
 
-## Agent Flow (Server Side)
+## Resource server flow (API/agent side)
 
-### Step 1: Return 402 on Unauthorized Requests
+### Step 1: Return 402 when payment is missing
+
+If the payment header is not present, respond with `402` plus the payment requirements you accept.
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    // Check for payment header
     const paymentHeader = req.headers['payment-signature']
 
     if (!paymentHeader) {
@@ -187,7 +193,6 @@ When calling a protected endpoint, the agent returns a 402 response with payment
   </Tab>
   <Tab title="Python">
     ```python
-    # Check for payment header
     payment_header = request.headers.get('PAYMENT-SIGNATURE')
 
     if not payment_header:
@@ -209,7 +214,9 @@ When calling a protected endpoint, the agent returns a 402 response with payment
   </Tab>
 </Tabs>
 
-### Step 2: Verify with the Facilitator
+### Step 2: Verify with the facilitator
+
+Decode the payment payload and ask the facilitator to verify it (including simulating any allowed on-chain actions).
 
 <Tabs>
   <Tab title="TypeScript">

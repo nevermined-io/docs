@@ -1,129 +1,114 @@
 ---
 title: "x402 Facilitator Overview"
-description: "The Nevermined x402 Facilitator enables HTTP 402 Payment Required flows with smart account settlement for AI agents"
+description: "The Nevermined x402 Facilitator verifies and settles x402 payments with smart accounts and programmable contracts"
 icon: "credit-card"
 ---
 
-The Nevermined x402 Facilitator is a payment verification and settlement service that implements the x402 protocol standard. It enables AI agents to charge per-request using secure, locally-signed payment authorizations.
+The Nevermined x402 Facilitator is an **enforcement and settlement engine** for x402. It lets any API, agent, MCP tool, or protected resource accept **HTTP-native payments** without running on-chain infrastructure.
+
+It supports both:
+
+- **Standard x402 settlement** ("pay-per-request" style)
+- **Nevermined's programmable x402 extension** (smart accounts + policies + contract settlement)
 
 ## What is x402?
 
-The x402 protocol defines a payment-enforced HTTP flow:
+x402 standardizes a payment-enforced HTTP flow:
 
-1. Client calls an API endpoint
-2. Server responds with **HTTP 402 Payment Required** and payment instructions
-3. Client signs a payment authorization locally (private key never leaves device)
-4. Signed authorization is included in the retry request
-5. Server forwards it to the **Facilitator** for verification and settlement
+1. Client calls an endpoint normally
+2. Server responds with **HTTP 402 Payment Required** and payment requirements
+3. Client builds a payment authorization (locally signed)
+4. Client retries the request including the x402 payment payload (typically in a `PAYMENT-SIGNATURE` header)
+5. Server delegates verification and settlement to the **Facilitator**
 
-## Why Use the x402 Facilitator?
+For more background and examples:
 
-<CardGroup cols={2}>
-  <Card title="Standard Protocol" icon="globe">
-    Compatible with the x402 standard while adding Nevermined's programmable settlement layer
-  </Card>
+- [Making x402 programmable](https://nevermined.ai/blog/making-x402-programmable)
+- [Building Agentic Payments with Nevermined, x402, A2A, and AP2](https://nevermined.ai/blog/building-agentic-payments-with-nevermined-x402-a2a-and-ap2)
 
-  <Card title="Smart Account Support" icon="wallet">
-    ERC-4337 Smart Accounts with session keys for granular permission control
-  </Card>
+## Why use a Facilitator?
 
-  <Card title="Flexible Billing" icon="calculator">
-    Subscriptions, credits, time windows, and dynamic pricing - not just pay-per-request
-  </Card>
+A facilitator is the third party that:
 
-  <Card title="On-Chain Settlement" icon="link">
-    Transparent, verifiable settlement on blockchain with instant finality
-  </Card>
-</CardGroup>
+- verifies payment proofs
+- simulates/enforces what is allowed (amount, plan, merchant/agent binding)
+- executes settlement on-chain
+- returns a canonical receipt (e.g., transaction hash)
 
-## How It Works
+This is particularly important for **programmable x402**, where settlement may be more than a single ERC-20 transfer (credits, subscriptions, policy-based settlement).
+
+## How it works
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Agent as AI Agent
-    participant Facilitator as x402 Facilitator
+    participant Server as Resource Server (API/Agent)
+    participant Facilitator as Nevermined x402 Facilitator
     participant Chain as Blockchain
 
-    Client->>Agent: GET /resource
-    Agent->>Client: 402 Payment Required + plan info
+    Client->>Server: Request
+    Server-->>Client: 402 Payment Required + requirements
 
-    Client->>Client: Sign payment authorization
-    Client->>Agent: Request + PAYMENT-SIGNATURE header
+    Client->>Client: Build/sign x402 payment payload
+    Client->>Server: Retry + PAYMENT-SIGNATURE
 
-    Agent->>Facilitator: /verify
-    Facilitator->>Chain: Check balance & permissions
-    Facilitator-->>Agent: Verification OK
+    Server->>Facilitator: /verify (simulate + validate)
+    Facilitator->>Chain: Policy + balance checks
+    Facilitator-->>Server: Verification OK
 
-    Agent->>Agent: Execute workload
+    Server->>Server: Execute workload
 
-    Agent->>Facilitator: /settle
-    Facilitator->>Chain: Burn credits / execute payment
-    Facilitator-->>Agent: Settlement OK + txHash
+    Server->>Facilitator: /settle (execute settlement)
+    Facilitator->>Chain: Execute contract settlement
+    Facilitator-->>Server: Receipt + txHash
 
-    Agent-->>Client: Response + receipt
+    Server-->>Client: Response (+ optional receipt)
 ```
 
-## Facilitator Responsibilities
+## Nevermined's programmable x402 extension
+
+Standard x402 is often implemented as an "exact transfer" authorization (e.g., EIP-3009). Nevermined extends x402 to support:
+
+- **Smart Accounts (ERC-4337)** and delegated **session keys**
+- **Smart-contract settlement** (credits, subscriptions, PAYG, dynamic charging)
+- **Policy enforcement** (merchant allowlists, spend caps, validity windows)
+
+This keeps the HTTP handshake the same, but upgrades settlement from "transfer" to **programmable execution**.
+
+## Facilitator responsibilities
 
 ### Verification
 
-The Facilitator validates incoming payment requests:
-
-- x402 envelope structure and version
-- EIP-712 signature authenticity
-- Session key validity and permissions
-- Subscriber balance and plan state
-- UserOperation simulation
+- x402 envelope structure/version
+- signature authenticity
+- session key validity + scoped permissions
+- plan state + subscriber balance
+- simulation of allowed on-chain actions (UserOps)
 
 ### Settlement
 
-After the agent completes its work, the Facilitator:
+After the server completes its work, the facilitator can execute the settlement action permitted by the payment payload, such as:
 
-- Executes `order` operations (auto top-up if needed)
-- Executes `burn` operations (deduct credits)
-- Submits UserOps on-chain
-- Returns transaction hashes for transparency
+- `order` (purchase/top-up)
+- `redeem` / `burn` (consume credits)
+- "exact" transfers (when using standard x402)
 
-## Nevermined's x402 Extensions
-
-Standard x402 focuses on single ERC-20 pay-per-request flows. Nevermined extends this:
-
-| Capability | Standard x402 | Nevermined x402 |
-|------------|--------------|-----------------|
-| Payment authorization | EIP-3009 | ERC-4337 UserOps + session keys |
-| Wallet model | EOA signatures | Smart Accounts with permissions |
-| Billing models | Pay-per-request | Subscriptions, credits, time-based |
-| Delegated execution | Basic | Programmable burn, order, redeem |
-| Settlement | ERC-20 transfer | Smart contract settlement |
-
-## Permission Delegation
-
-Subscribers can delegate specific permissions to agents via session keys:
-
-| Permission | Description |
-|------------|-------------|
-| `order` | Allow facilitator to auto-purchase credits |
-| `redeem` | Allow facilitator to deduct credits per request |
-| `burn` | Allow facilitator to burn usage units |
-| `<custom>` | Additional session-key-scoped behaviors |
-
-## Getting Started
+## Getting started
 
 <CardGroup cols={2}>
   <Card title="How It Works" icon="gears" href="/docs/products/x402-facilitator/how-it-works">
-    Deep dive into the x402 flow and implementation
+    End-to-end flow (client + server) with x402 headers and facilitator calls
   </Card>
 
   <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
-    Configure credits, subscriptions, and dynamic pricing
+    Credits, subscriptions, and dynamic pricing using programmable settlement
   </Card>
 
-  <Card title="Integration Guide" icon="plug" href="/docs/integrate/platforms/x402-protocol">
-    Add x402 support to your agent
+  <Card title="x402 Protocol" icon="plug" href="/docs/integrate/platforms/x402-protocol">
+    Integrate x402 into your API/agent
   </Card>
 
   <Card title="Google A2A" icon="sparkles" href="/docs/integrate/platforms/google-a2a">
-    Combine x402 with Google Agent-to-Agent messaging
+    Use x402 with A2A + AP2-style payment intent messaging
   </Card>
 </CardGroup>

@@ -63,43 +63,47 @@ declare global {
 }
 
 /**
- * Middleware to validate payment tokens.
- * Adds payment info to req.payment
+ * Middleware to validate x402 payment proofs.
+ *
+ * Expected header on retries:
+ *   PAYMENT-SIGNATURE: <payment_proof>
  */
 export async function validatePayment(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  const authHeader = req.headers['authorization']
+  const paymentProof = req.header('PAYMENT-SIGNATURE')
 
-  // No token provided
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // First request (no payment proof) OR missing header
+  if (!paymentProof) {
     return res.status(402).json({
       error: 'Payment Required',
-      code: 'MISSING_TOKEN',
-      plans: [{
-        planId: config.planId,
-        agentId: config.agentId
-      }]
+      code: 'PAYMENT_REQUIRED',
+      plans: [
+        {
+          planId: config.planId,
+          agentId: config.agentId
+        }
+      ]
     })
   }
 
-  const token = authHeader.substring(7)
-
   try {
     const payments = getPayments()
-    const result = await payments.requests.isValidRequest(token, req.body)
+    const result = await payments.requests.isValidRequest(paymentProof, req.body)
 
     if (!result.isValid) {
       return res.status(402).json({
         error: 'Payment Required',
-        code: 'INVALID_TOKEN',
+        code: 'INVALID_PAYMENT',
         reason: result.reason,
-        plans: [{
-          planId: config.planId,
-          agentId: config.agentId
-        }]
+        plans: [
+          {
+            planId: config.planId,
+            agentId: config.agentId
+          }
+        ]
       })
     }
 
@@ -362,29 +366,29 @@ import request from 'supertest'
 import app from '../src/app'
 
 describe('Payment Middleware', () => {
-  it('returns 402 without token', async () => {
+  it('returns 402 without payment proof', async () => {
     const res = await request(app)
       .post('/api/query')
       .send({ prompt: 'test' })
 
     expect(res.status).toBe(402)
-    expect(res.body.code).toBe('MISSING_TOKEN')
+    expect(res.body.code).toBe('PAYMENT_REQUIRED')
   })
 
-  it('returns 402 with invalid token', async () => {
+  it('returns 402 with invalid payment proof', async () => {
     const res = await request(app)
       .post('/api/query')
-      .set('Authorization', 'Bearer invalid-token')
+      .set('PAYMENT-SIGNATURE', 'invalid-payment-proof')
       .send({ prompt: 'test' })
 
     expect(res.status).toBe(402)
-    expect(res.body.code).toBe('INVALID_TOKEN')
+    expect(res.body.code).toBe('INVALID_PAYMENT')
   })
 
-  it('succeeds with valid token', async () => {
+  it('succeeds with valid payment proof', async () => {
     const res = await request(app)
       .post('/api/query')
-      .set('Authorization', `Bearer ${process.env.TEST_TOKEN}`)
+      .set('PAYMENT-SIGNATURE', `${process.env.TEST_PAYMENT_SIGNATURE}`)
       .send({ prompt: 'test' })
 
     expect(res.status).toBe(200)
