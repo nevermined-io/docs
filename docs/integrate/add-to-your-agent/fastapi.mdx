@@ -110,7 +110,7 @@ async def validate_payment(
     except:
         body = {}
 
-    result = payments.requests.is_valid_request(token, body)
+    result = await payments.requests.is_valid_request(token, body)
 
     if not result['isValid']:
         raise HTTPException(

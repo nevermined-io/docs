@@ -36,7 +36,7 @@ sequenceDiagram
 
 ## Implementation Steps
 
-### Step 1: Extract the Bearer Token
+**1) Extract the Bearer Token**
 
 ```
 Authorization: Bearer <access_token>
@@ -53,7 +53,7 @@ else:
     return 402 Payment Required
 ```
 
-### Step 2: Validate with Nevermined SDK
+**2) Validate with Nevermined SDK**
 
 <Tabs>
   <Tab title="TypeScript">
@@ -93,7 +93,7 @@ else:
   </Tab>
 </Tabs>
 
-### Step 3: Return 402 on Failure
+**3) Return 402 on Failure**
 
 When validation fails, return HTTP 402 with payment information:
 
@@ -148,6 +148,10 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
         json.NewEncoder(w).Encode(map[string]interface{}{
             "error": "Payment Required",
             "code":  "MISSING_TOKEN",
+            "plans": []interface{}{map[string]interface{}{
+                "planId": os.Getenv("PLAN_ID"),
+                "agentId": os.Getenv("AGENT_ID"),
+            }},
         })
         return
     }
@@ -205,7 +209,11 @@ async fn query_handler(
             StatusCode::PAYMENT_REQUIRED,
             Json(json!({
                 "error": "Payment Required",
-                "code": "MISSING_TOKEN"
+                "code": "MISSING_TOKEN",
+                "plans": [{
+                    "planId": std::env::var("PLAN_ID").unwrap_or_default(),
+                    "agentId": std::env::var("AGENT_ID").unwrap_or_default()
+                }]
             })),
         );
     }
@@ -256,7 +264,11 @@ post '/query' do
   auth = request.env['HTTP_AUTHORIZATION'] || ''
   unless auth.start_with?('Bearer ')
     status 402
-    return { error: 'Payment Required', code: 'MISSING_TOKEN' }.to_json
+    return {
+      error: 'Payment Required',
+      code: 'MISSING_TOKEN',
+      plans: [{ planId: ENV['PLAN_ID'], agentId: ENV['AGENT_ID'] }]
+    }.to_json
   end
 
   token = auth[7..]

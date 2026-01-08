@@ -1,14 +1,27 @@
 ---
 title: "Validate Requests"
-description: "Patterns for validating payment tokens in your AI agent"
+description: "Patterns for validating payment tokens in your API, agent, or protected resource"
 icon: "shield-check"
 ---
 
-Copy-paste patterns for validating payment requests in your AI agent.
+Copy-paste patterns for validating payment requests for APIs, agents/tools, and protected resources.
 
-## Basic Validation
+<Note>
+  Looking for framework-specific implementations?
+  
+  - [Express.js Integration](/docs/integrate/add-to-your-agent/express)
+  - [FastAPI Integration](/docs/integrate/add-to-your-agent/fastapi)
+  - [Next.js Integration](/docs/integrate/add-to-your-agent/nextjs)
+  - [Generic HTTP Integration](/docs/integrate/add-to-your-agent/generic-http)
+</Note>
 
-The simplest validation pattern - check if a request has valid payment:
+## Basic validation (framework-agnostic)
+
+At a minimum, validation has three steps:
+
+1. Extract a Bearer token from the `Authorization` header
+2. Validate it against the request body
+3. Return `402 Payment Required` (optionally including `plans`) when missing/invalid
 
 <Tabs>
   <Tab title="TypeScript">
@@ -20,7 +33,7 @@ The simplest validation pattern - check if a request has valid payment:
       environment: 'testing'
     })
 
-    async function validateRequest(token: string, body: any) {
+    export async function validateRequest(token: string, body: unknown) {
       const result = await payments.requests.isValidRequest(token, body)
 
       return {
@@ -30,32 +43,23 @@ The simplest validation pattern - check if a request has valid payment:
       }
     }
 
-    // Usage
-    const authHeader = req.headers['authorization']
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(402).json({ error: 'Payment Required' })
-    }
-
-    const token = authHeader.substring(7)
-    const { isValid, balance } = await validateRequest(token, req.body)
-
-    if (!isValid) {
-      return res.status(402).json({ error: 'Invalid token' })
-    }
-
-    // Process request...
+    // Pseudo-usage
+    // - Extract token from Authorization: Bearer <token>
+    // - Call validateRequest(token, body)
+    // - If invalid, return 402
     ```
   </Tab>
   <Tab title="Python">
     ```python
+    import os
     from payments_py import Payments, PaymentOptions
 
     payments = Payments.get_instance(
         PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
     )
 
-    def validate_request(token: str, body: dict) -> dict:
-        result = payments.requests.is_valid_request(token, body)
+    async def validate_request(token: str, body: dict) -> dict:
+        result = await payments.requests.is_valid_request(token, body)
 
         return {
             'is_valid': result['isValid'],
@@ -63,44 +67,36 @@ The simplest validation pattern - check if a request has valid payment:
             'reason': result.get('reason')
         }
 
-    # Usage
-    auth_header = request.headers.get('Authorization', '')
-    if not auth_header.startswith('Bearer '):
-        return jsonify({'error': 'Payment Required'}), 402
-
-    token = auth_header[7:]
-    result = validate_request(token, request.json)
-
-    if not result['is_valid']:
-        return jsonify({'error': 'Invalid token'}), 402
-
-    # Process request...
+    # Pseudo-usage:
+    # - Extract token from Authorization: Bearer <token>
+    # - Call await validate_request(token, body)
+    # - If invalid, return 402
     ```
   </Tab>
 </Tabs>
 
-## Validation with Minimum Credits
+## Validation with minimum credits
 
 Check that the user has enough credits for the operation:
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    async function validateWithMinimum(
+    export async function validateWithMinimum(
       token: string,
-      body: any,
+      body: unknown,
       minCredits: number
     ) {
       const result = await payments.requests.isValidRequest(token, body)
 
       if (!result.isValid) {
-        return { valid: false, reason: 'invalid_token' }
+        return { valid: false, reason: 'invalid_token' as const }
       }
 
       if (result.balance < minCredits) {
         return {
           valid: false,
-          reason: 'insufficient_credits',
+          reason: 'insufficient_credits' as const,
           required: minCredits,
           available: result.balance
         }
@@ -109,21 +105,17 @@ Check that the user has enough credits for the operation:
       return { valid: true, balance: result.balance }
     }
 
-    // Usage for expensive operation
+    // Example: expensive operation
     const validation = await validateWithMinimum(token, body, 10)
-
     if (!validation.valid) {
-      return res.status(402).json({
-        error: 'Payment Required',
-        ...validation
-      })
+      // return 402
     }
     ```
   </Tab>
   <Tab title="Python">
     ```python
-    def validate_with_minimum(token: str, body: dict, min_credits: int) -> dict:
-        result = payments.requests.is_valid_request(token, body)
+    async def validate_with_minimum(token: str, body: dict, min_credits: int) -> dict:
+        result = await payments.requests.is_valid_request(token, body)
 
         if not result['isValid']:
             return {'valid': False, 'reason': 'invalid_token'}
@@ -138,197 +130,16 @@ Check that the user has enough credits for the operation:
 
         return {'valid': True, 'balance': result['balance']}
 
-    # Usage for expensive operation
-    validation = validate_with_minimum(token, body, 10)
-
+    # Example: expensive operation
+    validation = await validate_with_minimum(token, body, 10)
     if not validation['valid']:
-        return jsonify({
-            'error': 'Payment Required',
-            **validation
-        }), 402
+        # return 402
+        pass
     ```
   </Tab>
 </Tabs>
 
-## Express Middleware
-
-Reusable middleware for Express.js:
-
-```typescript filename="middleware/payment.ts"
-import { Request, Response, NextFunction } from 'express'
-import { Payments } from '@nevermined-io/payments'
-
-const payments = Payments.getInstance({
-  nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'testing'
-})
-
-const PLAN_ID = process.env.PLAN_ID!
-const AGENT_ID = process.env.AGENT_ID!
-
-// Extend Request type
-declare global {
-  namespace Express {
-    interface Request {
-      payment?: {
-        balance: number
-        subscriberAddress?: string
-      }
-    }
-  }
-}
-
-export function requirePayment(minCredits: number = 1) {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const auth = req.headers['authorization']
-
-    if (!auth?.startsWith('Bearer ')) {
-      return res.status(402).json({
-        error: 'Payment Required',
-        code: 'MISSING_TOKEN',
-        plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
-      })
-    }
-
-    const token = auth.substring(7)
-
-    try {
-      const result = await payments.requests.isValidRequest(token, req.body)
-
-      if (!result.isValid) {
-        return res.status(402).json({
-          error: 'Payment Required',
-          code: 'INVALID_TOKEN',
-          reason: result.reason,
-          plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
-        })
-      }
-
-      if (result.balance < minCredits) {
-        return res.status(402).json({
-          error: 'Insufficient credits',
-          code: 'INSUFFICIENT_CREDITS',
-          required: minCredits,
-          available: result.balance,
-          plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
-        })
-      }
-
-      req.payment = {
-        balance: result.balance,
-        subscriberAddress: result.subscriberAddress
-      }
-
-      next()
-    } catch (error) {
-      console.error('Payment validation error:', error)
-      return res.status(500).json({ error: 'Validation failed' })
-    }
-  }
-}
-
-// Usage
-app.post('/query', requirePayment(1), async (req, res) => {
-  console.log(`Credits remaining: ${req.payment!.balance}`)
-  // Process request...
-})
-
-app.post('/expensive', requirePayment(10), async (req, res) => {
-  // Requires at least 10 credits
-})
-```
-
-## FastAPI Dependency
-
-Reusable dependency for FastAPI:
-
-```python filename="dependencies/payment.py"
-from fastapi import Request, HTTPException, Depends
-from payments_py import Payments, PaymentOptions
-import os
-
-payments = Payments.get_instance(
-    PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
-)
-
-PLAN_ID = os.environ['PLAN_ID']
-AGENT_ID = os.environ['AGENT_ID']
-
-class PaymentInfo:
-    def __init__(self, balance: int, subscriber_address: str = None):
-        self.balance = balance
-        self.subscriber_address = subscriber_address
-
-def require_payment(min_credits: int = 1):
-    async def validate(request: Request) -> PaymentInfo:
-        auth = request.headers.get('Authorization', '')
-
-        if not auth.startswith('Bearer '):
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    'error': 'Payment Required',
-                    'code': 'MISSING_TOKEN',
-                    'plans': [{'planId': PLAN_ID, 'agentId': AGENT_ID}]
-                }
-            )
-
-        token = auth[7:]
-
-        try:
-            body = await request.json()
-        except:
-            body = {}
-
-        result = payments.requests.is_valid_request(token, body)
-
-        if not result['isValid']:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    'error': 'Payment Required',
-                    'code': 'INVALID_TOKEN',
-                    'plans': [{'planId': PLAN_ID, 'agentId': AGENT_ID}]
-                }
-            )
-
-        if result['balance'] < min_credits:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    'error': 'Insufficient credits',
-                    'code': 'INSUFFICIENT_CREDITS',
-                    'required': min_credits,
-                    'available': result['balance']
-                }
-            )
-
-        return PaymentInfo(
-            balance=result['balance'],
-            subscriber_address=result.get('subscriberAddress')
-        )
-
-    return validate
-
-# Usage
-@app.post("/query")
-async def query(
-    request: dict,
-    payment: PaymentInfo = Depends(require_payment(1))
-):
-    print(f"Credits remaining: {payment.balance}")
-    # Process request...
-
-@app.post("/expensive")
-async def expensive(
-    request: dict,
-    payment: PaymentInfo = Depends(require_payment(10))
-):
-    # Requires at least 10 credits
-    pass
-```
-
-## Validation Response Handling
+## Validation response handling
 
 Handle all possible validation outcomes:
 
@@ -392,7 +203,7 @@ Handle all possible validation outcomes:
     ```python
     async def handle_validation(token: str, body: dict) -> dict:
         try:
-            result = payments.requests.is_valid_request(token, body)
+            result = await payments.requests.is_valid_request(token, body)
 
             if not result['isValid']:
                 reason = result.get('reason', 'UNKNOWN')
@@ -438,7 +249,7 @@ Handle all possible validation outcomes:
   </Tab>
 </Tabs>
 
-## Caching Validation Results
+## Caching validation results
 
 For high-traffic endpoints, cache validation briefly:
 
@@ -477,14 +288,13 @@ For high-traffic endpoints, cache validation briefly:
   </Tab>
   <Tab title="Python">
     ```python
-    from functools import lru_cache
     from datetime import datetime, timedelta
     import hashlib
 
     validation_cache = {}
     CACHE_TTL = timedelta(seconds=30)
 
-    def validate_with_cache(token: str, body: dict) -> dict:
+    async def validate_with_cache(token: str, body: dict) -> dict:
         cache_key = hash_token(token)
 
         # Check cache
@@ -493,7 +303,7 @@ For high-traffic endpoints, cache validation briefly:
             if datetime.now() - timestamp < CACHE_TTL:
                 return cached
 
-        result = payments.requests.is_valid_request(token, body)
+        result = await payments.requests.is_valid_request(token, body)
 
         if result['isValid']:
             validation_cache[cache_key] = (result, datetime.now())
@@ -506,7 +316,7 @@ For high-traffic endpoints, cache validation briefly:
   </Tab>
 </Tabs>
 
-## Next Steps
+## Next steps
 
 <CardGroup cols={2}>
   <Card title="Charge Credits" icon="coins" href="/docs/integrate/patterns/charge-credits">
