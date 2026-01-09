@@ -1,252 +1,46 @@
 ---
-title: "Payment Libraries Overview"
+title: "Payment Libraries"
 description: "TypeScript and Python SDKs for programmatic integration with Nevermined payment infrastructure"
 icon: "code"
 ---
 
-The Nevermined Payment Libraries are SDKs that enable programmatic interaction with the Nevermined ecosystem. Available in TypeScript and Python, they provide full control over agent registration, payment plans, and request validation.
+The Nevermined Payment Libraries are SDKs for programmatically integrating Nevermined payments into your application (create agents & plans, validate requests, and interact with the x402 flow).
 
-## Available Libraries
+This page is intentionally a lightweight hub. For method-by-method documentation, use the API Reference. For end-to-end integration examples, use the Quick Starts and framework guides.
+
+## SDKs
 
 <CardGroup cols={2}>
-  <Card title="TypeScript SDK" icon="js" href="/docs/products/payment-libraries/typescript">
-    `@nevermined-io/payments`
-
-    For Node.js backends, web applications, and AI agents built in JavaScript/TypeScript.
+  <Card title="TypeScript SDK" icon="js" href="/docs/api-reference/typescript/installation">
+    Install and use `@nevermined-io/payments`.
   </Card>
 
-  <Card title="Python SDK" icon="python" href="/docs/products/payment-libraries/python">
-    `payments-py`
-
-    For Python backends, data science workflows, and AI agents built with frameworks like FastAPI or Flask.
+  <Card title="Python SDK" icon="python" href="/docs/api-reference/python/installation">
+    Install and use `payments-py`.
   </Card>
 </CardGroup>
 
-## Core Capabilities
-
-Both libraries provide the same functionality:
-
-<AccordionGroup>
-  <Accordion title="Agent Registration" icon="robot">
-    Register AI agents with metadata, API endpoints, and access control policies.
-
-    ```typescript
-    const { agentId } = await payments.agents.registerAgent({
-      name: 'My AI Assistant',
-      endpoints: [{ POST: 'https://api.myservice.com/query' }]
-    })
-    ```
-  </Accordion>
-
-  <Accordion title="Payment Plan Management" icon="credit-card">
-    Create and manage payment plans with flexible pricing models.
-
-    ```typescript
-    const { planId } = await payments.plans.createPlan({
-      agentId,
-      name: 'Pro Plan',
-      priceConfig,
-      creditsConfig
-    })
-    ```
-  </Accordion>
-
-  <Accordion title="Request Validation" icon="shield-check">
-    Validate incoming requests and check subscriber access.
-
-    ```typescript
-    const { isValid, balance } = await payments.requests.isValidRequest(
-      accessToken,
-      requestData
-    )
-    ```
-  </Accordion>
-
-  <Accordion title="x402 Protocol Support" icon="link">
-    Generate and verify x402 payment tokens for the HTTP 402 flow.
-
-    ```typescript
-    const { accessToken } = await payments.x402.getX402AccessToken(
-      planId,
-      agentId
-    )
-    ```
-  </Accordion>
-</AccordionGroup>
-
-## Quick Comparison
-
-| Feature | TypeScript | Python |
-|---------|------------|--------|
-| Package | `@nevermined-io/payments` | `payments-py` |
-| Install | `npm install` | `pip install` |
-| Runtime | Node.js 18+ | Python 3.9+ |
-| Async | Promise-based | async/await |
-| Types | Full TypeScript types | Type hints |
-
-## When to Use the Libraries
+## Where to go next
 
 <CardGroup cols={2}>
-  <Card title="Automation" icon="robot">
-    Automate agent registration, plan creation, and management via CI/CD pipelines.
-  </Card>
-
-  <Card title="Custom Workflows" icon="route">
-    Build custom payment flows, integrate with existing systems, or create marketplaces.
-  </Card>
-
-  <Card title="Production Systems" icon="server">
-    Deploy robust, programmatic integration for high-volume production environments.
-  </Card>
-
-  <Card title="Testing" icon="flask">
-    Write automated tests for your payment integration logic.
-  </Card>
-</CardGroup>
-
-## Library Modules
-
-Both SDKs are organized into the same module structure:
-
-| Module | Purpose |
-|--------|---------|
-| `payments.agents` | Register and manage AI agents |
-| `payments.plans` | Create and configure payment plans |
-| `payments.requests` | Validate requests and check access |
-| `payments.x402` | x402 token generation and handling |
-| `payments.facilitator` | x402 verification and settlement |
-
-## Getting Started
-
-### Installation
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```bash
-    npm install @nevermined-io/payments
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```bash
-    pip install payments-py
-    ```
-  </Tab>
-</Tabs>
-
-### Initialization
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    import { Payments } from '@nevermined-io/payments'
-
-    const payments = Payments.getInstance({
-      nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'testing' // or 'production'
-    })
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    import os
-    from payments_py import Payments, PaymentOptions
-
-    payments = Payments.get_instance(
-        PaymentOptions(
-            nvm_api_key=os.environ['NVM_API_KEY'],
-            environment='testing'  # or 'production'
-        )
-    )
-    ```
-  </Tab>
-</Tabs>
-
-### Basic Usage
-
-<Tabs>
-  <Tab title="TypeScript">
-    ```typescript
-    // Register an agent
-    const { agentId } = await payments.agents.registerAgent({
-      name: 'My AI Agent',
-      endpoints: [{ POST: 'https://api.example.com/query' }]
-    })
-
-    // Create a payment plan
-    const { planId } = await payments.plans.createPlan({
-      agentId,
-      name: 'Basic Plan',
-      priceConfig: getERC20PriceConfig(10_000_000n, usdcAddress, myAddress),
-      creditsConfig: getFixedCreditsConfig(100n, 1n)
-    })
-
-    // Validate an incoming request
-    const { isValid } = await payments.requests.isValidRequest(token, request)
-    ```
-  </Tab>
-  <Tab title="Python">
-    ```python
-    # Register an agent
-    agent = payments.agents.register_agent(
-        name='My AI Agent',
-        endpoints=[{'POST': 'https://api.example.com/query'}]
-    )
-
-    # Create a payment plan
-    plan = payments.plans.create_plan(
-        agent_id=agent['agentId'],
-        name='Basic Plan',
-        price_config=get_erc20_price_config(10_000_000, usdc_address, my_address),
-        credits_config=get_fixed_credits_config(100, 1)
-    )
-
-    # Validate an incoming request
-    result = payments.requests.is_valid_request(token, request)
-    ```
-  </Tab>
-</Tabs>
-
-## Environment Configuration
-
-| Environment | API Endpoint | Network | Use Case |
-|-------------|--------------|---------|----------|
-| `testing` | Sandbox API | Base Sepolia | Development & testing |
-| `staging` | Staging API | Base Sepolia | Pre-production |
-| `production` | Production API | Base Mainnet | Live applications |
-
-<Warning>
-Always use `testing` or `staging` environments during development. Production environments involve real payments.
-</Warning>
-
-## API Key
-
-Get your API key from the [Nevermined App](https://nevermined.app):
-
-1. Log in to the App
-2. Go to **Settings > API Keys**
-3. Generate a new key
-4. Store securely as an environment variable
-
-```bash
-export NVM_API_KEY="nvm:your-api-key-here"
-```
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="TypeScript SDK" icon="js" href="/docs/products/payment-libraries/typescript">
-    Complete TypeScript integration guide
-  </Card>
-
-  <Card title="Python SDK" icon="python" href="/docs/products/payment-libraries/python">
-    Complete Python integration guide
-  </Card>
-
   <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
-    Get your first agent accepting payments
+    Register a service, create a plan, and get your first paid request working.
+  </Card>
+
+  <Card title="TypeScript Quick Start" icon="js" href="/docs/integrate/quickstart/typescript">
+    End-to-end TypeScript example.
+  </Card>
+
+  <Card title="Python Quick Start" icon="python" href="/docs/integrate/quickstart/python">
+    End-to-end Python example.
   </Card>
 
   <Card title="API Reference" icon="book" href="/docs/api-reference/introduction">
-    Detailed method documentation
+    Detailed SDK and REST documentation.
   </Card>
 </CardGroup>
+
+## Notes
+
+- The standalone SDK guides previously linked from here (TypeScript / Python) largely duplicate the API Reference pages and the Quick Starts.
+- If you want, we can keep those pages on disk but de-emphasize them (current setup), or delete them entirely.
