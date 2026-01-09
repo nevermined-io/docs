@@ -27,7 +27,7 @@ This specification extends the base x402 protocol and follows the same HTTP flow
 | Aspect | `nvm:erc4337` | `nvm:vic` |
 |--------|---------------|-----------|
 | Scheme | `contract` | `visa` |
-| Network | CAIP-2 blockchain (e.g., `eip155:84532`) | `visa:vts` |
+| Network | CAIP-2 blockchain (e.g., `eip155:84532`) | `visa:cert` or `visa:prod` |
 | Authorization | ERC-4337 Session Keys | Visa Token Service credentials |
 | Settlement | Smart contract execution | Visa payment network |
 | Currency | ERC-20 tokens | Fiat (USD, EUR, etc.) |
@@ -59,7 +59,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### 3.1 Extension Identifier
 
-This extension is identified by the scheme `visa` and network `visa:vts`.
+This extension is identified by the scheme `visa` and certification and production networks `visa:cert` and `visa:prod`.
 
 ### 3.2 Payload Schema
 
@@ -75,7 +75,7 @@ The complete x402 payment payload with the Visa VIC extension:
   },
   "accepted": {
     "scheme": "visa",
-    "network": "visa:vts",
+    "network": "visa:cert",
     "amount": "100.00",
     "asset": "USD",
     "payTo": "merchant_123",
@@ -125,7 +125,7 @@ The complete x402 payment payload with the Visa VIC extension:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `scheme` | `string` | Yes | Payment scheme. MUST be `"visa"`. |
-| `network` | `string` | Yes | Payment network. MUST be `"visa:vts"`. |
+| `network` | `string` | Yes | Payment network. MUST be `"visa:cert"` or `"visa:prod"`. |
 | `amount` | `string` | Yes | Maximum payment amount (decimal string, e.g., `"100.00"`). |
 | `asset` | `string` | Yes | Currency code (e.g., `"USD"`, `"EUR"`). |
 | `payTo` | `string` | Yes | Merchant identifier. |
@@ -217,7 +217,7 @@ The facilitator MUST verify:
 |-------|-------------|
 | Version | `x402Version` MUST equal `2` |
 | Scheme | `accepted.scheme` MUST equal `"visa"` |
-| Network | `accepted.network` MUST equal `"visa:vts"` |
+| Network | `accepted.network` MUST equal `"visa:cert"` or `"visa:prod"` |
 | Time Window | Current time MUST be within `validAfter` and `validBefore` |
 | Amount | Requested amount MUST NOT exceed `accepted.amount` |
 | Asset | Requested asset MUST match `accepted.asset` |
@@ -263,7 +263,7 @@ The facilitator MUST return a receipt containing:
 |-------|------|-------------|
 | `success` | `boolean` | Whether settlement succeeded. |
 | `transaction` | `string` | Transaction identifier (format: `visa_tx_{timestamp}_{id}`). |
-| `network` | `string` | Network identifier (`"visa:vts"`). |
+| `network` | `string` | Network identifier (`"visa:cert"`). |
 | `payer` | `string` | The `vProvisionedTokenID` of the payer. |
 | `remainingUsage` | `number` | Remaining uses before rate limit is reached. |
 
@@ -310,7 +310,7 @@ The facilitator MUST return a receipt containing:
 {
   "success": true,
   "transaction": "visa_tx_1734355200_abc123",
-  "network": "visa:vts",
+  "network": "visa:cert",
   "payer": "tok_abc123",
   "remainingUsage": 8
 }
@@ -321,7 +321,7 @@ The facilitator MUST return a receipt containing:
 {
   "success": false,
   "transaction": "",
-  "network": "visa:vts",
+  "network": "visa:cert",
   "payer": "tok_abc123",
   "errorReason": "amount_exceeds_limit"
 }
