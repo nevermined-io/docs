@@ -1,0 +1,86 @@
+---
+title: "Installation"
+description: "Install and configure the payments-py Python SDK"
+icon: "download"
+---
+
+## Installation
+
+Install via pip:
+
+```bash
+pip install payments-py
+```
+
+Or with poetry:
+
+```bash
+poetry add payments-py
+```
+
+## Basic Setup
+
+```python
+import os
+from payments_py import Payments, PaymentOptions
+
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ['NVM_API_KEY'],
+        environment='testing'  # or 'staging', 'production'
+    )
+)
+```
+
+## Configuration Options
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `nvm_api_key` | `str` | Yes | Your Nevermined API key |
+| `environment` | `str` | Yes | `'testing'`, `'staging'`, or `'production'` |
+| `app_id` | `str` | No | Optional application identifier |
+| `version` | `str` | No | Optional version string |
+
+## Environment Details
+
+| Environment | Network | Use Case |
+|-------------|---------|----------|
+| `testing` | Base Sepolia | Development and testing |
+| `staging` | Base Sepolia | Pre-production testing |
+| `production` | Base Mainnet | Live applications |
+
+## Type Hints
+
+The SDK includes type hints for better IDE support:
+
+```python
+from payments_py.types import (
+    Agent,
+    Plan,
+    PriceConfig,
+    CreditsConfig,
+    ValidationResult
+)
+```
+
+## Getting Your API Key
+
+1. Go to [nevermined.app](https://nevermined.app)
+2. Sign in with Web3Auth
+3. Navigate to **Settings > API Keys**
+4. Generate and copy your key
+
+```bash
+export NVM_API_KEY="nvm:your-api-key-here"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payments Class" icon="code" href="/docs/api-reference/python/payments-class">
+    Core SDK class and methods
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/docs/integrate/quickstart/python">
+    Get started quickly
+  </Card>
+</CardGroup>

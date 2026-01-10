@@ -1,0 +1,178 @@
+---
+title: "Register Agents"
+description: "Step-by-step guide to registering AI agents through the Nevermined App"
+icon: "robot"
+---
+
+Register your AI agents through the Nevermined App's visual interface. This guide walks through each step of the registration process.
+
+## Prerequisites
+
+- A Nevermined account (sign up at [nevermined.app](https://nevermined.app))
+- Your AI agent's API endpoint(s) ready to receive requests
+- Optional: OpenAPI spec, MCP manifest, or A2A agent card URL
+
+## Registration Steps
+
+<Steps>
+  <Step title="Navigate to Agents">
+    From the Nevermined App dashboard, click **Agents** in the sidebar, then click **Register New Agent**.
+  </Step>
+
+  <Step title="Enter Basic Information">
+    Fill in your agent's metadata:
+
+    | Field | Description | Example |
+    |-------|-------------|---------|
+    | **Name** | Display name for your agent | "Legal Document Analyzer" |
+    | **Description** | What your agent does | "AI-powered legal document analysis and summarization" |
+    | **Tags** | Categories for discovery | `legal`, `ai`, `documents` |
+  </Step>
+
+  <Step title="Configure API Endpoints">
+    Add the endpoints your agent exposes:
+
+    - **HTTP Method**: GET, POST, PUT, DELETE
+    - **URL**: The full endpoint URL (e.g., `https://api.myservice.com/analyze`)
+    - **Description**: What this endpoint does
+
+    You can add multiple endpoints for a single agent.
+
+    <Note>
+      Your endpoints must be publicly accessible. Nevermined will route requests to these URLs with the subscriber's access token.
+    </Note>
+  </Step>
+
+  <Step title="Add Agent Definition (Optional)">
+    Link to a machine-readable definition of your agent:
+
+    | Type | URL Format |
+    |------|------------|
+    | **OpenAPI** | `https://api.myservice.com/openapi.json` |
+    | **MCP Manifest** | `https://api.myservice.com/mcp.json` |
+    | **A2A Agent Card** | `https://api.myservice.com/.well-known/agent.json` |
+
+    This enables automatic discovery and integration with AI frameworks.
+  </Step>
+
+  <Step title="Review and Register">
+    Review your agent configuration and click **Register Agent**. Your agent will be assigned a unique ID (`did:nv:...`).
+  </Step>
+</Steps>
+
+## Agent Configuration Examples
+
+### REST API Agent
+
+For a standard REST API:
+
+```
+Name: Data Analysis API
+Description: Statistical analysis and visualization service
+
+Endpoints:
+- POST https://api.dataservice.com/analyze
+- GET https://api.dataservice.com/status/{job_id}
+- GET https://api.dataservice.com/results/{job_id}
+
+Definition URL: https://api.dataservice.com/openapi.json
+```
+
+### MCP Tool Agent
+
+For an MCP-compatible agent:
+
+```
+Name: Code Review Assistant
+Description: AI-powered code review and suggestions
+
+Endpoints:
+- POST https://mcp.codereviewer.com/review
+
+Definition URL: https://mcp.codereviewer.com/mcp.json
+```
+
+### A2A Agent
+
+For Google Agent-to-Agent compatible agents:
+
+```
+Name: Travel Booking Agent
+Description: Autonomous travel planning and booking
+
+Endpoints:
+- POST https://a2a.travelbot.com/tasks
+
+Definition URL: https://a2a.travelbot.com/.well-known/agent.json
+```
+
+## After Registration
+
+Once your agent is registered, you can:
+
+1. **Create Payment Plans**: Add pricing to your agent
+2. **View Agent ID**: Copy your `did:nv:...` for SDK integration
+3. **Monitor Activity**: Track queries and usage
+4. **Edit Settings**: Update endpoints or metadata
+
+## Managing Multiple Agents
+
+The Agents tab shows all your registered agents:
+
+| Column | Description |
+|--------|-------------|
+| **Name** | Agent display name |
+| **ID** | Unique identifier (did:nv:...) |
+| **Plans** | Number of payment plans attached |
+| **Queries** | Total requests received |
+| **Status** | Active, Paused, or Pending |
+
+Click any agent to view details, edit configuration, or create payment plans.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Descriptive Names" icon="tag">
+    Choose names that clearly describe what your agent does. This helps subscribers find and understand your service.
+  </Accordion>
+
+  <Accordion title="Document Your Endpoints" icon="book">
+    Provide clear descriptions for each endpoint. Include expected inputs, outputs, and any rate limits.
+  </Accordion>
+
+  <Accordion title="Include Agent Definition" icon="link">
+    Link to an OpenAPI spec, MCP manifest, or A2A card. This enables automatic integration with AI frameworks and improves discoverability.
+  </Accordion>
+
+  <Accordion title="Use HTTPS" icon="lock">
+    All endpoints should use HTTPS for secure communication. HTTP endpoints are not supported.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Endpoint not reachable" icon="circle-exclamation">
+    Verify your endpoint URL is correct and publicly accessible. Test with `curl` or a similar tool.
+  </Accordion>
+
+  <Accordion title="Registration fails" icon="circle-xmark">
+    Check that all required fields are filled and your endpoint URLs are valid HTTPS URLs.
+  </Accordion>
+
+  <Accordion title="Agent not appearing" icon="eye-slash">
+    Refresh the Agents page. New agents may take a few seconds to appear.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Manage Plans" icon="credit-card" href="/docs/products/nevermined-app/manage-plans">
+    Create payment plans for your agent
+  </Card>
+
+  <Card title="Payment Libraries" icon="code" href="/docs/products/payment-libraries/overview">
+    Register agents programmatically
+  </Card>
+</CardGroup>

@@ -1,5 +1,137 @@
 /* Nevermined Custom Styles */
 
+/* =====================================================
+   Top Header / Safe Area spacing
+   Prevent the top nav (tabs) pill from touching the top of the viewport
+   ===================================================== */
+
+/* Add a little breathing room inside the sticky header (Mintlify layout differences)
+   We target a few common wrappers defensively. */
+header,
+[data-testid="site-header"],
+.navbar,
+.mintlify-navbar {
+  padding-top: max(10px, env(safe-area-inset-top)) !important;
+}
+
+/* Ensure the tabs pill itself has some top margin so it doesn't look stuck
+   to the header edge on certain themes/breakpoints. */
+.nav-tabs {
+  margin-top: 24px !important;
+}
+
+/* =====================================================
+   Navigation Tabs - Pill Style
+   Matches the Nevermined website design
+   ===================================================== */
+
+/* Remove border from tabs header container */
+.nav-tabs-container,
+div:has(> .nav-tabs) {
+  border-bottom: none !important;
+}
+
+/* Tabs container - pill style background */
+.nav-tabs {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 6px 8px !important;
+  background-color: rgba(245, 247, 242, 0.9) !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(17, 24, 39, 0.08) !important;
+  box-shadow: 0 6px 18px rgba(17, 24, 39, 0.06) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  position: relative !important;
+  height: auto !important;
+}
+
+/* Individual tab items */
+a.nav-tabs-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 9px 18px !important;
+  border-radius: 9999px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: rgba(17, 24, 39, 0.78) !important;
+  background-color: transparent !important;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 1 !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  height: auto !important;
+  border: none !important;
+  border-bottom: none !important;
+}
+
+/* Hover state for non-active tabs */
+a.nav-tabs-item:hover {
+  color: #111827 !important;
+  background-color: rgba(207, 233, 109, 0.22) !important;
+}
+
+/* Keyboard focus */
+a.nav-tabs-item:focus-visible {
+  outline: 2px solid rgba(154, 192, 34, 0.55) !important;
+  outline-offset: 2px !important;
+}
+
+/* Active/Selected tab - lime green pill */
+a.nav-tabs-item.font-semibold,
+a.nav-tabs-item[aria-current="page"] {
+  background: linear-gradient(180deg, rgba(207, 233, 109, 0.95), rgba(207, 233, 109, 0.82)) !important;
+  color: #111827 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 6px 16px rgba(154, 192, 34, 0.25) !important;
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  .nav-tabs {
+    padding: 5px 6px !important;
+    gap: 4px !important;
+    margin-top: 8px !important;
+  }
+
+  a.nav-tabs-item {
+    padding: 7px 12px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1024px) {
+  a.nav-tabs-item {
+    padding: 10px 22px !important;
+    font-size: 15px !important;
+  }
+}
+
+/* =====================================================
+   Tabs vertical alignment (logo baseline)
+   Keep header layout untouched; align tabs pill visually with logo
+   ===================================================== */
+
+/* (reverted) */
+
+/* =====================================================
+   Header alignment
+   Align tabs pill with the Nevermined logo in the top bar
+   ===================================================== */
+
+/* (reverted) */
+
+/* =====================================================
+   Hero Banner Styles
+   ===================================================== */
+
 /* Hero Banner Styles */
 .nvm-hero-banner {
   position: relative;

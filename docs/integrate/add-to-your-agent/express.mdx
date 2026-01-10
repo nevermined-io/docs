@@ -1,0 +1,442 @@
+---
+title: "Express.js Integration"
+description: "Add Nevermined payments to your Express.js application"
+icon: "node-js"
+frameworks: ["express", "node", "javascript"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
+</Note>
+
+Complete guide to integrating Nevermined payments into an Express.js backend.
+
+## Installation
+
+```bash
+npm install @nevermined-io/payments express
+```
+
+## Project Setup
+
+```typescript filename="src/config/payments.ts"
+import { Payments } from '@nevermined-io/payments'
+
+// Singleton instance
+let paymentsInstance: Payments | null = null
+
+export function getPayments(): Payments {
+  if (!paymentsInstance) {
+    paymentsInstance = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: process.env.NODE_ENV === 'production' ? 'production' : 'testing'
+    })
+  }
+  return paymentsInstance
+}
+
+// Configuration
+export const config = {
+  agentId: process.env.AGENT_ID!,
+  planId: process.env.PLAN_ID!
+}
+```
+
+## Payment Middleware
+
+```typescript filename="src/middleware/payment.ts"
+import { Request, Response, NextFunction } from 'express'
+import { getPayments, config } from '../config/payments'
+
+// Extend Express Request type
+declare global {
+  namespace Express {
+    interface Request {
+      payment?: {
+        isValid: boolean
+        balance: number
+        subscriberAddress?: string
+      }
+    }
+  }
+}
+
+/**
+ * Middleware to validate x402 payment proofs.
+ *
+ * Expected header on retries:
+ *   PAYMENT-SIGNATURE: <payment_proof>
+ */
+export async function validatePayment(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const paymentProof = req.header('PAYMENT-SIGNATURE')
+
+  // First request (no payment proof) OR missing header
+  if (!paymentProof) {
+    return res.status(402).json({
+      error: 'Payment Required',
+      code: 'PAYMENT_REQUIRED',
+      plans: [
+        {
+          planId: config.planId,
+          agentId: config.agentId
+        }
+      ]
+    })
+  }
+
+  try {
+    const payments = getPayments()
+    const result = await payments.requests.isValidRequest(paymentProof, req.body)
+
+    if (!result.isValid) {
+      return res.status(402).json({
+        error: 'Payment Required',
+        code: 'INVALID_PAYMENT',
+        reason: result.reason,
+        plans: [
+          {
+            planId: config.planId,
+            agentId: config.agentId
+          }
+        ]
+      })
+    }
+
+    // Attach payment info to request
+    req.payment = {
+      isValid: true,
+      balance: result.balance,
+      subscriberAddress: result.subscriberAddress
+    }
+
+    next()
+  } catch (error) {
+    console.error('Payment validation error:', error)
+    return res.status(500).json({
+      error: 'Payment validation failed',
+      code: 'VALIDATION_ERROR'
+    })
+  }
+}
+
+/**
+ * Optional middleware to check minimum credits.
+ */
+export function requireCredits(minCredits: number) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.payment || req.payment.balance < minCredits) {
+      return res.status(402).json({
+        error: 'Insufficient credits',
+        code: 'INSUFFICIENT_CREDITS',
+        required: minCredits,
+        available: req.payment?.balance || 0
+      })
+    }
+    next()
+  }
+}
+```
+
+## Route Handlers
+
+```typescript filename="src/routes/query.ts"
+import { Router, Request, Response } from 'express'
+import { validatePayment, requireCredits } from '../middleware/payment'
+
+const router = Router()
+
+// Protected endpoint - requires valid payment
+router.post('/query',
+  validatePayment,
+  async (req: Request, res: Response) => {
+    const { prompt } = req.body
+
+    // Your AI logic here
+    const result = await processAIQuery(prompt)
+
+    res.json({
+      result,
+      credits: {
+        remaining: req.payment!.balance,
+        used: 1
+      }
+    })
+  }
+)
+
+// Endpoint requiring minimum credits
+router.post('/expensive-query',
+  validatePayment,
+  requireCredits(10), // Requires at least 10 credits
+  async (req: Request, res: Response) => {
+    const { prompt } = req.body
+
+    // Expensive AI operation
+    const result = await processExpensiveQuery(prompt)
+
+    res.json({
+      result,
+      credits: {
+        remaining: req.payment!.balance,
+        used: 10
+      }
+    })
+  }
+)
+
+// Public endpoint - no payment required
+router.get('/health', (req, res) => {
+  res.json({ status: 'ok' })
+})
+
+export default router
+```
+
+## Main Application
+
+```typescript filename="src/app.ts"
+import express from 'express'
+import queryRouter from './routes/query'
+
+const app = express()
+
+// Middleware
+app.use(express.json())
+
+// Routes
+app.use('/api', queryRouter)
+
+// Error handler
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  })
+})
+
+export default app
+```
+
+```typescript filename="src/index.ts"
+import app from './app'
+
+const PORT = process.env.PORT || 3000
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`)
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+})
+```
+
+## Registration Script
+
+Run once to register your agent:
+
+```typescript filename="scripts/register.ts"
+import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+
+const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // Base Sepolia
+
+async function register() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY!,
+    environment: 'testing'
+  })
+
+  const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+    {
+      name: 'My Express API',
+      description: 'AI-powered API built with Express.js',
+      tags: ['express', 'ai', 'api'],
+      dateCreated: new Date()
+    },
+    {
+      endpoints: [
+        { POST: `${process.env.BASE_URL}/api/query` },
+        { POST: `${process.env.BASE_URL}/api/expensive-query` }
+      ]
+    },
+    {
+      name: 'Pro Plan',
+      description: '100 API credits',
+      dateCreated: new Date()
+    },
+    getERC20PriceConfig(
+      10_000_000n,
+      USDC_ADDRESS,
+      process.env.BUILDER_ADDRESS!
+    ),
+    getFixedCreditsConfig(100n, 1n),
+    'credits'
+  )
+
+  console.log('Registration complete!')
+  console.log(`AGENT_ID=${agentId}`)
+  console.log(`PLAN_ID=${planId}`)
+}
+
+register().catch(console.error)
+```
+
+## Environment Variables
+
+```bash filename=".env"
+# Nevermined
+NVM_API_KEY=nvm:your-api-key
+BUILDER_ADDRESS=0xYourWalletAddress
+AGENT_ID=did:nv:your-agent-id
+PLAN_ID=did:nv:your-plan-id
+
+# Server
+PORT=3000
+BASE_URL=https://your-api.com
+NODE_ENV=development
+```
+
+## Error Handling Patterns
+
+```typescript filename="src/middleware/errors.ts"
+import { Request, Response, NextFunction } from 'express'
+
+// Custom error class for payment errors
+export class PaymentError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public statusCode: number = 402
+  ) {
+    super(message)
+    this.name = 'PaymentError'
+  }
+}
+
+// Error handler middleware
+export function paymentErrorHandler(
+  err: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (err instanceof PaymentError) {
+    return res.status(err.statusCode).json({
+      error: err.message,
+      code: err.code
+    })
+  }
+  next(err)
+}
+```
+
+## TypeScript Types
+
+```typescript filename="src/types/index.ts"
+export interface QueryRequest {
+  prompt: string
+  options?: {
+    temperature?: number
+    maxTokens?: number
+  }
+}
+
+export interface QueryResponse {
+  result: string
+  credits: {
+    remaining: number
+    used: number
+  }
+}
+
+export interface PaymentInfo {
+  isValid: boolean
+  balance: number
+  subscriberAddress?: string
+}
+```
+
+## Testing
+
+```typescript filename="tests/payment.test.ts"
+import request from 'supertest'
+import app from '../src/app'
+
+describe('Payment Middleware', () => {
+  it('returns 402 without payment proof', async () => {
+    const res = await request(app)
+      .post('/api/query')
+      .send({ prompt: 'test' })
+
+    expect(res.status).toBe(402)
+    expect(res.body.code).toBe('PAYMENT_REQUIRED')
+  })
+
+  it('returns 402 with invalid payment proof', async () => {
+    const res = await request(app)
+      .post('/api/query')
+      .set('PAYMENT-SIGNATURE', 'invalid-payment-proof')
+      .send({ prompt: 'test' })
+
+    expect(res.status).toBe(402)
+    expect(res.body.code).toBe('INVALID_PAYMENT')
+  })
+
+  it('succeeds with valid payment proof', async () => {
+    const res = await request(app)
+      .post('/api/query')
+      .set('PAYMENT-SIGNATURE', `${process.env.TEST_PAYMENT_SIGNATURE}`)
+      .send({ prompt: 'test' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.result).toBeDefined()
+  })
+})
+```
+
+## Production Checklist
+
+<AccordionGroup>
+  <Accordion title="Environment" icon="gear">
+    - [ ] Set `NODE_ENV=production`
+    - [ ] Use `environment: 'production'` in Payments config
+    - [ ] Secure all environment variables
+    - [ ] Use HTTPS in production
+  </Accordion>
+
+  <Accordion title="Error Handling" icon="triangle-exclamation">
+    - [ ] Don't expose internal errors to clients
+    - [ ] Log all payment validation errors
+    - [ ] Implement retry logic for transient failures
+    - [ ] Set up alerting for payment failures
+  </Accordion>
+
+  <Accordion title="Performance" icon="gauge-high">
+    - [ ] Cache Payments instance (singleton)
+    - [ ] Consider caching validation results briefly
+    - [ ] Monitor validation latency
+    - [ ] Use connection pooling
+  </Accordion>
+
+  <Accordion title="Security" icon="shield">
+    - [ ] Validate all input data
+    - [ ] Rate limit endpoints
+    - [ ] Use helmet for security headers
+    - [ ] Implement CORS properly
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/validate-requests">
+    Advanced validation and charging patterns
+  </Card>
+
+  <Card title="x402 Protocol" icon="link" href="/docs/integrate/platforms/x402-protocol">
+    Implement HTTP 402 payment flows
+  </Card>
+</CardGroup>

@@ -1,0 +1,467 @@
+---
+title: "FastAPI Integration"
+description: "Add Nevermined payments to your FastAPI application"
+icon: "python"
+frameworks: ["fastapi", "python", "async"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
+</Note>
+
+Complete guide to integrating Nevermined payments into a FastAPI backend.
+
+## Installation
+
+```bash
+pip install payments-py fastapi uvicorn pydantic
+```
+
+## Project Setup
+
+```python filename="src/config.py"
+import os
+from payments_py import Payments, PaymentOptions
+
+# Singleton instance
+_payments_instance = None
+
+def get_payments() -> Payments:
+    global _payments_instance
+    if _payments_instance is None:
+        _payments_instance = Payments.get_instance(
+            PaymentOptions(
+                nvm_api_key=os.environ['NVM_API_KEY'],
+                environment='production' if os.environ.get('ENV') == 'production' else 'testing'
+            )
+        )
+    return _payments_instance
+
+# Configuration
+class Config:
+    agent_id = os.environ.get('AGENT_ID', '')
+    plan_id = os.environ.get('PLAN_ID', '')
+
+config = Config()
+```
+
+## Pydantic Models
+
+```python filename="src/models.py"
+from pydantic import BaseModel
+from typing import Optional, List
+
+class QueryRequest(BaseModel):
+    prompt: str
+    options: Optional[dict] = None
+
+class QueryResponse(BaseModel):
+    result: str
+    credits_remaining: int
+    credits_used: int
+
+class PaymentErrorDetail(BaseModel):
+    error: str
+    code: str
+    plans: List[dict]
+    reason: Optional[str] = None
+
+class PaymentInfo(BaseModel):
+    is_valid: bool
+    balance: int
+    subscriber_address: Optional[str] = None
+```
+
+## Payment Dependency
+
+```python filename="src/dependencies/payment.py"
+from fastapi import Request, HTTPException, Depends
+from src.config import get_payments, config
+from src.models import PaymentInfo
+
+async def get_payment_proof(request: Request) -> str:
+    """Extract x402 payment proof from PAYMENT-SIGNATURE header."""
+    payment_proof = request.headers.get('PAYMENT-SIGNATURE')
+
+    if not payment_proof:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                'error': 'Payment Required',
+                'code': 'PAYMENT_REQUIRED',
+                'plans': [{'planId': config.plan_id, 'agentId': config.agent_id}]
+            }
+        )
+
+    return payment_proof
+
+async def validate_payment(
+    request: Request,
+    payment_proof: str = Depends(get_payment_proof)
+) -> PaymentInfo:
+    """Validate x402 payment proof and return payment info."""
+    payments = get_payments()
+
+    # Get request body for validation
+    try:
+        body = await request.json()
+    except:
+        body = {}
+
+    result = await payments.requests.is_valid_request(payment_proof, body)
+
+    if not result['isValid']:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                'error': 'Payment Required',
+                'code': 'INVALID_PAYMENT',
+                'reason': result.get('reason'),
+                'plans': [{'planId': config.plan_id, 'agentId': config.agent_id}]
+            }
+        )
+
+    return PaymentInfo(
+        is_valid=True,
+        balance=result['balance'],
+        subscriber_address=result.get('subscriberAddress')
+    )
+
+def require_credits(min_credits: int):
+    """Factory for creating minimum credit requirements."""
+    async def check_credits(payment: PaymentInfo = Depends(validate_payment)) -> PaymentInfo:
+        if payment.balance < min_credits:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Insufficient credits',
+                    'code': 'INSUFFICIENT_CREDITS',
+                    'required': min_credits,
+                    'available': payment.balance
+                }
+            )
+        return payment
+    return check_credits
+```
+
+## Route Handlers
+
+```python filename="src/routes/query.py"
+from fastapi import APIRouter, Depends
+from src.dependencies.payment import validate_payment, require_credits
+from src.models import QueryRequest, QueryResponse, PaymentInfo
+
+router = APIRouter(prefix="/api", tags=["Query"])
+
+@router.post("/query", response_model=QueryResponse)
+async def query(
+    request: QueryRequest,
+    payment: PaymentInfo = Depends(validate_payment)
+):
+    """Protected endpoint - requires valid payment."""
+    # Your AI logic here
+    result = await process_ai_query(request.prompt)
+
+    return QueryResponse(
+        result=result,
+        credits_remaining=payment.balance,
+        credits_used=1
+    )
+
+@router.post("/expensive-query", response_model=QueryResponse)
+async def expensive_query(
+    request: QueryRequest,
+    payment: PaymentInfo = Depends(require_credits(10))
+):
+    """Endpoint requiring minimum 10 credits."""
+    # Expensive AI operation
+    result = await process_expensive_query(request.prompt)
+
+    return QueryResponse(
+        result=result,
+        credits_remaining=payment.balance,
+        credits_used=10
+    )
+
+@router.get("/health")
+async def health():
+    """Public health check."""
+    return {"status": "ok"}
+
+async def process_ai_query(prompt: str) -> str:
+    # Your AI implementation
+    return f"Response to: {prompt}"
+
+async def process_expensive_query(prompt: str) -> str:
+    # Your expensive AI implementation
+    return f"Expensive response to: {prompt}"
+```
+
+## Main Application
+
+```python filename="src/main.py"
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from src.routes.query import router as query_router
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="My AI Agent",
+    description="AI-powered API with Nevermined payments",
+    version="1.0.0"
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Routes
+app.include_router(query_router)
+
+# Exception handler for payment errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error"}
+    )
+
+# Startup event
+@app.on_event("startup")
+async def startup():
+    logger.info("Starting AI Agent...")
+    from src.config import config
+    logger.info(f"Agent ID: {config.agent_id}")
+    logger.info(f"Plan ID: {config.plan_id}")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+## Registration Script
+
+```python filename="scripts/register.py"
+import os
+from payments_py import Payments, PaymentOptions
+from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+
+USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'  # Base Sepolia
+
+def register():
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ['NVM_API_KEY'],
+            environment='testing'
+        )
+    )
+
+    result = payments.agents.register_agent_and_plan(
+        agent_metadata={
+            'name': 'My FastAPI Agent',
+            'description': 'AI-powered API built with FastAPI',
+            'tags': ['fastapi', 'ai', 'python']
+        },
+        agent_api={
+            'endpoints': [
+                {'POST': f"{os.environ['BASE_URL']}/api/query"},
+                {'POST': f"{os.environ['BASE_URL']}/api/expensive-query"}
+            ]
+        },
+        plan_metadata={
+            'name': 'Pro Plan',
+            'description': '100 API credits'
+        },
+        price_config=get_erc20_price_config(
+            10_000_000,
+            USDC_ADDRESS,
+            os.environ['BUILDER_ADDRESS']
+        ),
+        credits_config=get_fixed_credits_config(100, 1),
+        access_limit='credits'
+    )
+
+    print('Registration complete!')
+    print(f"AGENT_ID={result['agentId']}")
+    print(f"PLAN_ID={result['planId']}")
+
+if __name__ == '__main__':
+    register()
+```
+
+## Environment Variables
+
+```bash filename=".env"
+# Nevermined
+NVM_API_KEY=nvm:your-api-key
+BUILDER_ADDRESS=0xYourWalletAddress
+AGENT_ID=did:nv:your-agent-id
+PLAN_ID=did:nv:your-plan-id
+
+# Server
+PORT=8000
+BASE_URL=https://your-api.com
+ENV=development
+```
+
+## Background Tasks
+
+For long-running operations:
+
+```python filename="src/routes/async_query.py"
+from fastapi import APIRouter, BackgroundTasks, Depends
+from src.dependencies.payment import validate_payment
+from src.models import PaymentInfo
+import uuid
+
+router = APIRouter(prefix="/api", tags=["Async"])
+
+# In-memory job store (use Redis in production)
+jobs = {}
+
+@router.post("/async-query")
+async def start_async_query(
+    request: dict,
+    background_tasks: BackgroundTasks,
+    payment: PaymentInfo = Depends(validate_payment)
+):
+    """Start an async job."""
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "result": None}
+
+    background_tasks.add_task(
+        process_async_query,
+        job_id,
+        request.get("prompt", "")
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "processing",
+        "credits_remaining": payment.balance
+    }
+
+@router.get("/async-query/{job_id}")
+async def get_async_result(job_id: str):
+    """Check async job status."""
+    if job_id not in jobs:
+        return {"error": "Job not found"}, 404
+
+    return jobs[job_id]
+
+async def process_async_query(job_id: str, prompt: str):
+    """Background task for processing."""
+    import asyncio
+    await asyncio.sleep(5)  # Simulate work
+
+    jobs[job_id] = {
+        "status": "completed",
+        "result": f"Processed: {prompt}"
+    }
+```
+
+## Testing
+
+```python filename="tests/test_payment.py"
+import os
+import pytest
+from fastapi.testclient import TestClient
+from src.main import app
+
+client = TestClient(app)
+
+def test_missing_payment_proof():
+    response = client.post("/api/query", json={"prompt": "test"})
+    assert response.status_code == 402
+    assert response.json()["code"] == "PAYMENT_REQUIRED"
+
+def test_invalid_payment_proof():
+    response = client.post(
+        "/api/query",
+        json={"prompt": "test"},
+        headers={"PAYMENT-SIGNATURE": "invalid-payment-proof"}
+    )
+    assert response.status_code == 402
+    assert response.json()["code"] == "INVALID_PAYMENT"
+
+def test_health_endpoint():
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+@pytest.mark.skipif(not os.environ.get("TEST_PAYMENT_SIGNATURE"), reason="No test payment proof")
+def test_valid_payment_proof():
+    response = client.post(
+        "/api/query",
+        json={"prompt": "test"},
+        headers={"PAYMENT-SIGNATURE": os.environ["TEST_PAYMENT_SIGNATURE"]}
+    )
+    assert response.status_code == 200
+    assert "result" in response.json()
+```
+
+## Dockerfile
+
+```dockerfile filename="Dockerfile"
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+## Production Checklist
+
+<AccordionGroup>
+  <Accordion title="Environment" icon="gear">
+    - [ ] Set `ENV=production`
+    - [ ] Use `environment='production'` in Payments config
+    - [ ] Secure all environment variables
+    - [ ] Use HTTPS in production
+  </Accordion>
+
+  <Accordion title="Performance" icon="gauge-high">
+    - [ ] Use async handlers where possible
+    - [ ] Cache Payments instance (singleton)
+    - [ ] Use connection pooling for databases
+    - [ ] Monitor validation latency
+  </Accordion>
+
+  <Accordion title="Security" icon="shield">
+    - [ ] Configure CORS properly
+    - [ ] Rate limit endpoints
+    - [ ] Validate all input with Pydantic
+    - [ ] Don't expose internal errors
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/validate-requests">
+    Advanced validation and charging patterns
+  </Card>
+
+  <Card title="x402 Protocol" icon="link" href="/docs/integrate/platforms/x402-protocol">
+    Implement HTTP 402 payment flows
+  </Card>
+</CardGroup>

@@ -1,0 +1,569 @@
+---
+title: "Subscription Access"
+description: "Patterns for time-based subscription access control"
+icon: "calendar"
+---
+
+Copy-paste patterns for implementing time-based subscription access.
+
+## Basic Time-Based Validation
+
+For subscription plans, validate that the user's access hasn't expired:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    async function validateSubscription(token: string, body: any) {
+      const result = await payments.requests.isValidRequest(token, body)
+
+      if (!result.isValid) {
+        return {
+          valid: false,
+          reason: result.reason
+        }
+      }
+
+      // For time-based plans, check expiration
+      if (result.expiresAt) {
+        const now = new Date()
+        const expiry = new Date(result.expiresAt)
+
+        if (now > expiry) {
+          return {
+            valid: false,
+            reason: 'SUBSCRIPTION_EXPIRED',
+            expiredAt: expiry
+          }
+        }
+
+        // Calculate days remaining
+        const daysRemaining = Math.ceil(
+          (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+
+        return {
+          valid: true,
+          expiresAt: expiry,
+          daysRemaining
+        }
+      }
+
+      return { valid: true }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from datetime import datetime
+
+    def validate_subscription(token: str, body: dict) -> dict:
+        result = payments.requests.is_valid_request(token, body)
+
+        if not result['isValid']:
+            return {
+                'valid': False,
+                'reason': result.get('reason')
+            }
+
+        # For time-based plans, check expiration
+        if result.get('expiresAt'):
+            now = datetime.now()
+            expiry = datetime.fromisoformat(result['expiresAt'])
+
+            if now > expiry:
+                return {
+                    'valid': False,
+                    'reason': 'SUBSCRIPTION_EXPIRED',
+                    'expired_at': expiry.isoformat()
+                }
+
+            # Calculate days remaining
+            days_remaining = (expiry - now).days
+
+            return {
+                'valid': True,
+                'expires_at': expiry.isoformat(),
+                'days_remaining': days_remaining
+            }
+
+        return {'valid': True}
+    ```
+  </Tab>
+</Tabs>
+
+## Subscription Middleware
+
+Express middleware for subscription-only endpoints:
+
+```typescript filename="middleware/subscription.ts"
+import { Request, Response, NextFunction } from 'express'
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'testing'
+})
+
+export interface SubscriptionInfo {
+  valid: boolean
+  expiresAt?: Date
+  daysRemaining?: number
+  planId: string
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      subscription?: SubscriptionInfo
+    }
+  }
+}
+
+export function requireSubscription(options?: { warnDaysBefore?: number }) {
+  const warnDays = options?.warnDaysBefore || 7
+
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const auth = req.headers['authorization']
+
+    if (!auth?.startsWith('Bearer ')) {
+      return res.status(402).json({
+        error: 'Subscription Required',
+        code: 'MISSING_TOKEN'
+      })
+    }
+
+    const token = auth.substring(7)
+
+    try {
+      const result = await payments.requests.isValidRequest(token, req.body)
+
+      if (!result.isValid) {
+        return res.status(402).json({
+          error: 'Subscription Required',
+          code: result.reason || 'INVALID_TOKEN'
+        })
+      }
+
+      // Check expiration for time-based plans
+      if (result.expiresAt) {
+        const now = new Date()
+        const expiry = new Date(result.expiresAt)
+
+        if (now > expiry) {
+          return res.status(402).json({
+            error: 'Subscription Expired',
+            code: 'SUBSCRIPTION_EXPIRED',
+            expiredAt: expiry.toISOString()
+          })
+        }
+
+        const daysRemaining = Math.ceil(
+          (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+
+        req.subscription = {
+          valid: true,
+          expiresAt: expiry,
+          daysRemaining,
+          planId: result.planId
+        }
+
+        // Add warning header if expiring soon
+        if (daysRemaining <= warnDays) {
+          res.setHeader('X-Subscription-Warning', `Expires in ${daysRemaining} days`)
+        }
+      } else {
+        req.subscription = {
+          valid: true,
+          planId: result.planId
+        }
+      }
+
+      next()
+    } catch (error) {
+      console.error('Subscription validation error:', error)
+      return res.status(500).json({ error: 'Validation failed' })
+    }
+  }
+}
+```
+
+## FastAPI Subscription Dependency
+
+```python filename="dependencies/subscription.py"
+from fastapi import Request, HTTPException
+from datetime import datetime
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class SubscriptionInfo:
+    valid: bool
+    expires_at: Optional[datetime] = None
+    days_remaining: Optional[int] = None
+    plan_id: Optional[str] = None
+
+def require_subscription(warn_days_before: int = 7):
+    async def validate(request: Request) -> SubscriptionInfo:
+        auth = request.headers.get('Authorization', '')
+
+        if not auth.startswith('Bearer '):
+            raise HTTPException(
+                status_code=402,
+                detail={'error': 'Subscription Required', 'code': 'MISSING_TOKEN'}
+            )
+
+        token = auth[7:]
+
+        try:
+            body = await request.json()
+        except:
+            body = {}
+
+        result = payments.requests.is_valid_request(token, body)
+
+        if not result['isValid']:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Subscription Required',
+                    'code': result.get('reason', 'INVALID_TOKEN')
+                }
+            )
+
+        # Check expiration for time-based plans
+        if result.get('expiresAt'):
+            now = datetime.now()
+            expiry = datetime.fromisoformat(result['expiresAt'])
+
+            if now > expiry:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        'error': 'Subscription Expired',
+                        'code': 'SUBSCRIPTION_EXPIRED',
+                        'expired_at': expiry.isoformat()
+                    }
+                )
+
+            days_remaining = (expiry - now).days
+
+            # Note: Can add response header via middleware
+            return SubscriptionInfo(
+                valid=True,
+                expires_at=expiry,
+                days_remaining=days_remaining,
+                plan_id=result.get('planId')
+            )
+
+        return SubscriptionInfo(valid=True, plan_id=result.get('planId'))
+
+    return validate
+```
+
+## Subscription Status Endpoint
+
+Provide an endpoint for clients to check their subscription status:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    app.get('/subscription/status', async (req, res) => {
+      const auth = req.headers['authorization']
+
+      if (!auth?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized' })
+      }
+
+      const token = auth.substring(7)
+
+      try {
+        const result = await payments.requests.isValidRequest(token, {})
+
+        if (!result.isValid) {
+          return res.json({
+            active: false,
+            reason: result.reason
+          })
+        }
+
+        const response: any = {
+          active: true,
+          planId: result.planId
+        }
+
+        if (result.expiresAt) {
+          const expiry = new Date(result.expiresAt)
+          const now = new Date()
+          const daysRemaining = Math.ceil(
+            (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          )
+
+          response.expiresAt = expiry.toISOString()
+          response.daysRemaining = daysRemaining
+          response.status = daysRemaining <= 7 ? 'expiring_soon' : 'active'
+        }
+
+        if (result.balance !== undefined) {
+          response.creditsRemaining = result.balance
+        }
+
+        res.json(response)
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to check status' })
+      }
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    @app.get("/subscription/status")
+    async def subscription_status(request: Request):
+        auth = request.headers.get('Authorization', '')
+
+        if not auth.startswith('Bearer '):
+            raise HTTPException(status_code=401, detail='Unauthorized')
+
+        token = auth[7:]
+
+        try:
+            result = payments.requests.is_valid_request(token, {})
+
+            if not result['isValid']:
+                return {
+                    'active': False,
+                    'reason': result.get('reason')
+                }
+
+            response = {
+                'active': True,
+                'plan_id': result.get('planId')
+            }
+
+            if result.get('expiresAt'):
+                expiry = datetime.fromisoformat(result['expiresAt'])
+                now = datetime.now()
+                days_remaining = (expiry - now).days
+
+                response['expires_at'] = expiry.isoformat()
+                response['days_remaining'] = days_remaining
+                response['status'] = 'expiring_soon' if days_remaining <= 7 else 'active'
+
+            if result.get('balance') is not None:
+                response['credits_remaining'] = result['balance']
+
+            return response
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail='Failed to check status')
+    ```
+  </Tab>
+</Tabs>
+
+## Graceful Expiration Handling
+
+Handle subscription expiration gracefully with warnings:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface ExpirationResponse {
+      allowed: boolean
+      warning?: string
+      action?: string
+      daysRemaining?: number
+    }
+
+    function handleExpiration(expiresAt: Date): ExpirationResponse {
+      const now = new Date()
+      const daysRemaining = Math.ceil(
+        (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      )
+
+      // Already expired
+      if (daysRemaining <= 0) {
+        return {
+          allowed: false,
+          warning: 'Your subscription has expired',
+          action: 'renew',
+          daysRemaining: 0
+        }
+      }
+
+      // Grace period (allow access but warn)
+      if (daysRemaining <= 3) {
+        return {
+          allowed: true,
+          warning: `Your subscription expires in ${daysRemaining} day(s). Please renew to avoid interruption.`,
+          action: 'renew_soon',
+          daysRemaining
+        }
+      }
+
+      // Warning period
+      if (daysRemaining <= 7) {
+        return {
+          allowed: true,
+          warning: `Your subscription expires in ${daysRemaining} days`,
+          daysRemaining
+        }
+      }
+
+      // All good
+      return {
+        allowed: true,
+        daysRemaining
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from dataclasses import dataclass
+    from typing import Optional
+
+    @dataclass
+    class ExpirationResponse:
+        allowed: bool
+        warning: Optional[str] = None
+        action: Optional[str] = None
+        days_remaining: Optional[int] = None
+
+    def handle_expiration(expires_at: datetime) -> ExpirationResponse:
+        now = datetime.now()
+        days_remaining = (expires_at - now).days
+
+        # Already expired
+        if days_remaining <= 0:
+            return ExpirationResponse(
+                allowed=False,
+                warning='Your subscription has expired',
+                action='renew',
+                days_remaining=0
+            )
+
+        # Grace period (allow access but warn)
+        if days_remaining <= 3:
+            return ExpirationResponse(
+                allowed=True,
+                warning=f'Your subscription expires in {days_remaining} day(s). Please renew to avoid interruption.',
+                action='renew_soon',
+                days_remaining=days_remaining
+            )
+
+        # Warning period
+        if days_remaining <= 7:
+            return ExpirationResponse(
+                allowed=True,
+                warning=f'Your subscription expires in {days_remaining} days',
+                days_remaining=days_remaining
+            )
+
+        # All good
+        return ExpirationResponse(
+            allowed=True,
+            days_remaining=days_remaining
+        )
+    ```
+  </Tab>
+</Tabs>
+
+## Hybrid Plans (Time + Credits)
+
+Handle plans that have both time limits and credit limits:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface HybridValidation {
+      valid: boolean
+      reason?: string
+      timeRemaining?: number  // days
+      creditsRemaining?: number
+    }
+
+    async function validateHybridPlan(token: string, body: any): Promise<HybridValidation> {
+      const result = await payments.requests.isValidRequest(token, body)
+
+      if (!result.isValid) {
+        return { valid: false, reason: result.reason }
+      }
+
+      const issues: string[] = []
+
+      // Check time
+      if (result.expiresAt) {
+        const now = new Date()
+        const expiry = new Date(result.expiresAt)
+        const daysRemaining = Math.ceil(
+          (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+
+        if (daysRemaining <= 0) {
+          return { valid: false, reason: 'TIME_EXPIRED' }
+        }
+      }
+
+      // Check credits
+      if (result.balance !== undefined && result.balance <= 0) {
+        return { valid: false, reason: 'NO_CREDITS' }
+      }
+
+      return {
+        valid: true,
+        timeRemaining: result.expiresAt
+          ? Math.ceil((new Date(result.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : undefined,
+        creditsRemaining: result.balance
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    @dataclass
+    class HybridValidation:
+        valid: bool
+        reason: Optional[str] = None
+        time_remaining: Optional[int] = None  # days
+        credits_remaining: Optional[int] = None
+
+    def validate_hybrid_plan(token: str, body: dict) -> HybridValidation:
+        result = payments.requests.is_valid_request(token, body)
+
+        if not result['isValid']:
+            return HybridValidation(valid=False, reason=result.get('reason'))
+
+        # Check time
+        if result.get('expiresAt'):
+            now = datetime.now()
+            expiry = datetime.fromisoformat(result['expiresAt'])
+            days_remaining = (expiry - now).days
+
+            if days_remaining <= 0:
+                return HybridValidation(valid=False, reason='TIME_EXPIRED')
+
+        # Check credits
+        if result.get('balance') is not None and result['balance'] <= 0:
+            return HybridValidation(valid=False, reason='NO_CREDITS')
+
+        return HybridValidation(
+            valid=True,
+            time_remaining=(expiry - now).days if result.get('expiresAt') else None,
+            credits_remaining=result.get('balance')
+        )
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dynamic Pricing" icon="chart-line" href="/docs/integrate/patterns/dynamic-pricing">
+    Variable pricing strategies
+  </Card>
+
+  <Card title="Validate Requests" icon="shield-check" href="/docs/integrate/patterns/validate-requests">
+    Request validation patterns
+  </Card>
+</CardGroup>

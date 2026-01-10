@@ -70,7 +70,10 @@ export const HeroBanner = ({
   const contentStyle = {
     position: 'relative',
     zIndex: 2,
-    maxWidth: '600px'
+    maxWidth: '620px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start'
   };
 
   const labelStyle = {
@@ -120,8 +123,8 @@ export const HeroBanner = ({
     color: 'rgba(255, 255, 255, 0.85)',
     fontSize: '16px',
     lineHeight: '1.6',
-    marginBottom: '24px',
-    maxWidth: '500px',
+    marginBottom: '18px',
+    maxWidth: '520px',
     opacity: isVisible ? 1 : 0,
     transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
     transition: 'opacity 0.8s ease-out, transform 0.8s ease-out',
@@ -129,11 +132,13 @@ export const HeroBanner = ({
   };
 
   const buttonStyle = {
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'white',
     color: '#0d3f48',
-    padding: '12px 24px',
-    borderRadius: '8px',
+    padding: '12px 22px',
+    borderRadius: '10px',
     fontSize: '14px',
     fontWeight: '600',
     textDecoration: 'none',
@@ -142,7 +147,8 @@ export const HeroBanner = ({
     cursor: 'pointer',
     opacity: isVisible ? 1 : 0,
     transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
-    transitionDelay: '0.65s'
+    transitionDelay: '0.65s',
+    marginTop: '4px'
   };
 
   const animationStyles = `
@@ -152,6 +158,11 @@ export const HeroBanner = ({
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
   `;
+
+  const isExternalLink = (href) => {
+    if (!href) return false;
+    return /^https?:\/\//i.test(href);
+  };
 
   return (
     <>
@@ -185,8 +196,9 @@ export const HeroBanner = ({
           <p style={descriptionStyle}>{description}</p>
           <a
             href={ctaHref}
-            target="_blank"
-            rel="noopener noreferrer"
+            {...(isExternalLink(ctaHref)
+              ? { target: '_blank', rel: 'noopener noreferrer' }
+              : {})}
             style={buttonStyle}
             className="nvm-hero-btn"
           >

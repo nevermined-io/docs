@@ -112,7 +112,6 @@ Use H2 headings (#) for major topics, H3 (#) for subsections.
 4. Buildship
 5. Organizations
 
-
 ### Mintlify Components to Use
 
 - **`<Card>` / `<CardGroup>`** - Highlight key concepts, navigation, comparisons
@@ -498,7 +497,7 @@ description: "Register AI agents and create payment plans in 5 minutes using the
 
 ### Key Files in This Repository
 
-- **[README.md](README.md)** - Local development and deployment instructions
+- **README.md** - Local development and deployment instructions
 - **[architecture.md](architecture.md)** - Documentation status tracker and roadmap
 - **[docs.json](docs.json)** - Mintlify configuration and navigation structure
 - **[docs/api-reference/openapi.json](docs/api-reference/openapi.json)** - OpenAPI spec for Payments API
@@ -588,7 +587,7 @@ When submitting documentation changes:
 For questions about documentation:
 
 - Check the Nevermined Discord (if available)
-- Reference the [README.md](README.md) troubleshooting section
+- Reference the README.md troubleshooting section
 - Review existing similar pages for patterns
 - Consult the Mintlify documentation for component questions
 

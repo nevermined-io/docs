@@ -1,0 +1,72 @@
+---
+title: "Technical Specifications"
+description: "Formal specifications for Nevermined protocol, extensions, and integration standards"
+icon: "file-lines"
+---
+
+This section contains the **technical specifications** that define how Nevermined protocol and extensions work. These documents are intended for developers building integrations, protocol implementers, and anyone who needs to understand the precise behavior of Nevermined systems.
+
+## Purpose
+
+Specifications in this section:
+
+- **Define normative behavior** using precise, unambiguous language
+- **Follow RFC 2119 conventions** for requirement levels (MUST, SHOULD, MAY)
+- **Include data structures** with exact field definitions and types
+- **Document protocol flows** with sequence diagrams and state transitions
+- **Specify error handling** and edge cases
+
+## Audience
+
+These specifications are written for:
+
+- **Protocol implementers** building x402 facilitators or clients
+- **SDK developers** creating libraries that interact with Nevermined
+- **Integration engineers** connecting existing systems to Nevermined
+- **Security auditors** reviewing protocol designs
+
+## Relationship to Other Documentation
+
+| Documentation Type | Purpose |
+|-------------------|---------|
+| **Getting Started** | Quickstart guides and tutorials |
+| **Use Cases** | Business scenarios and solution patterns |
+| **Integration Guides** | Step-by-step implementation instructions |
+| **API Reference** | SDK methods and REST endpoints |
+| **Specifications** | Formal protocol definitions (this section) |
+
+Specifications are the **source of truth** for protocol behavior. Other documentation may simplify or summarize, but specifications define what implementations MUST do.
+
+## Conventions
+
+### Requirement Levels
+
+This documentation uses RFC 2119 terminology:
+
+- **MUST** / **REQUIRED** / **SHALL** — absolute requirement
+- **MUST NOT** / **SHALL NOT** — absolute prohibition
+- **SHOULD** / **RECOMMENDED** — there may be valid reasons to ignore, but implications must be understood
+- **SHOULD NOT** / **NOT RECOMMENDED** — there may be valid reasons to do this, but implications must be understood
+- **MAY** / **OPTIONAL** — truly optional behavior
+
+### Data Types
+
+- JSON structures use TypeScript-style type annotations
+- Hexadecimal values are prefixed with `0x`
+- Base64 encoding uses standard alphabet with `=` padding
+- Timestamps use ISO 8601 format unless otherwise specified
+
+## Available Specifications
+
+<CardGroup cols={1}>
+  <Card title="x402 Smart Accounts Extension" icon="key" href="/docs/specs/x402-smart-accounts">
+    Extends x402 with ERC-4337 smart accounts, session keys, and programmable smart contract settlement
+  </Card>
+  <Card title="x402 Visa VIC Extension" icon="credit-card" href="/docs/specs/x402-visa-vic">
+    Extends x402 with Visa Intelligence Commerce (VIC) and Visa Token Service (VTS) for fiat payments
+  </Card>
+</CardGroup>
+
+## Contributing
+
+Specifications evolve based on implementation experience and community feedback. If you identify ambiguities, errors, or improvements, please open an issue in the [Nevermined GitHub repository](https://github.com/nevermined-io).

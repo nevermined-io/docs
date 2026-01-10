@@ -1,0 +1,381 @@
+---
+title: "Python Quick Start"
+description: "Get started with Nevermined payments in Python"
+icon: "python"
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
+</Note>
+
+Complete Python quick start for adding payments to your AI agent or service.
+
+## Installation
+
+```bash
+pip install payments-py fastapi uvicorn
+```
+
+## Environment Setup
+
+```bash
+# Your Nevermined API key from nevermined.app
+export NVM_API_KEY="nvm:your-api-key"
+
+# Your wallet address to receive payments
+export BUILDER_ADDRESS="0xYourWalletAddress"
+
+# After registration, set these
+export AGENT_ID="did:nv:your-agent-id"
+export PLAN_ID="did:nv:your-plan-id"
+```
+
+## Complete Example
+
+```python filename="main.py"
+import os
+from fastapi import FastAPI, Request, HTTPException, Depends
+from pydantic import BaseModel
+from payments_py import Payments, PaymentOptions
+from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+
+app = FastAPI(title="My AI Agent")
+
+# Base Sepolia USDC for testing
+USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+
+# Initialize payments
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ['NVM_API_KEY'],
+        environment='testing'
+    )
+)
+
+# Store IDs after registration
+agent_id = os.environ.get('AGENT_ID', '')
+plan_id = os.environ.get('PLAN_ID', '')
+
+
+# ============================================
+# MODELS
+# ============================================
+class QueryRequest(BaseModel):
+    prompt: str
+
+
+class QueryResponse(BaseModel):
+    result: str
+    credits_remaining: int
+
+
+# ============================================
+# SETUP: Run once to register your agent
+# ============================================
+@app.post("/setup")
+async def register_agent():
+    global agent_id, plan_id
+
+    result = payments.agents.register_agent_and_plan(
+        agent_metadata={
+            'name': 'My Python AI Agent',
+            'description': 'AI assistant built with Python',
+            'tags': ['ai', 'python']
+        },
+        agent_api={
+            'endpoints': [{'POST': 'http://localhost:8000/query'}]
+        },
+        plan_metadata={
+            'name': 'Starter Plan',
+            'description': '100 queries'
+        },
+        price_config=get_erc20_price_config(
+            10_000_000,  # 10 USDC
+            USDC_ADDRESS,
+            os.environ['BUILDER_ADDRESS']
+        ),
+        credits_config=get_fixed_credits_config(100, 1),
+        access_limit='credits'
+    )
+
+    agent_id = result['agentId']
+    plan_id = result['planId']
+
+    return {
+        'agent_id': agent_id,
+        'plan_id': plan_id,
+        'message': 'Add these to your .env file!'
+    }
+
+
+# ============================================
+# MIDDLEWARE: Validate payments
+# ============================================
+async def validate_payment(request: Request) -> int:
+    """Validate payment and return remaining credits."""
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header or not auth_header.startswith('Bearer '):
+        raise HTTPException(
+            status_code=402,
+            detail={
+                'error': 'Payment Required',
+                'plans': [{'planId': plan_id, 'agentId': agent_id}]
+            }
+        )
+
+    token = auth_header[7:]
+
+    # Get request body for validation
+    body = await request.json()
+
+    result = payments.requests.is_valid_request(token, body)
+
+    if not result['isValid']:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                'error': 'Insufficient credits',
+                'plans': [{'planId': plan_id, 'agentId': agent_id}]
+            }
+        )
+
+    return result['balance']
+
+
+# ============================================
+# ROUTES
+# ============================================
+@app.get("/health")
+async def health():
+    """Health check (public)."""
+    return {
+        'status': 'ok',
+        'agent_id': agent_id,
+        'plan_id': plan_id
+    }
+
+
+@app.post("/query", response_model=QueryResponse)
+async def query(
+    request: QueryRequest,
+    credits: int = Depends(validate_payment)
+):
+    """Protected AI endpoint."""
+    # Your AI logic here
+    result = f'You asked: "{request.prompt}". Here\'s my response...'
+
+    return QueryResponse(
+        result=result,
+        credits_remaining=credits
+    )
+
+
+# ============================================
+# MAIN
+# ============================================
+if __name__ == '__main__':
+    import uvicorn
+
+    print(f"Agent ID: {agent_id or 'Not registered'}")
+    print(f"Plan ID: {plan_id or 'Not registered'}")
+
+    if not agent_id or not plan_id:
+        print("No agent registered yet. POST to /setup to register.")
+
+    uvicorn.run(app, host='0.0.0.0', port=8000)
+```
+
+## Run the Example
+
+```bash
+# Run the server
+python main.py
+
+# Or with uvicorn directly
+uvicorn main:app --reload --port 8000
+```
+
+## Test the Flow
+
+**1) Register your agent (first time only)**
+
+```bash
+curl -X POST http://localhost:8000/setup
+```
+
+Save the returned `agent_id` and `plan_id` to your environment.
+
+**2) Try without payment**
+
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello"}'
+```
+
+**3) As a subscriber, purchase and query**
+
+```python filename="subscriber.py"
+import os
+import requests
+from payments_py import Payments, PaymentOptions
+
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ['SUBSCRIBER_API_KEY'],
+        environment='testing'
+    )
+)
+
+def purchase_and_query():
+    plan_id = os.environ['PLAN_ID']
+    agent_id = os.environ['AGENT_ID']
+
+    # 1. Order the plan
+    print('Purchasing plan...')
+    payments.plans.order_plan(plan_id)
+
+    # 2. Get access token
+    print('Getting access token...')
+    credentials = payments.agents.get_agent_access_token(plan_id, agent_id)
+    access_token = credentials['accessToken']
+
+    # 3. Query the agent
+    print('Querying agent...')
+    response = requests.post(
+        'http://localhost:8000/query',
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {access_token}'
+        },
+        json={'prompt': 'What is 2+2?'}
+    )
+
+    result = response.json()
+    print(f'Result: {result}')
+
+if __name__ == '__main__':
+    purchase_and_query()
+```
+
+## Flask Alternative
+
+```python filename="flask_app.py"
+import os
+from flask import Flask, request, jsonify
+from functools import wraps
+from payments_py import Payments, PaymentOptions
+from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+
+app = Flask(__name__)
+
+USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ['NVM_API_KEY'],
+        environment='testing'
+    )
+)
+
+agent_id = os.environ.get('AGENT_ID', '')
+plan_id = os.environ.get('PLAN_ID', '')
+
+
+def require_payment(f):
+    """Decorator to validate payment."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({
+                'error': 'Payment Required',
+                'plans': [{'planId': plan_id, 'agentId': agent_id}]
+            }), 402
+
+        token = auth_header[7:]
+        result = payments.requests.is_valid_request(token, request.json)
+
+        if not result['isValid']:
+            return jsonify({
+                'error': 'Insufficient credits',
+                'plans': [{'planId': plan_id, 'agentId': agent_id}]
+            }), 402
+
+        # Pass credits to the handler
+        kwargs['credits'] = result['balance']
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok', 'agent_id': agent_id, 'plan_id': plan_id})
+
+
+@app.route('/query', methods=['POST'])
+@require_payment
+def query(credits=0):
+    prompt = request.json.get('prompt', '')
+
+    # Your AI logic here
+    result = f'You asked: "{prompt}". Here\'s my response...'
+
+    return jsonify({
+        'result': result,
+        'credits_remaining': credits
+    })
+
+
+if __name__ == '__main__':
+    app.run(port=8000, debug=True)
+```
+
+## Project Structure
+
+```
+my-ai-agent/
+├── main.py              # FastAPI server
+├── requirements.txt
+├── .env
+└── src/
+    ├── middleware/
+    │   └── payments.py  # Payment validation
+    ├── routes/
+    │   └── query.py     # AI endpoints
+    └── services/
+        └── ai.py        # Your AI logic
+```
+
+## Requirements File
+
+```text filename="requirements.txt"
+payments-py>=0.1.0
+fastapi>=0.100.0
+uvicorn>=0.23.0
+python-dotenv>=1.0.0
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="FastAPI Integration" icon="python" href="/docs/integrate/add-to-your-agent/fastapi">
+    Complete FastAPI patterns and best practices
+  </Card>
+
+  <Card title="Python SDK Reference" icon="book" href="/docs/api-reference/python/installation">
+    Full API documentation
+  </Card>
+
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/validate-requests">
+    Advanced patterns for production
+  </Card>
+
+  <Card title="x402 Protocol" icon="link" href="/docs/integrate/platforms/x402-protocol">
+    Implement HTTP 402 payment flows
+  </Card>
+</CardGroup>

@@ -1,0 +1,208 @@
+---
+title: "Requests Module"
+description: "Validate payment requests with the Python SDK"
+icon: "shield-check"
+---
+
+The `requests` module handles request validation and access control.
+
+## Methods
+
+### is_valid_request
+
+Validate an incoming request with payment token.
+
+```python
+result = payments.requests.is_valid_request(
+    access_token,
+    request_body
+)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `access_token` | `str` | Bearer token from Authorization header |
+| `request_body` | `dict` | The request body being validated |
+
+**Returns:**
+
+```python
+{
+    'isValid': bool,
+    'balance': int,
+    'reason': str,            # Optional
+    'subscriberAddress': str, # Optional
+    'planId': str,            # Optional
+    'expiresAt': str          # Optional, ISO timestamp
+}
+```
+
+**Example:**
+
+```python
+# Extract token from header
+auth_header = request.headers.get('Authorization', '')
+token = auth_header[7:] if auth_header.startswith('Bearer ') else ''
+
+result = payments.requests.is_valid_request(token, request.json)
+
+if not result['isValid']:
+    return jsonify({
+        'error': 'Payment Required',
+        'reason': result.get('reason')
+    }), 402
+
+# Process request...
+print(f"Credits remaining: {result['balance']}")
+```
+
+### get_requests
+
+Get request history for an agent.
+
+```python
+requests_list = payments.requests.get_requests(
+    agent_id='did:nv:agent-123',
+    limit=100,
+    offset=0
+)
+```
+
+**Returns:**
+
+```python
+[
+    {
+        'requestId': str,
+        'agentId': str,
+        'planId': str,
+        'subscriberAddress': str,
+        'creditsUsed': int,
+        'timestamp': str,  # ISO timestamp
+        'status': str      # 'success' or 'failed'
+    }
+]
+```
+
+### get_request_by_id
+
+Get details of a specific request.
+
+```python
+request = payments.requests.get_request_by_id(request_id)
+```
+
+## Validation Response Codes
+
+| `reason` | Meaning |
+|----------|---------|
+| `None` | Valid request |
+| `TOKEN_EXPIRED` | Access token has expired |
+| `INSUFFICIENT_BALANCE` | Not enough credits |
+| `PLAN_EXPIRED` | Time-based plan has expired |
+| `INVALID_TOKEN` | Token is malformed or invalid |
+| `UNAUTHORIZED` | Token doesn't grant access to this agent |
+
+## Usage Patterns
+
+### FastAPI Dependency
+
+```python
+from fastapi import Request, HTTPException, Depends
+
+async def validate_payment(request: Request) -> dict:
+    auth = request.headers.get('Authorization', '')
+
+    if not auth.startswith('Bearer '):
+        raise HTTPException(status_code=402, detail='Payment Required')
+
+    token = auth[7:]
+
+    try:
+        body = await request.json()
+    except:
+        body = {}
+
+    result = payments.requests.is_valid_request(token, body)
+
+    if not result['isValid']:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                'error': 'Payment Required',
+                'reason': result.get('reason')
+            }
+        )
+
+    return {'balance': result['balance']}
+
+# Usage
+@app.post("/query")
+async def query(request: dict, payment: dict = Depends(validate_payment)):
+    print(f"Balance: {payment['balance']}")
+    # Process request...
+```
+
+### Flask Decorator
+
+```python
+from functools import wraps
+from flask import request, jsonify
+
+def require_payment(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.headers.get('Authorization', '')
+
+        if not auth.startswith('Bearer '):
+            return jsonify({'error': 'Payment Required'}), 402
+
+        token = auth[7:]
+        result = payments.requests.is_valid_request(token, request.json)
+
+        if not result['isValid']:
+            return jsonify({
+                'error': 'Payment Required',
+                'reason': result.get('reason')
+            }), 402
+
+        kwargs['credits'] = result['balance']
+        return f(*args, **kwargs)
+
+    return decorated
+
+# Usage
+@app.route('/query', methods=['POST'])
+@require_payment
+def query(credits=0):
+    print(f"Balance: {credits}")
+    # Process request...
+```
+
+### With Minimum Credits
+
+```python
+def require_min_credits(token: str, body: dict, min_credits: int) -> dict:
+    result = payments.requests.is_valid_request(token, body)
+
+    if not result['isValid']:
+        raise ValueError('Invalid token')
+
+    if result['balance'] < min_credits:
+        raise ValueError(f"Insufficient credits. Need {min_credits}, have {result['balance']}")
+
+    return {'balance': result['balance']}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Validate Requests Pattern" icon="code" href="/docs/integrate/patterns/validate-requests">
+    Complete validation patterns
+  </Card>
+  <Card title="Charge Credits" icon="coins" href="/docs/integrate/patterns/charge-credits">
+    Credit charging patterns
+  </Card>
+</CardGroup>

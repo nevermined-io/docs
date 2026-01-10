@@ -1,0 +1,575 @@
+---
+title: "Dynamic Pricing"
+description: "Patterns for variable and usage-based pricing"
+icon: "chart-line"
+---
+
+Copy-paste patterns for implementing dynamic and usage-based pricing.
+
+## Token-Based Pricing
+
+Charge based on input/output token count (common for LLM APIs):
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface TokenPricing {
+      inputTokenPrice: number   // credits per 1K input tokens
+      outputTokenPrice: number  // credits per 1K output tokens
+      minimumCharge: number     // minimum credits per request
+    }
+
+    const PRICING: TokenPricing = {
+      inputTokenPrice: 1,    // 1 credit per 1K input tokens
+      outputTokenPrice: 3,   // 3 credits per 1K output tokens
+      minimumCharge: 1       // minimum 1 credit
+    }
+
+    function calculateTokenCost(
+      inputTokens: number,
+      outputTokens: number,
+      pricing: TokenPricing = PRICING
+    ): number {
+      const inputCost = Math.ceil((inputTokens / 1000) * pricing.inputTokenPrice)
+      const outputCost = Math.ceil((outputTokens / 1000) * pricing.outputTokenPrice)
+      const totalCost = inputCost + outputCost
+
+      return Math.max(totalCost, pricing.minimumCharge)
+    }
+
+    // Usage
+    async function processLLMRequest(prompt: string, payment: PaymentInfo) {
+      const inputTokens = countTokens(prompt)
+      const estimatedOutputTokens = inputTokens * 2  // Rough estimate
+
+      const estimatedCost = calculateTokenCost(inputTokens, estimatedOutputTokens)
+
+      if (payment.balance < estimatedCost) {
+        throw new Error(`Insufficient credits. Estimated: ${estimatedCost}, Available: ${payment.balance}`)
+      }
+
+      const response = await generateResponse(prompt)
+      const outputTokens = countTokens(response)
+      const actualCost = calculateTokenCost(inputTokens, outputTokens)
+
+      return {
+        response,
+        usage: {
+          inputTokens,
+          outputTokens,
+          creditsUsed: actualCost,
+          creditsRemaining: payment.balance - actualCost
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from dataclasses import dataclass
+    import math
+
+    @dataclass
+    class TokenPricing:
+        input_token_price: float   # credits per 1K input tokens
+        output_token_price: float  # credits per 1K output tokens
+        minimum_charge: int        # minimum credits per request
+
+    PRICING = TokenPricing(
+        input_token_price=1,    # 1 credit per 1K input tokens
+        output_token_price=3,   # 3 credits per 1K output tokens
+        minimum_charge=1        # minimum 1 credit
+    )
+
+    def calculate_token_cost(
+        input_tokens: int,
+        output_tokens: int,
+        pricing: TokenPricing = PRICING
+    ) -> int:
+        input_cost = math.ceil((input_tokens / 1000) * pricing.input_token_price)
+        output_cost = math.ceil((output_tokens / 1000) * pricing.output_token_price)
+        total_cost = input_cost + output_cost
+
+        return max(total_cost, pricing.minimum_charge)
+
+    # Usage
+    async def process_llm_request(prompt: str, payment: dict) -> dict:
+        input_tokens = count_tokens(prompt)
+        estimated_output_tokens = input_tokens * 2  # Rough estimate
+
+        estimated_cost = calculate_token_cost(input_tokens, estimated_output_tokens)
+
+        if payment['balance'] < estimated_cost:
+            raise ValueError(
+                f"Insufficient credits. Estimated: {estimated_cost}, Available: {payment['balance']}"
+            )
+
+        response = await generate_response(prompt)
+        output_tokens = count_tokens(response)
+        actual_cost = calculate_token_cost(input_tokens, output_tokens)
+
+        return {
+            'response': response,
+            'usage': {
+                'input_tokens': input_tokens,
+                'output_tokens': output_tokens,
+                'credits_used': actual_cost,
+                'credits_remaining': payment['balance'] - actual_cost
+            }
+        }
+    ```
+  </Tab>
+</Tabs>
+
+## Complexity-Based Pricing
+
+Charge based on operation complexity:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    enum OperationType {
+      SIMPLE_QUERY = 'simple_query',
+      COMPLEX_ANALYSIS = 'complex_analysis',
+      IMAGE_GENERATION = 'image_generation',
+      BATCH_PROCESSING = 'batch_processing'
+    }
+
+    const OPERATION_COSTS: Record<OperationType, number> = {
+      [OperationType.SIMPLE_QUERY]: 1,
+      [OperationType.COMPLEX_ANALYSIS]: 5,
+      [OperationType.IMAGE_GENERATION]: 10,
+      [OperationType.BATCH_PROCESSING]: 20
+    }
+
+    function detectOperationType(request: any): OperationType {
+      if (request.type === 'image') {
+        return OperationType.IMAGE_GENERATION
+      }
+
+      if (request.batch && request.batch.length > 1) {
+        return OperationType.BATCH_PROCESSING
+      }
+
+      if (request.analysis || request.options?.detailed) {
+        return OperationType.COMPLEX_ANALYSIS
+      }
+
+      return OperationType.SIMPLE_QUERY
+    }
+
+    function calculateComplexityCost(request: any): {
+      operationType: OperationType
+      baseCost: number
+      multiplier: number
+      totalCost: number
+    } {
+      const operationType = detectOperationType(request)
+      const baseCost = OPERATION_COSTS[operationType]
+
+      // Apply multipliers based on options
+      let multiplier = 1
+
+      if (request.options?.highQuality) {
+        multiplier *= 1.5
+      }
+
+      if (request.options?.priority) {
+        multiplier *= 2
+      }
+
+      if (request.batch) {
+        multiplier *= request.batch.length
+      }
+
+      return {
+        operationType,
+        baseCost,
+        multiplier,
+        totalCost: Math.ceil(baseCost * multiplier)
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from enum import Enum
+    from dataclasses import dataclass
+    import math
+
+    class OperationType(Enum):
+        SIMPLE_QUERY = 'simple_query'
+        COMPLEX_ANALYSIS = 'complex_analysis'
+        IMAGE_GENERATION = 'image_generation'
+        BATCH_PROCESSING = 'batch_processing'
+
+    OPERATION_COSTS = {
+        OperationType.SIMPLE_QUERY: 1,
+        OperationType.COMPLEX_ANALYSIS: 5,
+        OperationType.IMAGE_GENERATION: 10,
+        OperationType.BATCH_PROCESSING: 20
+    }
+
+    def detect_operation_type(request: dict) -> OperationType:
+        if request.get('type') == 'image':
+            return OperationType.IMAGE_GENERATION
+
+        if request.get('batch') and len(request['batch']) > 1:
+            return OperationType.BATCH_PROCESSING
+
+        if request.get('analysis') or request.get('options', {}).get('detailed'):
+            return OperationType.COMPLEX_ANALYSIS
+
+        return OperationType.SIMPLE_QUERY
+
+    @dataclass
+    class ComplexityCost:
+        operation_type: OperationType
+        base_cost: int
+        multiplier: float
+        total_cost: int
+
+    def calculate_complexity_cost(request: dict) -> ComplexityCost:
+        operation_type = detect_operation_type(request)
+        base_cost = OPERATION_COSTS[operation_type]
+
+        # Apply multipliers based on options
+        multiplier = 1.0
+
+        options = request.get('options', {})
+        if options.get('high_quality'):
+            multiplier *= 1.5
+
+        if options.get('priority'):
+            multiplier *= 2
+
+        if request.get('batch'):
+            multiplier *= len(request['batch'])
+
+        return ComplexityCost(
+            operation_type=operation_type,
+            base_cost=base_cost,
+            multiplier=multiplier,
+            total_cost=math.ceil(base_cost * multiplier)
+        )
+    ```
+  </Tab>
+</Tabs>
+
+## Time-Based Dynamic Pricing
+
+Adjust pricing based on demand or time of day:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface DynamicPricing {
+      baseCredits: number
+      peakMultiplier: number
+      offPeakDiscount: number
+    }
+
+    function getPricingMultiplier(): number {
+      const hour = new Date().getUTCHours()
+
+      // Peak hours: 9 AM - 6 PM UTC
+      if (hour >= 9 && hour < 18) {
+        return 1.5  // 50% premium
+      }
+
+      // Off-peak: 10 PM - 6 AM UTC
+      if (hour >= 22 || hour < 6) {
+        return 0.5  // 50% discount
+      }
+
+      // Standard hours
+      return 1.0
+    }
+
+    function calculateDynamicCost(
+      baseCost: number,
+      options?: { ignorePeakPricing?: boolean }
+    ): number {
+      if (options?.ignorePeakPricing) {
+        return baseCost
+      }
+
+      const multiplier = getPricingMultiplier()
+      return Math.ceil(baseCost * multiplier)
+    }
+
+    // Usage
+    app.post('/query', requirePayment(1), async (req, res) => {
+      const baseCost = 1
+      const actualCost = calculateDynamicCost(baseCost)
+
+      if (req.payment!.balance < actualCost) {
+        return res.status(402).json({
+          error: 'Insufficient credits',
+          required: actualCost,
+          available: req.payment!.balance,
+          note: 'Prices are higher during peak hours (9 AM - 6 PM UTC)'
+        })
+      }
+
+      // Process request...
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from datetime import datetime
+    import math
+
+    def get_pricing_multiplier() -> float:
+        hour = datetime.utcnow().hour
+
+        # Peak hours: 9 AM - 6 PM UTC
+        if 9 <= hour < 18:
+            return 1.5  # 50% premium
+
+        # Off-peak: 10 PM - 6 AM UTC
+        if hour >= 22 or hour < 6:
+            return 0.5  # 50% discount
+
+        # Standard hours
+        return 1.0
+
+    def calculate_dynamic_cost(
+        base_cost: int,
+        ignore_peak_pricing: bool = False
+    ) -> int:
+        if ignore_peak_pricing:
+            return base_cost
+
+        multiplier = get_pricing_multiplier()
+        return math.ceil(base_cost * multiplier)
+
+    # Usage
+    @app.post("/query")
+    async def query(request: dict, payment: PaymentInfo = Depends(require_payment(1))):
+        base_cost = 1
+        actual_cost = calculate_dynamic_cost(base_cost)
+
+        if payment.balance < actual_cost:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Insufficient credits',
+                    'required': actual_cost,
+                    'available': payment.balance,
+                    'note': 'Prices are higher during peak hours (9 AM - 6 PM UTC)'
+                }
+            )
+
+        # Process request...
+    ```
+  </Tab>
+</Tabs>
+
+## Usage-Based Tiers
+
+Implement tiered pricing based on monthly usage:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface UsageTier {
+      name: string
+      minUsage: number
+      maxUsage: number
+      pricePerCredit: number  // Discount rate
+    }
+
+    const USAGE_TIERS: UsageTier[] = [
+      { name: 'starter', minUsage: 0, maxUsage: 100, pricePerCredit: 1.0 },
+      { name: 'growth', minUsage: 101, maxUsage: 1000, pricePerCredit: 0.8 },
+      { name: 'scale', minUsage: 1001, maxUsage: 10000, pricePerCredit: 0.6 },
+      { name: 'enterprise', minUsage: 10001, maxUsage: Infinity, pricePerCredit: 0.4 }
+    ]
+
+    async function getEffectivePrice(
+      subscriberAddress: string,
+      baseCost: number
+    ): Promise<{ cost: number; tier: string; discount: number }> {
+      // Get monthly usage from your tracking system
+      const monthlyUsage = await getMonthlyUsage(subscriberAddress)
+
+      const tier = USAGE_TIERS.find(
+        t => monthlyUsage >= t.minUsage && monthlyUsage <= t.maxUsage
+      ) || USAGE_TIERS[0]
+
+      const effectiveCost = Math.ceil(baseCost * tier.pricePerCredit)
+      const discount = Math.round((1 - tier.pricePerCredit) * 100)
+
+      return {
+        cost: effectiveCost,
+        tier: tier.name,
+        discount
+      }
+    }
+
+    // Usage
+    const pricing = await getEffectivePrice(subscriberAddress, 10)
+    // { cost: 6, tier: 'scale', discount: 40 }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    @dataclass
+    class UsageTier:
+        name: str
+        min_usage: int
+        max_usage: int
+        price_per_credit: float  # Discount rate
+
+    USAGE_TIERS = [
+        UsageTier('starter', 0, 100, 1.0),
+        UsageTier('growth', 101, 1000, 0.8),
+        UsageTier('scale', 1001, 10000, 0.6),
+        UsageTier('enterprise', 10001, float('inf'), 0.4)
+    ]
+
+    async def get_effective_price(
+        subscriber_address: str,
+        base_cost: int
+    ) -> dict:
+        # Get monthly usage from your tracking system
+        monthly_usage = await get_monthly_usage(subscriber_address)
+
+        tier = next(
+            (t for t in USAGE_TIERS if t.min_usage <= monthly_usage <= t.max_usage),
+            USAGE_TIERS[0]
+        )
+
+        effective_cost = math.ceil(base_cost * tier.price_per_credit)
+        discount = round((1 - tier.price_per_credit) * 100)
+
+        return {
+            'cost': effective_cost,
+            'tier': tier.name,
+            'discount': discount
+        }
+
+    # Usage
+    pricing = await get_effective_price(subscriber_address, 10)
+    # {'cost': 6, 'tier': 'scale', 'discount': 40}
+    ```
+  </Tab>
+</Tabs>
+
+## Cost Estimation Endpoint
+
+Provide a cost estimation endpoint:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    app.post('/estimate', async (req, res) => {
+      const { request, subscriberAddress } = req.body
+
+      // Calculate various cost components
+      const tokenCost = calculateTokenCost(
+        countTokens(request.prompt),
+        estimateOutputTokens(request.prompt)
+      )
+
+      const complexityCost = calculateComplexityCost(request)
+      const dynamicMultiplier = getPricingMultiplier()
+
+      // Get tier discount if subscriber is known
+      let tierDiscount = 0
+      if (subscriberAddress) {
+        const pricing = await getEffectivePrice(subscriberAddress, 1)
+        tierDiscount = pricing.discount
+      }
+
+      const baseCost = Math.max(tokenCost, complexityCost.totalCost)
+      const adjustedCost = Math.ceil(baseCost * dynamicMultiplier)
+      const finalCost = Math.ceil(adjustedCost * (1 - tierDiscount / 100))
+
+      res.json({
+        estimate: {
+          baseCost,
+          adjustments: {
+            dynamicPricing: {
+              multiplier: dynamicMultiplier,
+              reason: dynamicMultiplier > 1 ? 'peak_hours' : dynamicMultiplier < 1 ? 'off_peak' : 'standard'
+            },
+            tierDiscount: {
+              percent: tierDiscount,
+              reason: tierDiscount > 0 ? 'volume_discount' : 'none'
+            }
+          },
+          finalCost,
+          breakdown: {
+            tokenBased: tokenCost,
+            complexity: complexityCost.totalCost,
+            operationType: complexityCost.operationType
+          }
+        }
+      })
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    @app.post("/estimate")
+    async def estimate_cost(request: dict):
+        prompt = request.get('request', {}).get('prompt', '')
+        subscriber_address = request.get('subscriber_address')
+
+        # Calculate various cost components
+        input_tokens = count_tokens(prompt)
+        estimated_output = estimate_output_tokens(prompt)
+        token_cost = calculate_token_cost(input_tokens, estimated_output)
+
+        complexity = calculate_complexity_cost(request.get('request', {}))
+        dynamic_multiplier = get_pricing_multiplier()
+
+        # Get tier discount if subscriber is known
+        tier_discount = 0
+        if subscriber_address:
+            pricing = await get_effective_price(subscriber_address, 1)
+            tier_discount = pricing['discount']
+
+        base_cost = max(token_cost, complexity.total_cost)
+        adjusted_cost = math.ceil(base_cost * dynamic_multiplier)
+        final_cost = math.ceil(adjusted_cost * (1 - tier_discount / 100))
+
+        return {
+            'estimate': {
+                'base_cost': base_cost,
+                'adjustments': {
+                    'dynamic_pricing': {
+                        'multiplier': dynamic_multiplier,
+                        'reason': 'peak_hours' if dynamic_multiplier > 1 else 'off_peak' if dynamic_multiplier < 1 else 'standard'
+                    },
+                    'tier_discount': {
+                        'percent': tier_discount,
+                        'reason': 'volume_discount' if tier_discount > 0 else 'none'
+                    }
+                },
+                'final_cost': final_cost,
+                'breakdown': {
+                    'token_based': token_cost,
+                    'complexity': complexity.total_cost,
+                    'operation_type': complexity.operation_type.value
+                }
+            }
+        }
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="x402 Protocol" icon="link" href="/docs/integrate/platforms/x402-protocol">
+    Implement variable settlement with x402
+  </Card>
+
+  <Card title="Charge Credits" icon="coins" href="/docs/integrate/patterns/charge-credits">
+    Credit charging patterns
+  </Card>
+</CardGroup>

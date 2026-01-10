@@ -1,0 +1,82 @@
+---
+title: "Payments Class"
+description: "Core Payments class for the Python SDK"
+icon: "code"
+---
+
+The `Payments` class is the main entry point for all Nevermined payment operations.
+
+## Initialization
+
+```python
+import os
+from payments_py import Payments, PaymentOptions
+
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ['NVM_API_KEY'],
+        environment='testing'
+    )
+)
+```
+
+## Singleton Pattern
+
+The SDK uses a singleton pattern. Call `get_instance()` to get or create the instance:
+
+```python
+# First call creates the instance
+payments1 = Payments.get_instance(options)
+
+# Subsequent calls return the same instance
+payments2 = Payments.get_instance()
+# payments1 is payments2
+```
+
+## Available Modules
+
+The Payments class exposes several modules:
+
+| Module | Description |
+|--------|-------------|
+| `payments.agents` | Agent registration and management |
+| `payments.plans` | Payment plan operations |
+| `payments.requests` | Request validation |
+| `payments.x402` | x402 protocol support |
+| `payments.facilitator` | x402 verification and settlement |
+| `payments.a2a` | Google A2A integration |
+| `payments.mcp` | MCP server integration |
+
+## Module Access
+
+```python
+# Access modules via the payments instance
+agents = payments.agents
+plans = payments.plans
+requests = payments.requests
+
+# Or access directly
+agent = payments.agents.get_agent('did:nv:...')
+plan = payments.plans.get_plan('did:nv:...')
+```
+
+## PaymentOptions
+
+```python
+class PaymentOptions:
+    nvm_api_key: str
+    environment: str  # 'testing' | 'staging' | 'production'
+    app_id: Optional[str] = None
+    version: Optional[str] = None
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agents Module" icon="robot" href="/docs/api-reference/python/agents-module">
+    Register and manage agents
+  </Card>
+  <Card title="Plans Module" icon="credit-card" href="/docs/api-reference/python/plans-module">
+    Create and manage plans
+  </Card>
+</CardGroup>

@@ -1,0 +1,376 @@
+---
+title: "Next.js Integration"
+description: "Add Nevermined payments to your Next.js application"
+icon: "react"
+frameworks: ["nextjs", "react", "vercel"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
+</Note>
+
+Complete guide to integrating Nevermined payments into Next.js API routes and server actions.
+
+## Installation
+
+```bash
+npm install @nevermined-io/payments
+```
+
+## Project Setup
+
+```typescript filename="lib/payments.ts"
+import { Payments } from '@nevermined-io/payments'
+
+// Singleton for server-side use
+let paymentsInstance: Payments | null = null
+
+export function getPayments(): Payments {
+  if (!paymentsInstance) {
+    paymentsInstance = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: process.env.NODE_ENV === 'production' ? 'production' : 'testing'
+    })
+  }
+  return paymentsInstance
+}
+
+export const config = {
+  agentId: process.env.AGENT_ID!,
+  planId: process.env.PLAN_ID!
+}
+```
+
+## API Route Handler (App Router)
+
+```typescript filename="app/api/query/route.ts"
+import { NextRequest, NextResponse } from 'next/server'
+import { getPayments, config } from '@/lib/payments'
+
+export async function POST(request: NextRequest) {
+  const paymentProof = request.headers.get('payment-signature')
+
+  if (!paymentProof) {
+    return NextResponse.json(
+      {
+        error: 'Payment Required',
+        code: 'PAYMENT_REQUIRED',
+        plans: [{ planId: config.planId, agentId: config.agentId }]
+      },
+      { status: 402 }
+    )
+  }
+
+  const body = await request.json()
+
+  // Validate payment proof
+  const payments = getPayments()
+  const { isValid, balance, reason } = await payments.requests.isValidRequest(
+    paymentProof,
+    body
+  )
+
+  if (!isValid) {
+    return NextResponse.json(
+      {
+        error: 'Payment Required',
+        code: 'INVALID_PAYMENT',
+        reason,
+        plans: [{ planId: config.planId, agentId: config.agentId }]
+      },
+      { status: 402 }
+    )
+  }
+
+  // Process the request
+  const { prompt } = body
+  const result = await processQuery(prompt)
+
+  return NextResponse.json({
+    result,
+    credits: {
+      remaining: balance,
+      used: 1
+    }
+  })
+}
+
+async function processQuery(prompt: string): Promise<string> {
+  // Your AI logic here
+  return `Response to: ${prompt}`
+}
+```
+
+## Middleware for Multiple Routes
+
+```typescript filename="lib/withPayment.ts"
+import { NextRequest, NextResponse } from 'next/server'
+import { getPayments, config } from './payments'
+
+export type PaymentContext = {
+  isValid: boolean
+  balance: number
+  subscriberAddress?: string
+}
+
+export type HandlerWithPayment = (
+  request: NextRequest,
+  context: { payment: PaymentContext }
+) => Promise<NextResponse>
+
+export function withPayment(handler: HandlerWithPayment) {
+  return async (request: NextRequest): Promise<NextResponse> => {
+    const paymentProof = request.headers.get('payment-signature')
+
+    if (!paymentProof) {
+      return NextResponse.json(
+        {
+          error: 'Payment Required',
+          code: 'PAYMENT_REQUIRED',
+          plans: [{ planId: config.planId, agentId: config.agentId }]
+        },
+        { status: 402 }
+      )
+    }
+
+    try {
+      const body = await request.clone().json()
+      const payments = getPayments()
+      const result = await payments.requests.isValidRequest(paymentProof, body)
+
+      if (!result.isValid) {
+        return NextResponse.json(
+          {
+            error: 'Payment Required',
+            code: 'INVALID_PAYMENT',
+            reason: result.reason,
+            plans: [{ planId: config.planId, agentId: config.agentId }]
+          },
+          { status: 402 }
+        )
+      }
+
+      return handler(request, {
+        payment: {
+          isValid: true,
+          balance: result.balance,
+          subscriberAddress: result.subscriberAddress
+        }
+      })
+    } catch (error) {
+      console.error('Payment validation error:', error)
+      return NextResponse.json(
+        { error: 'Payment validation failed' },
+        { status: 500 }
+      )
+    }
+  }
+}
+```
+
+## Using the Middleware
+
+```typescript filename="app/api/chat/route.ts"
+import { NextRequest, NextResponse } from 'next/server'
+import { withPayment } from '@/lib/withPayment'
+
+export const POST = withPayment(async (request, { payment }) => {
+  const { messages } = await request.json()
+
+  // Your AI chat logic
+  const response = await generateChatResponse(messages)
+
+  return NextResponse.json({
+    message: response,
+    credits: {
+      remaining: payment.balance,
+      used: 1
+    }
+  })
+})
+
+async function generateChatResponse(messages: any[]): Promise<string> {
+  // Your AI implementation
+  return 'Chat response...'
+}
+```
+
+## Client-side helper (x402 retry)
+
+The client flow is:
+1) call your endpoint without `PAYMENT-SIGNATURE`
+2) receive `402` with `plans`
+3) acquire/create a payment proof using Nevermined
+4) retry the request with `PAYMENT-SIGNATURE`
+
+```typescript filename="hooks/usePayment.ts"
+'use client'
+
+import { useCallback } from 'react'
+
+export function usePayment() {
+  const query = useCallback(async (endpoint: string, data: any) => {
+    // First try (no payment proof)
+    let response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+
+    // If payment is required, your app should build a payment proof and retry.
+    if (response.status === 402) {
+      const paymentRequired = await response.json()
+
+      // Use the plan info in paymentRequired.plans to build a payment proof.
+      // (Implementation depends on your chosen client payment flow.)
+      const paymentSignature = await getPaymentSignatureForPlans(paymentRequired.plans)
+
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'PAYMENT-SIGNATURE': paymentSignature
+        },
+        body: JSON.stringify(data)
+      })
+    }
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.error || `Request failed (${response.status})`)
+    }
+
+    return await response.json()
+  }, [])
+
+  return { query }
+}
+
+async function getPaymentSignatureForPlans(_plans: any[]) {
+  // Implement using Nevermined's client payment flow.
+  // This is intentionally left as an integration point because payment proof
+  // generation can vary by environment and wallet/account model.
+  throw new Error('Implement getPaymentSignatureForPlans(plans)')
+}
+```
+
+## Registration Script
+
+```typescript filename="scripts/register.ts"
+import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+
+const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+
+async function register() {
+  const payments = Payments.getInstance({
+    nvmApiKey: process.env.NVM_API_KEY!,
+    environment: 'testing'
+  })
+
+  const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+    {
+      name: 'My Next.js App',
+      description: 'AI-powered app built with Next.js',
+      tags: ['nextjs', 'ai', 'react'],
+      dateCreated: new Date()
+    },
+    {
+      endpoints: [
+        { POST: `${process.env.NEXT_PUBLIC_BASE_URL}/api/query` },
+        { POST: `${process.env.NEXT_PUBLIC_BASE_URL}/api/chat` }
+      ]
+    },
+    {
+      name: 'Pro Plan',
+      description: '100 API credits',
+      dateCreated: new Date()
+    },
+    getERC20PriceConfig(
+      10_000_000n,
+      USDC_ADDRESS,
+      process.env.BUILDER_ADDRESS!
+    ),
+    getFixedCreditsConfig(100n, 1n),
+    'credits'
+  )
+
+  console.log('Registration complete!')
+  console.log(`AGENT_ID=${agentId}`)
+  console.log(`PLAN_ID=${planId}`)
+}
+
+register().catch(console.error)
+```
+
+## Environment Variables
+
+```bash filename=".env.local"
+# Nevermined
+NVM_API_KEY=nvm:your-api-key
+BUILDER_ADDRESS=0xYourWalletAddress
+AGENT_ID=did:nv:your-agent-id
+PLAN_ID=did:nv:your-plan-id
+
+# Next.js
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+## Edge Runtime Compatibility
+
+For Edge API routes:
+
+```typescript filename="app/api/edge-query/route.ts"
+import { NextRequest, NextResponse } from 'next/server'
+
+export const runtime = 'edge'
+
+export async function POST(request: NextRequest) {
+  const paymentProof = request.headers.get('payment-signature')
+
+  if (!paymentProof) {
+    return NextResponse.json(
+      { error: 'Payment Required' },
+      { status: 402 }
+    )
+  }
+
+  // For Edge runtime, call validation API
+  const validationResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/validate`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'PAYMENT-SIGNATURE': paymentProof
+      },
+      body: await request.text()
+    }
+  )
+
+  if (!validationResponse.ok) {
+    return NextResponse.json(
+      await validationResponse.json(),
+      { status: validationResponse.status }
+    )
+  }
+
+  // Process request
+  const body = await request.json()
+  const result = `Edge response to: ${body.prompt}`
+
+  return NextResponse.json({ result })
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/validate-requests">
+    Advanced validation patterns
+  </Card>
+
+  <Card title="TypeScript SDK" icon="book" href="/docs/api-reference/typescript/installation">
+    Full API documentation
+  </Card>
+</CardGroup>

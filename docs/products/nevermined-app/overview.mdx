@@ -1,0 +1,167 @@
+---
+title: "Nevermined App Overview"
+description: "No-code interface for registering AI agents, managing payment plans, and monetizing your services"
+icon: "browser"
+---
+
+The [Nevermined App](https://nevermined.app) is a visual interface for managing your AI agents and payment infrastructure. Register agents, create payment plans, and track revenue without writing code.
+
+## What You Can Do
+
+<CardGroup cols={2}>
+  <Card title="Register Agents" icon="robot">
+    Add your AI agents with metadata, endpoints, and access control settings
+  </Card>
+
+  <Card title="Create Payment Plans" icon="credit-card">
+    Define pricing with credits, subscriptions, or dynamic models
+  </Card>
+
+  <Card title="Manage Access" icon="key">
+    Generate API keys, view subscribers, and control permissions
+  </Card>
+
+  <Card title="Track Revenue" icon="chart-line">
+    Monitor usage, payments, and analytics in real-time
+  </Card>
+</CardGroup>
+
+## Getting Started
+
+<Steps>
+  <Step title="Sign In">
+    Go to [nevermined.app](https://nevermined.app) and log in using Web3Auth. You can use social logins (Google, GitHub) or connect a crypto wallet.
+  </Step>
+
+  <Step title="Get Your API Key">
+    Navigate to **Settings > API Keys** and generate a new key. Store it securely - you'll need it for SDK integration.
+
+    ```bash
+    export NVM_API_KEY="nvm:your-api-key-here"
+    ```
+  </Step>
+
+  <Step title="Register an Agent">
+    Click **Agents > Register New Agent** and fill in:
+    - Agent name and description
+    - API endpoints (the URLs your agent exposes)
+    - Optional: Link to OpenAPI spec, MCP manifest, or A2A agent card
+  </Step>
+
+  <Step title="Create a Payment Plan">
+    Click **Create Plan** on your agent and configure:
+    - Plan name and description
+    - Pricing (amount and currency)
+    - Access type (credits or time-based)
+    - Credits per request (for credit-based plans)
+  </Step>
+</Steps>
+
+## Dashboard Overview
+
+### Agents Tab
+
+View and manage all your registered AI agents:
+
+- **Agent Details**: Name, description, endpoints, and linked plans
+- **Status**: Active, paused, or pending
+- **Analytics**: Total queries, revenue, and active subscribers
+
+### Plans Tab
+
+Manage payment plans for your agents:
+
+- **Plan Configuration**: Price, credits, duration
+- **Subscribers**: View who has purchased each plan
+- **Revenue**: Track earnings per plan
+
+### Settings
+
+Configure your account and API access:
+
+- **API Keys**: Generate and manage keys for SDK integration
+- **Payment Settings**: Configure payout addresses
+- **Notifications**: Set up alerts for new subscribers and payments
+
+## When to Use the App vs SDK
+
+| Use Case | Nevermined App | Payment Libraries |
+|----------|----------------|-------------------|
+| Quick setup and testing | Best | Good |
+| Non-technical users | Best | Not recommended |
+| CI/CD automation | Not possible | Best |
+| Custom workflows | Limited | Best |
+| Bulk operations | Manual | Automated |
+
+## Key Features
+
+### No-Code Agent Registration
+
+Register agents without writing code:
+
+1. Enter your agent's metadata (name, description, tags)
+2. Add API endpoints (supports REST, OpenAPI, MCP, A2A)
+3. Configure access control settings
+4. Click "Register" - done!
+
+### Visual Plan Builder
+
+Create payment plans through a guided interface:
+
+- Select plan type (credits, time, or dynamic)
+- Set pricing in crypto (USDC, USDT) or fiat (via Stripe)
+- Configure usage limits and terms
+- Preview how subscribers will see the plan
+
+### Real-Time Analytics
+
+Track your agent's performance:
+
+- **Queries**: Total requests, successful vs failed
+- **Revenue**: Earnings by day, week, month
+- **Subscribers**: Active users, new signups, churn
+- **Credits**: Usage patterns, top consumers
+
+## Integration with SDKs
+
+The App works seamlessly with the Payment Libraries:
+
+```typescript
+// Agents registered in the App can be accessed via SDK
+const agent = await payments.agents.getAgent('did:nv:your-agent-id')
+
+// Plans created in the App work with SDK ordering
+await payments.plans.orderPlan(agent.plans[0].planId)
+
+// Credentials work the same way
+const { accessToken } = await payments.agents.getAgentAccessToken(
+  planId,
+  agentId
+)
+```
+
+## Security
+
+- **Web3Auth**: Secure authentication without managing private keys
+- **Non-Custodial**: You control your funds - payments go directly to your address
+- **API Key Scoping**: Create keys with limited permissions for different use cases
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Register Agents" icon="robot" href="/docs/products/nevermined-app/register-agents">
+    Step-by-step guide to registering your first agent
+  </Card>
+
+  <Card title="Manage Plans" icon="credit-card" href="/docs/products/nevermined-app/manage-plans">
+    Create and configure payment plans
+  </Card>
+
+  <Card title="Payment Libraries" icon="code" href="/docs/products/payment-libraries/overview">
+    Integrate programmatically with the SDKs
+  </Card>
+
+  <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
+    Complete quickstart guide
+  </Card>
+</CardGroup>
