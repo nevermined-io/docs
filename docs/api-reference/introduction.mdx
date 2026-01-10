@@ -1,130 +1,96 @@
 ---
-title: "Introduction"
-description: "Get started with the Nevermined Payments API for AI-native monetization"
+title: "Pre-requisites"
+description: "Get your Nevermined API Key to use the Payment libraries and REST API"
+icon: "key"
 ---
 
-<Note>
-  This section introduces the Nevermined Payments API: a TypeScript-first system for registering agents, configuring payment plans, handling subscriber access, and enforcing credit-based billing. All endpoints are available via direct function calls through the `Payments` client.
-</Note>
+To interact with Nevermined programmatically, you need a **Nevermined API Key**. This key is required for both:
 
-## Overview
+- **Payment Libraries** (TypeScript SDK and Python SDK)
+- **REST API** (direct HTTP calls)
 
-Nevermined provides a modular, programmable API that enables AI Builders to:
+## Get Your API Key
 
-- Register autonomous agents with metadata and HTTP endpoints
-- Create flexible fiat/crypto-based payment plans
-- Manage subscriptions using credits
-- Enforce usage-based access with secure metering and redemption
-- Enable agent-to-agent or human-to-agent transactions
+<Steps>
+  <Step title="Sign in to Nevermined App">
+    Go to [nevermined.app](https://nevermined.app) and sign in with your account.
+  </Step>
+  <Step title="Navigate to API Keys">
+    Go to **Settings > API Keys** in your dashboard.
+  </Step>
+  <Step title="Generate a New Key">
+    Click **Generate** and copy your new API key. It starts with `nvm:`.
 
-The API is designed for high-frequency use, real-time authorization, and deep integration into backend agent logic or proxy infrastructure.
+    ```bash
+    export NVM_API_KEY="nvm:your-api-key-here"
+    ```
+  </Step>
+</Steps>
 
----
+<Warning>
+  Keep your API key secure. Do not commit it to version control or share it publicly.
+</Warning>
 
-## Setup
+For a complete walkthrough, see our [5-Minute Setup Guide](/docs/integrate/quickstart/5-minute-setup).
 
-Supported environments:
+## Choose Your Environment
 
-- `sandbox` - Public testing environment
-- `live` - Public production environment
-- `custom` - Custom environment with manual configuration (any EVM-compatible network)
+Nevermined offers two environments:
 
-Initialize the Payments API:
+| Environment | Purpose | Network |
+|-------------|---------|---------|
+| **Sandbox** | Testing and development | Base Sepolia |
+| **Live** | Production | Base Mainnet |
 
-```ts
-import { Payments } from '@nevermined-io/payments'
+<Tabs>
+  <Tab title="TypeScript SDK">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
 
-const payments = Payments.getInstance({
-  nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'live' // Or 'sandbox' for testing
-})
-```
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'testing' // or 'live' for production
+    })
+    ```
+  </Tab>
+  <Tab title="Python SDK">
+    ```python
+    from payments_py import Payments, PaymentOptions
 
-⸻
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ['NVM_API_KEY'],
+            environment='testing'  # or 'live' for production
+        )
+    )
+    ```
+  </Tab>
+  <Tab title="REST API">
+    | Environment | Base URL |
+    |-------------|----------|
+    | **Sandbox** | `https://api.sandbox.nevermined.dev/api/v1` |
+    | **Live** | `https://api.live.nevermined.dev/api/v1` |
 
-## Core Capabilities
+    ```bash
+    curl -X GET "https://api.sandbox.nevermined.dev/api/v1/protocol/agents" \
+      -H "Authorization: Bearer $NVM_API_KEY"
+    ```
+  </Tab>
+</Tabs>
 
-### Register an Agent and Plan
-
-```ts
-const agentMetadata = {
-  name: 'Legal Assistant',
-  tags: ['legal', 'ai'],
-  dateCreated: new Date()
-}
-
-const agentApi = {
-  endpoints: [{ POST: 'https://yourdomain.com/api/query' }],
-  agentDefinitionUrl: 'https://yourdomain.com/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
-}
-
-import { getERC20PriceConfig, getExpirableDurationConfig } from '@nevermined-io/payments'
-import { ONE_MONTH_DURATION } from '@nevermined-io/payments'
-
-const planMetadata = {
-  name: 'Legal Assistant Plan',
-  description: 'Monthly subscription plan'
-}
-
-const priceConfig = getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
-const creditsConfig = getExpirableDurationConfig(ONE_MONTH_DURATION)
-
-const { agentId, planId } = await payments.agents.registerAgentAndPlan(
-  agentMetadata,
-  agentApi,
-  planMetadata,
-  priceConfig,
-  creditsConfig,
-  'time' // Optional: accessLimit ('credits' or 'time')
-)
-```
-
----
-
-## Enforce Access and Redeem Credits
-
-When receiving a request to your agent:
-
-```ts
-const isValid = await payments.isValidRequest(
-  planId,
-  agentId,
-  subscriberAddress,
-  request.headers['x-nvm-query-signature']
-)
-
-if (!isValid) {
-  const paymentCard = await payments.getAgentPaymentCard(agentId)
-  return res.status(402).send(paymentCard)
-}
-
-// Run the AI logic and redeem usage
-await payments.redeemCredits(planId, 5n, proof)
-```
-
-⸻
-
-## API Authentication
-
-All API operations require an nvmApiKey, which you can generate from the Nevermined App.
-
-Authentication occurs at the time of instantiating Payments.getInstance() and is required for all calls to register, validate, or query.
-
-⸻
-
-## Start Exploring
+## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Register Agents & Plans" icon="brain" href="/docs/api-reference/endpoint/create">
-    Publish metadata and register endpoints for your AI agent.
+  <Card title="TypeScript SDK" icon="js" href="/docs/api-reference/typescript/installation">
+    Install and use the TypeScript Payment library.
   </Card>
-  <Card title="Order Plans" icon="credit-card" href="/docs/api-reference/endpoint/order">
-    Enable subscribers to purchase your payment plans.
+  <Card title="Python SDK" icon="python" href="/docs/api-reference/python/installation">
+    Install and use the Python Payment library.
   </Card>
-  <Card title="Query Agents" icon="code" href="/docs/api-reference/endpoint/query">
-    Query agents with valid access and enforce credit redemption.
+  <Card title="REST API" icon="code" href="/docs/api-reference/protocol/register-agent">
+    Make direct HTTP calls to the Nevermined API.
   </Card>
-  <Card title="Redeem Credits" icon="coins" href="/docs/api-reference/endpoint/redeem">
-    Programmatically burn credits based on request usage.
+  <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
+    Complete integration walkthrough.
   </Card>
 </CardGroup>
