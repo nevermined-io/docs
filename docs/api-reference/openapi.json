@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Nevermined API",
-    "description": "API for managing AI agents, payment plans, and subscriptions in the Nevermined ecosystem",
+    "description": "API for managing AI agents, payment plans, and x402 payments in the Nevermined ecosystem.\n\n## Prerequisites\n\nYou need a Nevermined API Key to authenticate. Get one at [nevermined.app](https://nevermined.app) under **Settings > API Keys**.\n\nSee the [5-Minute Setup Guide](/docs/integrate/quickstart/5-minute-setup) for detailed instructions.",
     "license": {
       "name": "MIT"
     },
@@ -10,7 +10,12 @@
   },
   "servers": [
     {
-      "url": "http://sandbox.mintlify.com"
+      "url": "https://api.sandbox.nevermined.dev/api/v1",
+      "description": "Sandbox (Testing) - Base Sepolia"
+    },
+    {
+      "url": "https://api.live.nevermined.dev/api/v1",
+      "description": "Live (Production) - Base Mainnet"
     }
   ],
   "security": [
@@ -18,71 +23,66 @@
       "bearerAuth": []
     }
   ],
+  "tags": [
+    {
+      "name": "Protocol - Agents",
+      "description": "Endpoints for registering and managing AI agents"
+    },
+    {
+      "name": "Protocol - Plans",
+      "description": "Endpoints for creating and managing payment plans"
+    },
+    {
+      "name": "Protocol - Credits",
+      "description": "Endpoints for minting and redeeming credits"
+    },
+    {
+      "name": "Protocol - Access",
+      "description": "Endpoints for access tokens and request validation"
+    },
+    {
+      "name": "X402 - Permissions",
+      "description": "Endpoints for x402 delegated permissions"
+    }
+  ],
   "paths": {
-    "/agent": {
+    "/protocol/agents": {
       "post": {
-        "summary": "Register Agent and Plan",
-        "description": "Registers a new AI agent along with a payment plan.",
-        "operationId": "registerAgentAndPlan",
-        "tags": ["Agents"],
+        "summary": "Register Agent",
+        "description": "Creates a new AI agent with API configuration.",
+        "operationId": "registerAgent",
+        "tags": ["Protocol - Agents"],
         "requestBody": {
-          "description": "Agent and plan to register",
+          "description": "Agent configuration",
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "agentMetadata": {
-                    "$ref": "#/components/schemas/AgentMetadata"
-                  },
-                  "agentApi": {
-                    "type": "object",
-                    "required": ["endpoints", "agentDefinitionUrl"],
-                    "properties": {
-                      "endpoints": {
-                        "type": "array",
-                        "items": {
-                          "type": "object"
-                        }
-                      },
-                      "agentDefinitionUrl": {
-                        "type": "string",
-                        "description": "URL to the agent definition. Can be an OpenAPI spec, MCP Manifest, or A2A agent card. This field is mandatory."
-                      },
-                      "openEndpoints": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        },
-                        "description": "List of endpoints that don't require authentication"
-                      }
-                    }
-                  },
-                  "price": {
-                    "type": "object"
-                  },
-                  "credits": {
-                    "type": "object"
-                  }
-                }
+                "$ref": "#/components/schemas/RegisterAgentRequest"
+              },
+              "example": {
+                "name": "Legal Assistant",
+                "description": "AI-powered legal document analysis",
+                "tags": ["legal", "ai"],
+                "endpoints": [{"POST": "https://your-api.com/query"}],
+                "agentDefinitionUrl": "https://your-api.com/openapi.json"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Agent and plan created",
+            "description": "Agent created successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NewAgentResponse"
+                  "$ref": "#/components/schemas/AgentCreatedResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Unexpected error",
+            "description": "Invalid request",
             "content": {
               "application/json": {
                 "schema": {
@@ -90,21 +90,84 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          }
+        }
+      },
+      "get": {
+        "summary": "List Agents",
+        "description": "Get paginated list of agents for the current user.",
+        "operationId": "listAgents",
+        "tags": ["Protocol - Agents"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Results per page",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "description": "Sort field",
+            "schema": {
+              "type": "string",
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "description": "Sort direction",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of agents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedAgents"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         }
       }
     },
-    "/agent/{agentId}": {
+    "/protocol/agents/{agentId}": {
       "get": {
         "summary": "Get Agent",
-        "description": "Retrieves information about a registered AI agent, including metadata and associated payment plans.",
+        "description": "Retrieves agent configuration and associated plans.",
         "operationId": "getAgent",
-        "tags": ["Agents"],
+        "tags": ["Protocol - Agents"],
         "parameters": [
           {
             "name": "agentId",
             "in": "path",
-            "description": "The unique identifier of the agent to retrieve",
+            "description": "The agent's unique identifier (DID)",
             "required": true,
             "schema": {
               "type": "string"
@@ -113,7 +176,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Agent information response",
+            "description": "Agent details",
             "content": {
               "application/json": {
                 "schema": {
@@ -127,46 +190,16 @@
           }
         }
       },
-      "delete": {
-        "summary": "Delete Agent",
-        "description": "Deletes a registered AI agent and all associated payment plans.",
-        "operationId": "deleteAgent",
-        "tags": ["Agents"],
+      "put": {
+        "summary": "Update Agent",
+        "description": "Modifies agent configuration and metadata.",
+        "operationId": "updateAgent",
+        "tags": ["Protocol - Agents"],
         "parameters": [
           {
             "name": "agentId",
             "in": "path",
-            "description": "The unique identifier of the agent to delete",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Agent successfully deleted"
-          },
-          "403": {
-            "description": "Caller is not authorized to delete this agent"
-          },
-          "404": {
-            "description": "Agent not found"
-          }
-        }
-      }
-    },
-    "/agent/{agentId}/query": {
-      "post": {
-        "summary": "Query Agent",
-        "description": "Queries a registered AI agent via the Nevermined Proxy or directly, using a valid payment plan and signature-based access token.",
-        "operationId": "queryAgent",
-        "tags": ["Agents"],
-        "parameters": [
-          {
-            "name": "agentId",
-            "in": "path",
-            "description": "The unique identifier of the agent to query",
+            "description": "The agent's unique identifier",
             "required": true,
             "schema": {
               "type": "string"
@@ -174,16 +207,395 @@
           }
         ],
         "requestBody": {
-          "description": "Query payload",
+          "description": "Updated agent metadata",
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "prompt": {
-                    "type": "string"
-                  }
+                "$ref": "#/components/schemas/UpdateAgentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/protocol/agents/plans": {
+      "post": {
+        "summary": "Register Agent and Plan",
+        "description": "Creates both an agent and associated payment plan in a single request.",
+        "operationId": "registerAgentAndPlan",
+        "tags": ["Protocol - Agents"],
+        "requestBody": {
+          "description": "Agent and plan configuration",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterAgentAndPlanRequest"
+              },
+              "example": {
+                "agentMetadata": {
+                  "name": "Legal Assistant",
+                  "description": "AI-powered legal analysis",
+                  "tags": ["legal", "ai"]
+                },
+                "agentApi": {
+                  "endpoints": [{"POST": "https://your-api.com/query"}],
+                  "agentDefinitionUrl": "https://your-api.com/openapi.json"
+                },
+                "planMetadata": {
+                  "name": "Starter Plan",
+                  "description": "100 requests for $10"
+                },
+                "priceConfig": {
+                  "priceType": "FIXED_PRICE",
+                  "tokenAddress": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                  "amounts": [10000000],
+                  "receivers": ["0xYourWalletAddress"]
+                },
+                "creditsConfig": {
+                  "creditsType": "FIXED",
+                  "amount": 100,
+                  "minAmount": 1
+                },
+                "accessLimit": "credits"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent and plan created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAndPlanCreatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/protocol/agents/{agentId}/list/{activate}": {
+      "put": {
+        "summary": "Activate/Deactivate Agent",
+        "description": "Controls the agent's public listing status.",
+        "operationId": "toggleAgentListing",
+        "tags": ["Protocol - Agents"],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The agent's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "activate",
+            "in": "path",
+            "description": "true to list, false to unlist",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/protocol/agents/{agentId}/plan/{planId}": {
+      "post": {
+        "summary": "Add Plan to Agent",
+        "description": "Associates an existing payment plan with an agent.",
+        "operationId": "addPlanToAgent",
+        "tags": ["Protocol - Agents"],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The agent's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The plan's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan added to agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Agent or plan not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove Plan from Agent",
+        "description": "Disassociates a payment plan from an agent.",
+        "operationId": "removePlanFromAgent",
+        "tags": ["Protocol - Agents"],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The agent's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The plan's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan removed from agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Agent or plan not found"
+          }
+        }
+      }
+    },
+    "/protocol/agents/{agentId}/plans": {
+      "get": {
+        "summary": "Get Agent Plans",
+        "description": "Lists all payment plans associated with an agent.",
+        "operationId": "getAgentPlans",
+        "tags": ["Protocol - Agents"],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The agent's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPlans"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/protocol/agents/initialize/{agentId}": {
+      "post": {
+        "summary": "Initialize Agent Request",
+        "description": "Validates access and initializes an agent request session.",
+        "operationId": "initializeAgentRequest",
+        "tags": ["Protocol - Access"],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The agent's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Request initialization data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitializeAgentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request initialized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitializeAgentResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "402": {
+            "description": "Payment required - insufficient credits"
+          }
+        }
+      }
+    },
+    "/protocol/agent-sub-tasks": {
+      "post": {
+        "summary": "Track Agent Sub Task",
+        "description": "Records task completion and credit consumption for complex agent workflows.",
+        "operationId": "trackAgentSubTask",
+        "tags": ["Protocol - Access"],
+        "requestBody": {
+          "description": "Sub-task tracking data",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackSubTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task tracked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/protocol/plans": {
+      "post": {
+        "summary": "Register Plan",
+        "description": "Creates a new payment plan with pricing and credit configuration.",
+        "operationId": "registerPlan",
+        "tags": ["Protocol - Plans"],
+        "requestBody": {
+          "description": "Plan configuration",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterPlanRequest"
+              },
+              "example": {
+                "name": "Pro Plan",
+                "description": "500 requests per month",
+                "priceConfig": {
+                  "priceType": "FIXED_PRICE",
+                  "tokenAddress": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                  "amounts": [50000000],
+                  "receivers": ["0xYourWalletAddress"]
+                },
+                "creditsConfig": {
+                  "creditsType": "FIXED",
+                  "amount": 500,
+                  "minAmount": 1
                 }
               }
             }
@@ -191,41 +603,100 @@
         },
         "responses": {
           "200": {
-            "description": "Query successful",
+            "description": "Plan created",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/PlanCreatedResponse"
                 }
               }
             }
           },
-          "402": {
-            "description": "Payment Required"
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         }
-      }
-    },
-    "/plan/{planId}": {
+      },
       "get": {
-        "summary": "Get Plan",
-        "description": "Retrieves details about a specific payment plan by its ID.",
-        "operationId": "getPlan",
-        "tags": ["Plans"],
+        "summary": "List Plans",
+        "description": "Get paginated list of payment plans for the current user.",
+        "operationId": "listPlans",
+        "tags": ["Protocol - Plans"],
         "parameters": [
           {
-            "name": "planId",
-            "in": "path",
-            "description": "The unique identifier of the plan to retrieve",
-            "required": true,
+            "name": "page",
+            "in": "query",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "desc"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Plan information",
+            "description": "List of plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPlans"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/protocol/plans/{planId}": {
+      "get": {
+        "summary": "Get Plan",
+        "description": "Retrieves details about a specific payment plan.",
+        "operationId": "getPlan",
+        "tags": ["Protocol - Plans"],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The plan's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan details",
             "content": {
               "application/json": {
                 "schema": {
@@ -233,24 +704,119 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Plan not found"
           }
         }
-      }
-    },
-    "/plan/{planId}/order": {
-      "post": {
-        "summary": "Order Plan",
-        "description": "Allows a subscriber (human or agent) to purchase a payment plan using crypto or fiat.",
-        "operationId": "orderPlan",
-        "tags": ["Plans"],
+      },
+      "put": {
+        "summary": "Update Plan",
+        "description": "Modifies plan metadata.",
+        "operationId": "updatePlan",
+        "tags": ["Protocol - Plans"],
         "parameters": [
           {
             "name": "planId",
             "in": "path",
-            "description": "The unique identifier of the plan to order",
+            "description": "The plan's unique identifier",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Updated plan metadata",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plan updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Plan not found"
+          }
+        }
+      }
+    },
+    "/protocol/plans/{planId}/list/{activate}": {
+      "put": {
+        "summary": "Activate/Deactivate Plan",
+        "description": "Controls the plan's public listing status.",
+        "operationId": "togglePlanListing",
+        "tags": ["Protocol - Plans"],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The plan's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "activate",
+            "in": "path",
+            "description": "true to list, false to unlist",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Plan not found"
+          }
+        }
+      }
+    },
+    "/protocol/plans/{planId}/order": {
+      "post": {
+        "summary": "Order Plan",
+        "description": "Purchases a payment plan. Credits are issued immediately.",
+        "operationId": "orderPlan",
+        "tags": ["Protocol - Plans"],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The plan's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -260,33 +826,43 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "txHash": {
-                      "type": "string"
-                    },
-                    "balance": {
-                      "$ref": "#/components/schemas/Balance"
-                    }
-                  }
+                  "$ref": "#/components/schemas/OrderPlanResponse"
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "402": {
+            "description": "Payment failed"
+          },
+          "404": {
+            "description": "Plan not found"
           }
         }
       }
     },
-    "/plan/{planId}/balance": {
+    "/protocol/plans/{planId}/balance/{holderAddress}": {
       "get": {
         "summary": "Get Plan Balance",
-        "description": "Checks the current usage balance for a given plan.",
+        "description": "Retrieves credit balance for a specific account on a plan.",
         "operationId": "getPlanBalance",
-        "tags": ["Plans"],
+        "tags": ["Protocol - Plans"],
         "parameters": [
           {
             "name": "planId",
             "in": "path",
-            "description": "The unique identifier of the plan.",
+            "description": "The plan's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "holderAddress",
+            "in": "path",
+            "description": "Wallet address to check balance for",
             "required": true,
             "schema": {
               "type": "string"
@@ -303,21 +879,83 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Plan or holder not found"
           }
         }
       }
     },
-    "/plan/{planId}/redeem": {
-      "post": {
-        "summary": "Redeem Credits",
-        "description": "Redeems a specific number of credits from a subscriber's balance.",
-        "operationId": "redeemCredits",
-        "tags": ["Plans"],
+    "/protocol/plans/{planId}/agents": {
+      "get": {
+        "summary": "Get Plan Agents",
+        "description": "Lists all agents associated with a payment plan.",
+        "operationId": "getPlanAgents",
+        "tags": ["Protocol - Plans"],
         "parameters": [
           {
             "name": "planId",
             "in": "path",
-            "description": "The unique identifier of the plan.",
+            "description": "The plan's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of agents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedAgents"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Plan not found"
+          }
+        }
+      }
+    },
+    "/protocol/token/{planId}/{agentId}": {
+      "get": {
+        "summary": "Get Access Token",
+        "description": "Generates access credentials for agent-plan interaction.",
+        "operationId": "getAccessToken",
+        "tags": ["Protocol - Access"],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "description": "The plan's unique identifier",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "description": "The agent's unique identifier",
             "required": true,
             "schema": {
               "type": "string"
@@ -326,25 +964,373 @@
         ],
         "responses": {
           "200": {
-            "description": "Redemption successful",
+            "description": "Access token generated",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "creditsRedeemed": {
-                      "type": "integer"
-                    },
-                    "remainingBalance": {
-                      "type": "integer"
-                    }
-                  }
+                  "$ref": "#/components/schemas/AccessTokenResponse"
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "402": {
+            "description": "No active subscription"
+          },
+          "404": {
+            "description": "Plan or agent not found"
+          }
+        }
+      }
+    },
+    "/protocol/plans/mint": {
+      "post": {
+        "summary": "Mint Credits",
+        "description": "Adds credits to a plan account. Builder-only operation.",
+        "operationId": "mintCredits",
+        "tags": ["Protocol - Credits"],
+        "requestBody": {
+          "description": "Mint request",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintCreditsRequest"
+              },
+              "example": {
+                "planId": "did:nv:abc123...",
+                "holderAddress": "0xUserAddress",
+                "amount": 100
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credits minted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MintCreditsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - not plan owner"
+          }
+        }
+      }
+    },
+    "/protocol/plans/mintExpirable": {
+      "post": {
+        "summary": "Mint Expirable Credits",
+        "description": "Adds time-limited credits to a plan account.",
+        "operationId": "mintExpirableCredits",
+        "tags": ["Protocol - Credits"],
+        "requestBody": {
+          "description": "Mint expirable request",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintExpirableCreditsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credits minted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MintCreditsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - not plan owner"
+          }
+        }
+      }
+    },
+    "/protocol/plans/redeem": {
+      "post": {
+        "summary": "Redeem Credits",
+        "description": "Consumes credits from a plan account after processing a request.",
+        "operationId": "redeemCredits",
+        "tags": ["Protocol - Credits"],
+        "requestBody": {
+          "description": "Redeem request",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemCreditsRequest"
+              },
+              "example": {
+                "planId": "did:nv:abc123...",
+                "holderAddress": "0xUserAddress",
+                "amount": 5,
+                "proof": "0xSignatureProof..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credits redeemed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedeemCreditsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "402": {
+            "description": "Insufficient credits"
+          }
+        }
+      }
+    },
+    "/x402/permissions": {
+      "post": {
+        "summary": "Create Permission",
+        "description": "Creates a delegated permission and generates an x402 access token.",
+        "operationId": "createPermission",
+        "tags": ["X402 - Permissions"],
+        "requestBody": {
+          "description": "Permission configuration",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePermissionRequest"
+              },
+              "example": {
+                "planId": "did:nv:def456...",
+                "maxCredits": 100,
+                "expiresAt": "2025-02-10T00:00:00Z"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Permission created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionCreatedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "402": {
+            "description": "Insufficient balance"
+          }
+        }
+      },
+      "get": {
+        "summary": "List Permissions",
+        "description": "Retrieves paginated list of your delegated permissions.",
+        "operationId": "listPermissions",
+        "tags": ["X402 - Permissions"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPermissions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/x402/permissions/{permissionHash}": {
+      "get": {
+        "summary": "Get Permission",
+        "description": "Retrieves complete information about a specific permission.",
+        "operationId": "getPermission",
+        "tags": ["X402 - Permissions"],
+        "parameters": [
+          {
+            "name": "permissionHash",
+            "in": "path",
+            "description": "Unique permission identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Permission"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Permission not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Revoke Permission",
+        "description": "Invalidates a delegated permission, preventing further use.",
+        "operationId": "revokePermission",
+        "tags": ["X402 - Permissions"],
+        "parameters": [
+          {
+            "name": "permissionHash",
+            "in": "path",
+            "description": "Unique permission identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokePermissionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Permission not found"
+          }
+        }
+      }
+    },
+    "/x402/verify": {
+      "post": {
+        "summary": "Verify Permission",
+        "description": "Validates a delegated permission before processing a request.",
+        "operationId": "verifyPermission",
+        "tags": ["X402 - Permissions"],
+        "requestBody": {
+          "description": "Verification request",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPermissionRequest"
+              },
+              "example": {
+                "accessToken": "x402_eyJhbGciOiJIUzI1NiIs...",
+                "agentId": "did:nv:abc123...",
+                "creditsRequested": 5
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyPermissionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/x402/settle": {
+      "post": {
+        "summary": "Settle Permission",
+        "description": "Finalizes and records delegated permission usage after service delivery.",
+        "operationId": "settlePermission",
+        "tags": ["X402 - Permissions"],
+        "requestBody": {
+          "description": "Settlement request",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlePermissionRequest"
+              },
+              "example": {
+                "accessToken": "x402_eyJhbGciOiJIUzI1NiIs...",
+                "agentId": "did:nv:abc123...",
+                "creditsUsed": 5
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settlement complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlePermissionResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Settlement failed - insufficient credits"
           }
         }
       }
@@ -353,22 +1339,68 @@
   "components": {
     "schemas": {
       "Error": {
-        "required": ["error", "message"],
         "type": "object",
         "properties": {
-          "error": {
-            "type": "integer",
-            "format": "int32"
+          "success": {
+            "type": "boolean",
+            "example": false
           },
-          "message": {
+          "error": {
             "type": "string"
+          },
+          "statusCode": {
+            "type": "integer"
           }
         }
       },
-      "AgentMetadata": {
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "RegisterAgentRequest": {
+        "type": "object",
+        "required": ["name", "endpoints", "agentDefinitionUrl"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Agent display name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Agent description"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Searchable tags"
+          },
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "API endpoints (HTTP verb and URL)"
+          },
+          "agentDefinitionUrl": {
+            "type": "string",
+            "description": "URL to OpenAPI spec, MCP Manifest, or A2A agent card"
+          }
+        }
+      },
+      "UpdateAgentRequest": {
         "type": "object",
         "properties": {
           "name": {
+            "type": "string"
+          },
+          "description": {
             "type": "string"
           },
           "tags": {
@@ -377,47 +1409,76 @@
               "type": "string"
             }
           },
-          "dateCreated": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "NewAgentResponse": {
-        "type": "object",
-        "properties": {
-          "agentId": {
-            "type": "string"
-          },
-          "planId": {
-            "type": "string"
-          }
-        }
-      },
-      "Agent": {
-        "type": "object",
-        "properties": {
-          "agentId": {
-            "type": "string"
-          },
-          "metadata": {
-            "$ref": "#/components/schemas/AgentMetadata"
-          },
-          "plans": {
+          "endpoints": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Plan"
+              "type": "object"
             }
           }
         }
       },
-      "Plan": {
+      "AgentCreatedResponse": {
         "type": "object",
         "properties": {
-          "planId": {
+          "success": {
+            "type": "boolean"
+          },
+          "agentId": {
+            "type": "string",
+            "description": "The agent's unique identifier (DID)"
+          }
+        }
+      },
+      "AgentAndPlanCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "agentId": {
             "type": "string"
           },
-          "metadata": {
+          "planId": {
+            "type": "string"
+          }
+        }
+      },
+      "RegisterAgentAndPlanRequest": {
+        "type": "object",
+        "required": ["agentMetadata", "agentApi", "planMetadata", "priceConfig", "creditsConfig"],
+        "properties": {
+          "agentMetadata": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "agentApi": {
+            "type": "object",
+            "properties": {
+              "endpoints": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "agentDefinitionUrl": {
+                "type": "string"
+              }
+            }
+          },
+          "planMetadata": {
             "type": "object",
             "properties": {
               "name": {
@@ -428,45 +1489,232 @@
               }
             }
           },
-          "price": {
-            "type": "object",
-            "properties": {
-              "priceType": {
-                "type": "string"
-              },
-              "tokenAddress": {
-                "type": "string"
-              },
-              "amounts": {
-                "type": "array",
-                "items": {
-                  "type": "integer"
-                }
-              },
-              "receivers": {
-                "type": "array",
-                "items": {
+          "priceConfig": {
+            "$ref": "#/components/schemas/PriceConfig"
+          },
+          "creditsConfig": {
+            "$ref": "#/components/schemas/CreditsConfig"
+          },
+          "accessLimit": {
+            "type": "string",
+            "enum": ["credits", "time"]
+          }
+        }
+      },
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "agentDefinitionUrl": {
+            "type": "string"
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "planId": {
+                  "type": "string"
+                },
+                "name": {
                   "type": "string"
                 }
               }
             }
           },
-          "credits": {
-            "type": "object",
-            "properties": {
-              "creditsType": {
-                "type": "string"
-              },
-              "amount": {
-                "type": "integer"
-              },
-              "durationOfThePlan": {
-                "type": "integer"
-              }
+          "isListed": {
+            "type": "boolean"
+          },
+          "owner": {
+            "type": "string"
+          }
+        }
+      },
+      "PaginatedAgents": {
+        "type": "object",
+        "properties": {
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Agent"
             }
           },
-          "nftAddress": {
+          "totalCount": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        }
+      },
+      "RegisterPlanRequest": {
+        "type": "object",
+        "required": ["name", "priceConfig", "creditsConfig"],
+        "properties": {
+          "name": {
             "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priceConfig": {
+            "$ref": "#/components/schemas/PriceConfig"
+          },
+          "creditsConfig": {
+            "$ref": "#/components/schemas/CreditsConfig"
+          }
+        }
+      },
+      "UpdatePlanRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "PlanCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "planId": {
+            "type": "string"
+          }
+        }
+      },
+      "Plan": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priceConfig": {
+            "$ref": "#/components/schemas/PriceConfig"
+          },
+          "creditsConfig": {
+            "$ref": "#/components/schemas/CreditsConfig"
+          },
+          "isListed": {
+            "type": "boolean"
+          },
+          "owner": {
+            "type": "string"
+          }
+        }
+      },
+      "PaginatedPlans": {
+        "type": "object",
+        "properties": {
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Plan"
+            }
+          },
+          "totalCount": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        }
+      },
+      "PriceConfig": {
+        "type": "object",
+        "properties": {
+          "priceType": {
+            "type": "string",
+            "enum": ["FIXED_PRICE", "FREE"]
+          },
+          "tokenAddress": {
+            "type": "string",
+            "description": "ERC20 token address (e.g., USDC)"
+          },
+          "amounts": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Price amounts (6 decimals for USDC)"
+          },
+          "receivers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Wallet addresses to receive payment"
+          }
+        }
+      },
+      "CreditsConfig": {
+        "type": "object",
+        "properties": {
+          "creditsType": {
+            "type": "string",
+            "enum": ["FIXED", "EXPIRABLE"]
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Number of credits"
+          },
+          "minAmount": {
+            "type": "integer",
+            "description": "Minimum credits per request"
+          },
+          "durationOfThePlan": {
+            "type": "integer",
+            "description": "Duration in seconds (for EXPIRABLE)"
+          }
+        }
+      },
+      "OrderPlanResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "txHash": {
+            "type": "string"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Balance"
           }
         }
       },
@@ -484,6 +1732,351 @@
           },
           "remaining": {
             "type": "integer"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AccessTokenResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "neverminedProxyUri": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InitializeAgentRequest": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "requestData": {
+            "type": "object"
+          }
+        }
+      },
+      "InitializeAgentResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "isValid": {
+            "type": "boolean"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Balance"
+          }
+        }
+      },
+      "TrackSubTaskRequest": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "taskName": {
+            "type": "string"
+          },
+          "creditsUsed": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      },
+      "MintCreditsRequest": {
+        "type": "object",
+        "required": ["planId", "holderAddress", "amount"],
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "holderAddress": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer"
+          }
+        }
+      },
+      "MintExpirableCreditsRequest": {
+        "type": "object",
+        "required": ["planId", "holderAddress", "amount", "expirationBlock"],
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "holderAddress": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "expirationBlock": {
+            "type": "integer"
+          }
+        }
+      },
+      "MintCreditsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "txHash": {
+            "type": "string"
+          }
+        }
+      },
+      "RedeemCreditsRequest": {
+        "type": "object",
+        "required": ["planId", "holderAddress", "amount", "proof"],
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "holderAddress": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "proof": {
+            "type": "string"
+          }
+        }
+      },
+      "RedeemCreditsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "creditsRedeemed": {
+            "type": "integer"
+          },
+          "remainingBalance": {
+            "type": "integer"
+          }
+        }
+      },
+      "CreatePermissionRequest": {
+        "type": "object",
+        "required": ["planId", "maxCredits"],
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "maxCredits": {
+            "type": "integer"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "allowedAgents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      },
+      "PermissionCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "permissionHash": {
+            "type": "string"
+          },
+          "accessToken": {
+            "type": "string"
+          },
+          "maxCredits": {
+            "type": "integer"
+          },
+          "usedCredits": {
+            "type": "integer"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "Permission": {
+        "type": "object",
+        "properties": {
+          "permissionHash": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "ownerAddress": {
+            "type": "string"
+          },
+          "maxCredits": {
+            "type": "integer"
+          },
+          "usedCredits": {
+            "type": "integer"
+          },
+          "remainingCredits": {
+            "type": "integer"
+          },
+          "allowedAgents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PaginatedPermissions": {
+        "type": "object",
+        "properties": {
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            }
+          },
+          "totalCount": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          }
+        }
+      },
+      "RevokePermissionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "permissionHash": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "VerifyPermissionRequest": {
+        "type": "object",
+        "required": ["accessToken", "agentId", "creditsRequested"],
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "creditsRequested": {
+            "type": "integer"
+          }
+        }
+      },
+      "VerifyPermissionResponse": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "permissionHash": {
+            "type": "string"
+          },
+          "remainingCredits": {
+            "type": "integer"
+          },
+          "buyerAddress": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SettlePermissionRequest": {
+        "type": "object",
+        "required": ["accessToken", "agentId", "creditsUsed"],
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "creditsUsed": {
+            "type": "integer"
+          },
+          "requestMetadata": {
+            "type": "object"
+          }
+        }
+      },
+      "SettlePermissionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "permissionHash": {
+            "type": "string"
+          },
+          "creditsSettled": {
+            "type": "integer"
+          },
+          "remainingCredits": {
+            "type": "integer"
+          },
+          "txHash": {
+            "type": "string"
           }
         }
       }
@@ -491,7 +2084,8 @@
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
-        "scheme": "bearer"
+        "scheme": "bearer",
+        "description": "Your Nevermined API Key (starts with 'nvm:'). Get one at [nevermined.app](https://nevermined.app) under **Settings > API Keys**."
       }
     }
   }
