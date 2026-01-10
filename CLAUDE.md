@@ -112,7 +112,6 @@ Use H2 headings (#) for major topics, H3 (#) for subsections.
 4. Buildship
 5. Organizations
 
-
 ### Mintlify Components to Use
 
 - **`<Card>` / `<CardGroup>`** - Highlight key concepts, navigation, comparisons
