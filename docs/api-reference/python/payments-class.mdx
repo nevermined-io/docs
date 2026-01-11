@@ -15,7 +15,7 @@ from payments_py import Payments, PaymentOptions
 payments = Payments.get_instance(
     PaymentOptions(
         nvm_api_key=os.environ['NVM_API_KEY'],
-        environment='testing'
+        environment='sandbox'  # or 'live'
     )
 )
 ```
@@ -65,7 +65,7 @@ plan = payments.plans.get_plan('did:nv:...')
 ```python
 class PaymentOptions:
     nvm_api_key: str
-    environment: str  # 'testing' | 'staging' | 'production'
+    environment: str  # 'sandbox' | 'live'
     app_id: Optional[str] = None
     version: Optional[str] = None
 ```

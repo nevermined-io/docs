@@ -27,7 +27,7 @@ from payments_py import Payments, PaymentOptions
 payments = Payments.get_instance(
     PaymentOptions(
         nvm_api_key=os.environ['NVM_API_KEY'],
-        environment='testing'  # or 'staging', 'production'
+        environment='sandbox'  # or 'live'
     )
 )
 ```
@@ -37,7 +37,7 @@ payments = Payments.get_instance(
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
 | `nvm_api_key` | `str` | Yes | Your Nevermined API key |
-| `environment` | `str` | Yes | `'testing'`, `'staging'`, or `'production'` |
+| `environment` | `str` | Yes | `'sandbox'` or `'live'` |
 | `app_id` | `str` | No | Optional application identifier |
 | `version` | `str` | No | Optional version string |
 
@@ -45,9 +45,8 @@ payments = Payments.get_instance(
 
 | Environment | Network | Use Case |
 |-------------|---------|----------|
-| `testing` | Base Sepolia | Development and testing |
-| `staging` | Base Sepolia | Pre-production testing |
-| `production` | Base Mainnet | Live applications |
+| `sandbox` | Base Sepolia | Development and testing |
+| `live` | Base Mainnet | Live applications |
 
 ## Type Hints
 

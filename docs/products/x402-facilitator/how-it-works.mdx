@@ -79,7 +79,7 @@ The client creates a payment payload that encodes the allowed permissions (for e
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'testing'
+      environment: 'sandbox'
     })
 
     const { plan_id, agent_id, network } = paymentRequired.extensions.nevermined.info
@@ -103,7 +103,7 @@ The client creates a payment payload that encodes the allowed permissions (for e
     from payments_py import Payments, PaymentOptions
 
     payments = Payments.get_instance(
-        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
     )
 
     token_res = payments.x402.get_x402_access_token(
@@ -225,7 +225,7 @@ Decode the payment payload and ask the facilitator to verify it (including simul
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'testing'
+      environment: 'sandbox'
     })
 
     // Decode and parse the payment payload
@@ -254,7 +254,7 @@ Decode the payment payload and ask the facilitator to verify it (including simul
 
     facilitator = NeverminedFacilitator(
         nvm_api_key=os.environ['NVM_API_KEY'],
-        environment='testing'
+        environment='sandbox'
     )
 
     # Decode and parse the payment payload
