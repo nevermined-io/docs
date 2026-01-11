@@ -13,7 +13,7 @@ import { Payments } from '@nevermined-io/payments'
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'testing'
+  environment: 'sandbox' // or 'live'
 })
 ```
 
@@ -60,7 +60,7 @@ const plan = await payments.plans.getPlan('did:nv:...')
 ```typescript
 interface PaymentsConfig {
   nvmApiKey: string
-  environment: 'testing' | 'staging' | 'production'
+  environment: 'sandbox' | 'live'
   appId?: string
   version?: string
 }

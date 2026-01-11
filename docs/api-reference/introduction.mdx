@@ -49,7 +49,7 @@ Nevermined offers two environments:
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'testing' // or 'live' for production
+      environment: 'sandbox' // or 'live'
     })
     ```
   </Tab>
@@ -60,7 +60,7 @@ Nevermined offers two environments:
     payments = Payments.get_instance(
         PaymentOptions(
             nvm_api_key=os.environ['NVM_API_KEY'],
-            environment='testing'  # or 'live' for production
+            environment='sandbox'  # or 'live'
         )
     )
     ```
@@ -81,16 +81,16 @@ Nevermined offers two environments:
 ## Next Steps
 
 <CardGroup cols={2}>
+  <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
+    Complete integration walkthrough.
+  </Card>  
+  <Card title="REST API" icon="code" href="/docs/api-reference/protocol/register-agent">
+    Make direct HTTP calls to the Nevermined API.
+  </Card>
   <Card title="TypeScript SDK" icon="js" href="/docs/api-reference/typescript/installation">
     Install and use the TypeScript Payment library.
   </Card>
   <Card title="Python SDK" icon="python" href="/docs/api-reference/python/installation">
     Install and use the Python Payment library.
-  </Card>
-  <Card title="REST API" icon="code" href="/docs/api-reference/protocol/register-agent">
-    Make direct HTTP calls to the Nevermined API.
-  </Card>
-  <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
-    Complete integration walkthrough.
   </Card>
 </CardGroup>

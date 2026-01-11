@@ -56,7 +56,7 @@ If you’re monetizing an MCP tool/server or a protected resource, you’ll stil
       // 1. Initialize the SDK
       const payments = Payments.getInstance({
         nvmApiKey: process.env.NVM_API_KEY!,
-        environment: 'testing'
+        environment: 'sandbox'
       })
 
       // 2. Register service + payment plan ("agent" in the SDK)
@@ -110,7 +110,7 @@ If you’re monetizing an MCP tool/server or a protected resource, you’ll stil
         payments = Payments.get_instance(
             PaymentOptions(
                 nvm_api_key=os.environ['NVM_API_KEY'],
-                environment='testing'
+                environment='sandbox'
             )
         )
 
@@ -176,7 +176,7 @@ The example shows an HTTP API route; the same check can be used before calling a
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
-      environment: 'testing'
+      environment: 'sandbox'
     })
 
     // Your registered IDs
@@ -231,7 +231,7 @@ The example shows an HTTP API route; the same check can be used before calling a
     payments = Payments.get_instance(
         PaymentOptions(
             nvm_api_key=os.environ['NVM_API_KEY'],
-            environment='testing'
+            environment='sandbox'
         )
     )
 
@@ -348,7 +348,7 @@ Response:
 
 ```typescript
 // As a subscriber
-const payments = Payments.getInstance({ nvmApiKey: subscriberKey, environment: 'testing' })
+const payments = Payments.getInstance({ nvmApiKey: subscriberKey, environment: 'sandbox' })
 
 // Order the plan
 await payments.plans.orderPlan(PLAN_ID)

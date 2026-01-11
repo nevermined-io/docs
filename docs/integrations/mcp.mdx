@@ -72,7 +72,7 @@ Here's how to create a complete, production-ready MCP server with OAuth authenti
     // 1. Initialize Payments
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
-      environment: "staging"
+      environment: "sandbox"
     })
 
     // 2. Register tools with built-in paywall
@@ -341,7 +341,7 @@ Initialize the Nevermined Payments SDK with your builder/agent owner API key and
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
-      environment: (process.env.NVM_ENVIRONMENT as EnvironmentName) || "staging_sandbox",
+      environment: (process.env.NVM_ENVIRONMENT as EnvironmentName) || "sandbox",
     });
     ```
     
@@ -628,7 +628,7 @@ For custom Express servers, you can use `payments.mcp.createApp()`:
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
-      environment: "staging_sandbox"
+      environment: "sandbox"
     })
 
     payments.mcp.configure({

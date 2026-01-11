@@ -33,7 +33,7 @@ def get_payments() -> Payments:
         _payments_instance = Payments.get_instance(
             PaymentOptions(
                 nvm_api_key=os.environ['NVM_API_KEY'],
-                environment='production' if os.environ.get('ENV') == 'production' else 'testing'
+                environment='live' if os.environ.get('ENV') == 'production' else 'sandbox'
             )
         )
     return _payments_instance
@@ -264,7 +264,7 @@ def register():
     payments = Payments.get_instance(
         PaymentOptions(
             nvm_api_key=os.environ['NVM_API_KEY'],
-            environment='testing'
+            environment='sandbox'
         )
     )
 
@@ -434,7 +434,7 @@ CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 <AccordionGroup>
   <Accordion title="Environment" icon="gear">
     - [ ] Set `ENV=production`
-    - [ ] Use `environment='production'` in Payments config
+    - [ ] Use `environment='live'` in Payments config
     - [ ] Secure all environment variables
     - [ ] Use HTTPS in production
   </Accordion>

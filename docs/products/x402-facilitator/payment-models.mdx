@@ -52,7 +52,7 @@ Charge users based on actual usage. Each request consumes a configurable number 
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'testing'
+      environment: 'sandbox'
     })
 
     // Price: 10 USDC for 100 credits
@@ -84,7 +84,7 @@ Charge users based on actual usage. Each request consumes a configurable number 
     from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
 
     payments = Payments.get_instance(
-        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
     )
 
     # Price: 10 USDC for 100 credits

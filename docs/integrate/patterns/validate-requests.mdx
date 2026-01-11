@@ -30,7 +30,7 @@ At a minimum, validation has three steps:
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
-      environment: 'testing'
+      environment: 'sandbox'
     })
 
     export async function validateRequest(token: string, body: unknown) {
@@ -55,7 +55,7 @@ At a minimum, validation has three steps:
     from payments_py import Payments, PaymentOptions
 
     payments = Payments.get_instance(
-        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
     )
 
     async def validate_request(token: str, body: dict) -> dict:

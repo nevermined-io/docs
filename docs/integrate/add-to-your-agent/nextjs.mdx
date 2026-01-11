@@ -30,7 +30,7 @@ export function getPayments(): Payments {
   if (!paymentsInstance) {
     paymentsInstance = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
-      environment: process.env.NODE_ENV === 'production' ? 'production' : 'testing'
+      environment: process.env.NODE_ENV === 'production' ? 'live' : 'sandbox'
     })
   }
   return paymentsInstance
@@ -265,7 +265,7 @@ const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 async function register() {
   const payments = Payments.getInstance({
     nvmApiKey: process.env.NVM_API_KEY!,
-    environment: 'testing'
+    environment: 'sandbox'
   })
 
   const { agentId, planId } = await payments.agents.registerAgentAndPlan(

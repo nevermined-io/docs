@@ -58,7 +58,7 @@ if !paymentProof:
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'testing'
+      environment: 'sandbox'
     })
 
     const result = await payments.requests.isValidRequest(paymentProof, requestBody)
@@ -75,7 +75,7 @@ if !paymentProof:
     from payments_py import Payments, PaymentOptions
 
     payments = Payments.get_instance(
-        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='testing')
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
     )
 
     result = payments.requests.is_valid_request(payment_proof, request_body)

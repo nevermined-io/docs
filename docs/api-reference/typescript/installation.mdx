@@ -10,11 +10,7 @@ Install the package via npm or yarn:
 
 ```bash
 npm install @nevermined-io/payments
-```
 
-Or with yarn:
-
-```bash
 yarn add @nevermined-io/payments
 ```
 
@@ -25,7 +21,7 @@ import { Payments } from '@nevermined-io/payments'
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'testing' // or 'staging', 'production'
+  environment: 'sandbox' // or 'live'
 })
 ```
 
@@ -34,7 +30,7 @@ const payments = Payments.getInstance({
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
 | `nvmApiKey` | `string` | Yes | Your Nevermined API key |
-| `environment` | `Environment` | Yes | `'testing'`, `'staging'`, or `'production'` |
+| `environment` | `Environment` | Yes | `'sandbox'` or `'live'` |
 | `appId` | `string` | No | Optional application identifier |
 | `version` | `string` | No | Optional version string |
 
@@ -42,9 +38,8 @@ const payments = Payments.getInstance({
 
 | Environment | Network | Use Case |
 |-------------|---------|----------|
-| `testing` | Base Sepolia | Development and testing |
-| `staging` | Base Sepolia | Pre-production testing |
-| `production` | Base Mainnet | Live applications |
+| `sandbox` | Base Sepolia | Development and testing |
+| `live` | Base Mainnet | Live applications |
 
 ## TypeScript Support
 
