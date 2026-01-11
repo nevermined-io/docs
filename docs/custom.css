@@ -22,29 +22,74 @@ header,
 
 /* =====================================================
    Navigation Tabs - Pill Style
-   Matches the Nevermined website design
+   Matches the Nevermined website TabButtons component
    ===================================================== */
 
 /* Remove border from tabs header container */
 .nav-tabs-container,
 div:has(> .nav-tabs) {
+  border: none !important;
   border-bottom: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
-/* Tabs container - pill style background */
+/* Remove any borders from nav-tabs and all children */
+.nav-tabs,
+.nav-tabs *,
+.nav-tabs::before,
+.nav-tabs::after,
+.nav-tabs *::before,
+.nav-tabs *::after {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Kill the active tab indicator/underline completely */
+[data-active-tab-indicator],
+.nav-tabs-indicator,
+.tab-indicator,
+.active-indicator,
+.nav-tabs > div:not(.nav-tabs-item):not(a),
+.nav-tabs > span,
+.nav-tabs [class*="indicator"],
+.nav-tabs [class*="underline"],
+.nav-tabs [class*="border"],
+.nav-tabs [class*="active"]:not(a),
+.nav-tabs [style*="bottom"],
+.nav-tabs [style*="translate"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  background: transparent !important;
+  transform: none !important;
+}
+
+/* Force hide any absolute/fixed positioned indicator inside tabs */
+.nav-tabs [style*="position: absolute"],
+.nav-tabs [style*="position:absolute"],
+.nav-tabs div[class]:not([class*="item"]) {
+  display: none !important;
+  background: transparent !important;
+}
+
+/* Tabs container - transparent, no visible container */
 .nav-tabs {
   display: inline-flex !important;
   flex-direction: row !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 6px !important;
-  padding: 6px 8px !important;
-  background-color: rgba(245, 247, 242, 0.9) !important;
-  border-radius: 9999px !important;
-  border: 1px solid rgba(17, 24, 39, 0.08) !important;
-  box-shadow: 0 6px 18px rgba(17, 24, 39, 0.06) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  gap: 4px !important;
+  padding: 0 !important;
+  background-color: transparent !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   position: relative !important;
   height: auto !important;
 }
@@ -54,13 +99,13 @@ a.nav-tabs-item {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 9px 18px !important;
+  padding: 10px 32px !important;
   border-radius: 9999px !important;
   font-size: 14px !important;
-  font-weight: 500 !important;
-  color: rgba(17, 24, 39, 0.78) !important;
+  font-weight: 400 !important;
+  color: #111827 !important;
   background-color: transparent !important;
-  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
+  transition: background-color 0.5s ease-in-out, color 0.15s ease !important;
   cursor: pointer !important;
   position: relative !important;
   z-index: 1 !important;
@@ -69,12 +114,23 @@ a.nav-tabs-item {
   height: auto !important;
   border: none !important;
   border-bottom: none !important;
+  box-shadow: none !important;
+  min-width: 140px !important;
+}
+
+/* Remove any underline/border from tabs */
+a.nav-tabs-item::after,
+a.nav-tabs-item::before {
+  display: none !important;
+  content: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 /* Hover state for non-active tabs */
-a.nav-tabs-item:hover {
+a.nav-tabs-item:hover:not(.font-semibold):not([aria-current="page"]) {
   color: #111827 !important;
-  background-color: rgba(207, 233, 109, 0.22) !important;
+  background-color: rgba(188, 220, 74, 0.15) !important;
 }
 
 /* Keyboard focus */
@@ -83,34 +139,59 @@ a.nav-tabs-item:focus-visible {
   outline-offset: 2px !important;
 }
 
-/* Active/Selected tab - lime green pill */
+/* Active/Selected tab - solid chartreuse pill matching website */
 a.nav-tabs-item.font-semibold,
-a.nav-tabs-item[aria-current="page"] {
-  background: linear-gradient(180deg, rgba(207, 233, 109, 0.95), rgba(207, 233, 109, 0.82)) !important;
+a.nav-tabs-item[aria-current="page"],
+a.nav-tabs-item[data-active="true"],
+a.nav-tabs-item.active {
+  background-color: #CFE96D !important;
   color: #111827 !important;
-  font-weight: 600 !important;
-  box-shadow: 0 6px 16px rgba(154, 192, 34, 0.25) !important;
+  font-weight: 400 !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  text-decoration: none !important;
+}
+
+/* Remove underline from active tab */
+a.nav-tabs-item.font-semibold::after,
+a.nav-tabs-item[aria-current="page"]::after,
+a.nav-tabs-item[data-active="true"]::after,
+a.nav-tabs-item.active::after,
+a.nav-tabs-item.font-semibold::before,
+a.nav-tabs-item[aria-current="page"]::before,
+a.nav-tabs-item[data-active="true"]::before,
+a.nav-tabs-item.active::before {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  height: 0 !important;
+  width: 0 !important;
 }
 
 /* Responsive adjustments for mobile */
 @media (max-width: 768px) {
   .nav-tabs {
-    padding: 5px 6px !important;
-    gap: 4px !important;
+    padding: 4px !important;
+    gap: 0 !important;
     margin-top: 8px !important;
   }
 
   a.nav-tabs-item {
-    padding: 7px 12px !important;
-    font-size: 13px !important;
+    padding: 8px 16px !important;
+    font-size: 12px !important;
+    min-width: 90px !important;
   }
 }
 
 /* Large screens */
 @media (min-width: 1024px) {
   a.nav-tabs-item {
-    padding: 10px 22px !important;
+    padding: 10px 36px !important;
     font-size: 15px !important;
+    min-width: 160px !important;
   }
 }
 
