@@ -11,7 +11,7 @@ This specification defines a **smart-account extension** to the [x402 protocol](
 The extension is designed to be **fully compatible** with existing x402 clients and servers, requiring only the addition of the `nvm:erc4337` extension payload.
 
 ```
-Version: 0.2
+Version: 0.3
 Status: Draft
 Last Updated: January 2026
 ```
@@ -80,23 +80,66 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ## 3. Extension Structure
 
-### 3.1 Extension Identifier
+### 3.1 Scheme Identifier
 
-This extension is identified by the key `nvm:erc4337` within the x402 `extensions` object.
+The scheme identifier is: `nvm:erc4337`
 
 ### 3.2 Payload Schema
 
-The complete x402 payment payload with the smart-account extension:
+
+#### PaymentRequired Response (402)
+
+When a server requires payment, it returns:
 
 ```json
- {
+{
   "x402Version": 2,
-  "scheme": "contract",
-  "network": "eip155:84532",
-  "subscriberAddress": "0xD4f58B60330bC59cB0A07eE6A1A66ad64244eC8c",
+  "error": "Payment required to access resource",
+  "resource": {
+    "url": "/api/v1/agents/80918427023170428029540261117198154464497879145267720259488529685089104529015/tasks",
+    "description": "AI agent task execution",
+    "mimeType": "application/json"
+  },
+  "accepts": [{
+    "scheme": "nvm:erc4337",
+    "network": "eip155:84532",
+    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+    "extra": {
+      "version": "1",
+      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
+      "httpVerb": "POST"
+    }
+  }],
+  "extensions": {}
+}
+```
+
+#### PaymentPayload (Client Response)
+
+The client responds with a PaymentPayload containing the selected scheme and authorization:
+
+```json
+{
+  "x402Version": 2,
+  "resource": {
+    "url": "/api/v1/agents/80918427023170428029540261117198154464497879145267720259488529685089104529015/tasks",
+    "description": "AI agent task execution",
+    "mimeType": "application/json"
+  },
+  "accepted": {
+    "scheme": "nvm:erc4337",
+    "network": "eip155:84532",
+    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+    "extra": {
+      "version": "1",
+      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
+      "httpVerb": "POST"
+    }
+  },
   "payload": {
     "signature": "0x01845ADb2C711129d4f3966735eD98a9F09fC4cE57d4e89a9255457dd052fe0b95b6357b1c74783f490f542c25a2ffa3833432c3e4603b710e01f1f110be3f3a578b0698c81beaf6ccaa63fdc9a32842ed29eeaa531b",
     "authorization": {
+      "from": "0xD4f58B60330bC59cB0A07eE6A1A66ad64244eC8c",
       "sessionKeysProvider": "zerodev",
       "sessionKeys": [
         {
@@ -109,23 +152,59 @@ The complete x402 payment payload with the smart-account extension:
         }
       ]
     }
-  }
+  },
+  "extensions": {}
 }
 ```
 
 ### 3.3 Field Definitions
 
-#### Root Fields
+#### PaymentRequired Root Fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `x402Version` | `number` | Yes | Protocol version. MUST be `2` for this extension. |
-| `scheme` | `string` | Yes | Payment scheme. MUST be `"contract"`. |
-| `network` | `string` | Yes | Blockchain network identifier using CAIP-2 (e.g., `"eip155:84532"`, `"eip155:1"`). |
-| `subscriberAddress` | `string` | Yes | Client's smart account address (ERC-4337 compliant). |
-| `payload` | `object` | Yes | x402 payload (extension specific). |
+| `x402Version` | `number` | Yes | Protocol version. MUST be `2`. |
+| `error` | `string` | Yes | Human-readable error message. |
+| `resource` | `object` | Yes | Protected resource information. |
+| `accepts` | `array` | Yes | Array of accepted payment schemes. |
+| `extensions` | `object` | Yes | Empty object `{}` for x402 spec alignment. |
 
-#### Extension Payload Fields
+#### Resource Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `url` | `string` | Yes | The protected resource URL. |
+| `description` | `string` | No | Human-readable description. |
+| `mimeType` | `string` | No | Expected response MIME type (e.g., `"application/json"`). |
+
+#### Scheme Fields (in `accepts[]` / `accepted`)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `scheme` | `string` | Yes | Payment scheme. MUST be `"nvm:erc4337"`. |
+| `network` | `string` | Yes | Blockchain network identifier using CAIP-2 (e.g., `"eip155:84532"`). |
+| `planId` | `string` | Yes | 256-bit plan identifier. |
+| `extra` | `object` | Yes | Additional scheme-specific fields. |
+
+#### Extra Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `version` | `string` | Yes | Scheme version (e.g., `"1"`). |
+| `agentId` | `string` | No | 256-bit agent identifier (if plan has multiple agents). |
+| `httpVerb` | `string` | No | HTTP method for the endpoint. |
+
+#### PaymentPayload Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `x402Version` | `number` | Yes | Protocol version. MUST be `2`. |
+| `resource` | `object` | No | Echoed from PaymentRequired. |
+| `accepted` | `object` | Yes | Selected scheme from `accepts[]`. |
+| `payload` | `object` | Yes | Scheme-specific authorization data. |
+| `extensions` | `object` | Yes | Empty object `{}` for x402 spec alignment. |
+
+#### Payload Fields (Authorization)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -136,6 +215,7 @@ The complete x402 payment payload with the smart-account extension:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `from` | `string` | Yes | Client's smart account address (ERC-4337 compliant). |
 | `sessionKeysProvider` | `string` | Yes | Session key provider identifier (e.g., `"zerodev"`, `"biconomy"`). |
 | `sessionKeys` | `array` | Yes | Array of session key objects. MUST contain at least one session key. |
 
@@ -145,7 +225,7 @@ Each session key object MUST contain an `id` field and either `data` OR `hash`:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | `string` | Yes | Operation identifier. Common values: `"order"`, `"redeem"`, `"burn"`. |
+| `id` | `string` | Yes | Operation identifier. Common values: `"order"`, `"redeem"`. |
 | `data` | `string` | Conditional | Base64-encoded session key data. Required if `hash` is not provided. |
 | `hash` | `string` | Conditional | Keccak256 hash of the base64-encoded session key. Required if `data` is not provided. |
 
@@ -159,8 +239,8 @@ The extension defines standard operation identifiers:
 
 | Operation ID | Purpose | Description |
 |--------------|---------|-------------|
-| `order` | Purchase | Executes a purchase operation (subscribe, buy credits, etc.) |
-| `redeem` | Consume | Consumes access (deduct credits, mark subscription usage) |
+| `order` | Purchase | Executes a purchase operation (subscribe, buy credits, etc.). Used for auto top-up. |
+| `redeem` | Consume | Consumes access (deduct credits, mark subscription usage). Required for settlement. |
 
 Implementations MAY define additional operation identifiers for custom use cases.
 
@@ -185,17 +265,17 @@ sequenceDiagram
 
   %% 1) CLIENT SELECTS PAYMENT METHOD & SENDS PAYMENT PAYLOAD
   client->>server: GET /api
-  server->>server: Checks the request includes HTTP header
-  server->>client: HTTP 402 + Payment requested
+  server->>server: Checks the request includes PAYMENT-SIGNATURE header
+  server->>client: HTTP 402 + PAYMENT-REQUIRED header
   note over client: Select payment method
   client->>client: Local signing of the Payment Payload<br/> UserOperations order + burn
 
-  client->>server: Send x402 Payment Payload <br/> HTTP Header "PAYMENT-SIGNATURE"
+  client->>server: Request + PAYMENT-SIGNATURE header
 
   %%2) VERIFICATION
 
   activate server
-  server->>facilitator: /verify
+  server->>facilitator: /verify (paymentRequired + paymentPayload + maxAmount)
   facilitator->>facilitator: check UserOperations include "burn" permissions
   alt no "burn" permissions
     facilitator-->>server: ERROR: Payment verification failed<br/> (no "burn" permissions)
@@ -232,7 +312,7 @@ sequenceDiagram
   note over server: Check verification result
 
   alt verification was invalid
-    server-->>client: Invalid request. It CAN NOT be verified <br/>HTTP 402
+    server-->>client: HTTP 402 + PAYMENT-REQUIRED header
   end
 
 
@@ -240,7 +320,7 @@ sequenceDiagram
 
   server->server: Server does the work to fulfill the client request
 
-  server->>facilitator: /settle
+  server->>facilitator: /settle (paymentRequired + paymentPayload + maxAmount)
 
   activate facilitator
 
@@ -256,14 +336,14 @@ sequenceDiagram
     blockchain-->>facilitator: execution result
 
     alt "burn" OR "order" UserOperation failed
-        facilitator-->>server: Payment verification failed<br/> (invalid UserOperation)
-        server-->>client: HTTP 402 + PAYMENT-FAILED<br/> (invalid UserOperation)
+        facilitator-->>server: Settlement failed<br/> (invalid UserOperation)
+        server-->>client: HTTP 402 + PAYMENT-REQUIRED header
     else "burn" UserOperation executed
-        facilitator-->>server: Request verified<br/> (payment tx / order tx)
+        facilitator-->>server: Settlement OK<br/> (txHash, creditsBurned)
     end
   deactivate facilitator
 
-  server-->>client: Response + tx payment confirmation<br/> in "QUERY-RESPONSE" header
+  server-->>client: Response + PAYMENT-RESPONSE header
   deactivate server
 ```
 
@@ -284,28 +364,40 @@ Host: agent.example.com
 
 **Step 2.** Server validates whether the request contains a valid payment in the `PAYMENT-SIGNATURE` header.
 
-**Step 3.** If payment is absent, Server responds with `HTTP 402 Payment Required` status and a Payment Required Response JSON object in the response body.
+**Step 3.** If payment is absent, Server responds with `HTTP 402 Payment Required` status and the `PaymentRequired` object in the `PAYMENT-REQUIRED` header (base64-encoded).
 
 ```http
 HTTP/1.1 402 Payment Required
-Content-Type: application/json
+PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkLi4u
+```
 
+**Decoded PAYMENT-REQUIRED:**
+
+```json
 {
-  "paymentRequirements": [
-    {
-      "planId": "plan_abc123",
-      "scheme": "contract",
-      "network": "eip155:84532",
-      "price": "1000000",
-      "extensions": ["nvm:erc4337"]
+  "x402Version": 2,
+  "error": "Payment required to access resource",
+  "resource": {
+    "url": "/api/resource",
+    "description": "Protected resource",
+    "mimeType": "application/json"
+  },
+  "accepts": [{
+    "scheme": "nvm:erc4337",
+    "network": "eip155:84532",
+    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+    "extra": {
+      "version": "1",
+      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
     }
-  ]
+  }],
+  "extensions": {}
 }
 ```
 
 **Step 4.** The Client:
-- Selects one of the `paymentRequirements` (planId) returned by the server response
-- Creates a Payment Payload based on the scheme of the selected paymentRequirements
+- Selects one of the `accepts` schemes returned by the server response
+- Creates a PaymentPayload with the selected scheme in `accepted`
 - Creates and signs locally a `UserOperation` representing the Payment Intent (using ERC-4337 and EIP-712)
 
 **Step 5.** Client sends an HTTP request to the server including the x402 Payment Payload and the signed `UserOperation`s in the `PAYMENT-SIGNATURE` HTTP header.
@@ -320,7 +412,7 @@ PAYMENT-SIGNATURE: <base64-encoded-x402-payload>
 
 #### Phase 2: Verification (Steps 6-20)
 
-**Step 6.** Server validates the incoming data and forwards the `PAYMENT-SIGNATURE` value to the facilitator to verify the Client request.
+**Step 6.** Server validates the incoming data and forwards the payment data to the facilitator to verify the Client request.
 
 ```http
 POST /verify HTTP/1.1
@@ -328,16 +420,19 @@ Host: facilitator.example.com
 Content-Type: application/json
 
 {
-  "paymentSignature": "<base64-encoded-x402-payload>",
-  "resource": "/api/resource"
+  "paymentRequired": { ... },
+  "paymentPayload": "<base64-encoded-payment-payload>",
+  "maxAmount": "5"
 }
 ```
+
+The facilitator extracts `planId`, `subscriberAddress` (from `payload.authorization.from`), and `agentId` from the token.
 
 **Step 7.** Facilitator checks the request and confirms if it includes "redeem" permissions.
 
 **Step 8.** IF the request DOES NOT include "redeem" permissions:
 - Facilitator rejects the request and returns an error to the server
-- Server returns to the client a `HTTP 402 PAYMENT-FAILED` response
+- Server returns to the client a `HTTP 402` response with `PAYMENT-REQUIRED` header
 
 **Step 9.** IF the request INCLUDES "redeem" permissions, the Facilitator queries the blockchain to check the Client balance.
 
@@ -385,10 +480,13 @@ Host: facilitator.example.com
 Content-Type: application/json
 
 {
-  "paymentSignature": "<base64-encoded-x402-payload>",
-  "resource": "/api/resource"
+  "paymentRequired": { ... },
+  "paymentPayload": "<base64-encoded-payment-payload>",
+  "maxAmount": "5"
 }
 ```
+
+The `maxAmount` specifies the actual credits to redeem (can be less than or equal to the verified amount).
 
 **Step 23.** Facilitator queries the blockchain to check the Client balance.
 
@@ -408,21 +506,51 @@ Content-Type: application/json
 
 **Step 31.** IF the "redeem" UserOperation executed successfully, the Facilitator confirms to the server that the request is verified (including the payment tx / order tx).
 
-**Step 32.** Server returns to the client the response with the transaction payment confirmation in the `QUERY-RESPONSE` header.
+**Step 32.** Server returns to the client the response with the transaction payment confirmation in the `PAYMENT-RESPONSE` header (base64-encoded).
 
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
-QUERY-RESPONSE: {"orderTx": "0x...", "redeemTx": "0x..."}
+PAYMENT-RESPONSE: eyJzdWNjZXNzIjp0cnVlLCJ0cmFuc2FjdGlvbkhhc2giOi4uLg==
 
 {
-  "result": "..."
+  "result": "...",
+  "payment": {
+    "creditsBurned": "5",
+    "remainingBalance": "95"
+  }
 }
 ```
+
+**Decoded PAYMENT-RESPONSE:**
+
+```json
+{
+  "success": true,
+  "transactionHash": "0x...",
+  "network": "eip155:84532"
+}
+```
+
+The `PAYMENT-RESPONSE` header contains x402-standard settlement fields. Additional Nevermined-specific info (like `creditsBurned`) can be included in the response body.
 
 <Warning>
 Steps 29-30 represent a failure scenario where the server has already performed work but settlement failed. Implementations SHOULD have mechanisms to handle this edge case, such as retry logic or dispute resolution.
 </Warning>
+
+### 4.3 HTTP Header Summary
+
+Per [x402 HTTP Transport v2](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md), all payment data is transmitted via HTTP headers using base64 encoding:
+
+| Header | Direction | Content |
+|--------|-----------|---------|
+| `PAYMENT-REQUIRED` | Server → Client (402) | Base64-encoded `PaymentRequired` object |
+| `PAYMENT-SIGNATURE` | Client → Server | Base64-encoded `PaymentPayload` object |
+| `PAYMENT-RESPONSE` | Server → Client (200) | Base64-encoded settlement receipt |
+
+<Note>
+All three headers use **base64 encoding**. The response body contains the actual resource data plus optional Nevermined-specific payment info.
+</Note>
 
 ## 5. Verification Requirements
 
@@ -433,9 +561,9 @@ The facilitator MUST verify:
 | Check | Requirement |
 |-------|-------------|
 | Version | `x402Version` MUST equal `2` |
-| Scheme | `scheme` MUST equal `"contract"` |
+| Scheme | `scheme` MUST equal `"nvm:erc4337"` |
 | Network | `network` MUST be a supported network using CAIP-2 format |
-| Subscriber | `subscriberAddress` MUST be a valid ERC-4337 smart account address |
+| Subscriber | `payload.authorization.from` MUST be a valid ERC-4337 smart account address |
 | Signature | `payload.signature` MUST be a valid EIP-712 signature |
 | Session Keys | At least one session key MUST be present in `payload.authorization.sessionKeys` |
 
@@ -480,14 +608,21 @@ The facilitator SHOULD ensure that partial settlement does not leave the system 
 
 ### 6.3 Receipt Format
 
-The facilitator MUST return a receipt containing:
+The facilitator MUST return a receipt. The `PAYMENT-RESPONSE` header contains x402-standard fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `orderTx` | `string` | Transaction hash of the order operation (if executed). May be `null`. |
-| `redeemTx` | `string` | Transaction hash of the redeem operation. |
+| `success` | `boolean` | Whether settlement succeeded. |
+| `transactionHash` | `string` | Transaction hash of the redeem operation. |
 | `network` | `string` | Network where transactions were executed (CAIP-2 format). |
-| `timestamp` | `string` | ISO 8601 timestamp of settlement. |
+
+Additional settlement details MAY be included in the response body:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `creditsRedeemed` | `string` | Number of credits redeemed. |
+| `remainingBalance` | `string` | Subscriber's remaining balance. |
+| `orderTx` | `string` | Transaction hash of the order operation (if executed). |
 
 ## 7. Error Handling
 
@@ -497,7 +632,6 @@ The facilitator MUST return a receipt containing:
 |------|------|-------------|
 | `INVALID_PAYLOAD` | Invalid Payload | The payment payload structure is invalid |
 | `INVALID_SIGNATURE` | Invalid Signature | The EIP-712 signature verification failed |
-| `MISSING_REDEEM_PERMISSION` | Missing Redeem Permission | No `redeem` session key present |
 | `INSUFFICIENT_BALANCE` | Insufficient Balance | Client lacks balance and valid `order` permission |
 | `INVALID_USER_OPERATION` | Invalid UserOperation | UserOperation failed on-chain simulation |
 | `EXPIRED_SESSION_KEY` | Expired Session Key | Session key has expired |
