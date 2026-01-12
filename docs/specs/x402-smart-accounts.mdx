@@ -225,7 +225,7 @@ Each session key object MUST contain an `id` field and either `data` OR `hash`:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | `string` | Yes | Operation identifier. Common values: `"order"`, `"burn"`, `"burn"`. |
+| `id` | `string` | Yes | Operation identifier. Common values: `"order"`, `"redeem"`. |
 | `data` | `string` | Conditional | Base64-encoded session key data. Required if `hash` is not provided. |
 | `hash` | `string` | Conditional | Keccak256 hash of the base64-encoded session key. Required if `data` is not provided. |
 
@@ -486,7 +486,7 @@ Content-Type: application/json
 }
 ```
 
-The `maxAmount` specifies the actual credits to burn (can be less than or equal to the verified amount).
+The `maxAmount` specifies the actual credits to redeem (can be less than or equal to the verified amount).
 
 **Step 23.** Facilitator queries the blockchain to check the Client balance.
 
@@ -620,7 +620,7 @@ Additional settlement details MAY be included in the response body:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `creditsBurned` | `string` | Number of credits burned. |
+| `creditsRedeemed` | `string` | Number of credits redeemed. |
 | `remainingBalance` | `string` | Subscriber's remaining balance. |
 | `orderTx` | `string` | Transaction hash of the order operation (if executed). |
 
