@@ -9,17 +9,22 @@ The Nevermined x402 Facilitator is an **enforcement and settlement engine** for 
 It supports both:
 
 - **Standard x402 settlement** ("pay-per-request" style)
-- **Nevermined's programmable x402 extension** (smart accounts + policies + contract settlement)
+- **Nevermined's programmable x402 extension** (`nvm:erc4337` scheme with smart accounts + session keys + contract settlement)
+
+<Note>
+For the complete technical specification, see the [x402 Smart Accounts Extension Spec](/docs/specs/x402-smart-accounts).
+</Note>
 
 ## What is x402?
 
 x402 standardizes a payment-enforced HTTP flow:
 
 1. Client calls an endpoint normally
-2. Server responds with **HTTP 402 Payment Required** and payment requirements
+2. Server responds with **HTTP 402 Payment Required** and `payment-required` header
 3. Client builds a payment authorization (locally signed)
-4. Client retries the request including the x402 payment payload (typically in a `PAYMENT-SIGNATURE` header)
+4. Client retries the request including the x402 token in the `payment-signature` header
 5. Server delegates verification and settlement to the **Facilitator**
+6. Server returns response with `payment-response` header (settlement receipt)
 
 For more background and examples:
 
@@ -47,10 +52,10 @@ sequenceDiagram
     participant Chain as Blockchain
 
     Client->>Server: Request
-    Server-->>Client: 402 Payment Required + requirements
+    Server-->>Client: 402 + payment-required header
 
-    Client->>Client: Build/sign x402 payment payload
-    Client->>Server: Retry + PAYMENT-SIGNATURE
+    Client->>Client: Generate x402 token via SDK
+    Client->>Server: Retry + payment-signature header
 
     Server->>Facilitator: /verify (simulate + validate)
     Facilitator->>Chain: Policy + balance checks
@@ -62,7 +67,7 @@ sequenceDiagram
     Facilitator->>Chain: Execute contract settlement
     Facilitator-->>Server: Receipt + txHash
 
-    Server-->>Client: Response (+ optional receipt)
+    Server-->>Client: Response + payment-response header
 ```
 
 ## Nevermined's programmable x402 extension
@@ -96,6 +101,10 @@ After the server completes its work, the facilitator can execute the settlement 
 ## Getting started
 
 <CardGroup cols={2}>
+  <Card title="Express.js Integration" icon="node-js" href="/docs/integrate/add-to-your-agent/express">
+    One-line payment protection with Express middleware
+  </Card>
+
   <Card title="How It Works" icon="gears" href="/docs/products/x402-facilitator/how-it-works">
     End-to-end flow (client + server) with x402 headers and facilitator calls
   </Card>
@@ -106,9 +115,5 @@ After the server completes its work, the facilitator can execute the settlement 
 
   <Card title="x402 Protocol" icon="plug" href="/docs/integrate/platforms/x402-protocol">
     Integrate x402 into your API/agent
-  </Card>
-
-  <Card title="Google A2A" icon="sparkles" href="/docs/integrate/platforms/google-a2a">
-    Use x402 with A2A + AP2-style payment intent messaging
   </Card>
 </CardGroup>
