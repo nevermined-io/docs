@@ -8,6 +8,10 @@ icon: "credit-card"
 
 Nevermined provides first-class support for the x402 payment protocol, enabling AI agents, APIs, and services to charge per-request using secure, locally-signed payment authorizations.
 
+<Note>
+For the complete technical specification, see the [x402 Smart Accounts Extension Spec](/docs/specs/x402-smart-accounts).
+</Note>
+
 ## Overview
 
 This section explains:
@@ -81,10 +85,9 @@ Roles:
 
 ## The Nevermined x402 Smart-Account Extension
 
-Nevermined introduces a new x402 extension:
-```
-extensions.smart-account
-```
+Nevermined introduces a new x402 scheme: `nvm:erc4337`
+
+This scheme uses ERC-4337 smart accounts instead of EOA wallets, enabling programmable settlement through session keys and UserOperations.
 
 Instead of embedding an EIP-3009 transfer, the payload includes:
 
@@ -95,26 +98,63 @@ Instead of embedding an EIP-3009 transfer, the payload includes:
   - burn (burn credits for usage)
   - redeem (convert plan entitlements into usage)
 
-### Example Payment Payload
+### PaymentRequired Response (402)
+
+When a server requires payment, it returns a `402` response with a `payment-required` header:
 
 ```json
 {
   "x402Version": 2,
-  "scheme": "exact",
-  "network": "base-sepolia",
-  "extensions": {
-    "smart-account": {
-      "signature": "EIP-712 signature",
-      "authorization": {
-        "provider": "zerodev",
-        "sessionKeys": [
-          { "id": "order", "data": "base64-session-key" },
-          { "id": "redeem", "hash": "keccak-session-key-hash" }
-        ]
-      }
+  "error": "Payment required to access resource",
+  "resource": {
+    "url": "/api/v1/agents/80918427023170428029540261117198154464497879145267720259488529685089104529015/tasks",
+    "description": "AI agent task execution",
+    "mimeType": "application/json"
+  },
+  "accepts": [{
+    "scheme": "nvm:erc4337",
+    "network": "eip155:84532",
+    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+    "extra": {
+      "version": "1",
+      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+    }
+  }],
+  "extensions": {}
+}
+```
+
+### PaymentPayload (Client Response)
+
+The client responds with a `payment-signature` header containing the payment payload:
+
+```json
+{
+  "x402Version": 2,
+  "resource": {
+    "url": "/api/v1/agents/80918427023170428029540261117198154464497879145267720259488529685089104529015/tasks"
+  },
+  "accepted": {
+    "scheme": "nvm:erc4337",
+    "network": "eip155:84532",
+    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+    "extra": {
+      "version": "1",
+      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
     }
   },
-  "payload": {}
+  "payload": {
+    "signature": "0x01845ADb2C711129d4f3966735eD98a9F09fC4cE...",
+    "authorization": {
+      "from": "0xD4f58B60330bC59cB0A07eE6A1A66ad64244eC8c",
+      "sessionKeysProvider": "zerodev",
+      "sessionKeys": [
+        { "id": "order", "data": "0x20a13d82dd9ee289fc5e5a90f4011c8dc03f8f5d..." },
+        { "id": "redeem", "data": "0x68e8e34d659149087451cafc89a7320114072e49..." }
+      ]
+    }
+  },
+  "extensions": {}
 }
 ```
 
@@ -198,146 +238,177 @@ Settlement runs after the server performs the work:
 
 ### Step 1 — Discover payment requirements
 
-When the server returns 402 Payment Required, it includes a JSON object with:
+When the server returns 402 Payment Required, it includes the `payment-required` header (base64-encoded) with:
 
-- Supported schemes (smart-account)
-- Required permissions
-- Accepted plans / plan IDs
+- Supported schemes (`nvm:erc4337`)
+- Plan and agent IDs
+- Network information
 
 ### Step 2 — Build a payment payload
 
-Using Nevermined Payments libraries (Python or TS), you generate:
-
-- Session keys
-- Delegated permissions (burn, order, redeem)
-- A fully-formed x402 payload with EIP-712 signing
+Using Nevermined Payments libraries (Python or TS), you generate an x402 access token:
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
     import { Payments } from '@nevermined-io/payments'
-    
+    import { X402_HEADERS } from '@nevermined-io/payments/express'
+
     const payments = Payments.getInstance({
       nvmApiKey: 'nvm:subscriber-key',
       environment: 'sandbox',
     })
-    
-    // Fetch protected resource to get the Nevermined extension
-    const requiredRes = await fetch('https://api.example.com/protected')
-    const paymentRequired = await requiredRes.json()
-    const { plan_id, agent_id, max_amount, network } = paymentRequired.extensions.nevermined.info
-    
-    // Generate the x402 session token
-    const { accessToken } = await payments.x402.getX402AccessToken(plan_id, agent_id)
-    
-    // Build the payload with the copied extension
-    const paymentPayload = {
-      x402Version: 2,
-      scheme: 'contract',
-      network,
-      payload: { session_key: accessToken },
-      extensions: paymentRequired.extensions,
+
+    // Fetch protected resource to get the payment requirements
+    const response = await fetch('https://api.example.com/protected')
+
+    if (response.status === 402) {
+      // Decode the payment-required header
+      const paymentRequired = JSON.parse(
+        Buffer.from(response.headers.get(X402_HEADERS.PAYMENT_REQUIRED)!, 'base64').toString()
+      )
+
+      // Extract planId and agentId from accepts array
+      const { planId, agentId } = paymentRequired.accepts[0]
+
+      // Generate the x402 access token
+      const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
     }
     ```
   </Tab>
   <Tab title="Python">
     ```python
-    import json, requests
+    import base64
+    import json
+    import requests
     from payments_py import Payments, PaymentOptions
-    from payments_py.x402.extensions.nevermined import extract_nevermined_info
-    
+
     payments = Payments.get_instance(
         PaymentOptions(nvm_api_key="nvm:subscriber-key", environment="sandbox")
     )
-    
-    # Fetch protected resource to get the Nevermined extension
-    required_res = requests.get("https://api.example.com/protected")
-    payment_required = required_res.json()
-    nvm_info = extract_nevermined_info(payment_required, None)
-    
-    # Generate the x402 session token
-    token_res = payments.x402.get_x402_access_token(
-        nvm_info["plan_id"],
-        nvm_info["agent_id"],
-    )
-    access_token = token_res["accessToken"]
-    
-    # Build the payload with the copied extension
-    payment_payload = {
-        "x402Version": 2,
-        "scheme": "contract",
-        "network": nvm_info["network"],
-        "payload": {"session_key": access_token},
-        "extensions": payment_required["extensions"],
-    }
+
+    # Fetch protected resource to get the payment requirements
+    response = requests.get("https://api.example.com/protected")
+
+    if response.status_code == 402:
+        # Decode the payment-required header
+        payment_required = json.loads(
+            base64.b64decode(response.headers.get("payment-required")).decode()
+        )
+
+        # Extract planId and agentId from accepts array
+        plan_id = payment_required["accepts"][0]["planId"]
+        agent_id = payment_required["accepts"][0].get("extra", {}).get("agentId")
+
+        # Generate the x402 access token
+        token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+        access_token = token_res["accessToken"]
     ```
   </Tab>
 </Tabs>
 
 ### Step 3 — Submit with HTTP header
 
-Clients include:
+Clients include the x402 access token in the `payment-signature` header:
 
 ```
-PAYMENT-SIGNATURE: <base64 x402 payload>
+payment-signature: <x402-access-token>
 ```
 
 ## Developer Guide: Agent Flow
 
+### Quick Integration: Express Middleware
+
+For Express.js applications, use the `paymentMiddleware` from `@nevermined-io/payments/express` to handle x402 automatically:
+
+```typescript
+import { Payments } from '@nevermined-io/payments'
+import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox'
+})
+
+// One line to protect routes
+app.use(
+  paymentMiddleware(payments, {
+    'POST /ask': { planId: PLAN_ID, credits: 1 }
+  })
+)
+
+// Route handler - no payment logic needed
+app.post('/ask', async (req, res) => {
+  const result = await processRequest(req.body)
+  res.json({ result })
+})
+```
+
+The middleware handles verification, settlement, and all x402 headers automatically. See the [Express.js Integration Guide](/docs/integrate/add-to-your-agent/express) for full details.
+
+### Manual Integration
+
+For other frameworks or custom implementations, follow these steps:
+
 ### Step 1 — Receive and parse
 
-- Read the x402 payload from the request header (e.g., `PAYMENT-SIGNATURE`).
-- Extract the Nevermined extension (`plan_id`, `agent_id`, `max_amount`, `network`, `scheme`) and the `session_key`.
+- Read the x402 token from the `payment-signature` or `x-payment` header.
+- If no token is present, return a 402 response with payment requirements.
 
 ### Step 2 — Verify with the facilitator
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    import { Payments } from '@nevermined-io/payments'
-    
+    import { Payments, decodeAccessToken } from '@nevermined-io/payments'
+
     const payments = Payments.getInstance({
       nvmApiKey: 'nvm:agent-key',
       environment: 'sandbox',
     })
-    
-    // xPaymentHeader contains the JSON string from the incoming request
-    const paymentPayload = JSON.parse(xPaymentHeader)
-    const { plan_id, max_amount } = paymentPayload.extensions.nevermined.info
-    
+
+    // Get token from payment-signature header
+    const x402Token = req.headers['payment-signature']
+
+    if (!x402Token) {
+      // Return 402 with payment requirements
+      return res.status(402).json({ error: 'Payment Required' })
+    }
+
+    // Verify permissions - facilitator extracts planId and subscriberAddress from token
     const verification = await payments.facilitator.verifyPermissions({
-      planId: plan_id,
-      maxAmount: BigInt(max_amount),
-      x402AccessToken: paymentPayload.payload.session_key,
-      subscriberAddress: subscriberAddressFromRequest,
+      x402AccessToken: x402Token,
+      maxAmount: BigInt(creditsRequired),
     })
-    
+
     if (!verification.success) {
-      throw new Error('Payment Required')
+      return res.status(402).json({ error: 'Payment verification failed' })
     }
     ```
   </Tab>
   <Tab title="Python">
     ```python
-    from payments_py.x402 import NeverminedFacilitator, PaymentRequirements
-    from payments_py.x402.extensions.nevermined import extract_nevermined_info
-    
-    facilitator = NeverminedFacilitator(
-        nvm_api_key="nvm:agent-key",
-        environment="sandbox",
+    from payments_py import Payments, PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key="nvm:agent-key", environment="sandbox")
     )
-    
-    nvm_info = extract_nevermined_info(payment_payload, None)
-    requirements = PaymentRequirements(
-        plan_id=nvm_info["plan_id"],
-        agent_id=nvm_info["agent_id"],
-        max_amount=nvm_info["max_amount"],
-        extra={"subscriber_address": subscriber_address},
+
+    # Get token from payment-signature header
+    x402_token = request.headers.get("payment-signature")
+
+    if not x402_token:
+        # Return 402 with payment requirements
+        return {"error": "Payment Required"}, 402
+
+    # Verify permissions - facilitator extracts planId and subscriberAddress from token
+    verification = payments.facilitator.verify_permissions(
+        x402_access_token=x402_token,
+        max_amount=credits_required,
     )
-    
-    verify_result = await facilitator.verify(payment_payload, requirements)
-    if not verify_result.is_valid:
-        raise Exception("Payment Required")
+
+    if not verification.success:
+        return {"error": "Payment verification failed"}, 402
     ```
   </Tab>
 </Tabs>
@@ -351,31 +422,55 @@ PAYMENT-SIGNATURE: <base64 x402 payload>
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    await payments.facilitator.settlePermissions({
-      planId: plan_id,
-      maxAmount: BigInt(max_amount),
-      x402AccessToken: paymentPayload.payload.session_key,
-      subscriberAddress: subscriberAddressFromRequest,
+    // Settle after work is complete - burns the actual credits used
+    const settlement = await payments.facilitator.settlePermissions({
+      x402AccessToken: x402Token,
+      maxAmount: BigInt(actualCreditsUsed),
     })
+
+    // Return response with settlement receipt in payment-response header
+    const settlementReceipt = Buffer.from(JSON.stringify({
+      success: true,
+      creditsRedeemed: actualCreditsUsed,
+      transactionHash: settlement.txHash,
+    })).toString('base64')
+
+    res.set('payment-response', settlementReceipt)
+    res.json({ result })
     ```
   </Tab>
   <Tab title="Python">
     ```python
-    await facilitator.settle(payment_payload, requirements)
+    import base64
+    import json
+
+    # Settle after work is complete - burns the actual credits used
+    settlement = payments.facilitator.settle_permissions(
+        x402_access_token=x402_token,
+        max_amount=actual_credits_used,
+    )
+
+    # Return response with settlement receipt in payment-response header
+    settlement_receipt = base64.b64encode(json.dumps({
+        "success": True,
+        "creditsRedeemed": actual_credits_used,
+        "transactionHash": settlement.tx_hash,
+    }).encode()).decode()
+
+    response.headers["payment-response"] = settlement_receipt
+    return {"result": result}
     ```
   </Tab>
 </Tabs>
-
-- Return your response to the client, optionally including the settlement transaction hash.
 
 ## Summary
 
 This section provides a comprehensive guide for developers integrating Nevermined with x402:
 
 - **x402** gives a universal payment-required protocol
-- **Nevermined** enriches it with Smart Accounts, UserOps, and advanced billing models
+- **Nevermined** enriches it with Smart Accounts, UserOps, and advanced billing models using the `nvm:erc4337` scheme
 - **Subscribers** delegate controlled permissions using session keys
-- **Servers** simply forward PAYMENT-SIGNATURE headers
+- **Servers** use `payment-signature` headers and verify/settle via the facilitator
 - **Facilitators** verify and settle on-chain
 - **Python & TS libraries** provide turnkey developer tooling
-- **Google A2A/AP2** flows are supported for enterprise-grade integrations
+- **Express middleware** handles the entire flow automatically
