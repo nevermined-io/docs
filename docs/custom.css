@@ -139,36 +139,23 @@ a.nav-tabs-item:focus-visible {
   outline-offset: 2px !important;
 }
 
-/* Active/Selected tab - solid chartreuse pill matching website */
-a.nav-tabs-item.font-semibold,
-a.nav-tabs-item[aria-current="page"],
-a.nav-tabs-item[data-active="true"],
-a.nav-tabs-item.active {
-  background-color: #CFE96D !important;
-  color: #111827 !important;
-  font-weight: 400 !important;
-  box-shadow: none !important;
-  border: none !important;
-  border-bottom: none !important;
+/* Active/Selected tab - solid prominent green pill */
+a.nav-tabs-item:has(> div.bg-primary),
+a.nav-tabs-item:has(> div[class*="bg-primary"]) {
+  background-color: #9ac022 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(154, 192, 34, 0.25) !important;
+  border-radius: 9999px !important;
+  padding: 6px 24px !important;
   text-decoration: none !important;
+  text-shadow: none !important;
 }
 
-/* Remove underline from active tab */
-a.nav-tabs-item.font-semibold::after,
-a.nav-tabs-item[aria-current="page"]::after,
-a.nav-tabs-item[data-active="true"]::after,
-a.nav-tabs-item.active::after,
-a.nav-tabs-item.font-semibold::before,
-a.nav-tabs-item[aria-current="page"]::before,
-a.nav-tabs-item[data-active="true"]::before,
-a.nav-tabs-item.active::before {
+/* Hide the bottom border indicator on active tab */
+a.nav-tabs-item:has(> div.bg-primary) > div,
+a.nav-tabs-item:has(> div[class*="bg-primary"]) > div {
   display: none !important;
-  content: none !important;
-  background: none !important;
-  background-color: transparent !important;
-  border: none !important;
-  height: 0 !important;
-  width: 0 !important;
 }
 
 /* Responsive adjustments for mobile */
