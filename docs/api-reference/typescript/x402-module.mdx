@@ -1,0 +1,511 @@
+---
+title: "x402 Module"
+description: "Generate x402 payment tokens and verify/settle payments with the TypeScript SDK"
+icon: "credit-card"
+---
+
+The `x402` module provides x402 protocol support for HTTP-native payments. It includes token generation, permission verification, settlement, and Express middleware.
+
+## Token API
+
+Access via `payments.x402`.
+
+### getX402AccessToken
+
+Generate an x402 access token for authenticating paid requests.
+
+```typescript
+const result = await payments.x402.getX402AccessToken(
+  planId,
+  agentId?,
+  redemptionLimit?,
+  orderLimit?,
+  expiration?
+)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `planId` | `string` | The payment plan ID (required) |
+| `agentId` | `string` | Agent ID if plan has multiple agents (optional) |
+| `redemptionLimit` | `bigint` | Max credits to redeem per request (optional) |
+| `orderLimit` | `bigint` | Max credits to auto-order if balance is low (optional) |
+| `expiration` | `number` | Token expiration in seconds (optional) |
+
+**Returns:**
+
+```typescript
+{
+  accessToken: string     // Base64-encoded x402 token
+  [key: string]: any      // Additional token metadata
+}
+```
+
+**Example:**
+
+```typescript
+const PLAN_ID = '44742763076047497640080230236781474129970992727896593861997347135613135571071'
+const AGENT_ID = '80918427023170428029540261117198154464497879145267720259488529685089104529015'
+
+const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID)
+
+// Use token in x402 header
+const response = await fetch('https://api.example.com/ask', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'payment-signature': accessToken
+  },
+  body: JSON.stringify({ query: 'Hello!' })
+})
+```
+
+## Facilitator API
+
+Access via `payments.facilitator`.
+
+### verifyPermissions
+
+Verify if a subscriber has permission to use credits from a payment plan. This method simulates the credit usage without burning credits.
+
+```typescript
+const result = await payments.facilitator.verifyPermissions({
+  paymentRequired,
+  x402AccessToken,
+  maxAmount?
+})
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `paymentRequired` | `X402PaymentRequired` | Server's 402 response object |
+| `x402AccessToken` | `string` | Base64-encoded x402 access token |
+| `maxAmount` | `bigint` | Maximum credits to verify (optional) |
+
+**Returns:**
+
+```typescript
+interface VerifyPermissionsResult {
+  isValid: boolean           // Whether the payment authorization is valid
+  invalidReason?: string     // Reason for invalidity (if isValid is false)
+  payer?: string             // Address of the payer's wallet
+  agentRequestId?: string    // Request ID for observability (Nevermined extension)
+}
+```
+
+**Example:**
+
+```typescript
+import { buildPaymentRequired } from '@nevermined-io/payments'
+
+const PLAN_ID = '44742763076047497640080230236781474129970992727896593861997347135613135571071'
+const AGENT_ID = '80918427023170428029540261117198154464497879145267720259488529685089104529015'
+
+const paymentRequired = buildPaymentRequired(PLAN_ID, {
+  endpoint: '/api/v1/ask',
+  agentId: AGENT_ID,
+  httpVerb: 'POST'
+})
+
+const verification = await payments.facilitator.verifyPermissions({
+  paymentRequired,
+  x402AccessToken: token,
+  maxAmount: 2n
+})
+
+if (verification.isValid) {
+  // Process the request
+}
+```
+
+### settlePermissions
+
+Settle (burn) credits from a subscriber's payment plan. This method executes the actual credit consumption.
+
+```typescript
+const result = await payments.facilitator.settlePermissions({
+  paymentRequired,
+  x402AccessToken,
+  maxAmount?
+})
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `paymentRequired` | `X402PaymentRequired` | Server's 402 response object |
+| `x402AccessToken` | `string` | Base64-encoded x402 access token |
+| `maxAmount` | `bigint` | Number of credits to burn (optional) |
+
+**Returns:**
+
+```typescript
+interface SettlePermissionsResult {
+  success: boolean           // Whether settlement was successful
+  errorReason?: string       // Reason for failure (if success is false)
+  payer?: string             // Address of the payer's wallet
+  transaction: string        // Blockchain transaction hash
+  network: string            // Network identifier (CAIP-2 format)
+  creditsRedeemed?: string   // Number of credits redeemed (Nevermined extension)
+  remainingBalance?: string  // Subscriber's remaining balance (Nevermined extension)
+  orderTx?: string           // Transaction hash if auto top-up occurred (Nevermined extension)
+}
+```
+
+**Example:**
+
+```typescript
+const settlement = await payments.facilitator.settlePermissions({
+  paymentRequired,
+  x402AccessToken: token,
+  maxAmount: 2n
+})
+
+if (settlement.success) {
+  console.log(`Redeemed ${settlement.creditsRedeemed} credits`)
+  console.log(`Transaction: ${settlement.transaction}`)
+}
+```
+
+## Helper Functions
+
+### decodeAccessToken
+
+Decode a base64-encoded x402 access token to extract subscriber address, plan ID, and other token data.
+
+```typescript
+import { decodeAccessToken } from '@nevermined-io/payments'
+
+const decoded = decodeAccessToken(accessToken)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `accessToken` | `string` | Base64-encoded x402 access token |
+
+**Returns:**
+
+```typescript
+Record<string, any> | null  // Decoded token data or null if invalid
+```
+
+**Token Structure:**
+
+```typescript
+{
+  x402Version: 2,
+  accepted: {
+    scheme: 'nvm:erc4337',
+    network: 'eip155:84532',
+    planId: '44742763076047497640080230236781474129970992727896593861997347135613135571071',
+    extra: {
+      version: '1',
+      agentId: '80918427023170428029540261117198154464497879145267720259488529685089104529015'
+    }
+  },
+  payload: {
+    signature: '0x...',
+    authorization: {
+      from: '0xD4f58B60330bC59cB0A07eE6A1A66ad64244eC8c',  // subscriber address
+      sessionKeysProvider: 'zerodev',
+      sessionKeys: [...]
+    }
+  },
+  extensions: {}
+}
+```
+
+**Example:**
+
+```typescript
+import { decodeAccessToken } from '@nevermined-io/payments'
+
+const token = req.headers['payment-signature'] as string
+const decoded = decodeAccessToken(token)
+
+if (!decoded) {
+  return res.status(400).json({ error: 'Invalid token' })
+}
+
+// Extract subscriber address and plan ID
+const subscriberAddress = decoded.payload?.authorization?.from
+const planId = decoded.accepted?.planId
+const agentId = decoded.accepted?.extra?.agentId
+
+console.log(`Request from ${subscriberAddress} for plan ${planId}`)
+```
+
+### buildPaymentRequired
+
+Build an `X402PaymentRequired` object for verify/settle operations.
+
+```typescript
+import { buildPaymentRequired } from '@nevermined-io/payments'
+
+const paymentRequired = buildPaymentRequired(planId, options?)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `planId` | `string` | The Nevermined plan identifier (required) |
+| `options.endpoint` | `string` | The protected resource URL (optional) |
+| `options.agentId` | `string` | Agent identifier (optional) |
+| `options.httpVerb` | `string` | HTTP method (optional) |
+| `options.network` | `string` | Network in CAIP-2 format (default: `eip155:84532`) |
+| `options.description` | `string` | Human-readable description (optional) |
+
+**Returns:**
+
+```typescript
+interface X402PaymentRequired {
+  x402Version: number                    // Always 2
+  error?: string                         // Human-readable error message
+  resource: X402Resource                 // Protected resource info
+  accepts: X402Scheme[]                  // Accepted payment schemes
+  extensions: Record<string, unknown>    // Empty object for nvm:erc4337
+}
+```
+
+**Example:**
+
+```typescript
+const PLAN_ID = '44742763076047497640080230236781474129970992727896593861997347135613135571071'
+const AGENT_ID = '80918427023170428029540261117198154464497879145267720259488529685089104529015'
+
+const paymentRequired = buildPaymentRequired(PLAN_ID, {
+  endpoint: '/api/v1/agents/task',
+  agentId: AGENT_ID,
+  httpVerb: 'POST',
+  network: 'eip155:84532',
+  description: 'AI agent task execution'
+})
+```
+
+## Express Middleware
+
+Import from `@nevermined-io/payments/express`.
+
+### paymentMiddleware
+
+Create Express middleware that protects routes with Nevermined payments.
+
+```typescript
+import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+app.use(paymentMiddleware(payments, routes, options?))
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `payments` | `Payments` | Initialized Payments instance |
+| `routes` | `RouteConfigMap` | Map of routes to protect |
+| `options` | `PaymentMiddlewareOptions` | Optional middleware configuration |
+
+**Route Configuration:**
+
+```typescript
+interface RouteConfig {
+  planId: string                                                      // Plan ID that protects this route
+  credits?: number | ((req: Request, res: Response) => number | Promise<number>)  // Credits to charge (default: 1)
+  agentId?: string                                                    // Optional agent ID
+  network?: string                                                    // Network (default: eip155:84532)
+}
+
+type RouteConfigMap = Record<string, RouteConfig>  // "METHOD /path" -> config
+```
+
+**Dynamic Credits Example:**
+
+Calculate credits based on request parameters or response data:
+
+```typescript
+app.use(paymentMiddleware(payments, {
+  'POST /generate': {
+    planId: PLAN_ID,
+    // Charge based on requested token count
+    credits: (req, res) => {
+      const requestedTokens = req.body.maxTokens || 100
+      return Math.ceil(requestedTokens / 100)  // 1 credit per 100 tokens
+    }
+  },
+  'POST /analyze': {
+    planId: PLAN_ID,
+    // Async credit calculation
+    credits: async (req, res) => {
+      const complexity = await estimateComplexity(req.body)
+      return complexity.credits
+    }
+  }
+}))
+```
+
+**Options:**
+
+```typescript
+interface PaymentMiddlewareOptions {
+  tokenHeader?: string | string[]     // Header name(s) for token (default: ['payment-signature', 'x-payment'])
+  onPaymentError?: (error, req, res) => void    // Custom error handler
+  onBeforeVerify?: (req, paymentRequired) => void | Promise<void>    // Pre-verification hook
+  onAfterSettle?: (req, creditsUsed, result) => void | Promise<void> // Post-settlement hook
+}
+```
+
+**Example:**
+
+```typescript
+import express from 'express'
+import { Payments } from '@nevermined-io/payments'
+import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+const app = express()
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox'
+})
+
+const PLAN_ID = '44742763076047497640080230236781474129970992727896593861997347135613135571071'
+
+// Protect routes with one line
+app.use(paymentMiddleware(payments, {
+  'POST /ask': { planId: PLAN_ID, credits: 1 },
+  'POST /generate': { planId: PLAN_ID, credits: 5 },
+  'GET /users/:id': { planId: PLAN_ID, credits: 1 }
+}))
+
+// Route handlers - no payment logic needed
+app.post('/ask', async (req, res) => {
+  const response = await generateResponse(req.body.query)
+  res.json({ response })
+})
+```
+
+### X402_HEADERS
+
+Constants for x402 HTTP transport headers.
+
+```typescript
+import { X402_HEADERS } from '@nevermined-io/payments/express'
+
+X402_HEADERS.PAYMENT_SIGNATURE  // 'payment-signature' - Client sends token
+X402_HEADERS.X_PAYMENT          // 'x-payment' - Alternative token header
+X402_HEADERS.PAYMENT_REQUIRED   // 'payment-required' - Server sends requirements (base64)
+X402_HEADERS.PAYMENT_RESPONSE   // 'payment-response' - Server sends receipt (base64)
+```
+
+## Types
+
+### X402PaymentRequired
+
+Server's 402 response structure (x402 v2 spec).
+
+```typescript
+interface X402PaymentRequired {
+  x402Version: number                    // Always 2
+  error?: string                         // Human-readable error message
+  resource: X402Resource                 // Protected resource info
+  accepts: X402Scheme[]                  // Accepted payment schemes
+  extensions: Record<string, unknown>    // Extensions object
+}
+```
+
+### X402Resource
+
+Protected resource information.
+
+```typescript
+interface X402Resource {
+  url: string              // The protected resource URL
+  description?: string     // Human-readable description
+  mimeType?: string        // Expected response MIME type
+}
+```
+
+### X402Scheme
+
+Payment scheme definition for `nvm:erc4337`.
+
+```typescript
+interface X402Scheme {
+  scheme: string           // Always 'nvm:erc4337' for Nevermined
+  network: string          // CAIP-2 format (e.g., 'eip155:84532')
+  planId: string           // 256-bit plan identifier
+  extra?: X402SchemeExtra  // Scheme-specific fields
+}
+
+interface X402SchemeExtra {
+  version?: string         // Scheme version (e.g., '1')
+  agentId?: string         // Agent identifier
+  httpVerb?: string        // HTTP method for the endpoint
+}
+```
+
+## Complete Server Example
+
+```typescript
+import express from 'express'
+import { Payments } from '@nevermined-io/payments'
+import { paymentMiddleware, X402_HEADERS } from '@nevermined-io/payments/express'
+
+const app = express()
+app.use(express.json())
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox'
+})
+
+// Payment protection with logging
+app.use(paymentMiddleware(payments, {
+  'POST /ask': {
+    planId: process.env.NVM_PLAN_ID!,
+    credits: 1
+  }
+}, {
+  onBeforeVerify: (req) => {
+    console.log(`Verifying payment for ${req.path}`)
+  },
+  onAfterSettle: (req, credits, settlement) => {
+    console.log(`Settled ${credits} credits, tx: ${settlement.transaction}`)
+  }
+}))
+
+// Protected endpoint
+app.post('/ask', async (req, res) => {
+  const { query } = req.body
+  const response = await generateAIResponse(query)
+  res.json({ response })
+})
+
+// Public endpoint (not in route config)
+app.get('/health', (req, res) => res.json({ status: 'ok' }))
+
+app.listen(3000)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Express Integration" icon="node-js" href="/docs/integrate/add-to-your-agent/express">
+    Complete Express.js integration guide
+  </Card>
+  <Card title="x402 Protocol" icon="link" href="/docs/development-guide/nevermined-x402">
+    Deep dive into x402 payment flows
+  </Card>
+  <Card title="Plans Module" icon="credit-card" href="/docs/api-reference/typescript/plans-module">
+    Create and manage payment plans
+  </Card>
+  <Card title="Tutorial" icon="github" href="https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent">
+    http-simple-agent example on GitHub
+  </Card>
+</CardGroup>
