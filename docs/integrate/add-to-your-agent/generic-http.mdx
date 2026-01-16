@@ -69,6 +69,7 @@ if !paymentProof:
 
     // Process request, result.balance contains remaining credits
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -86,6 +87,7 @@ if !paymentProof:
 
     # Process request, result['balance'] contains remaining credits
     ```
+
   </Tab>
 </Tabs>
 
@@ -108,11 +110,11 @@ When payment is missing (first request) or invalid, return HTTP 402 with plan in
 
 ## HTTP Response Codes
 
-| Code | Meaning | When to Use |
-|------|---------|-------------|
-| `200` | Success | Valid payment proof, request processed |
+| Code  | Meaning          | When to Use                                         |
+| ----- | ---------------- | --------------------------------------------------- |
+| `200` | Success          | Valid payment proof, request processed              |
 | `402` | Payment Required | Missing/invalid payment proof, insufficient credits |
-| `500` | Server Error | Validation system failure |
+| `500` | Server Error     | Validation system failure                           |
 
 ## Language-Specific Examples
 
@@ -332,17 +334,17 @@ Response:
     For high-traffic endpoints, consider caching validation results briefly (5-30 seconds) to reduce API calls.
   </Accordion>
 
-  <Accordion title="Handle Timeouts" icon="hourglass">
-    Set reasonable timeouts for validation calls (5-10 seconds) and have a fallback strategy.
-  </Accordion>
+{" "}
+<Accordion title="Handle Timeouts" icon="hourglass">
+  Set reasonable timeouts for validation calls (5-10 seconds) and have a
+  fallback strategy.
+</Accordion>
 
-  <Accordion title="Log Payment Events" icon="clipboard-list">
-    Log all payment validations for debugging and analytics:
-    - Token hash (not full token)
-    - Validation result
-    - Credits consumed
-    - Timestamp
-  </Accordion>
+{" "}
+<Accordion title="Log Payment Events" icon="clipboard-list">
+  Log all payment validations for debugging and analytics: - Token hash (not
+  full token) - Validation result - Credits consumed - Timestamp
+</Accordion>
 
   <Accordion title="Return Helpful 402 Responses" icon="message">
     Always include plan information in 402 responses so clients know how to get access.
@@ -363,7 +365,7 @@ Response:
     Advanced validation patterns
   </Card>
 
-  <Card title="x402 Protocol" icon="link" href="/docs/integrate/platforms/x402-protocol">
+  <Card title="x402 Protocol" icon="link" href="/docs/development-guide/nevermined-x402">
     Implement standard HTTP 402 flows
   </Card>
 </CardGroup>

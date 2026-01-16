@@ -268,7 +268,8 @@ async function callProtectedAPI() {
       ).toString()
     )
 
-    const { planId, agentId } = paymentRequired.accepts[0]
+    const { planId, extra } = paymentRequired.accepts[0]
+    const agentId = extra?.agentId
 
     // Step 3: Generate x402 token
     const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
@@ -318,7 +319,7 @@ PORT=3000
     Advanced credit charging patterns
   </Card>
 
-  <Card title="x402 Protocol" icon="link" href="/docs/integrate/platforms/x402-protocol">
+  <Card title="x402 Protocol" icon="link" href="/docs/development-guide/nevermined-x402">
     Deep dive into x402 payment flows
   </Card>
 
