@@ -21,7 +21,7 @@ npm install @nevermined-io/payments express
 ## Project Setup
 
 ```typescript filename="src/config/payments.ts"
-import { Payments } from '@nevermined-io/payments'
+import { Payments } from "@nevermined-io/payments"
 
 // Singleton instance
 let paymentsInstance: Payments | null = null
@@ -30,7 +30,7 @@ export function getPayments(): Payments {
   if (!paymentsInstance) {
     paymentsInstance = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
-      environment: process.env.NODE_ENV === 'production' ? 'live' : 'sandbox'
+      environment: process.env.NODE_ENV === "production" ? "live" : "sandbox",
     })
   }
   return paymentsInstance
@@ -39,15 +39,15 @@ export function getPayments(): Payments {
 // Configuration
 export const config = {
   agentId: process.env.AGENT_ID!,
-  planId: process.env.PLAN_ID!
+  planId: process.env.PLAN_ID!,
 }
 ```
 
 ## Payment Middleware
 
 ```typescript filename="src/middleware/payment.ts"
-import { Request, Response, NextFunction } from 'express'
-import { getPayments, config } from '../config/payments'
+import { Request, Response, NextFunction } from "express"
+import { getPayments, config } from "../config/payments"
 
 // Extend Express Request type
 declare global {
@@ -73,37 +73,40 @@ export async function validatePayment(
   res: Response,
   next: NextFunction
 ) {
-  const paymentProof = req.header('PAYMENT-SIGNATURE')
+  const paymentProof = req.header("PAYMENT-SIGNATURE")
 
   // First request (no payment proof) OR missing header
   if (!paymentProof) {
     return res.status(402).json({
-      error: 'Payment Required',
-      code: 'PAYMENT_REQUIRED',
+      error: "Payment Required",
+      code: "PAYMENT_REQUIRED",
       plans: [
         {
           planId: config.planId,
-          agentId: config.agentId
-        }
-      ]
+          agentId: config.agentId,
+        },
+      ],
     })
   }
 
   try {
     const payments = getPayments()
-    const result = await payments.requests.isValidRequest(paymentProof, req.body)
+    const result = await payments.requests.isValidRequest(
+      paymentProof,
+      req.body
+    )
 
     if (!result.isValid) {
       return res.status(402).json({
-        error: 'Payment Required',
-        code: 'INVALID_PAYMENT',
+        error: "Payment Required",
+        code: "INVALID_PAYMENT",
         reason: result.reason,
         plans: [
           {
             planId: config.planId,
-            agentId: config.agentId
-          }
-        ]
+            agentId: config.agentId,
+          },
+        ],
       })
     }
 
@@ -111,15 +114,15 @@ export async function validatePayment(
     req.payment = {
       isValid: true,
       balance: result.balance,
-      subscriberAddress: result.subscriberAddress
+      subscriberAddress: result.subscriberAddress,
     }
 
     next()
   } catch (error) {
-    console.error('Payment validation error:', error)
+    console.error("Payment validation error:", error)
     return res.status(500).json({
-      error: 'Payment validation failed',
-      code: 'VALIDATION_ERROR'
+      error: "Payment validation failed",
+      code: "VALIDATION_ERROR",
     })
   }
 }
@@ -131,10 +134,10 @@ export function requireCredits(minCredits: number) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.payment || req.payment.balance < minCredits) {
       return res.status(402).json({
-        error: 'Insufficient credits',
-        code: 'INSUFFICIENT_CREDITS',
+        error: "Insufficient credits",
+        code: "INSUFFICIENT_CREDITS",
         required: minCredits,
-        available: req.payment?.balance || 0
+        available: req.payment?.balance || 0,
       })
     }
     next()
@@ -145,32 +148,30 @@ export function requireCredits(minCredits: number) {
 ## Route Handlers
 
 ```typescript filename="src/routes/query.ts"
-import { Router, Request, Response } from 'express'
-import { validatePayment, requireCredits } from '../middleware/payment'
+import { Router, Request, Response } from "express"
+import { validatePayment, requireCredits } from "../middleware/payment"
 
 const router = Router()
 
 // Protected endpoint - requires valid payment
-router.post('/query',
-  validatePayment,
-  async (req: Request, res: Response) => {
-    const { prompt } = req.body
+router.post("/query", validatePayment, async (req: Request, res: Response) => {
+  const { prompt } = req.body
 
-    // Your AI logic here
-    const result = await processAIQuery(prompt)
+  // Your AI logic here
+  const result = await processAIQuery(prompt)
 
-    res.json({
-      result,
-      credits: {
-        remaining: req.payment!.balance,
-        used: 1
-      }
-    })
-  }
-)
+  res.json({
+    result,
+    credits: {
+      remaining: req.payment!.balance,
+      used: 1,
+    },
+  })
+})
 
 // Endpoint requiring minimum credits
-router.post('/expensive-query',
+router.post(
+  "/expensive-query",
   validatePayment,
   requireCredits(10), // Requires at least 10 credits
   async (req: Request, res: Response) => {
@@ -183,15 +184,15 @@ router.post('/expensive-query',
       result,
       credits: {
         remaining: req.payment!.balance,
-        used: 10
-      }
+        used: 10,
+      },
     })
   }
 )
 
 // Public endpoint - no payment required
-router.get('/health', (req, res) => {
-  res.json({ status: 'ok' })
+router.get("/health", (req, res) => {
+  res.json({ status: "ok" })
 })
 
 export default router
@@ -200,8 +201,8 @@ export default router
 ## Main Application
 
 ```typescript filename="src/app.ts"
-import express from 'express'
-import queryRouter from './routes/query'
+import express from "express"
+import queryRouter from "./routes/query"
 
 const app = express()
 
@@ -209,28 +210,35 @@ const app = express()
 app.use(express.json())
 
 // Routes
-app.use('/api', queryRouter)
+app.use("/api", queryRouter)
 
 // Error handler
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Unhandled error:', err)
-  res.status(500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined
-  })
-})
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    console.error("Unhandled error:", err)
+    res.status(500).json({
+      error: "Internal server error",
+      message: process.env.NODE_ENV === "development" ? err.message : undefined,
+    })
+  }
+)
 
 export default app
 ```
 
 ```typescript filename="src/index.ts"
-import app from './app'
+import app from "./app"
 
 const PORT = process.env.PORT || 3000
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`Environment: ${process.env.NODE_ENV || "development"}`)
 })
 ```
 
@@ -239,33 +247,37 @@ app.listen(PORT, () => {
 Run once to register your agent:
 
 ```typescript filename="scripts/register.ts"
-import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+import {
+  Payments,
+  getERC20PriceConfig,
+  getFixedCreditsConfig,
+} from "@nevermined-io/payments"
 
-const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // Base Sepolia
+const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" // Base Sepolia
 
 async function register() {
   const payments = Payments.getInstance({
     nvmApiKey: process.env.NVM_API_KEY!,
-    environment: 'sandbox'
+    environment: "sandbox",
   })
 
   const { agentId, planId } = await payments.agents.registerAgentAndPlan(
     {
-      name: 'My Express API',
-      description: 'AI-powered API built with Express.js',
-      tags: ['express', 'ai', 'api'],
-      dateCreated: new Date()
+      name: "My Express API",
+      description: "AI-powered API built with Express.js",
+      tags: ["express", "ai", "api"],
+      dateCreated: new Date(),
     },
     {
       endpoints: [
         { POST: `${process.env.BASE_URL}/api/query` },
-        { POST: `${process.env.BASE_URL}/api/expensive-query` }
-      ]
+        { POST: `${process.env.BASE_URL}/api/expensive-query` },
+      ],
     },
     {
-      name: 'Pro Plan',
-      description: '100 API credits',
-      dateCreated: new Date()
+      name: "Pro Plan",
+      description: "100 API credits",
+      dateCreated: new Date(),
     },
     getERC20PriceConfig(
       10_000_000n,
@@ -273,10 +285,10 @@ async function register() {
       process.env.BUILDER_ADDRESS!
     ),
     getFixedCreditsConfig(100n, 1n),
-    'credits'
+    "credits"
   )
 
-  console.log('Registration complete!')
+  console.log("Registration complete!")
   console.log(`AGENT_ID=${agentId}`)
   console.log(`PLAN_ID=${planId}`)
 }
@@ -302,7 +314,7 @@ NODE_ENV=development
 ## Error Handling Patterns
 
 ```typescript filename="src/middleware/errors.ts"
-import { Request, Response, NextFunction } from 'express'
+import { Request, Response, NextFunction } from "express"
 
 // Custom error class for payment errors
 export class PaymentError extends Error {
@@ -312,7 +324,7 @@ export class PaymentError extends Error {
     public statusCode: number = 402
   ) {
     super(message)
-    this.name = 'PaymentError'
+    this.name = "PaymentError"
   }
 }
 
@@ -326,7 +338,7 @@ export function paymentErrorHandler(
   if (err instanceof PaymentError) {
     return res.status(err.statusCode).json({
       error: err.message,
-      code: err.code
+      code: err.code,
     })
   }
   next(err)
@@ -362,34 +374,32 @@ export interface PaymentInfo {
 ## Testing
 
 ```typescript filename="tests/payment.test.ts"
-import request from 'supertest'
-import app from '../src/app'
+import request from "supertest"
+import app from "../src/app"
 
-describe('Payment Middleware', () => {
-  it('returns 402 without payment proof', async () => {
-    const res = await request(app)
-      .post('/api/query')
-      .send({ prompt: 'test' })
+describe("Payment Middleware", () => {
+  it("returns 402 without payment proof", async () => {
+    const res = await request(app).post("/api/query").send({ prompt: "test" })
 
     expect(res.status).toBe(402)
-    expect(res.body.code).toBe('PAYMENT_REQUIRED')
+    expect(res.body.code).toBe("PAYMENT_REQUIRED")
   })
 
-  it('returns 402 with invalid payment proof', async () => {
+  it("returns 402 with invalid payment proof", async () => {
     const res = await request(app)
-      .post('/api/query')
-      .set('PAYMENT-SIGNATURE', 'invalid-payment-proof')
-      .send({ prompt: 'test' })
+      .post("/api/query")
+      .set("PAYMENT-SIGNATURE", "invalid-payment-proof")
+      .send({ prompt: "test" })
 
     expect(res.status).toBe(402)
-    expect(res.body.code).toBe('INVALID_PAYMENT')
+    expect(res.body.code).toBe("INVALID_PAYMENT")
   })
 
-  it('succeeds with valid payment proof', async () => {
+  it("succeeds with valid payment proof", async () => {
     const res = await request(app)
-      .post('/api/query')
-      .set('PAYMENT-SIGNATURE', `${process.env.TEST_PAYMENT_SIGNATURE}`)
-      .send({ prompt: 'test' })
+      .post("/api/query")
+      .set("PAYMENT-SIGNATURE", `${process.env.TEST_PAYMENT_SIGNATURE}`)
+      .send({ prompt: "test" })
 
     expect(res.status).toBe(200)
     expect(res.body.result).toBeDefined()
@@ -407,19 +417,18 @@ describe('Payment Middleware', () => {
     - [ ] Use HTTPS in production
   </Accordion>
 
-  <Accordion title="Error Handling" icon="triangle-exclamation">
-    - [ ] Don't expose internal errors to clients
-    - [ ] Log all payment validation errors
-    - [ ] Implement retry logic for transient failures
-    - [ ] Set up alerting for payment failures
-  </Accordion>
+{" "}
+<Accordion title="Error Handling" icon="triangle-exclamation">
+  - [ ] Don't expose internal errors to clients - [ ] Log all payment validation
+  errors - [ ] Implement retry logic for transient failures - [ ] Set up
+  alerting for payment failures
+</Accordion>
 
-  <Accordion title="Performance" icon="gauge-high">
-    - [ ] Cache Payments instance (singleton)
-    - [ ] Consider caching validation results briefly
-    - [ ] Monitor validation latency
-    - [ ] Use connection pooling
-  </Accordion>
+{" "}
+<Accordion title="Performance" icon="gauge-high">
+  - [ ] Cache Payments instance (singleton) - [ ] Consider caching validation
+  results briefly - [ ] Monitor validation latency - [ ] Use connection pooling
+</Accordion>
 
   <Accordion title="Security" icon="shield">
     - [ ] Validate all input data

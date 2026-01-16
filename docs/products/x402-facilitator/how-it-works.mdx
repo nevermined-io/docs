@@ -54,6 +54,7 @@ When calling a protected endpoint, the server returns a `402 Payment Required` r
       // nvmInfo.plan_id, nvmInfo.agent_id, nvmInfo.max_amount, nvmInfo.network
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -65,6 +66,7 @@ When calling a protected endpoint, the server returns a `402 Payment Required` r
         payment_required = response.json()
         nvm_info = payment_required['extensions']['nevermined']['info']
     ```
+
   </Tab>
 </Tabs>
 
@@ -96,6 +98,7 @@ The client creates a payment payload that encodes the allowed permissions (for e
       extensions: paymentRequired.extensions
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -119,6 +122,7 @@ The client creates a payment payload that encodes the allowed permissions (for e
         'extensions': payment_required['extensions']
     }
     ```
+
   </Tab>
 </Tabs>
 
@@ -140,6 +144,7 @@ The payment payload is sent in-band with HTTP (commonly via the `PAYMENT-SIGNATU
       body: JSON.stringify({ prompt: 'Hello' })
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -159,6 +164,7 @@ The payment payload is sent in-band with HTTP (commonly via the `PAYMENT-SIGNATU
         json={'prompt': 'Hello'}
     )
     ```
+
   </Tab>
 </Tabs>
 
@@ -190,6 +196,7 @@ If the payment header is not present, respond with `402` plus the payment requir
       })
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -211,6 +218,7 @@ If the payment header is not present, respond with `402` plus the payment requir
             }
         }), 402
     ```
+
   </Tab>
 </Tabs>
 
@@ -247,6 +255,7 @@ Decode the payment payload and ask the facilitator to verify it (including simul
       return res.status(402).json({ error: 'Payment verification failed' })
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -274,6 +283,7 @@ Decode the payment payload and ask the facilitator to verify it (including simul
     if not verify_result.is_valid:
         return jsonify({'error': 'Payment verification failed'}), 402
     ```
+
   </Tab>
 </Tabs>
 
@@ -306,6 +316,7 @@ const result = await processAIRequest(req.body)
       }
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -321,6 +332,7 @@ const result = await processAIRequest(req.body)
         }
     })
     ```
+
   </Tab>
 </Tabs>
 
@@ -358,13 +370,13 @@ sequenceDiagram
 
 ## Error Handling
 
-| Error | HTTP Status | Cause |
-|-------|-------------|-------|
-| Missing payment header | 402 | No `PAYMENT-SIGNATURE` header |
-| Invalid signature | 402 | Signature verification failed |
-| Insufficient balance | 402 | User needs to purchase more credits |
-| Expired session | 402 | Session key has expired |
-| Settlement failed | 500 | On-chain transaction failed |
+| Error                  | HTTP Status | Cause                               |
+| ---------------------- | ----------- | ----------------------------------- |
+| Missing payment header | 402         | No `PAYMENT-SIGNATURE` header       |
+| Invalid signature      | 402         | Signature verification failed       |
+| Insufficient balance   | 402         | User needs to purchase more credits |
+| Expired session        | 402         | Session key has expired             |
+| Settlement failed      | 500         | On-chain transaction failed         |
 
 ## Next Steps
 
