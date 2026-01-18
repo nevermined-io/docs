@@ -19,23 +19,26 @@ const { planId } = await payments.plans.createPlan({
   description,
   priceConfig,
   creditsConfig,
-  accessLimit
-})
+  accessLimit,
+});
 ```
 
 **Example:**
 
 ```typescript
-import { getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+import {
+  getERC20PriceConfig,
+  getFixedCreditsConfig,
+} from "@nevermined-io/payments";
 
 const { planId } = await payments.plans.createPlan({
-  agentId: 'did:nv:agent-123',
-  name: 'Pro Plan',
-  description: '100 queries for $10',
+  agentId: "did:nv:agent-123",
+  name: "Pro Plan",
+  description: "100 queries for $10",
   priceConfig: getERC20PriceConfig(10_000_000n, usdcAddress, builderAddress),
   creditsConfig: getFixedCreditsConfig(100n, 1n),
-  accessLimit: 'credits'
-})
+  accessLimit: "credits",
+});
 ```
 
 ### orderPlan
@@ -43,16 +46,16 @@ const { planId } = await payments.plans.createPlan({
 Purchase a plan with cryptocurrency.
 
 ```typescript
-const result = await payments.plans.orderPlan(planId)
+const result = await payments.plans.orderPlan(planId);
 ```
 
 **Returns:**
 
 ```typescript
 interface OrderResult {
-  transactionHash: string
-  agreementId: string
-  success: boolean
+  transactionHash: string;
+  agreementId: string;
+  success: boolean;
 }
 ```
 
@@ -61,10 +64,10 @@ interface OrderResult {
 Purchase a plan with fiat currency (Stripe).
 
 ```typescript
-const { sessionId, url } = await payments.plans.orderFiatPlan(planId)
+const { sessionId, url } = await payments.plans.orderFiatPlan(planId);
 
 // Redirect user to Stripe
-window.location.href = url
+window.location.href = url;
 ```
 
 ### getPlanBalance
@@ -72,16 +75,16 @@ window.location.href = url
 Check remaining balance for a plan.
 
 ```typescript
-const balance = await payments.plans.getPlanBalance(planId)
+const balance = await payments.plans.getPlanBalance(planId);
 ```
 
 **Returns:**
 
 ```typescript
 interface PlanBalance {
-  credits: number
-  expiresAt?: Date
-  isActive: boolean
+  credits: number;
+  expiresAt?: Date;
+  isActive: boolean;
 }
 ```
 
@@ -92,11 +95,11 @@ Create a free trial plan with credits.
 ```typescript
 const { planId } = await payments.plans.registerCreditsTrialPlan({
   agentId,
-  name: 'Free Trial',
-  description: '10 free queries',
+  name: "Free Trial",
+  description: "10 free queries",
   credits: 10n,
-  creditsPerRequest: 1n
-})
+  creditsPerRequest: 1n,
+});
 ```
 
 ### registerTimeTrialPlan
@@ -106,10 +109,10 @@ Create a free trial plan with time limit.
 ```typescript
 const { planId } = await payments.plans.registerTimeTrialPlan({
   agentId,
-  name: '7-Day Trial',
-  description: 'Full access for 7 days',
-  duration: 7 * 24 * 60 * 60 // seconds
-})
+  name: "7-Day Trial",
+  description: "Full access for 7 days",
+  duration: 7 * 24 * 60 * 60, // seconds
+});
 ```
 
 ## Price Configuration Helpers
@@ -119,13 +122,13 @@ const { planId } = await payments.plans.registerTimeTrialPlan({
 Configure ERC-20 token pricing.
 
 ```typescript
-import { getERC20PriceConfig } from '@nevermined-io/payments'
+import { getERC20PriceConfig } from "@nevermined-io/payments";
 
 const config = getERC20PriceConfig(
-  10_000_000n,                    // amount (with decimals)
-  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // token address
-  '0xYour...Address'              // receiver address
-)
+  10_000_000n, // amount (with decimals)
+  "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // token address
+  "0xYour...Address", // receiver address
+);
 ```
 
 ### getNativePriceConfig
@@ -133,12 +136,12 @@ const config = getERC20PriceConfig(
 Configure native token pricing (ETH, etc.).
 
 ```typescript
-import { getNativePriceConfig } from '@nevermined-io/payments'
+import { getNativePriceConfig } from "@nevermined-io/payments";
 
 const config = getNativePriceConfig(
-  1_000_000_000_000_000n,  // 0.001 ETH
-  '0xYour...Address'
-)
+  1_000_000_000_000_000n, // 0.001 ETH
+  "0xYour...Address",
+);
 ```
 
 ## Credits Configuration Helpers
@@ -148,12 +151,12 @@ const config = getNativePriceConfig(
 Fixed credits per purchase.
 
 ```typescript
-import { getFixedCreditsConfig } from '@nevermined-io/payments'
+import { getFixedCreditsConfig } from "@nevermined-io/payments";
 
 const config = getFixedCreditsConfig(
-  100n,  // total credits
-  1n     // credits per request
-)
+  100n, // total credits
+  1n, // credits per request
+);
 ```
 
 ### getDynamicCreditsConfig
@@ -161,12 +164,12 @@ const config = getFixedCreditsConfig(
 Variable credits per request.
 
 ```typescript
-import { getDynamicCreditsConfig } from '@nevermined-io/payments'
+import { getDynamicCreditsConfig } from "@nevermined-io/payments";
 
 const config = getDynamicCreditsConfig(
-  1n,   // minimum per request
-  10n   // maximum per request
-)
+  1n, // minimum per request
+  10n, // maximum per request
+);
 ```
 
 ### getTimeBasedConfig
@@ -174,45 +177,53 @@ const config = getDynamicCreditsConfig(
 Time-based access configuration.
 
 ```typescript
-import { getTimeBasedConfig } from '@nevermined-io/payments'
+import { getTimeBasedConfig } from "@nevermined-io/payments";
 
 const config = getTimeBasedConfig(
-  30 * 24 * 60 * 60  // 30 days in seconds
-)
+  30 * 24 * 60 * 60, // 30 days in seconds
+);
 ```
 
 ## Types
 
 ```typescript
 interface CreatePlanParams {
-  agentId: string
-  name: string
-  description?: string
-  priceConfig: PriceConfig
-  creditsConfig?: CreditsConfig
-  timeConfig?: TimeConfig
-  accessLimit: 'credits' | 'time'
+  agentId: string;
+  name: string;
+  description?: string;
+  priceConfig: PriceConfig;
+  creditsConfig?: CreditsConfig;
+  timeConfig?: TimeConfig;
+  accessLimit: "credits" | "time";
 }
 
 interface PriceConfig {
-  tokenAddress: string
-  amount: bigint
-  receiver: string
+  tokenAddress: string;
+  amount: bigint;
+  receiver: string;
 }
 
 interface CreditsConfig {
-  totalCredits: bigint
-  creditsPerRequest: bigint
+  totalCredits: bigint;
+  creditsPerRequest: bigint;
 }
 ```
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Requests Module" icon="shield-check" href="/docs/api-reference/typescript/requests-module">
+  <Card
+    title="Requests Module"
+    icon="shield-check"
+    href="/docs/api-reference/typescript/requests-module"
+  >
     Validate incoming requests
   </Card>
-  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/validate-requests">
+  <Card
+    title="Payment Patterns"
+    icon="code"
+    href="/docs/integrate/patterns/validate-requests"
+  >
     Implementation patterns
   </Card>
 </CardGroup>

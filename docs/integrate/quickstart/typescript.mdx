@@ -34,24 +34,28 @@ export PLAN_ID="did:nv:your-plan-id"
 ## Complete Example
 
 ```typescript filename="index.ts"
-import express from 'express'
-import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+import express from "express";
+import {
+  Payments,
+  getERC20PriceConfig,
+  getFixedCreditsConfig,
+} from "@nevermined-io/payments";
 
-const app = express()
-app.use(express.json())
+const app = express();
+app.use(express.json());
 
 // Base Sepolia USDC for testing
-const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 // Initialize payments
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox'
-})
+  environment: "sandbox",
+});
 
 // Store IDs after registration
-let agentId: string
-let planId: string
+let agentId: string;
+let planId: string;
 
 // ============================================
 // SETUP: Run once to register your agent
@@ -59,32 +63,36 @@ let planId: string
 async function registerAgent() {
   const result = await payments.agents.registerAgentAndPlan(
     {
-      name: 'My TypeScript AI Agent',
-      description: 'AI assistant built with TypeScript',
-      tags: ['ai', 'typescript'],
-      dateCreated: new Date()
+      name: "My TypeScript AI Agent",
+      description: "AI assistant built with TypeScript",
+      tags: ["ai", "typescript"],
+      dateCreated: new Date(),
     },
     {
-      endpoints: [{ POST: `http://localhost:3000/query` }]
+      endpoints: [{ POST: `http://localhost:3000/query` }],
     },
     {
-      name: 'Starter Plan',
-      description: '100 queries',
-      dateCreated: new Date()
+      name: "Starter Plan",
+      description: "100 queries",
+      dateCreated: new Date(),
     },
-    getERC20PriceConfig(10_000_000n, USDC_ADDRESS, process.env.BUILDER_ADDRESS!),
+    getERC20PriceConfig(
+      10_000_000n,
+      USDC_ADDRESS,
+      process.env.BUILDER_ADDRESS!,
+    ),
     getFixedCreditsConfig(100n, 1n),
-    'credits'
-  )
+    "credits",
+  );
 
-  agentId = result.agentId
-  planId = result.planId
+  agentId = result.agentId;
+  planId = result.planId;
 
-  console.log(`Agent ID: ${agentId}`)
-  console.log(`Plan ID: ${planId}`)
-  console.log('Add these to your .env file!')
+  console.log(`Agent ID: ${agentId}`);
+  console.log(`Plan ID: ${planId}`);
+  console.log("Add these to your .env file!");
 
-  return result
+  return result;
 }
 
 // ============================================
@@ -93,30 +101,33 @@ async function registerAgent() {
 async function validatePayment(
   req: express.Request,
   res: express.Response,
-  next: express.NextFunction
+  next: express.NextFunction,
 ) {
-  const authHeader = req.headers['authorization']
+  const authHeader = req.headers["authorization"];
 
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (!authHeader?.startsWith("Bearer ")) {
     return res.status(402).json({
-      error: 'Payment Required',
-      plans: [{ planId, agentId }]
-    })
+      error: "Payment Required",
+      plans: [{ planId, agentId }],
+    });
   }
 
-  const token = authHeader.substring(7)
-  const { isValid, balance } = await payments.requests.isValidRequest(token, req.body)
+  const token = authHeader.substring(7);
+  const { isValid, balance } = await payments.requests.isValidRequest(
+    token,
+    req.body,
+  );
 
   if (!isValid) {
     return res.status(402).json({
-      error: 'Insufficient credits',
-      plans: [{ planId, agentId }]
-    })
+      error: "Insufficient credits",
+      plans: [{ planId, agentId }],
+    });
   }
 
   // Attach balance to request
-  ;(req as any).credits = balance
-  next()
+  (req as any).credits = balance;
+  next();
 }
 
 // ============================================
@@ -124,52 +135,52 @@ async function validatePayment(
 // ============================================
 
 // Health check (public)
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', agentId, planId })
-})
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", agentId, planId });
+});
 
 // Protected AI endpoint
-app.post('/query', validatePayment, async (req, res) => {
-  const { prompt } = req.body
+app.post("/query", validatePayment, async (req, res) => {
+  const { prompt } = req.body;
 
   // Your AI logic here
-  const result = `You asked: "${prompt}". Here's my response...`
+  const result = `You asked: "${prompt}". Here's my response...`;
 
   res.json({
     result,
-    creditsRemaining: (req as any).credits
-  })
-})
+    creditsRemaining: (req as any).credits,
+  });
+});
 
 // Setup endpoint (call once)
-app.post('/setup', async (req, res) => {
+app.post("/setup", async (req, res) => {
   try {
-    const result = await registerAgent()
-    res.json(result)
+    const result = await registerAgent();
+    res.json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
-})
+});
 
 // ============================================
 // START SERVER
 // ============================================
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   // Load IDs from environment if available
-  agentId = process.env.AGENT_ID || ''
-  planId = process.env.PLAN_ID || ''
+  agentId = process.env.AGENT_ID || "";
+  planId = process.env.PLAN_ID || "";
 
-  console.log(`Server running on http://localhost:${PORT}`)
+  console.log(`Server running on http://localhost:${PORT}`);
 
   if (!agentId || !planId) {
-    console.log('No agent registered yet. POST to /setup to register.')
+    console.log("No agent registered yet. POST to /setup to register.");
   } else {
-    console.log(`Agent: ${agentId}`)
-    console.log(`Plan: ${planId}`)
+    console.log(`Agent: ${agentId}`);
+    console.log(`Plan: ${planId}`);
   }
-})
+});
 ```
 
 ## Run the Example
@@ -204,41 +215,41 @@ curl -X POST http://localhost:3000/query \
 
 ```typescript
 // subscriber.ts
-import { Payments } from '@nevermined-io/payments'
+import { Payments } from "@nevermined-io/payments";
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.SUBSCRIBER_API_KEY!,
-  environment: 'sandbox'
-})
+  environment: "sandbox",
+});
 
 async function purchaseAndQuery() {
   // 1. Order the plan
-  console.log('Purchasing plan...')
-  await payments.plans.orderPlan(process.env.PLAN_ID!)
+  console.log("Purchasing plan...");
+  await payments.plans.orderPlan(process.env.PLAN_ID!);
 
   // 2. Get access token
-  console.log('Getting access token...')
+  console.log("Getting access token...");
   const { accessToken } = await payments.agents.getAgentAccessToken(
     process.env.PLAN_ID!,
-    process.env.AGENT_ID!
-  )
+    process.env.AGENT_ID!,
+  );
 
   // 3. Query the agent
-  console.log('Querying agent...')
-  const response = await fetch('http://localhost:3000/query', {
-    method: 'POST',
+  console.log("Querying agent...");
+  const response = await fetch("http://localhost:3000/query", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ prompt: 'What is 2+2?' })
-  })
+    body: JSON.stringify({ prompt: "What is 2+2?" }),
+  });
 
-  const result = await response.json()
-  console.log('Result:', result)
+  const result = await response.json();
+  console.log("Result:", result);
 }
 
-purchaseAndQuery()
+purchaseAndQuery();
 ```
 
 ## Project Structure
@@ -283,13 +294,21 @@ my-ai-agent/
     Complete Express.js patterns and best practices
   </Card>
 
-  <Card title="Next.js Integration" icon="react" href="/docs/integrate/add-to-your-agent/nextjs">
-    Add payments to Next.js API routes
-  </Card>
+<Card
+  title="Next.js Integration"
+  icon="react"
+  href="/docs/integrate/add-to-your-agent/nextjs"
+>
+  Add payments to Next.js API routes
+</Card>
 
-  <Card title="TypeScript SDK Reference" icon="book" href="/docs/api-reference/typescript/installation">
-    Full API documentation
-  </Card>
+<Card
+  title="TypeScript SDK Reference"
+  icon="book"
+  href="/docs/api-reference/typescript/installation"
+>
+  Full API documentation
+</Card>
 
   <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/validate-requests">
     Advanced patterns for production

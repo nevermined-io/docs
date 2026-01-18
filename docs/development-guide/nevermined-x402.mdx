@@ -9,7 +9,8 @@ icon: "credit-card"
 Nevermined provides first-class support for the x402 payment protocol, enabling AI agents, APIs, and services to charge per-request using secure, locally-signed payment authorizations.
 
 <Note>
-For the complete technical specification, see the [x402 Smart Accounts Extension Spec](/docs/specs/x402-smart-accounts).
+  For the complete technical specification, see the [x402 Smart Accounts
+  Extension Spec](/docs/specs/x402-smart-accounts).
 </Note>
 
 ## Overview
@@ -59,7 +60,6 @@ Nevermined introduces:
 | Delegated execution   | Basic           | Fully programmable “burn”, “order”, “redeem”, plan-specific actions |
 | Settlement layer      | ERC-20          | Nevermined smart-contract settlement                                |
 
-
 This means a subscriber can grant a server the ability to redeem credits or burn usage units while maintaining strict control over what the server can do.
 
 ## High-Level Architecture
@@ -81,7 +81,6 @@ Roles:
 - Server/Agent: exposes an API secured by x402
 - Facilitator: Nevermined component that verifies and settles payments
 - Blockchain: executes credit burns, orders, or other plan-specific actions
-
 
 ## The Nevermined x402 Smart-Account Extension
 
@@ -111,15 +110,17 @@ When a server requires payment, it returns a `402` response with a `payment-requ
     "description": "AI agent task execution",
     "mimeType": "application/json"
   },
-  "accepts": [{
-    "scheme": "nvm:erc4337",
-    "network": "eip155:84532",
-    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
-    "extra": {
-      "version": "1",
-      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+  "accepts": [
+    {
+      "scheme": "nvm:erc4337",
+      "network": "eip155:84532",
+      "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+      "extra": {
+        "version": "1",
+        "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+      }
     }
-  }],
+  ],
   "extensions": {}
 }
 ```
@@ -149,8 +150,14 @@ The client responds with a `payment-signature` header containing the payment pay
       "from": "0xD4f58B60330bC59cB0A07eE6A1A66ad64244eC8c",
       "sessionKeysProvider": "zerodev",
       "sessionKeys": [
-        { "id": "order", "data": "0x20a13d82dd9ee289fc5e5a90f4011c8dc03f8f5d..." },
-        { "id": "redeem", "data": "0x68e8e34d659149087451cafc89a7320114072e49..." }
+        {
+          "id": "order",
+          "data": "0x20a13d82dd9ee289fc5e5a90f4011c8dc03f8f5d..."
+        },
+        {
+          "id": "redeem",
+          "data": "0x68e8e34d659149087451cafc89a7320114072e49..."
+        }
       ]
     }
   },
@@ -160,12 +167,11 @@ The client responds with a `payment-signature` header containing the payment pay
 
 ### What the subscriber delegates
 
-| Permission      | Meaning                                                    |
-| --------------- | ---------------------------------------------------------- |
-| **order**       | Allows facilitator to top-up credits (e.g., auto-purchase) |
-| **redeem**      | Allows facilitator to deduct credits per request           |
-| **\<custom\>**  | Additional session-key-scoped behaviors you define         |
-
+| Permission     | Meaning                                                    |
+| -------------- | ---------------------------------------------------------- |
+| **order**      | Allows facilitator to top-up credits (e.g., auto-purchase) |
+| **redeem**     | Allows facilitator to deduct credits per request           |
+| **\<custom\>** | Additional session-key-scoped behaviors you define         |
 
 ## Complete Payment & Execution Flow
 
@@ -275,6 +281,7 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
       const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -304,6 +311,7 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
         token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
         access_token = token_res["accessToken"]
     ```
+
   </Tab>
 </Tabs>
 
@@ -322,26 +330,26 @@ payment-signature: <x402-access-token>
 For Express.js applications, use the `paymentMiddleware` from `@nevermined-io/payments/express` to handle x402 automatically:
 
 ```typescript
-import { Payments } from '@nevermined-io/payments'
-import { paymentMiddleware } from '@nevermined-io/payments/express'
+import { Payments } from "@nevermined-io/payments";
+import { paymentMiddleware } from "@nevermined-io/payments/express";
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox'
-})
+  environment: "sandbox",
+});
 
 // One line to protect routes
 app.use(
   paymentMiddleware(payments, {
-    'POST /ask': { planId: PLAN_ID, credits: 1 }
-  })
-)
+    "POST /ask": { planId: PLAN_ID, credits: 1 },
+  }),
+);
 
 // Route handler - no payment logic needed
-app.post('/ask', async (req, res) => {
-  const result = await processRequest(req.body)
-  res.json({ result })
-})
+app.post("/ask", async (req, res) => {
+  const result = await processRequest(req.body);
+  res.json({ result });
+});
 ```
 
 The middleware handles verification, settlement, and all x402 headers automatically. See the [Express.js Integration Guide](/docs/integrate/add-to-your-agent/express) for full details.
@@ -385,6 +393,7 @@ For other frameworks or custom implementations, follow these steps:
       return res.status(402).json({ error: 'Payment verification failed' })
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -410,6 +419,7 @@ For other frameworks or custom implementations, follow these steps:
     if not verification.success:
         return {"error": "Payment verification failed"}, 402
     ```
+
   </Tab>
 </Tabs>
 
@@ -438,6 +448,7 @@ For other frameworks or custom implementations, follow these steps:
     res.set('payment-response', settlementReceipt)
     res.json({ result })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -460,6 +471,7 @@ For other frameworks or custom implementations, follow these steps:
     response.headers["payment-response"] = settlement_receipt
     return {"result": result}
     ```
+
   </Tab>
 </Tabs>
 

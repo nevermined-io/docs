@@ -53,40 +53,41 @@ npm install @nevermined-io/payments express
 The `paymentMiddleware` from `@nevermined-io/payments/express` handles the entire x402 flow:
 
 ```typescript filename="src/agent.ts"
-import express from 'express'
-import { Payments } from '@nevermined-io/payments'
-import { paymentMiddleware } from '@nevermined-io/payments/express'
+import express from "express";
+import { Payments } from "@nevermined-io/payments";
+import { paymentMiddleware } from "@nevermined-io/payments/express";
 
-const app = express()
-app.use(express.json())
+const app = express();
+app.use(express.json());
 
 // Initialize Payments
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: process.env.NVM_ENVIRONMENT === 'live' ? 'live' : 'sandbox'
-})
+  environment: process.env.NVM_ENVIRONMENT === "live" ? "live" : "sandbox",
+});
 
 // Protect routes with one line
 app.use(
   paymentMiddleware(payments, {
-    'POST /ask': {
+    "POST /ask": {
       planId: process.env.NVM_PLAN_ID!,
-      credits: 1
-    }
-  })
-)
+      credits: 1,
+    },
+  }),
+);
 
 // Route handler - no payment logic needed!
-app.post('/ask', async (req, res) => {
-  const { query } = req.body
-  const response = await generateAIResponse(query)
-  res.json({ response })
-})
+app.post("/ask", async (req, res) => {
+  const { query } = req.body;
+  const response = await generateAIResponse(query);
+  res.json({ response });
+});
 
-app.listen(3000, () => console.log('Server running on http://localhost:3000'))
+app.listen(3000, () => console.log("Server running on http://localhost:3000"));
 ```
 
 That's it! The middleware automatically:
+
 - Returns `402` with `payment-required` header when no token is provided
 - Verifies the x402 token via the Nevermined facilitator
 - Burns credits after request completion
@@ -108,9 +109,9 @@ The middleware follows the [x402 HTTP transport spec](https://github.com/coinbas
 
 ```typescript
 paymentMiddleware(payments, {
-  'POST /ask': { planId: PLAN_ID, credits: 1 },
-  'POST /generate': { planId: PLAN_ID, credits: 5 }
-})
+  "POST /ask": { planId: PLAN_ID, credits: 1 },
+  "POST /generate": { planId: PLAN_ID, credits: 5 },
+});
 ```
 
 ### Dynamic Credits
@@ -119,36 +120,36 @@ Calculate credits based on request/response:
 
 ```typescript
 paymentMiddleware(payments, {
-  'POST /generate': {
+  "POST /generate": {
     planId: PLAN_ID,
     credits: (req, res) => {
       // Charge based on token count in response
-      const tokens = res.locals.tokenCount || 100
-      return Math.ceil(tokens / 100)
-    }
-  }
-})
+      const tokens = res.locals.tokenCount || 100;
+      return Math.ceil(tokens / 100);
+    },
+  },
+});
 ```
 
 ### Path Parameters
 
 ```typescript
 paymentMiddleware(payments, {
-  'GET /users/:id': { planId: PLAN_ID, credits: 1 },
-  'POST /agents/:agentId/task': { planId: PLAN_ID, credits: 2 }
-})
+  "GET /users/:id": { planId: PLAN_ID, credits: 1 },
+  "POST /agents/:agentId/task": { planId: PLAN_ID, credits: 2 },
+});
 ```
 
 ### With Agent ID
 
 ```typescript
 paymentMiddleware(payments, {
-  'POST /task': {
+  "POST /task": {
     planId: PLAN_ID,
-    agentId: AGENT_ID,  // Required for plans with multiple agents
-    credits: 5
-  }
-})
+    agentId: AGENT_ID, // Required for plans with multiple agents
+    credits: 5,
+  },
+});
 ```
 
 ## Middleware Options
@@ -156,23 +157,23 @@ paymentMiddleware(payments, {
 ```typescript
 paymentMiddleware(payments, routes, {
   // Custom token header(s) - default: ['payment-signature', 'x-payment']
-  tokenHeader: 'payment-signature',
+  tokenHeader: "payment-signature",
 
   // Hook before verification
   onBeforeVerify: (req, paymentRequired) => {
-    console.log(`Verifying payment for ${req.path}`)
+    console.log(`Verifying payment for ${req.path}`);
   },
 
   // Hook after settlement
   onAfterSettle: (req, creditsUsed, settlement) => {
-    console.log(`Settled ${creditsUsed} credits, tx: ${settlement.txHash}`)
+    console.log(`Settled ${creditsUsed} credits, tx: ${settlement.txHash}`);
   },
 
   // Custom error handler
   onPaymentError: (error, req, res) => {
-    res.status(402).json({ error: error.message })
-  }
-})
+    res.status(402).json({ error: error.message });
+  },
+});
 ```
 
 ## Complete Example
@@ -180,60 +181,64 @@ paymentMiddleware(payments, routes, {
 See the complete working example in the [http-simple-agent tutorial](https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent) on GitHub.
 
 ```typescript filename="src/agent.ts"
-import express from 'express'
-import OpenAI from 'openai'
-import { Payments } from '@nevermined-io/payments'
-import { paymentMiddleware } from '@nevermined-io/payments/express'
+import express from "express";
+import OpenAI from "openai";
+import { Payments } from "@nevermined-io/payments";
+import { paymentMiddleware } from "@nevermined-io/payments/express";
 
-const app = express()
-app.use(express.json())
+const app = express();
+app.use(express.json());
 
 // Initialize services
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox'
-})
+  environment: "sandbox",
+});
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Payment protection with logging
 app.use(
-  paymentMiddleware(payments, {
-    'POST /ask': {
-      planId: process.env.NVM_PLAN_ID!,
-      credits: 1
-    }
-  }, {
-    onBeforeVerify: (req) => {
-      console.log(`[Payment] Verifying request to ${req.path}`)
+  paymentMiddleware(
+    payments,
+    {
+      "POST /ask": {
+        planId: process.env.NVM_PLAN_ID!,
+        credits: 1,
+      },
     },
-    onAfterSettle: (req, credits) => {
-      console.log(`[Payment] Settled ${credits} credits`)
-    }
-  })
-)
+    {
+      onBeforeVerify: (req) => {
+        console.log(`[Payment] Verifying request to ${req.path}`);
+      },
+      onAfterSettle: (req, credits) => {
+        console.log(`[Payment] Settled ${credits} credits`);
+      },
+    },
+  ),
+);
 
 // Protected endpoint
-app.post('/ask', async (req, res) => {
-  const { query } = req.body
+app.post("/ask", async (req, res) => {
+  const { query } = req.body;
 
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [{ role: 'user', content: query }]
-  })
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: query }],
+  });
 
-  res.json({ response: completion.choices[0]?.message?.content })
-})
+  res.json({ response: completion.choices[0]?.message?.content });
+});
 
 // Public endpoint (not in route config)
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' })
-})
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Agent running on http://localhost:${PORT}`)
-})
+  console.log(`Agent running on http://localhost:${PORT}`);
+});
 ```
 
 ## Client Implementation
@@ -241,60 +246,63 @@ app.listen(PORT, () => {
 Here's how clients interact with your payment-protected API:
 
 ```typescript filename="src/client.ts"
-import { Payments } from '@nevermined-io/payments'
-import { X402_HEADERS } from '@nevermined-io/payments/express'
+import { Payments } from "@nevermined-io/payments";
+import { X402_HEADERS } from "@nevermined-io/payments/express";
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox'
-})
+  environment: "sandbox",
+});
 
 async function callProtectedAPI() {
-  const SERVER_URL = 'http://localhost:3000'
+  const SERVER_URL = "http://localhost:3000";
 
   // Step 1: Request without token → 402
   const response1 = await fetch(`${SERVER_URL}/ask`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: 'What is 2+2?' })
-  })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: "What is 2+2?" }),
+  });
 
   if (response1.status === 402) {
     // Step 2: Decode payment requirements
     const paymentRequired = JSON.parse(
       Buffer.from(
         response1.headers.get(X402_HEADERS.PAYMENT_REQUIRED)!,
-        'base64'
-      ).toString()
-    )
+        "base64",
+      ).toString(),
+    );
 
-    const { planId, extra } = paymentRequired.accepts[0]
-    const agentId = extra?.agentId
+    const { planId, extra } = paymentRequired.accepts[0];
+    const agentId = extra?.agentId;
 
     // Step 3: Generate x402 token
-    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+    const { accessToken } = await payments.x402.getX402AccessToken(
+      planId,
+      agentId,
+    );
 
     // Step 4: Request with token → 200
     const response2 = await fetch(`${SERVER_URL}/ask`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        [X402_HEADERS.PAYMENT_SIGNATURE]: accessToken
+        "Content-Type": "application/json",
+        [X402_HEADERS.PAYMENT_SIGNATURE]: accessToken,
       },
-      body: JSON.stringify({ query: 'What is 2+2?' })
-    })
+      body: JSON.stringify({ query: "What is 2+2?" }),
+    });
 
-    const data = await response2.json()
-    console.log('Response:', data.response)
+    const data = await response2.json();
+    console.log("Response:", data.response);
 
     // Step 5: Decode settlement receipt
     const settlement = JSON.parse(
       Buffer.from(
         response2.headers.get(X402_HEADERS.PAYMENT_RESPONSE)!,
-        'base64'
-      ).toString()
-    )
-    console.log('Credits used:', settlement.creditsRedeemed)
+        "base64",
+      ).toString(),
+    );
+    console.log("Credits used:", settlement.creditsRedeemed);
   }
 }
 ```
@@ -319,13 +327,21 @@ PORT=3000
     Advanced credit charging patterns
   </Card>
 
-  <Card title="x402 Protocol" icon="link" href="/docs/development-guide/nevermined-x402">
-    Deep dive into x402 payment flows
-  </Card>
+<Card
+  title="x402 Protocol"
+  icon="link"
+  href="/docs/development-guide/nevermined-x402"
+>
+  Deep dive into x402 payment flows
+</Card>
 
-  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
-    Configure credits, subscriptions, and dynamic pricing
-  </Card>
+<Card
+  title="Payment Models"
+  icon="calculator"
+  href="/docs/products/x402-facilitator/payment-models"
+>
+  Configure credits, subscriptions, and dynamic pricing
+</Card>
 
   <Card title="http-simple-agent Tutorial" icon="github" href="https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent">
     Complete working example on GitHub

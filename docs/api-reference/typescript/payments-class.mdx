@@ -9,12 +9,12 @@ The `Payments` class is the main entry point for all Nevermined payment operatio
 ## Initialization
 
 ```typescript
-import { Payments } from '@nevermined-io/payments'
+import { Payments } from "@nevermined-io/payments";
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox' // or 'live'
-})
+  environment: "sandbox", // or 'live'
+});
 ```
 
 ## Singleton Pattern
@@ -23,10 +23,10 @@ The SDK uses a singleton pattern. Call `getInstance()` to get or create the inst
 
 ```typescript
 // First call creates the instance
-const payments1 = Payments.getInstance(config)
+const payments1 = Payments.getInstance(config);
 
 // Subsequent calls return the same instance
-const payments2 = Payments.getInstance()
+const payments2 = Payments.getInstance();
 // payments1 === payments2
 ```
 
@@ -34,45 +34,53 @@ const payments2 = Payments.getInstance()
 
 The Payments class exposes several modules:
 
-| Module | Description |
-|--------|-------------|
-| `payments.agents` | Agent registration and management |
-| `payments.plans` | Payment plan operations |
-| `payments.requests` | Request validation |
-| `payments.x402` | x402 protocol support |
-| `payments.facilitator` | x402 verification and settlement |
-| `payments.a2a` | Google A2A integration |
-| `payments.mcp` | MCP server integration |
+| Module                 | Description                       |
+| ---------------------- | --------------------------------- |
+| `payments.agents`      | Agent registration and management |
+| `payments.plans`       | Payment plan operations           |
+| `payments.requests`    | Request validation                |
+| `payments.x402`        | x402 protocol support             |
+| `payments.facilitator` | x402 verification and settlement  |
+| `payments.a2a`         | Google A2A integration            |
+| `payments.mcp`         | MCP server integration            |
 
 ## Module Access
 
 ```typescript
 // Access modules via the payments instance
-const { agents, plans, requests, x402, facilitator } = payments
+const { agents, plans, requests, x402, facilitator } = payments;
 
 // Or access directly
-const agent = await payments.agents.getAgent('did:nv:...')
-const plan = await payments.plans.getPlan('did:nv:...')
+const agent = await payments.agents.getAgent("did:nv:...");
+const plan = await payments.plans.getPlan("did:nv:...");
 ```
 
 ## Type Definitions
 
 ```typescript
 interface PaymentsConfig {
-  nvmApiKey: string
-  environment: 'sandbox' | 'live'
-  appId?: string
-  version?: string
+  nvmApiKey: string;
+  environment: "sandbox" | "live";
+  appId?: string;
+  version?: string;
 }
 ```
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Agents Module" icon="robot" href="/docs/api-reference/typescript/agents-module">
+  <Card
+    title="Agents Module"
+    icon="robot"
+    href="/docs/api-reference/typescript/agents-module"
+  >
     Register and manage agents
   </Card>
-  <Card title="Plans Module" icon="credit-card" href="/docs/api-reference/typescript/plans-module">
+  <Card
+    title="Plans Module"
+    icon="credit-card"
+    href="/docs/api-reference/typescript/plans-module"
+  >
     Create and manage plans
   </Card>
 </CardGroup>

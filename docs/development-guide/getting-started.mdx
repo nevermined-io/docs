@@ -12,15 +12,15 @@ Before you begin, make sure you have:
 
 <Steps>
   <Step title="Development Environment">
-    - Node.js 16+ and npm/yarn (for TypeScript)
-    - Python 3.8+ (for Python)
-    - A code editor (VS Code recommended)
+    - Node.js 16+ and npm/yarn (for TypeScript) - Python 3.8+ (for Python) - A
+    code editor (VS Code recommended)
   </Step>
   <Step title="Nevermined API Key">
     Get your API key from the [Nevermined App](https://nevermined.app)
   </Step>
   <Step title="Test Tokens (Optional)">
-    Some test tokens for testing (you can [get some USDC from here](https://faucet.circle.com/))
+    Some test tokens for testing (you can [get some USDC from
+    here](https://faucet.circle.com/))
   </Step>
 </Steps>
 
@@ -28,17 +28,10 @@ Before you begin, make sure you have:
 
 <Tabs>
   <Tab title="TypeScript/JavaScript">
-    ```bash
-    npm install @nevermined-io/payments
-    # or
-    yarn add @nevermined-io/payments
-    ```
+    ```bash npm install @nevermined-io/payments # or yarn add
+    @nevermined-io/payments ```
   </Tab>
-  <Tab title="Python">
-    ```bash
-    pip install payments-py
-    ```
-  </Tab>
+  <Tab title="Python">```bash pip install payments-py ```</Tab>
 </Tabs>
 
 ## Getting Your API Key
@@ -51,7 +44,8 @@ Before you begin, make sure you have:
 6. Store this key securely as an environment variable (e.g., `NVM_API_KEY`)
 
 <Warning>
-Never expose your API key in client-side code or commit it to version control. Always use environment variables.
+  Never expose your API key in client-side code or commit it to version control.
+  Always use environment variables.
 </Warning>
 
 ## Initialize the Payments Libraries
@@ -86,32 +80,30 @@ Choose the appropriate environment for your use case:
 
 <AccordionGroup>
   <Accordion title="Sandbox Environment">
-    - **Use case**: Development and testing
-    - **Payments**: Test fiat and tokens (free)
-    - **Environment**: `'sandbox'`
-    - **Network**: [Base Sepolia testnet](https://sepolia.basescan.org/)
+    - **Use case**: Development and testing - **Payments**: Test fiat and tokens
+    (free) - **Environment**: `'sandbox'` - **Network**: [Base Sepolia
+    testnet](https://sepolia.basescan.org/)
   </Accordion>
-  
+
   <Accordion title="Live Environment">
-    - **Use case**: Live applications
-    - **Payments**: Fiat (via Stripe) and any ERC-20 tokens
-    - **Environment**: `'live'`
-    - **Network**: [Base](https://basescan.org/)
+    - **Use case**: Live applications - **Payments**: Fiat (via Stripe) and any
+    ERC-20 tokens - **Environment**: `'live'` - **Network**:
+    [Base](https://basescan.org/)
   </Accordion>
 </AccordionGroup>
-
 
 ## Common Issues
 
 <AccordionGroup>
   <Accordion title="Invalid API Key Error">
-    Make sure your API key is correctly set in your environment variables and has the proper permissions.
+    Make sure your API key is correctly set in your environment variables and
+    has the proper permissions.
   </Accordion>
-  
+
   <Accordion title="Network Connection Issues">
-    Check that you're using the correct environment ('sandbox' or 'live') and that your network connection is stable.
+    Check that you're using the correct environment ('sandbox' or 'live') and
+    that your network connection is stable.
   </Accordion>
-  
 </AccordionGroup>
 
 If you encounter any issues, check our [Frequently Asked Questions](/docs/development-guide/faq) or reach out to our community on [Discord](https://discord.com/invite/GZju2qScKq).

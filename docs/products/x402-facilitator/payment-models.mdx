@@ -24,13 +24,14 @@ Further reading:
     Charge per request or API call. Users purchase credits and consume them with each query.
   </Card>
 
-  <Card title="Time-Based" icon="clock">
-    Subscription access for specific durations. Unlimited usage within the time period.
-  </Card>
+<Card title="Time-Based" icon="clock">
+  Subscription access for specific durations. Unlimited usage within the time
+  period.
+</Card>
 
-  <Card title="Dynamic" icon="chart-line">
-    Variable pricing based on request complexity, token count, or custom metrics.
-  </Card>
+<Card title="Dynamic" icon="chart-line">
+  Variable pricing based on request complexity, token count, or custom metrics.
+</Card>
 
   <Card title="Hybrid" icon="layer-group">
     Combine time-based access with credit limits for balanced monetization.
@@ -77,6 +78,7 @@ Charge users based on actual usage. Each request consumes a configurable number 
       accessLimit: 'credits'
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -109,6 +111,7 @@ Charge users based on actual usage. Each request consumes a configurable number 
         access_limit='credits'
     )
     ```
+
   </Tab>
 </Tabs>
 
@@ -142,6 +145,7 @@ Provide unlimited access for a specific duration. Great for subscription models.
       accessLimit: 'time'
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -168,6 +172,7 @@ Provide unlimited access for a specific duration. Great for subscription models.
         access_limit='time'
     )
     ```
+
   </Tab>
 </Tabs>
 
@@ -203,6 +208,7 @@ Charge variable amounts based on request complexity. The x402 `max_amount` field
       subscriberAddress: address
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -231,6 +237,7 @@ Charge variable amounts based on request complexity. The x402 `max_amount` field
         extra={'subscriber_address': address}
     ))
     ```
+
   </Tab>
 </Tabs>
 
@@ -258,6 +265,7 @@ Offer free trials to attract new users.
       duration: 7 * 24 * 60 * 60  // 7 days in seconds
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -278,6 +286,7 @@ Offer free trials to attract new users.
         duration=7 * 24 * 60 * 60  # 7 days in seconds
     )
     ```
+
   </Tab>
 </Tabs>
 
@@ -289,26 +298,26 @@ Create multiple plans for different user segments:
 // Basic tier
 const basicPlan = await payments.plans.createPlan({
   agentId,
-  name: 'Basic',
+  name: "Basic",
   priceConfig: getERC20PriceConfig(5_000_000n, usdcAddress, builderAddress),
-  creditsConfig: getFixedCreditsConfig(50n, 1n)
-})
+  creditsConfig: getFixedCreditsConfig(50n, 1n),
+});
 
 // Pro tier
 const proPlan = await payments.plans.createPlan({
   agentId,
-  name: 'Pro',
+  name: "Pro",
   priceConfig: getERC20PriceConfig(20_000_000n, usdcAddress, builderAddress),
-  creditsConfig: getFixedCreditsConfig(250n, 1n)  // Better value
-})
+  creditsConfig: getFixedCreditsConfig(250n, 1n), // Better value
+});
 
 // Enterprise tier
 const enterprisePlan = await payments.plans.createPlan({
   agentId,
-  name: 'Enterprise',
+  name: "Enterprise",
   priceConfig: getERC20PriceConfig(100_000_000n, usdcAddress, builderAddress),
-  creditsConfig: getFixedCreditsConfig(2000n, 1n)  // Best value
-})
+  creditsConfig: getFixedCreditsConfig(2000n, 1n), // Best value
+});
 ```
 
 ## Payment Currencies
@@ -321,16 +330,16 @@ Accept any ERC-20 token on supported networks:
 // USDC
 const usdcConfig = getERC20PriceConfig(
   10_000_000n,
-  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-  builderAddress
-)
+  "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  builderAddress,
+);
 
 // USDT
 const usdtConfig = getERC20PriceConfig(
   10_000_000n,
-  '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-  builderAddress
-)
+  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+  builderAddress,
+);
 ```
 
 ### Fiat (Stripe)
@@ -339,23 +348,23 @@ Accept credit card payments via Stripe integration:
 
 ```typescript
 const fiatConfig = await payments.plans.getFiatPriceConfig({
-  amount: 1000,      // $10.00
-  currency: 'USD'
-})
+  amount: 1000, // $10.00
+  currency: "USD",
+});
 
 // Users purchase via Stripe checkout
-const { url } = await payments.plans.orderFiatPlan(planId)
+const { url } = await payments.plans.orderFiatPlan(planId);
 // Redirect user to Stripe checkout URL
 ```
 
 ## Choosing the Right Model
 
-| Model | Best For | Example |
-|-------|----------|---------|
-| Credits-based | API calls, queries, transactions | AI chatbot, image generation |
-| Time-based | Continuous access, subscriptions | SaaS tools, monitoring |
-| Dynamic | Variable workloads, token-based | LLM inference, batch processing |
-| Hybrid | Balanced usage with limits | Enterprise subscriptions |
+| Model         | Best For                         | Example                         |
+| ------------- | -------------------------------- | ------------------------------- |
+| Credits-based | API calls, queries, transactions | AI chatbot, image generation    |
+| Time-based    | Continuous access, subscriptions | SaaS tools, monitoring          |
+| Dynamic       | Variable workloads, token-based  | LLM inference, batch processing |
+| Hybrid        | Balanced usage with limits       | Enterprise subscriptions        |
 
 ## Next Steps
 

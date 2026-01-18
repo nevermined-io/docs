@@ -24,14 +24,14 @@ This specification extends the base x402 protocol and follows the same HTTP flow
 
 **Key differences from the `nvm:erc4337` extension:**
 
-| Aspect | `nvm:erc4337` | `nvm:vic` |
-|--------|---------------|-----------|
-| Scheme | `contract` | `visa` |
-| Network | CAIP-2 blockchain (e.g., `eip155:84532`) | `visa:cert` or `visa:prod` |
-| Authorization | ERC-4337 Session Keys | Visa Token Service credentials |
-| Settlement | Smart contract execution | Visa payment network |
-| Currency | ERC-20 tokens | Fiat (USD, EUR, etc.) |
-| Rate limiting | Balance-based | Usage count-based |
+| Aspect        | `nvm:erc4337`                            | `nvm:vic`                      |
+| ------------- | ---------------------------------------- | ------------------------------ |
+| Scheme        | `contract`                               | `visa`                         |
+| Network       | CAIP-2 blockchain (e.g., `eip155:84532`) | `visa:cert` or `visa:prod`     |
+| Authorization | ERC-4337 Session Keys                    | Visa Token Service credentials |
+| Settlement    | Smart contract execution                 | Visa payment network           |
+| Currency      | ERC-20 tokens                            | Fiat (USD, EUR, etc.)          |
+| Rate limiting | Balance-based                            | Usage count-based              |
 
 ### 1.2 Use Cases
 
@@ -47,13 +47,13 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### 2.1 Visa-Specific Terms
 
-| Term | Definition |
-|------|------------|
-| **VTS** | Visa Token Service — Visa's tokenization platform that replaces card numbers with tokens |
-| **VIC** | Visa Intelligence Commerce — Visa's API platform for commerce applications |
-| **vProvisionedTokenID** | A Visa-provisioned token identifier representing a payment credential |
-| **instructionId** | A VIC instruction identifier for the payment mandate |
-| **Mandate** | A pre-authorized payment agreement with defined limits |
+| Term                    | Definition                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| **VTS**                 | Visa Token Service — Visa's tokenization platform that replaces card numbers with tokens |
+| **VIC**                 | Visa Intelligence Commerce — Visa's API platform for commerce applications               |
+| **vProvisionedTokenID** | A Visa-provisioned token identifier representing a payment credential                    |
+| **instructionId**       | A VIC instruction identifier for the payment mandate                                     |
+| **Mandate**             | A pre-authorized payment agreement with defined limits                                   |
 
 ## 3. Extension Structure
 
@@ -105,55 +105,55 @@ The complete x402 payment payload with the Visa VIC extension:
 
 #### Root Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `x402Version` | `number` | Yes | Protocol version. MUST be `2`. |
-| `resource` | `object` | Yes | Description of the protected resource. |
-| `accepted` | `object` | Yes | Payment requirements accepted by the merchant. |
-| `payload` | `object` | Yes | Visa authorization data. |
+| Field         | Type     | Required | Description                                    |
+| ------------- | -------- | -------- | ---------------------------------------------- |
+| `x402Version` | `number` | Yes      | Protocol version. MUST be `2`.                 |
+| `resource`    | `object` | Yes      | Description of the protected resource.         |
+| `accepted`    | `object` | Yes      | Payment requirements accepted by the merchant. |
+| `payload`     | `object` | Yes      | Visa authorization data.                       |
 
 #### Resource Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `url` | `string` | Yes | URL of the protected resource. |
-| `description` | `string` | No | Human-readable description. |
-| `mimeType` | `string` | No | MIME type of the resource. |
+| Field         | Type     | Required | Description                    |
+| ------------- | -------- | -------- | ------------------------------ |
+| `url`         | `string` | Yes      | URL of the protected resource. |
+| `description` | `string` | No       | Human-readable description.    |
+| `mimeType`    | `string` | No       | MIME type of the resource.     |
 
 #### Accepted Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `scheme` | `string` | Yes | Payment scheme. MUST be `"visa"`. |
-| `network` | `string` | Yes | Payment network. MUST be `"visa:cert"` or `"visa:prod"`. |
-| `amount` | `string` | Yes | Maximum payment amount (decimal string, e.g., `"100.00"`). |
-| `asset` | `string` | Yes | Currency code (e.g., `"USD"`, `"EUR"`). |
-| `payTo` | `string` | Yes | Merchant identifier. |
-| `maxTimeoutSeconds` | `number` | Yes | Authorization validity window in seconds. |
-| `extra` | `object` | Yes | Visa-specific parameters. |
+| Field               | Type     | Required | Description                                                |
+| ------------------- | -------- | -------- | ---------------------------------------------------------- |
+| `scheme`            | `string` | Yes      | Payment scheme. MUST be `"visa"`.                          |
+| `network`           | `string` | Yes      | Payment network. MUST be `"visa:cert"` or `"visa:prod"`.   |
+| `amount`            | `string` | Yes      | Maximum payment amount (decimal string, e.g., `"100.00"`). |
+| `asset`             | `string` | Yes      | Currency code (e.g., `"USD"`, `"EUR"`).                    |
+| `payTo`             | `string` | Yes      | Merchant identifier.                                       |
+| `maxTimeoutSeconds` | `number` | Yes      | Authorization validity window in seconds.                  |
+| `extra`             | `object` | Yes      | Visa-specific parameters.                                  |
 
 #### Extra Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `vProvisionedTokenID` | `string` | Yes | Visa provisioned token identifier. |
-| `instructionId` | `string` | Yes | VIC instruction identifier for the mandate. |
-| `maxUsage` | `number` | Yes | Maximum number of times this authorization can be used. |
-| `merchantName` | `string` | No | Merchant display name. |
-| `merchantUrl` | `string` | No | Merchant website URL. |
-| `merchantCountryCode` | `string` | No | ISO 3166-1 alpha-2 country code (e.g., `"US"`). |
+| Field                 | Type     | Required | Description                                             |
+| --------------------- | -------- | -------- | ------------------------------------------------------- |
+| `vProvisionedTokenID` | `string` | Yes      | Visa provisioned token identifier.                      |
+| `instructionId`       | `string` | Yes      | VIC instruction identifier for the mandate.             |
+| `maxUsage`            | `number` | Yes      | Maximum number of times this authorization can be used. |
+| `merchantName`        | `string` | No       | Merchant display name.                                  |
+| `merchantUrl`         | `string` | No       | Merchant website URL.                                   |
+| `merchantCountryCode` | `string` | No       | ISO 3166-1 alpha-2 country code (e.g., `"US"`).         |
 
 #### Payload Fields (Visa Authorization)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `vProvisionedTokenID` | `string` | Yes | Visa provisioned token identifier. |
-| `instructionId` | `string` | Yes | VIC instruction identifier. |
-| `signedPayload` | `string` | Yes | Visa-signed payment payload. |
-| `authorization` | `string` | Yes | Visa authorization code. |
-| `validAfter` | `number` | Yes | Unix timestamp when authorization becomes valid. |
-| `validBefore` | `number` | Yes | Unix timestamp when authorization expires. |
-| `nonce` | `string` | Yes | Unique nonce for replay protection. |
+| Field                 | Type     | Required | Description                                      |
+| --------------------- | -------- | -------- | ------------------------------------------------ |
+| `vProvisionedTokenID` | `string` | Yes      | Visa provisioned token identifier.               |
+| `instructionId`       | `string` | Yes      | VIC instruction identifier.                      |
+| `signedPayload`       | `string` | Yes      | Visa-signed payment payload.                     |
+| `authorization`       | `string` | Yes      | Visa authorization code.                         |
+| `validAfter`          | `number` | Yes      | Unix timestamp when authorization becomes valid. |
+| `validBefore`         | `number` | Yes      | Unix timestamp when authorization expires.       |
+| `nonce`               | `string` | Yes      | Unique nonce for replay protection.              |
 
 ## 4. Protocol Flow
 
@@ -201,11 +201,11 @@ sequenceDiagram
 
 ### 4.2 Key Differences from Blockchain Settlement
 
-| Phase | `nvm:erc4337` | `nvm:vic` |
-|-------|---------------|-----------|
-| **Token Generation** | Client signs UserOperations locally | Client requests signed payload from Facilitator via Visa |
-| **Verification** | Simulate UserOperations on-chain | Validate with Visa API + check rate limits |
-| **Settlement** | Execute UserOperations on blockchain | Increment usage count + future Visa settlement |
+| Phase                | `nvm:erc4337`                        | `nvm:vic`                                                |
+| -------------------- | ------------------------------------ | -------------------------------------------------------- |
+| **Token Generation** | Client signs UserOperations locally  | Client requests signed payload from Facilitator via Visa |
+| **Verification**     | Simulate UserOperations on-chain     | Validate with Visa API + check rate limits               |
+| **Settlement**       | Execute UserOperations on blockchain | Increment usage count + future Visa settlement           |
 
 ## 5. Verification Requirements
 
@@ -213,33 +213,33 @@ sequenceDiagram
 
 The facilitator MUST verify:
 
-| Check | Requirement |
-|-------|-------------|
-| Version | `x402Version` MUST equal `2` |
-| Scheme | `accepted.scheme` MUST equal `"visa"` |
-| Network | `accepted.network` MUST equal `"visa:cert"` or `"visa:prod"` |
-| Time Window | Current time MUST be within `validAfter` and `validBefore` |
-| Amount | Requested amount MUST NOT exceed `accepted.amount` |
-| Asset | Requested asset MUST match `accepted.asset` |
+| Check       | Requirement                                                  |
+| ----------- | ------------------------------------------------------------ |
+| Version     | `x402Version` MUST equal `2`                                 |
+| Scheme      | `accepted.scheme` MUST equal `"visa"`                        |
+| Network     | `accepted.network` MUST equal `"visa:cert"` or `"visa:prod"` |
+| Time Window | Current time MUST be within `validAfter` and `validBefore`   |
+| Amount      | Requested amount MUST NOT exceed `accepted.amount`           |
+| Asset       | Requested asset MUST match `accepted.asset`                  |
 
 ### 5.2 Rate Limit Validation
 
 The facilitator MUST track usage per `instructionId`:
 
-| Check | Requirement |
-|-------|-------------|
-| Mandate Exists | A mandate MUST exist for the `instructionId` |
-| Usage Count | Current usage count MUST be less than `maxUsage` |
+| Check          | Requirement                                      |
+| -------------- | ------------------------------------------------ |
+| Mandate Exists | A mandate MUST exist for the `instructionId`     |
+| Usage Count    | Current usage count MUST be less than `maxUsage` |
 
 ### 5.3 Visa Validation
 
 The facilitator MUST verify credentials with Visa:
 
-| Check | Requirement |
-|-------|-------------|
-| Token Valid | `vProvisionedTokenID` MUST be valid with Visa VTS |
-| Instruction Valid | `instructionId` MUST match Visa response |
-| Signature Valid | `signedPayload` MUST be verified by Visa |
+| Check             | Requirement                                       |
+| ----------------- | ------------------------------------------------- |
+| Token Valid       | `vProvisionedTokenID` MUST be valid with Visa VTS |
+| Instruction Valid | `instructionId` MUST match Visa response          |
+| Signature Valid   | `signedPayload` MUST be verified by Visa          |
 
 ## 6. Settlement Requirements
 
@@ -252,39 +252,41 @@ When settling a payment, the facilitator MUST:
 3. Return a settlement receipt
 
 <Note>
-Current implementation tracks usage counts for rate limiting. Future versions MAY integrate with Visa's payment settlement for actual fund transfers.
+  Current implementation tracks usage counts for rate limiting. Future versions
+  MAY integrate with Visa's payment settlement for actual fund transfers.
 </Note>
 
 ### 6.2 Receipt Format
 
 The facilitator MUST return a receipt containing:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `success` | `boolean` | Whether settlement succeeded. |
-| `transaction` | `string` | Transaction identifier (format: `visa_tx_{timestamp}_{id}`). |
-| `network` | `string` | Network identifier (`"visa:cert"`). |
-| `payer` | `string` | The `vProvisionedTokenID` of the payer. |
-| `remainingUsage` | `number` | Remaining uses before rate limit is reached. |
+| Field            | Type      | Description                                                  |
+| ---------------- | --------- | ------------------------------------------------------------ |
+| `success`        | `boolean` | Whether settlement succeeded.                                |
+| `transaction`    | `string`  | Transaction identifier (format: `visa_tx_{timestamp}_{id}`). |
+| `network`        | `string`  | Network identifier (`"visa:cert"`).                          |
+| `payer`          | `string`  | The `vProvisionedTokenID` of the payer.                      |
+| `remainingUsage` | `number`  | Remaining uses before rate limit is reached.                 |
 
 ## 7. Error Handling
 
 ### 7.1 Error Codes
 
-| Code | Name | Description |
-|------|------|-------------|
-| `invalid_x402_version` | Invalid Version | `x402Version` is not `2` |
-| `authorization_expired` | Authorization Expired | Current time is after `validBefore` |
-| `mandate_not_found` | Mandate Not Found | No mandate exists for `instructionId` |
-| `rate_limit_exceeded` | Rate Limit Exceeded | Usage count has reached `maxUsage` |
-| `amount_exceeds_limit` | Amount Exceeds Limit | Requested amount exceeds `accepted.amount` |
-| `asset_mismatch` | Asset Mismatch | Requested asset doesn't match `accepted.asset` |
-| `instruction_id_mismatch` | Instruction Mismatch | Visa response doesn't match `instructionId` |
-| `visa_verification_failed` | Visa Verification Failed | Error calling Visa API |
+| Code                       | Name                     | Description                                    |
+| -------------------------- | ------------------------ | ---------------------------------------------- |
+| `invalid_x402_version`     | Invalid Version          | `x402Version` is not `2`                       |
+| `authorization_expired`    | Authorization Expired    | Current time is after `validBefore`            |
+| `mandate_not_found`        | Mandate Not Found        | No mandate exists for `instructionId`          |
+| `rate_limit_exceeded`      | Rate Limit Exceeded      | Usage count has reached `maxUsage`             |
+| `amount_exceeds_limit`     | Amount Exceeds Limit     | Requested amount exceeds `accepted.amount`     |
+| `asset_mismatch`           | Asset Mismatch           | Requested asset doesn't match `accepted.asset` |
+| `instruction_id_mismatch`  | Instruction Mismatch     | Visa response doesn't match `instructionId`    |
+| `visa_verification_failed` | Visa Verification Failed | Error calling Visa API                         |
 
 ### 7.2 Verify Response Format
 
 **Success:**
+
 ```json
 {
   "isValid": true,
@@ -294,6 +296,7 @@ The facilitator MUST return a receipt containing:
 ```
 
 **Failure:**
+
 ```json
 {
   "isValid": false,
@@ -306,6 +309,7 @@ The facilitator MUST return a receipt containing:
 ### 7.3 Settle Response Format
 
 **Success:**
+
 ```json
 {
   "success": true,
@@ -317,6 +321,7 @@ The facilitator MUST return a receipt containing:
 ```
 
 **Failure:**
+
 ```json
 {
   "success": false,
@@ -331,20 +336,22 @@ The facilitator MUST return a receipt containing:
 
 This extension uses the standard x402 HTTP transport headers:
 
-| Header | Direction | Description |
-|--------|-----------|-------------|
-| `PAYMENT-REQUIRED` | Server → Client | Base64-encoded payment requirements (402 response) |
-| `PAYMENT-SIGNATURE` | Client → Server | Base64-encoded `PaymentPayload` |
-| `PAYMENT-RESPONSE` | Server → Client | Base64-encoded settlement response |
+| Header              | Direction       | Description                                        |
+| ------------------- | --------------- | -------------------------------------------------- |
+| `PAYMENT-REQUIRED`  | Server → Client | Base64-encoded payment requirements (402 response) |
+| `PAYMENT-SIGNATURE` | Client → Server | Base64-encoded `PaymentPayload`                    |
+| `PAYMENT-RESPONSE`  | Server → Client | Base64-encoded settlement response                 |
 
 Payloads MUST be encoded using standard Base64:
 
 ```typescript
 // Encode
-const encoded = Buffer.from(JSON.stringify(payload), 'utf-8').toString('base64')
+const encoded = Buffer.from(JSON.stringify(payload), "utf-8").toString(
+  "base64",
+);
 
 // Decode
-const decoded = JSON.parse(Buffer.from(encoded, 'base64').toString('utf-8'))
+const decoded = JSON.parse(Buffer.from(encoded, "base64").toString("utf-8"));
 ```
 
 ## 9. Security Considerations

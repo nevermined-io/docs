@@ -52,19 +52,19 @@ Key roles (from the README):
 
 ## Run it
 
-1) Start the merchant server (facilitator + AP2 handler):
+1. Start the merchant server (facilitator + AP2 handler):
 
 ```bash
 uv --directory=python/examples/adk-demo run server
 ```
 
-2) Start the client agent + web UI:
+2. Start the client agent + web UI:
 
 ```bash
 uv --directory=python/examples/adk-demo run adk web --port=8000
 ```
 
-3) In the UI, trigger a purchase (e.g., “buy a laptop”). The flow:
+3. In the UI, trigger a purchase (e.g., “buy a laptop”). The flow:
 
 - Merchant replies with AP2 `payment-required` (plan/agent/amount/network)
 - Client **generates x402 session token** via Nevermined (`payments_py.x402.get_x402_access_token`)

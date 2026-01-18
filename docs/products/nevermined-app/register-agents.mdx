@@ -27,6 +27,7 @@ Register your AI agents through the Nevermined App's visual interface. This guid
     | **Name** | Display name for your agent | "Legal Document Analyzer" |
     | **Description** | What your agent does | "AI-powered legal document analysis and summarization" |
     | **Tags** | Categories for discovery | `legal`, `ai`, `documents` |
+
   </Step>
 
   <Step title="Configure API Endpoints">
@@ -41,6 +42,7 @@ Register your AI agents through the Nevermined App's visual interface. This guid
     <Note>
       Your endpoints must be publicly accessible. Nevermined will route requests to these URLs with the subscriber's access token.
     </Note>
+
   </Step>
 
   <Step title="Add Agent Definition (Optional)">
@@ -53,6 +55,7 @@ Register your AI agents through the Nevermined App's visual interface. This guid
     | **A2A Agent Card** | `https://api.myservice.com/.well-known/agent.json` |
 
     This enables automatic discovery and integration with AI frameworks.
+
   </Step>
 
   <Step title="Review and Register">
@@ -119,13 +122,13 @@ Once your agent is registered, you can:
 
 The Agents tab shows all your registered agents:
 
-| Column | Description |
-|--------|-------------|
-| **Name** | Agent display name |
-| **ID** | Unique identifier (did:nv:...) |
-| **Plans** | Number of payment plans attached |
-| **Queries** | Total requests received |
-| **Status** | Active, Paused, or Pending |
+| Column      | Description                      |
+| ----------- | -------------------------------- |
+| **Name**    | Agent display name               |
+| **ID**      | Unique identifier (did:nv:...)   |
+| **Plans**   | Number of payment plans attached |
+| **Queries** | Total requests received          |
+| **Status**  | Active, Paused, or Pending       |
 
 Click any agent to view details, edit configuration, or create payment plans.
 
@@ -136,13 +139,15 @@ Click any agent to view details, edit configuration, or create payment plans.
     Choose names that clearly describe what your agent does. This helps subscribers find and understand your service.
   </Accordion>
 
-  <Accordion title="Document Your Endpoints" icon="book">
-    Provide clear descriptions for each endpoint. Include expected inputs, outputs, and any rate limits.
-  </Accordion>
+<Accordion title="Document Your Endpoints" icon="book">
+  Provide clear descriptions for each endpoint. Include expected inputs,
+  outputs, and any rate limits.
+</Accordion>
 
-  <Accordion title="Include Agent Definition" icon="link">
-    Link to an OpenAPI spec, MCP manifest, or A2A card. This enables automatic integration with AI frameworks and improves discoverability.
-  </Accordion>
+<Accordion title="Include Agent Definition" icon="link">
+  Link to an OpenAPI spec, MCP manifest, or A2A card. This enables automatic
+  integration with AI frameworks and improves discoverability.
+</Accordion>
 
   <Accordion title="Use HTTPS" icon="lock">
     All endpoints should use HTTPS for secure communication. HTTP endpoints are not supported.
@@ -156,9 +161,10 @@ Click any agent to view details, edit configuration, or create payment plans.
     Verify your endpoint URL is correct and publicly accessible. Test with `curl` or a similar tool.
   </Accordion>
 
-  <Accordion title="Registration fails" icon="circle-xmark">
-    Check that all required fields are filled and your endpoint URLs are valid HTTPS URLs.
-  </Accordion>
+<Accordion title="Registration fails" icon="circle-xmark">
+  Check that all required fields are filled and your endpoint URLs are valid
+  HTTPS URLs.
+</Accordion>
 
   <Accordion title="Agent not appearing" icon="eye-slash">
     Refresh the Agents page. New agents may take a few seconds to appear.

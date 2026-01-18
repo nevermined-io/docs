@@ -21,10 +21,10 @@ result = payments.requests.is_valid_request(
 
 **Parameters:**
 
-| Name | Type | Description |
-|------|------|-------------|
-| `access_token` | `str` | Bearer token from Authorization header |
-| `request_body` | `dict` | The request body being validated |
+| Name           | Type   | Description                            |
+| -------------- | ------ | -------------------------------------- |
+| `access_token` | `str`  | Bearer token from Authorization header |
+| `request_body` | `dict` | The request body being validated       |
 
 **Returns:**
 
@@ -96,14 +96,14 @@ request = payments.requests.get_request_by_id(request_id)
 
 ## Validation Response Codes
 
-| `reason` | Meaning |
-|----------|---------|
-| `None` | Valid request |
-| `TOKEN_EXPIRED` | Access token has expired |
-| `INSUFFICIENT_BALANCE` | Not enough credits |
-| `PLAN_EXPIRED` | Time-based plan has expired |
-| `INVALID_TOKEN` | Token is malformed or invalid |
-| `UNAUTHORIZED` | Token doesn't grant access to this agent |
+| `reason`               | Meaning                                  |
+| ---------------------- | ---------------------------------------- |
+| `None`                 | Valid request                            |
+| `TOKEN_EXPIRED`        | Access token has expired                 |
+| `INSUFFICIENT_BALANCE` | Not enough credits                       |
+| `PLAN_EXPIRED`         | Time-based plan has expired              |
+| `INVALID_TOKEN`        | Token is malformed or invalid            |
+| `UNAUTHORIZED`         | Token doesn't grant access to this agent |
 
 ## Usage Patterns
 
@@ -199,10 +199,18 @@ def require_min_credits(token: str, body: dict, min_credits: int) -> dict:
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Validate Requests Pattern" icon="code" href="/docs/integrate/patterns/validate-requests">
+  <Card
+    title="Validate Requests Pattern"
+    icon="code"
+    href="/docs/integrate/patterns/validate-requests"
+  >
     Complete validation patterns
   </Card>
-  <Card title="Charge Credits" icon="coins" href="/docs/integrate/patterns/charge-credits">
+  <Card
+    title="Charge Credits"
+    icon="coins"
+    href="/docs/integrate/patterns/charge-credits"
+  >
     Credit charging patterns
   </Card>
 </CardGroup>

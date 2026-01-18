@@ -62,21 +62,21 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### 2.1 Roles
 
-| Role | Description |
-|------|-------------|
-| **Client** | The entity requesting access to a protected resource. Signs payment authorizations locally. |
-| **Server** | The entity providing the protected resource (API, agent, service). Coordinates with the facilitator. |
-| **Facilitator** | A third-party service that verifies payment authorizations and executes settlement on-chain. |
-| **Smart Account** | An ERC-4337 compliant smart contract wallet controlled by the client. |
+| Role              | Description                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
+| **Client**        | The entity requesting access to a protected resource. Signs payment authorizations locally.          |
+| **Server**        | The entity providing the protected resource (API, agent, service). Coordinates with the facilitator. |
+| **Facilitator**   | A third-party service that verifies payment authorizations and executes settlement on-chain.         |
+| **Smart Account** | An ERC-4337 compliant smart contract wallet controlled by the client.                                |
 
 ### 2.2 Definitions
 
-| Term | Definition |
-|------|------------|
-| **UserOperation** | An ERC-4337 structure representing an intent to execute a transaction from a smart account. |
-| **Session Key** | A delegated signing key with scoped permissions, allowing a third party to execute specific actions on behalf of the smart account owner. |
-| **Order** | A UserOperation that purchases access (e.g., buying a subscription or credit package). |
-| **Redeem** / **Burn** | A UserOperation that consumes access (e.g., deducting credits for a request). |
+| Term                  | Definition                                                                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **UserOperation**     | An ERC-4337 structure representing an intent to execute a transaction from a smart account.                                               |
+| **Session Key**       | A delegated signing key with scoped permissions, allowing a third party to execute specific actions on behalf of the smart account owner. |
+| **Order**             | A UserOperation that purchases access (e.g., buying a subscription or credit package).                                                    |
+| **Redeem** / **Burn** | A UserOperation that consumes access (e.g., deducting credits for a request).                                                             |
 
 ## 3. Extension Structure
 
@@ -85,7 +85,6 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 The scheme identifier is: `nvm:erc4337`
 
 ### 3.2 Payload Schema
-
 
 #### PaymentRequired Response (402)
 
@@ -100,16 +99,18 @@ When a server requires payment, it returns:
     "description": "AI agent task execution",
     "mimeType": "application/json"
   },
-  "accepts": [{
-    "scheme": "nvm:erc4337",
-    "network": "eip155:84532",
-    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
-    "extra": {
-      "version": "1",
-      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
-      "httpVerb": "POST"
+  "accepts": [
+    {
+      "scheme": "nvm:erc4337",
+      "network": "eip155:84532",
+      "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+      "extra": {
+        "version": "1",
+        "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
+        "httpVerb": "POST"
+      }
     }
-  }],
+  ],
   "extensions": {}
 }
 ```
@@ -161,86 +162,88 @@ The client responds with a PaymentPayload containing the selected scheme and aut
 
 #### PaymentRequired Root Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `x402Version` | `number` | Yes | Protocol version. MUST be `2`. |
-| `error` | `string` | Yes | Human-readable error message. |
-| `resource` | `object` | Yes | Protected resource information. |
-| `accepts` | `array` | Yes | Array of accepted payment schemes. |
-| `extensions` | `object` | Yes | Empty object `{}` for x402 spec alignment. |
+| Field         | Type     | Required | Description                                |
+| ------------- | -------- | -------- | ------------------------------------------ |
+| `x402Version` | `number` | Yes      | Protocol version. MUST be `2`.             |
+| `error`       | `string` | Yes      | Human-readable error message.              |
+| `resource`    | `object` | Yes      | Protected resource information.            |
+| `accepts`     | `array`  | Yes      | Array of accepted payment schemes.         |
+| `extensions`  | `object` | Yes      | Empty object `{}` for x402 spec alignment. |
 
 #### Resource Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `url` | `string` | Yes | The protected resource URL. |
-| `description` | `string` | No | Human-readable description. |
-| `mimeType` | `string` | No | Expected response MIME type (e.g., `"application/json"`). |
+| Field         | Type     | Required | Description                                               |
+| ------------- | -------- | -------- | --------------------------------------------------------- |
+| `url`         | `string` | Yes      | The protected resource URL.                               |
+| `description` | `string` | No       | Human-readable description.                               |
+| `mimeType`    | `string` | No       | Expected response MIME type (e.g., `"application/json"`). |
 
 #### Scheme Fields (in `accepts[]` / `accepted`)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `scheme` | `string` | Yes | Payment scheme. MUST be `"nvm:erc4337"`. |
-| `network` | `string` | Yes | Blockchain network identifier using CAIP-2 (e.g., `"eip155:84532"`). |
-| `planId` | `string` | Yes | 256-bit plan identifier. |
-| `extra` | `object` | Yes | Additional scheme-specific fields. |
+| Field     | Type     | Required | Description                                                          |
+| --------- | -------- | -------- | -------------------------------------------------------------------- |
+| `scheme`  | `string` | Yes      | Payment scheme. MUST be `"nvm:erc4337"`.                             |
+| `network` | `string` | Yes      | Blockchain network identifier using CAIP-2 (e.g., `"eip155:84532"`). |
+| `planId`  | `string` | Yes      | 256-bit plan identifier.                                             |
+| `extra`   | `object` | Yes      | Additional scheme-specific fields.                                   |
 
 #### Extra Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `version` | `string` | Yes | Scheme version (e.g., `"1"`). |
-| `agentId` | `string` | No | 256-bit agent identifier (if plan has multiple agents). |
-| `httpVerb` | `string` | No | HTTP method for the endpoint. |
+| Field      | Type     | Required | Description                                             |
+| ---------- | -------- | -------- | ------------------------------------------------------- |
+| `version`  | `string` | Yes      | Scheme version (e.g., `"1"`).                           |
+| `agentId`  | `string` | No       | 256-bit agent identifier (if plan has multiple agents). |
+| `httpVerb` | `string` | No       | HTTP method for the endpoint.                           |
 
 #### PaymentPayload Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `x402Version` | `number` | Yes | Protocol version. MUST be `2`. |
-| `resource` | `object` | No | Echoed from PaymentRequired. |
-| `accepted` | `object` | Yes | Selected scheme from `accepts[]`. |
-| `payload` | `object` | Yes | Scheme-specific authorization data. |
-| `extensions` | `object` | Yes | Empty object `{}` for x402 spec alignment. |
+| Field         | Type     | Required | Description                                |
+| ------------- | -------- | -------- | ------------------------------------------ |
+| `x402Version` | `number` | Yes      | Protocol version. MUST be `2`.             |
+| `resource`    | `object` | No       | Echoed from PaymentRequired.               |
+| `accepted`    | `object` | Yes      | Selected scheme from `accepts[]`.          |
+| `payload`     | `object` | Yes      | Scheme-specific authorization data.        |
+| `extensions`  | `object` | Yes      | Empty object `{}` for x402 spec alignment. |
 
 #### Payload Fields (Authorization)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `signature` | `string` | Yes | EIP-712 signature of the payment payload, signed by the client. |
-| `authorization` | `object` | Yes | Session key authorization data. |
+| Field           | Type     | Required | Description                                                     |
+| --------------- | -------- | -------- | --------------------------------------------------------------- |
+| `signature`     | `string` | Yes      | EIP-712 signature of the payment payload, signed by the client. |
+| `authorization` | `object` | Yes      | Session key authorization data.                                 |
 
 #### Authorization Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `from` | `string` | Yes | Client's smart account address (ERC-4337 compliant). |
-| `sessionKeysProvider` | `string` | Yes | Session key provider identifier (e.g., `"zerodev"`, `"biconomy"`). |
-| `sessionKeys` | `array` | Yes | Array of session key objects. MUST contain at least one session key. |
+| Field                 | Type     | Required | Description                                                          |
+| --------------------- | -------- | -------- | -------------------------------------------------------------------- |
+| `from`                | `string` | Yes      | Client's smart account address (ERC-4337 compliant).                 |
+| `sessionKeysProvider` | `string` | Yes      | Session key provider identifier (e.g., `"zerodev"`, `"biconomy"`).   |
+| `sessionKeys`         | `array`  | Yes      | Array of session key objects. MUST contain at least one session key. |
 
 #### Session Key Object
 
 Each session key object MUST contain an `id` field and either `data` OR `hash`:
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | `string` | Yes | Operation identifier. Common values: `"order"`, `"redeem"`. |
-| `data` | `string` | Conditional | Base64-encoded session key data. Required if `hash` is not provided. |
+| Field  | Type     | Required    | Description                                                                           |
+| ------ | -------- | ----------- | ------------------------------------------------------------------------------------- |
+| `id`   | `string` | Yes         | Operation identifier. Common values: `"order"`, `"redeem"`.                           |
+| `data` | `string` | Conditional | Base64-encoded session key data. Required if `hash` is not provided.                  |
 | `hash` | `string` | Conditional | Keccak256 hash of the base64-encoded session key. Required if `data` is not provided. |
 
 <Note>
-When `data` is provided, the facilitator can reconstruct and verify the session key directly. When only `hash` is provided, the facilitator MUST have a mechanism to retrieve the session key from off-chain storage using the hash.
+  When `data` is provided, the facilitator can reconstruct and verify the
+  session key directly. When only `hash` is provided, the facilitator MUST have
+  a mechanism to retrieve the session key from off-chain storage using the hash.
 </Note>
 
 ### 3.4 Session Key Operations
 
 The extension defines standard operation identifiers:
 
-| Operation ID | Purpose | Description |
-|--------------|---------|-------------|
-| `order` | Purchase | Executes a purchase operation (subscribe, buy credits, etc.). Used for auto top-up. |
-| `redeem` | Consume | Consumes access (deduct credits, mark subscription usage). Required for settlement. |
+| Operation ID | Purpose  | Description                                                                         |
+| ------------ | -------- | ----------------------------------------------------------------------------------- |
+| `order`      | Purchase | Executes a purchase operation (subscribe, buy credits, etc.). Used for auto top-up. |
+| `redeem`     | Consume  | Consumes access (deduct credits, mark subscription usage). Required for settlement. |
 
 Implementations MAY define additional operation identifiers for custom use cases.
 
@@ -382,20 +385,23 @@ PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkLi4u
     "description": "Protected resource",
     "mimeType": "application/json"
   },
-  "accepts": [{
-    "scheme": "nvm:erc4337",
-    "network": "eip155:84532",
-    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
-    "extra": {
-      "version": "1",
-      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+  "accepts": [
+    {
+      "scheme": "nvm:erc4337",
+      "network": "eip155:84532",
+      "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+      "extra": {
+        "version": "1",
+        "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+      }
     }
-  }],
+  ],
   "extensions": {}
 }
 ```
 
 **Step 4.** The Client:
+
 - Selects one of the `accepts` schemes returned by the server response
 - Creates a PaymentPayload with the selected scheme in `accepted`
 - Creates and signs locally a `UserOperation` representing the Payment Intent (using ERC-4337 and EIP-712)
@@ -431,6 +437,7 @@ The facilitator extracts `planId`, `subscriberAddress` (from `payload.authorizat
 **Step 7.** Facilitator checks the request and confirms if it includes "redeem" permissions.
 
 **Step 8.** IF the request DOES NOT include "redeem" permissions:
+
 - Facilitator rejects the request and returns an error to the server
 - Server returns to the client a `HTTP 402` response with `PAYMENT-REQUIRED` header
 
@@ -439,6 +446,7 @@ The facilitator extracts `planId`, `subscriberAddress` (from `payload.authorizat
 **Step 10.** Blockchain returns the Client balance to the Facilitator.
 
 **Step 11.** Facilitator checks if the "order" UserOperation is included. IF the "order" is NOT included AND the client has insufficient balance:
+
 - Facilitator rejects the request and returns an error to the server
 - Server returns to the client a `HTTP 402 PAYMENT-FAILED` response
 
@@ -459,11 +467,14 @@ The facilitator extracts `planId`, `subscriberAddress` (from `payload.authorizat
 **Step 19.** IF the "redeem" UserOperation verification is INVALID, the Facilitator returns an error to the server.
 
 **Step 20.** The Server, after obtaining the verification result from the Facilitator (and BEFORE executing any task), checks the verification result:
+
 - If the verification was INVALID, the Server returns to the client a `HTTP 402 PAYMENT-FAILED` response
 - If the verification was correct, the Server continues with the request execution
 
 <Note>
-The verification phase ensures that the payment CAN be settled before the server performs any work. This protects the server from executing expensive operations without guaranteed payment.
+  The verification phase ensures that the payment CAN be settled before the
+  server performs any work. This protects the server from executing expensive
+  operations without guaranteed payment.
 </Note>
 
 ---
@@ -535,21 +546,24 @@ PAYMENT-RESPONSE: eyJzdWNjZXNzIjp0cnVlLCJ0cmFuc2FjdGlvbkhhc2giOi4uLg==
 The `PAYMENT-RESPONSE` header contains x402-standard settlement fields. Additional Nevermined-specific info (like `creditsBurned`) can be included in the response body.
 
 <Warning>
-Steps 29-30 represent a failure scenario where the server has already performed work but settlement failed. Implementations SHOULD have mechanisms to handle this edge case, such as retry logic or dispute resolution.
+  Steps 29-30 represent a failure scenario where the server has already
+  performed work but settlement failed. Implementations SHOULD have mechanisms
+  to handle this edge case, such as retry logic or dispute resolution.
 </Warning>
 
 ### 4.3 HTTP Header Summary
 
 Per [x402 HTTP Transport v2](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md), all payment data is transmitted via HTTP headers using base64 encoding:
 
-| Header | Direction | Content |
-|--------|-----------|---------|
-| `PAYMENT-REQUIRED` | Server → Client (402) | Base64-encoded `PaymentRequired` object |
-| `PAYMENT-SIGNATURE` | Client → Server | Base64-encoded `PaymentPayload` object |
-| `PAYMENT-RESPONSE` | Server → Client (200) | Base64-encoded settlement receipt |
+| Header              | Direction             | Content                                 |
+| ------------------- | --------------------- | --------------------------------------- |
+| `PAYMENT-REQUIRED`  | Server → Client (402) | Base64-encoded `PaymentRequired` object |
+| `PAYMENT-SIGNATURE` | Client → Server       | Base64-encoded `PaymentPayload` object  |
+| `PAYMENT-RESPONSE`  | Server → Client (200) | Base64-encoded settlement receipt       |
 
 <Note>
-All three headers use **base64 encoding**. The response body contains the actual resource data plus optional Nevermined-specific payment info.
+  All three headers use **base64 encoding**. The response body contains the
+  actual resource data plus optional Nevermined-specific payment info.
 </Note>
 
 ## 5. Verification Requirements
@@ -558,35 +572,35 @@ All three headers use **base64 encoding**. The response body contains the actual
 
 The facilitator MUST verify:
 
-| Check | Requirement |
-|-------|-------------|
-| Version | `x402Version` MUST equal `2` |
-| Scheme | `scheme` MUST equal `"nvm:erc4337"` |
-| Network | `network` MUST be a supported network using CAIP-2 format |
-| Subscriber | `payload.authorization.from` MUST be a valid ERC-4337 smart account address |
-| Signature | `payload.signature` MUST be a valid EIP-712 signature |
+| Check        | Requirement                                                                     |
+| ------------ | ------------------------------------------------------------------------------- |
+| Version      | `x402Version` MUST equal `2`                                                    |
+| Scheme       | `scheme` MUST equal `"nvm:erc4337"`                                             |
+| Network      | `network` MUST be a supported network using CAIP-2 format                       |
+| Subscriber   | `payload.authorization.from` MUST be a valid ERC-4337 smart account address     |
+| Signature    | `payload.signature` MUST be a valid EIP-712 signature                           |
 | Session Keys | At least one session key MUST be present in `payload.authorization.sessionKeys` |
 
 ### 5.2 Session Key Validation
 
 For each session key, the facilitator MUST verify:
 
-| Check | Requirement |
-|-------|-------------|
-| Structure | Session key MUST contain valid `id` and either `data` or `hash` |
-| Validity | Session key MUST not be expired |
-| Permissions | Session key MUST grant the required permissions |
-| Scope | Session key MUST be scoped to the correct smart contracts |
+| Check       | Requirement                                                     |
+| ----------- | --------------------------------------------------------------- |
+| Structure   | Session key MUST contain valid `id` and either `data` or `hash` |
+| Validity    | Session key MUST not be expired                                 |
+| Permissions | Session key MUST grant the required permissions                 |
+| Scope       | Session key MUST be scoped to the correct smart contracts       |
 
 ### 5.3 Balance and Permission Checks
 
 The facilitator MUST verify:
 
-| Check | Requirement |
-|-------|-------------|
-| Redeem Permission | A `redeem` session key MUST be present |
-| Balance | Client MUST have sufficient balance OR valid `order` permission |
-| UserOperation | All UserOperations MUST pass on-chain simulation |
+| Check             | Requirement                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| Redeem Permission | A `redeem` session key MUST be present                          |
+| Balance           | Client MUST have sufficient balance OR valid `order` permission |
+| UserOperation     | All UserOperations MUST pass on-chain simulation                |
 
 ## 6. Settlement Requirements
 
@@ -603,40 +617,42 @@ When executing settlement, the facilitator MUST:
 ### 6.2 Atomicity
 
 <Warning>
-The facilitator SHOULD ensure that partial settlement does not leave the system in an inconsistent state. If the `order` succeeds but `redeem` fails, the facilitator MUST handle the error appropriately.
+  The facilitator SHOULD ensure that partial settlement does not leave the
+  system in an inconsistent state. If the `order` succeeds but `redeem` fails,
+  the facilitator MUST handle the error appropriately.
 </Warning>
 
 ### 6.3 Receipt Format
 
 The facilitator MUST return a receipt. The `PAYMENT-RESPONSE` header contains x402-standard fields:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `success` | `boolean` | Whether settlement succeeded. |
-| `transactionHash` | `string` | Transaction hash of the redeem operation. |
-| `network` | `string` | Network where transactions were executed (CAIP-2 format). |
+| Field             | Type      | Description                                               |
+| ----------------- | --------- | --------------------------------------------------------- |
+| `success`         | `boolean` | Whether settlement succeeded.                             |
+| `transactionHash` | `string`  | Transaction hash of the redeem operation.                 |
+| `network`         | `string`  | Network where transactions were executed (CAIP-2 format). |
 
 Additional settlement details MAY be included in the response body:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `creditsRedeemed` | `string` | Number of credits redeemed. |
-| `remainingBalance` | `string` | Subscriber's remaining balance. |
-| `orderTx` | `string` | Transaction hash of the order operation (if executed). |
+| Field              | Type     | Description                                            |
+| ------------------ | -------- | ------------------------------------------------------ |
+| `creditsRedeemed`  | `string` | Number of credits redeemed.                            |
+| `remainingBalance` | `string` | Subscriber's remaining balance.                        |
+| `orderTx`          | `string` | Transaction hash of the order operation (if executed). |
 
 ## 7. Error Handling
 
 ### 7.1 Error Codes
 
-| Code | Name | Description |
-|------|------|-------------|
-| `INVALID_PAYLOAD` | Invalid Payload | The payment payload structure is invalid |
-| `INVALID_SIGNATURE` | Invalid Signature | The EIP-712 signature verification failed |
-| `INSUFFICIENT_BALANCE` | Insufficient Balance | Client lacks balance and valid `order` permission |
-| `INVALID_USER_OPERATION` | Invalid UserOperation | UserOperation failed on-chain simulation |
-| `EXPIRED_SESSION_KEY` | Expired Session Key | Session key has expired |
-| `SETTLEMENT_FAILED` | Settlement Failed | On-chain settlement transaction failed |
-| `UNSUPPORTED_NETWORK` | Unsupported Network | The specified network is not supported |
+| Code                     | Name                  | Description                                       |
+| ------------------------ | --------------------- | ------------------------------------------------- |
+| `INVALID_PAYLOAD`        | Invalid Payload       | The payment payload structure is invalid          |
+| `INVALID_SIGNATURE`      | Invalid Signature     | The EIP-712 signature verification failed         |
+| `INSUFFICIENT_BALANCE`   | Insufficient Balance  | Client lacks balance and valid `order` permission |
+| `INVALID_USER_OPERATION` | Invalid UserOperation | UserOperation failed on-chain simulation          |
+| `EXPIRED_SESSION_KEY`    | Expired Session Key   | Session key has expired                           |
+| `SETTLEMENT_FAILED`      | Settlement Failed     | On-chain settlement transaction failed            |
+| `UNSUPPORTED_NETWORK`    | Unsupported Network   | The specified network is not supported            |
 
 ### 7.2 Error Response Format
 
@@ -692,11 +708,11 @@ This extension is designed to work with any ERC-4337 compliant smart account imp
 
 Common session key providers and their formats:
 
-| Provider | Description |
-|----------|-------------|
-| `zerodev` | ZeroDev Kernel session keys |
+| Provider   | Description                         |
+| ---------- | ----------------------------------- |
+| `zerodev`  | ZeroDev Kernel session keys         |
 | `biconomy` | Biconomy smart account session keys |
-| `safe` | Safe{Wallet} session modules |
+| `safe`     | Safe{Wallet} session modules        |
 
 Implementations SHOULD document which providers they support.
 

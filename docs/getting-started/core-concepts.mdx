@@ -11,7 +11,7 @@ Nevermined helps you monetize **AI-enabled services** — whether that’s an ag
 
 ## What is a Service or Resource?
 
-In the Nevermined ecosystem, a *service* is anything you expose for paid access. That might be:
+In the Nevermined ecosystem, a _service_ is anything you expose for paid access. That might be:
 
 - **AI Agents**: autonomous or human-in-the-loop agents you call via HTTP.
 - **MCP Tools / Servers**: monetizable tool endpoints accessed via the MCP.
@@ -70,6 +70,7 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
 
     - **Credits**: prepaid balance redeemed per request/access
     - **Pay-as-you-go (PAYG)**: settle in USDC as it happens
+
   </Card>
 </CardGroup>
 
@@ -80,12 +81,14 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     - **Fixed Credits**: set amount of credits (e.g., 100 credits)
     - **Credits per Request**: set how many credits each request consumes
     - **Flexible Redemption**: redeem different amounts based on usage
+
   </Accordion>
   <Accordion title="Pay-as-you-go (PAYG)">
     Ideal when you want to avoid pre-purchased credits and settle usage as it occurs:
 
     - **Per-request settlement**: settle in USDC as each request happens
     - **No credit balance**: customers pay on demand rather than topping up credits
+
   </Accordion>
   <Accordion title="Time-Based Plans">
     Ideal for subscription models:
@@ -93,12 +96,14 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     - **Duration**: set expiration time (days, months, years)
     - **Unlimited Usage**: within the time period
     - **Auto-expiry**: plan expires after duration
+
   </Accordion>
   <Accordion title="Hybrid Plans">
     Combine time and credits:
 
     - **Credits with Expiry**: e.g., 1000 credits valid for 30 days
     - **Rate Limiting**: control usage within time periods
+
   </Accordion>
 </AccordionGroup>
 
@@ -112,16 +117,19 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
 
 <Steps>
   <Step title="Register the service/resource">
-    Define your service interface (API, MCP tool, or protected asset) and metadata.
+    Define your service interface (API, MCP tool, or protected asset) and
+    metadata.
   </Step>
   <Step title="Create plans">
-    Create one or more payment plans: pricing, credits, duration, and consumption rules.
+    Create one or more payment plans: pricing, credits, duration, and
+    consumption rules.
   </Step>
   <Step title="Customers purchase access">
     Users buy plans using fiat or crypto and receive entitlements.
   </Step>
   <Step title="Validate before delivery">
-    Validate entitlement (tokens / headers / proxy validation) before serving requests or granting access.
+    Validate entitlement (tokens / headers / proxy validation) before serving
+    requests or granting access.
   </Step>
   <Step title="Meter usage">
     Automatically redeem credits per request/access and track consumption.

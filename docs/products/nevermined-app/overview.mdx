@@ -13,13 +13,13 @@ The [Nevermined App](https://nevermined.app) is a visual interface for managing 
     Add your AI agents with metadata, endpoints, and access control settings
   </Card>
 
-  <Card title="Create Payment Plans" icon="credit-card">
-    Define pricing with credits, subscriptions, or dynamic models
-  </Card>
+<Card title="Create Payment Plans" icon="credit-card">
+  Define pricing with credits, subscriptions, or dynamic models
+</Card>
 
-  <Card title="Manage Access" icon="key">
-    Generate API keys, view subscribers, and control permissions
-  </Card>
+<Card title="Manage Access" icon="key">
+  Generate API keys, view subscribers, and control permissions
+</Card>
 
   <Card title="Track Revenue" icon="chart-line">
     Monitor usage, payments, and analytics in real-time
@@ -39,6 +39,7 @@ The [Nevermined App](https://nevermined.app) is a visual interface for managing 
     ```bash
     export NVM_API_KEY="nvm:your-api-key-here"
     ```
+
   </Step>
 
   <Step title="Register an Agent">
@@ -85,13 +86,13 @@ Configure your account and API access:
 
 ## When to Use the App vs SDK
 
-| Use Case | Nevermined App | Payment Libraries |
-|----------|----------------|-------------------|
-| Quick setup and testing | Best | Good |
-| Non-technical users | Best | Not recommended |
-| CI/CD automation | Not possible | Best |
-| Custom workflows | Limited | Best |
-| Bulk operations | Manual | Automated |
+| Use Case                | Nevermined App | Payment Libraries |
+| ----------------------- | -------------- | ----------------- |
+| Quick setup and testing | Best           | Good              |
+| Non-technical users     | Best           | Not recommended   |
+| CI/CD automation        | Not possible   | Best              |
+| Custom workflows        | Limited        | Best              |
+| Bulk operations         | Manual         | Automated         |
 
 ## Key Features
 
@@ -128,16 +129,16 @@ The App works seamlessly with the Payment Libraries:
 
 ```typescript
 // Agents registered in the App can be accessed via SDK
-const agent = await payments.agents.getAgent('did:nv:your-agent-id')
+const agent = await payments.agents.getAgent("did:nv:your-agent-id");
 
 // Plans created in the App work with SDK ordering
-await payments.plans.orderPlan(agent.plans[0].planId)
+await payments.plans.orderPlan(agent.plans[0].planId);
 
 // Credentials work the same way
 const { accessToken } = await payments.agents.getAgentAccessToken(
   planId,
-  agentId
-)
+  agentId,
+);
 ```
 
 ## Security
@@ -153,13 +154,21 @@ const { accessToken } = await payments.agents.getAgentAccessToken(
     Step-by-step guide to registering your first agent
   </Card>
 
-  <Card title="Manage Plans" icon="credit-card" href="/docs/products/nevermined-app/manage-plans">
-    Create and configure payment plans
-  </Card>
+<Card
+  title="Manage Plans"
+  icon="credit-card"
+  href="/docs/products/nevermined-app/manage-plans"
+>
+  Create and configure payment plans
+</Card>
 
-  <Card title="Payment Libraries" icon="code" href="/docs/products/payment-libraries/overview">
-    Integrate programmatically with the SDKs
-  </Card>
+<Card
+  title="Payment Libraries"
+  icon="code"
+  href="/docs/products/payment-libraries/overview"
+>
+  Integrate programmatically with the SDKs
+</Card>
 
   <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
     Complete quickstart guide

@@ -7,12 +7,11 @@ icon: "shield-check"
 Copy-paste patterns for validating payment requests for APIs, agents/tools, and protected resources.
 
 <Note>
-  Looking for framework-specific implementations?
-  
-  - [Express.js Integration](/docs/integrate/add-to-your-agent/express)
-  - [FastAPI Integration](/docs/integrate/add-to-your-agent/fastapi)
-  - [Next.js Integration](/docs/integrate/add-to-your-agent/nextjs)
-  - [Generic HTTP Integration](/docs/integrate/add-to-your-agent/generic-http)
+  Looking for framework-specific implementations? - [Express.js
+  Integration](/docs/integrate/add-to-your-agent/express) - [FastAPI
+  Integration](/docs/integrate/add-to-your-agent/fastapi) - [Next.js
+  Integration](/docs/integrate/add-to-your-agent/nextjs) - [Generic HTTP
+  Integration](/docs/integrate/add-to-your-agent/generic-http)
 </Note>
 
 ## Basic validation (framework-agnostic)
@@ -48,6 +47,7 @@ At a minimum, validation has three steps:
     // - Call validateRequest(token, body)
     // - If invalid, return 402
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -72,6 +72,7 @@ At a minimum, validation has three steps:
     # - Call await validate_request(token, body)
     # - If invalid, return 402
     ```
+
   </Tab>
 </Tabs>
 
@@ -111,6 +112,7 @@ Check that the user has enough credits for the operation:
       // return 402
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -136,6 +138,7 @@ Check that the user has enough credits for the operation:
         # return 402
         pass
     ```
+
   </Tab>
 </Tabs>
 
@@ -198,6 +201,7 @@ Handle all possible validation outcomes:
       }
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -246,6 +250,7 @@ Handle all possible validation outcomes:
                 'code': 'SERVICE_ERROR'
             }
     ```
+
   </Tab>
 </Tabs>
 
@@ -285,6 +290,7 @@ For high-traffic endpoints, cache validation briefly:
       return crypto.createHash('sha256').update(token).digest('hex').slice(0, 16)
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -313,6 +319,7 @@ For high-traffic endpoints, cache validation briefly:
     def hash_token(token: str) -> str:
         return hashlib.sha256(token.encode()).hexdigest()[:16]
     ```
+
   </Tab>
 </Tabs>
 

@@ -51,6 +51,7 @@ For subscription plans, validate that the user's access hasn't expired:
       return { valid: true }
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -88,6 +89,7 @@ For subscription plans, validate that the user's access hasn't expired:
 
         return {'valid': True}
     ```
+
   </Tab>
 </Tabs>
 
@@ -96,95 +98,98 @@ For subscription plans, validate that the user's access hasn't expired:
 Express middleware for subscription-only endpoints:
 
 ```typescript filename="middleware/subscription.ts"
-import { Request, Response, NextFunction } from 'express'
-import { Payments } from '@nevermined-io/payments'
+import { Request, Response, NextFunction } from "express";
+import { Payments } from "@nevermined-io/payments";
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox'
-})
+  environment: "sandbox",
+});
 
 export interface SubscriptionInfo {
-  valid: boolean
-  expiresAt?: Date
-  daysRemaining?: number
-  planId: string
+  valid: boolean;
+  expiresAt?: Date;
+  daysRemaining?: number;
+  planId: string;
 }
 
 declare global {
   namespace Express {
     interface Request {
-      subscription?: SubscriptionInfo
+      subscription?: SubscriptionInfo;
     }
   }
 }
 
 export function requireSubscription(options?: { warnDaysBefore?: number }) {
-  const warnDays = options?.warnDaysBefore || 7
+  const warnDays = options?.warnDaysBefore || 7;
 
   return async (req: Request, res: Response, next: NextFunction) => {
-    const auth = req.headers['authorization']
+    const auth = req.headers["authorization"];
 
-    if (!auth?.startsWith('Bearer ')) {
+    if (!auth?.startsWith("Bearer ")) {
       return res.status(402).json({
-        error: 'Subscription Required',
-        code: 'MISSING_TOKEN'
-      })
+        error: "Subscription Required",
+        code: "MISSING_TOKEN",
+      });
     }
 
-    const token = auth.substring(7)
+    const token = auth.substring(7);
 
     try {
-      const result = await payments.requests.isValidRequest(token, req.body)
+      const result = await payments.requests.isValidRequest(token, req.body);
 
       if (!result.isValid) {
         return res.status(402).json({
-          error: 'Subscription Required',
-          code: result.reason || 'INVALID_TOKEN'
-        })
+          error: "Subscription Required",
+          code: result.reason || "INVALID_TOKEN",
+        });
       }
 
       // Check expiration for time-based plans
       if (result.expiresAt) {
-        const now = new Date()
-        const expiry = new Date(result.expiresAt)
+        const now = new Date();
+        const expiry = new Date(result.expiresAt);
 
         if (now > expiry) {
           return res.status(402).json({
-            error: 'Subscription Expired',
-            code: 'SUBSCRIPTION_EXPIRED',
-            expiredAt: expiry.toISOString()
-          })
+            error: "Subscription Expired",
+            code: "SUBSCRIPTION_EXPIRED",
+            expiredAt: expiry.toISOString(),
+          });
         }
 
         const daysRemaining = Math.ceil(
-          (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        )
+          (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
 
         req.subscription = {
           valid: true,
           expiresAt: expiry,
           daysRemaining,
-          planId: result.planId
-        }
+          planId: result.planId,
+        };
 
         // Add warning header if expiring soon
         if (daysRemaining <= warnDays) {
-          res.setHeader('X-Subscription-Warning', `Expires in ${daysRemaining} days`)
+          res.setHeader(
+            "X-Subscription-Warning",
+            `Expires in ${daysRemaining} days`,
+          );
         }
       } else {
         req.subscription = {
           valid: true,
-          planId: result.planId
-        }
+          planId: result.planId,
+        };
       }
 
-      next()
+      next();
     } catch (error) {
-      console.error('Subscription validation error:', error)
-      return res.status(500).json({ error: 'Validation failed' })
+      console.error("Subscription validation error:", error);
+      return res.status(500).json({ error: "Validation failed" });
     }
-  }
+  };
 }
 ```
 
@@ -314,6 +319,7 @@ Provide an endpoint for clients to check their subscription status:
       }
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -357,6 +363,7 @@ Provide an endpoint for clients to check their subscription status:
         except Exception as e:
             raise HTTPException(status_code=500, detail='Failed to check status')
     ```
+
   </Tab>
 </Tabs>
 
@@ -416,6 +423,7 @@ Handle subscription expiration gracefully with warnings:
       }
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -465,6 +473,7 @@ Handle subscription expiration gracefully with warnings:
             days_remaining=days_remaining
         )
     ```
+
   </Tab>
 </Tabs>
 
@@ -518,6 +527,7 @@ Handle plans that have both time limits and credit limits:
       }
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -553,6 +563,7 @@ Handle plans that have both time limits and credit limits:
             credits_remaining=result.get('balance')
         )
     ```
+
   </Tab>
 </Tabs>
 

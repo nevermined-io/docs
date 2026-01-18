@@ -8,15 +8,18 @@ You can create Payment Plans and register AI Agents manually or programatically:
 
 <CardGroup cols={2}>
   <Card title="Nevermined App" icon="calculator">
-    Go to the [Nevermined App](https://nevermined.app) and click on "My agents" or "My pricing plans" to crete Payment Plans and register your AI Agents.
+    Go to the [Nevermined App](https://nevermined.app) and click on "My agents"
+    or "My pricing plans" to crete Payment Plans and register your AI Agents.
   </Card>
   <Card title="Payments Libraries" icon="calendar">
-    Use the Payments Libraries to programmatically create Payment Plans and register AI Agents.
+    Use the Payments Libraries to programmatically create Payment Plans and
+    register AI Agents.
   </Card>
 </CardGroup>
 
 <Note>
-  In this guide, we will focus on how to register AI Agents and create Payment Plans using the Payments Libraries.
+  In this guide, we will focus on how to register AI Agents and create Payment
+  Plans using the Payments Libraries.
 </Note>
 
 Once you have a Payments instance, you can start creating Plans and registering AI Agents.
@@ -87,33 +90,20 @@ Provides user access on a time-gating basis. Builders can set the time period th
 
 <Tabs>
   <Tab title="TypeScript">
-    ```typescript
-    // The price is 5 USDC (5_000_000) in the sandbox network
-    const priceConfig = getERC20PriceConfig(5_000_000n, ERC20_ADDRESS, builderAddress)
-    // The plan is valid for 1 day
-    const oneDayPlanConfig = getExpirableDurationConfig(ONE_DAY_DURATION)
-    // Register the plan
-    const { planId } = await payments.plans.registerTimePlan(
-      planMetadata, 
-      priceConfig, 
-      oneDayPlanConfig
-    )
-    ```
+    ```typescript // The price is 5 USDC (5_000_000) in the sandbox network
+    const priceConfig = getERC20PriceConfig(5_000_000n, ERC20_ADDRESS,
+    builderAddress) // The plan is valid for 1 day const oneDayPlanConfig =
+    getExpirableDurationConfig(ONE_DAY_DURATION) // Register the plan const{" "}
+    {planId} = await payments.plans.registerTimePlan( planMetadata, priceConfig,
+    oneDayPlanConfig ) ```
   </Tab>
   <Tab title="Python">
-    ```python
-    # The price is 5 USDC (5_000_000) in the sandbox network
-    price_config = get_erc20_price_config(5_000_000, ERC20_ADDRESS, builder_address)
-    # The plan is valid for 1 day
-    one_day_plan_config = get_expirable_duration_config(ONE_DAY_DURATION)
-    # Register the plan
-    response = payments_builder.plans.register_time_plan(
-        plan_metadata,
-        price_config,
-        one_day_plan_config
-    )
-    plan_id = response.get("planId")
-    ```
+    ```python # The price is 5 USDC (5_000_000) in the sandbox network
+    price_config = get_erc20_price_config(5_000_000, ERC20_ADDRESS,
+    builder_address) # The plan is valid for 1 day one_day_plan_config =
+    get_expirable_duration_config(ONE_DAY_DURATION) # Register the plan response
+    = payments_builder.plans.register_time_plan( plan_metadata, price_config,
+    one_day_plan_config ) plan_id = response.get("planId") ```
   </Tab>
 </Tabs>
 
@@ -135,12 +125,12 @@ Perfect for giving users a fixed number of free credits to test your service:
     const trialPlanMetadata = {
       name: 'Free Trial - 10 Credits'
     }
-    
+
     // The price is free
     const freeConfig = getFreePriceConfig()
     // Give 10 credits for free
     const trialCreditsConfig = getFixedCreditsConfig(10n)
-    
+
     // Register the credits-based trial plan
     const { planId } = await payments.plans.registerCreditsTrialPlan(
       trialPlanMetadata,
@@ -148,6 +138,7 @@ Perfect for giving users a fixed number of free credits to test your service:
       trialCreditsConfig
     )
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -185,12 +176,12 @@ Perfect for giving users free access for a limited time period:
     const trialPlanMetadata = {
       name: 'Try it for one day before you buy it'
     }
-    
+
     // The price is free
     const freeConfig = getFreePriceConfig()
     // The plan is valid for 1 day
     const oneDayPlanConfig = getExpirableDurationConfig(ONE_DAY_DURATION)
-    
+
     // Register the time-based trial plan
     const { planId } = await payments.plans.registerTimeTrialPlan(
       trialPlanMetadata,
@@ -198,6 +189,7 @@ Perfect for giving users free access for a limited time period:
       oneDayPlanConfig
     )
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -265,6 +257,7 @@ Pay As You Go plan is a type of payment plan that allows users to pay for each r
       creditsConfig,
     )
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -303,9 +296,9 @@ Pay As You Go plan is a type of payment plan that allows users to pay for each r
     )
     plan_id = response.get("planId")
     ```
+
   </Tab>
 </Tabs>
-
 
 ## Registering an AI Agent
 
@@ -388,10 +381,12 @@ When you register an Agent, you need to provide the API endpoints for accessing 
 ## Register an AI Agent and Payment Plan in One Step
 
 <Note>
-  This method allows you to create the plan and attach the agent to it in one step.
+  This method allows you to create the plan and attach the agent to it in one
+  step.
 </Note>
 
 **Note:** The `accessLimit` parameter is optional. If not specified, it is automatically inferred based on `creditsConfig.durationSecs`:
+
 - `"credits"` if `durationSecs === 0n` (non-expirable plans)
 - `"time"` if `durationSecs > 0n` (expirable plans)
 
@@ -490,13 +485,12 @@ https://example.com/api/v1/agents/:agentId/tasks/:taskId
 
 Captures `agentId` and `taskId` as named parameters.
 
-
-
 ### Payment Plan Types
 
 <CardGroup cols={3}>
   <Card title="Credits-Based" icon="coins">
-    Sets the price per-request. Users buy a bundle of credits that are redeemed against usage.
+    Sets the price per-request. Users buy a bundle of credits that are redeemed
+    against usage.
   </Card>
   <Card title="Time-Based" icon="clock">
     Users get unlimited access for a specific time period (hours, days, months).
@@ -505,7 +499,8 @@ Captures `agentId` and `taskId` as named parameters.
     Free access for limited time or credits to let users test your service.
   </Card>
   <Card title="Pay As You Go" icon="dollar-sign">
-    Pay for each request they make to an AI Agent without having to purchase a bundle of credits upfront.
+    Pay for each request they make to an AI Agent without having to purchase a
+    bundle of credits upfront.
   </Card>
 </CardGroup>
 
@@ -513,16 +508,20 @@ Captures `agentId` and `taskId` as named parameters.
 
 <AccordionGroup>
   <Accordion title="Plan Naming">
-    Use descriptive names that clearly indicate what the plan offers (e.g., "Basic API Access - 1000 requests").
+    Use descriptive names that clearly indicate what the plan offers (e.g.,
+    "Basic API Access - 1000 requests").
   </Accordion>
   <Accordion title="Pricing Strategy">
-    Start with competitive pricing and adjust based on usage patterns and user feedback.
+    Start with competitive pricing and adjust based on usage patterns and user
+    feedback.
   </Accordion>
   <Accordion title="Endpoint Design">
-    Group related functionality under the same payment plan to provide better value to subscribers.
+    Group related functionality under the same payment plan to provide better
+    value to subscribers.
   </Accordion>
   <Accordion title="Trial Plans">
-    Always offer trial plans to reduce barriers to entry and increase conversion rates.
+    Always offer trial plans to reduce barriers to entry and increase conversion
+    rates.
   </Accordion>
 </AccordionGroup>
 
@@ -531,10 +530,18 @@ Captures `agentId` and `taskId` as named parameters.
 Once you have registered your agents and plans, you can:
 
 <CardGroup cols={2}>
-  <Card title="Test Purchasing" icon="shopping-cart" href="/docs/development-guide/order-plans">
+  <Card
+    title="Test Purchasing"
+    icon="shopping-cart"
+    href="/docs/development-guide/order-plans"
+  >
     Learn how users purchase your payment plans
   </Card>
-  <Card title="Handle Requests" icon="server" href="/docs/development-guide/process-requests">
+  <Card
+    title="Handle Requests"
+    icon="server"
+    href="/docs/development-guide/process-requests"
+  >
     Implement request validation in your AI agent
   </Card>
 </CardGroup>

@@ -7,7 +7,8 @@ icon: "gears"
 This guide explains the end-to-end x402 flow from both the subscriber (client) and resource server (API/agent) perspectives.
 
 <Note>
-For the complete technical specification, see the [x402 Smart Accounts Extension Spec](/docs/specs/x402-smart-accounts).
+  For the complete technical specification, see the [x402 Smart Accounts
+  Extension Spec](/docs/specs/x402-smart-accounts).
 </Note>
 
 If you're new to the programmable extension concepts, see:
@@ -31,15 +32,17 @@ When a server requires payment, it returns a `402` response with a `payment-requ
     "url": "/api/v1/agents/80918427.../tasks",
     "description": "AI agent task execution"
   },
-  "accepts": [{
-    "scheme": "nvm:erc4337",
-    "network": "eip155:84532",
-    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
-    "extra": {
-      "version": "1",
-      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+  "accepts": [
+    {
+      "scheme": "nvm:erc4337",
+      "network": "eip155:84532",
+      "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+      "extra": {
+        "version": "1",
+        "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+      }
     }
-  }],
+  ],
   "extensions": {}
 }
 ```
@@ -100,6 +103,7 @@ When calling a protected endpoint, the server returns a `402 Payment Required` r
       const agentId = extra?.agentId
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -119,6 +123,7 @@ When calling a protected endpoint, the server returns a `402 Payment Required` r
         plan_id = payment_required['accepts'][0]['planId']
         agent_id = payment_required['accepts'][0].get('extra', {}).get('agentId')
     ```
+
   </Tab>
 </Tabs>
 
@@ -139,6 +144,7 @@ Use the Nevermined SDK to generate an x402 access token with the required sessio
     // Generate the x402 access token
     const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -153,6 +159,7 @@ Use the Nevermined SDK to generate an x402 access token with the required sessio
     token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
     access_token = token_res['accessToken']
     ```
+
   </Tab>
 </Tabs>
 
@@ -182,6 +189,7 @@ Send the x402 access token in the `payment-signature` header:
       console.log('Credits used:', settlement.creditsRedeemed)
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -201,13 +209,16 @@ Send the x402 access token in the `payment-signature` header:
         )
         print('Credits used:', settlement['creditsRedeemed'])
     ```
+
   </Tab>
 </Tabs>
 
 ## Resource server flow (API/agent side)
 
 <Note>
-**Recommended:** For Express.js applications, use the [`paymentMiddleware`](/docs/integrate/add-to-your-agent/express) which handles all of this automatically with one line of code.
+  **Recommended:** For Express.js applications, use the
+  [`paymentMiddleware`](/docs/integrate/add-to-your-agent/express) which handles
+  all of this automatically with one line of code.
 </Note>
 
 ### Step 1: Return 402 when payment is missing
@@ -242,6 +253,7 @@ If the payment header is not present, respond with `402` and set the `payment-re
       return res.status(402).json({ error: 'Payment Required' })
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -270,6 +282,7 @@ If the payment header is not present, respond with `402` and set the `payment-re
         ).decode()
         return response, 402
     ```
+
   </Tab>
 </Tabs>
 
@@ -297,6 +310,7 @@ Verify the x402 token with the facilitator. The facilitator extracts `planId` an
       return res.status(402).json({ error: 'Payment verification failed' })
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -315,6 +329,7 @@ Verify the x402 token with the facilitator. The facilitator extracts `planId` an
     if not verification.success:
         return jsonify({'error': 'Payment verification failed'}), 402
     ```
+
   </Tab>
 </Tabs>
 
@@ -322,7 +337,7 @@ Verify the x402 token with the facilitator. The facilitator extracts `planId` an
 
 ```typescript
 // Only execute after verification succeeds
-const result = await processAIRequest(req.body)
+const result = await processAIRequest(req.body);
 ```
 
 ### Step 4: Settle Payment
@@ -351,6 +366,7 @@ Settle after work is complete and return the settlement receipt in the `payment-
     // Return response
     res.json({ result })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -373,6 +389,7 @@ Settle after work is complete and return the settlement receipt in the `payment-
     ).decode()
     return response
     ```
+
   </Tab>
 </Tabs>
 
@@ -425,13 +442,21 @@ sequenceDiagram
     One-line payment protection with Express middleware
   </Card>
 
-  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
-    Configure credits, subscriptions, and dynamic pricing
-  </Card>
+<Card
+  title="Payment Models"
+  icon="calculator"
+  href="/docs/products/x402-facilitator/payment-models"
+>
+  Configure credits, subscriptions, and dynamic pricing
+</Card>
 
-  <Card title="x402 Integration" icon="plug" href="/docs/development-guide/nevermined-x402">
-    Complete integration guide with code examples
-  </Card>
+<Card
+  title="x402 Integration"
+  icon="plug"
+  href="/docs/development-guide/nevermined-x402"
+>
+  Complete integration guide with code examples
+</Card>
 
   <Card title="Technical Spec" icon="file-code" href="/docs/specs/x402-smart-accounts">
     Full x402 Smart Accounts specification

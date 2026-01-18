@@ -73,7 +73,8 @@ For fiat payments, the process involves redirecting users to a Stripe Checkout s
 After a user purchases a plan, they can check their balance for that plan. The balance represents the number of credits the user has available to use within the plan.
 
 <Note>
-  Time-based plans provide a balance of 1 credit for subscribers. When the plan expires, this balance will be zero.
+  Time-based plans provide a balance of 1 credit for subscribers. When the plan
+  expires, this balance will be zero.
 </Note>
 
 <Tabs>
@@ -109,10 +110,12 @@ After a user purchases a plan, they can check their balance for that plan. The b
 
 <CardGroup cols={2}>
   <Card title="Credits-Based Plans" icon="coins">
-    Users receive a specific number of credits upon purchase. Each API call consumes credits based on your pricing configuration.
+    Users receive a specific number of credits upon purchase. Each API call
+    consumes credits based on your pricing configuration.
   </Card>
   <Card title="Time-Based Plans" icon="clock">
-    Users receive 1 credit that grants unlimited access for the specified duration. Balance becomes 0 when expired.
+    Users receive 1 credit that grants unlimited access for the specified
+    duration. Balance becomes 0 when expired.
   </Card>
 </CardGroup>
 
@@ -125,17 +128,21 @@ After a user purchases a plan, they can check their balance for that plan. The b
     Users browse available payment plans and select one that fits their needs
   </Step>
   <Step title="Initiate Purchase">
-    Call `payments.plans.orderPlan()` or `payments.plans.orderFiatPlan()` depending on payment method
+    Call `payments.plans.orderPlan()` or `payments.plans.orderFiatPlan()`
+    depending on payment method
   </Step>
   <Step title="Complete Payment">
-    For crypto: transaction is processed on-chain and happens in one transaction.
-    For fiat: user completes Stripe checkout, and the credits will be distributed automatically after the payment.
+    For crypto: transaction is processed on-chain and happens in one
+    transaction. For fiat: user completes Stripe checkout, and the credits will
+    be distributed automatically after the payment.
   </Step>
   <Step title="Verify Purchase">
-    Check balance to confirm the plan was successfully purchased and get the balance. Call `payments.plans.getPlanBalance()`.
+    Check balance to confirm the plan was successfully purchased and get the
+    balance. Call `payments.plans.getPlanBalance()`.
   </Step>
   <Step title="Access Services">
-    Use the plan to access AI agents and services. Call `payments.agents.getAgentAccessToken()`.
+    Use the plan to access AI agents and services. Call
+    `payments.agents.getAgentAccessToken()`.
   </Step>
 </Steps>
 
@@ -184,21 +191,20 @@ After a user purchases a plan, they can check their balance for that plan. The b
 
 <AccordionGroup>
   <Accordion title="User Experience">
-    - Always show clear pricing and what users get for their purchase
-    - Create different plans for crypto and fiat payments if you want to support both
-    - Show plan benefits and limitations clearly
+    - Always show clear pricing and what users get for their purchase - Create
+    different plans for crypto and fiat payments if you want to support both -
+    Show plan benefits and limitations clearly
   </Accordion>
   <Accordion title="Error Handling">
-    - Handle network failures gracefully with retry mechanisms
-    - Provide clear error messages for common issues
-    - Allow users to check their balance before making additional purchases
-    - Implement transaction status checking for pending purchases
+    - Handle network failures gracefully with retry mechanisms - Provide clear
+    error messages for common issues - Allow users to check their balance before
+    making additional purchases - Implement transaction status checking for
+    pending purchases
   </Accordion>
   <Accordion title="Security">
-    - Never store private keys or sensitive wallet information
-    - Validate plan purchases on the backend before granting access
-    - Implement rate limiting to prevent abuse
-    - Log purchase events for audit trails
+    - Never store private keys or sensitive wallet information - Validate plan
+    purchases on the backend before granting access - Implement rate limiting to
+    prevent abuse - Log purchase events for audit trails
   </Accordion>
 </AccordionGroup>
 
@@ -207,10 +213,18 @@ After a user purchases a plan, they can check their balance for that plan. The b
 After users purchase plans, they can:
 
 <CardGroup cols={2}>
-  <Card title="Query AI Agents" icon="search" href="/docs/development-guide/query-agents">
+  <Card
+    title="Query AI Agents"
+    icon="search"
+    href="/docs/development-guide/query-agents"
+  >
     Learn how to access AI services with purchased plans
   </Card>
-  <Card title="Handle Requests" icon="chart-line" href="/docs/development-guide/process-requests">
+  <Card
+    title="Handle Requests"
+    icon="chart-line"
+    href="/docs/development-guide/process-requests"
+  >
     Learn how to process requests and manage responses
   </Card>
 </CardGroup>

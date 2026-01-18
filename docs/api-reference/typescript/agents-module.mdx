@@ -13,17 +13,14 @@ The `agents` module handles AI agent registration, retrieval, and access token g
 Register a new AI agent.
 
 ```typescript
-const { agentId } = await payments.agents.registerAgent(
-  metadata,
-  apiConfig
-)
+const { agentId } = await payments.agents.registerAgent(metadata, apiConfig);
 ```
 
 **Parameters:**
 
-| Name | Type | Description |
-|------|------|-------------|
-| `metadata` | `AgentMetadata` | Agent name, description, tags |
+| Name        | Type             | Description                      |
+| ----------- | ---------------- | -------------------------------- |
+| `metadata`  | `AgentMetadata`  | Agent name, description, tags    |
 | `apiConfig` | `AgentApiConfig` | API endpoints and definition URL |
 
 **Example:**
@@ -31,16 +28,16 @@ const { agentId } = await payments.agents.registerAgent(
 ```typescript
 const { agentId } = await payments.agents.registerAgent(
   {
-    name: 'My AI Assistant',
-    description: 'Helpful AI assistant',
-    tags: ['ai', 'assistant'],
-    dateCreated: new Date()
+    name: "My AI Assistant",
+    description: "Helpful AI assistant",
+    tags: ["ai", "assistant"],
+    dateCreated: new Date(),
   },
   {
-    endpoints: [{ POST: 'https://api.example.com/query' }],
-    agentDefinitionUrl: 'https://api.example.com/openapi.json'
-  }
-)
+    endpoints: [{ POST: "https://api.example.com/query" }],
+    agentDefinitionUrl: "https://api.example.com/openapi.json",
+  },
+);
 ```
 
 ### registerAgentAndPlan
@@ -54,23 +51,26 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
   planMetadata,
   priceConfig,
   creditsConfig,
-  accessLimit
-)
+  accessLimit,
+);
 ```
 
 **Example:**
 
 ```typescript
-import { getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+import {
+  getERC20PriceConfig,
+  getFixedCreditsConfig,
+} from "@nevermined-io/payments";
 
 const { agentId, planId } = await payments.agents.registerAgentAndPlan(
-  { name: 'My Agent', tags: ['ai'], dateCreated: new Date() },
-  { endpoints: [{ POST: 'https://api.example.com/query' }] },
-  { name: 'Pro Plan', description: '100 queries', dateCreated: new Date() },
+  { name: "My Agent", tags: ["ai"], dateCreated: new Date() },
+  { endpoints: [{ POST: "https://api.example.com/query" }] },
+  { name: "Pro Plan", description: "100 queries", dateCreated: new Date() },
   getERC20PriceConfig(10_000_000n, usdcAddress, builderAddress),
   getFixedCreditsConfig(100n, 1n),
-  'credits'
-)
+  "credits",
+);
 ```
 
 ### getAgent
@@ -78,20 +78,20 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
 Retrieve agent details by ID.
 
 ```typescript
-const agent = await payments.agents.getAgent(agentId)
+const agent = await payments.agents.getAgent(agentId);
 ```
 
 **Returns:**
 
 ```typescript
 interface Agent {
-  agentId: string
-  name: string
-  description: string
-  tags: string[]
-  endpoints: Endpoint[]
-  plans: Plan[]
-  dateCreated: Date
+  agentId: string;
+  name: string;
+  description: string;
+  tags: string[];
+  endpoints: Endpoint[];
+  plans: Plan[];
+  dateCreated: Date;
 }
 ```
 
@@ -102,24 +102,24 @@ Get an access token for querying an agent.
 ```typescript
 const { accessToken, expiresAt } = await payments.agents.getAgentAccessToken(
   planId,
-  agentId
-)
+  agentId,
+);
 ```
 
 **Example:**
 
 ```typescript
 const { accessToken } = await payments.agents.getAgentAccessToken(
-  'did:nv:plan-123',
-  'did:nv:agent-456'
-)
+  "did:nv:plan-123",
+  "did:nv:agent-456",
+);
 
 // Use in requests
 const response = await fetch(agentEndpoint, {
   headers: {
-    'Authorization': `Bearer ${accessToken}`
-  }
-})
+    Authorization: `Bearer ${accessToken}`,
+  },
+});
 ```
 
 ### listAgents
@@ -128,40 +128,48 @@ List agents (optionally filtered).
 
 ```typescript
 const agents = await payments.agents.listAgents({
-  owner: '0x...',
+  owner: "0x...",
   limit: 10,
-  offset: 0
-})
+  offset: 0,
+});
 ```
 
 ## Types
 
 ```typescript
 interface AgentMetadata {
-  name: string
-  description?: string
-  tags?: string[]
-  dateCreated: Date
+  name: string;
+  description?: string;
+  tags?: string[];
+  dateCreated: Date;
 }
 
 interface AgentApiConfig {
-  endpoints: Array<{ [method: string]: string }>
-  agentDefinitionUrl?: string
+  endpoints: Array<{ [method: string]: string }>;
+  agentDefinitionUrl?: string;
 }
 
 interface AccessToken {
-  accessToken: string
-  expiresAt: Date
+  accessToken: string;
+  expiresAt: Date;
 }
 ```
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Plans Module" icon="credit-card" href="/docs/api-reference/typescript/plans-module">
+  <Card
+    title="Plans Module"
+    icon="credit-card"
+    href="/docs/api-reference/typescript/plans-module"
+  >
     Create and manage payment plans
   </Card>
-  <Card title="Requests Module" icon="shield-check" href="/docs/api-reference/typescript/requests-module">
+  <Card
+    title="Requests Module"
+    icon="shield-check"
+    href="/docs/api-reference/typescript/requests-module"
+  >
     Validate incoming requests
   </Card>
 </CardGroup>

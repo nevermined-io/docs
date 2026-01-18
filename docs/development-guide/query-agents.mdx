@@ -9,7 +9,8 @@ Once a Payment Plan is purchased, user(s) can query all the AI Agents linked to 
 For identifying the user as a valid subscriber, they need to send HTTP requests to the AI Agent via a Nevermined Proxy instance and include a valid **Access Token**. This is sent using the standard **HTTP Authorization header**.
 
 <Info>
-  Nevermined Proxy instances are **standard HTTP Proxies** in charge of **authorizing users** trying to access AI Agents or Services.
+  Nevermined Proxy instances are **standard HTTP Proxies** in charge of
+  **authorizing users** trying to access AI Agents or Services.
 </Info>
 
 Once a user is a subscriber, sending a request is quite simple.
@@ -47,7 +48,8 @@ If the response of the `getAgentAccessToken` method contains a valid `accessToke
 This request must be sent directly to the Agent (the description of the Agent API is in the Agent Metadata) or if the `agentAccessParams` includes an entry in the `proxies` array, through one of the Nevermined Proxy instances listed in the `proxies` array of the response.
 
 <Info>
-  Because Nevermined authorizes standard HTTP requests, they can be used to protect any kind of AI Agent or Service exposing an HTTP API.
+  Because Nevermined authorizes standard HTTP requests, they can be used to
+  protect any kind of AI Agent or Service exposing an HTTP API.
 </Info>
 
 ### Using cURL
@@ -306,24 +308,20 @@ AI agents can return various types of responses. Here's how to handle them:
 
 <CardGroup cols={2}>
   <Card title="Token Management" icon="key">
-    - Cache access tokens (they're valid for a limited time)
-    - Refresh tokens when they expire
-    - Never expose tokens in client-side logs
+    - Cache access tokens (they're valid for a limited time) - Refresh tokens
+    when they expire - Never expose tokens in client-side logs
   </Card>
   <Card title="Error Handling" icon="shield">
-    - Always check response status codes
-    - Implement retry logic for network failures
-    - Handle 402 responses by prompting for plan renewal
+    - Always check response status codes - Implement retry logic for network
+    failures - Handle 402 responses by prompting for plan renewal
   </Card>
   <Card title="Performance" icon="gauge">
-    - Reuse access tokens across multiple requests
-    - Implement request timeouts
+    - Reuse access tokens across multiple requests - Implement request timeouts
     - Use appropriate HTTP methods (GET, POST)
   </Card>
   <Card title="Monitoring" icon="chart-line">
-    - Track credit usage patterns
-    - Monitor response times and error rates
-    - Set up alerts for low credit balances
+    - Track credit usage patterns - Monitor response times and error rates - Set
+    up alerts for low credit balances
   </Card>
 </CardGroup>
 
@@ -379,23 +377,23 @@ For long-running AI operations, you might want to handle streaming responses:
 
 ```typescript
 const response = await fetch(agentEndpoint, {
-  method: 'POST',
+  method: "POST",
   headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${accessToken}`,
-    'Accept': 'text/event-stream'
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "text/event-stream",
   },
-  body: JSON.stringify({ query, stream: true })
-})
+  body: JSON.stringify({ query, stream: true }),
+});
 
-const reader = response.body?.getReader()
+const reader = response.body?.getReader();
 if (reader) {
   while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    
-    const chunk = new TextDecoder().decode(value)
-    console.log('Streaming chunk:', chunk)
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = new TextDecoder().decode(value);
+    console.log("Streaming chunk:", chunk);
   }
 }
 ```
@@ -405,10 +403,18 @@ if (reader) {
 Now that you know how to query AI agents, learn how to:
 
 <CardGroup cols={2}>
-  <Card title="Build AI Agents" icon="robot" href="/docs/development-guide/process-requests">
+  <Card
+    title="Build AI Agents"
+    icon="robot"
+    href="/docs/development-guide/process-requests"
+  >
     Learn how to create AI agents that accept paid requests
   </Card>
-  <Card title="Handle Requests" icon="chart-line" href="/docs/development-guide/process-requests">
+  <Card
+    title="Handle Requests"
+    icon="chart-line"
+    href="/docs/development-guide/process-requests"
+  >
     Learn how to process requests and manage responses
   </Card>
 </CardGroup>

@@ -17,29 +17,29 @@ yarn add @nevermined-io/payments
 ## Basic Setup
 
 ```typescript
-import { Payments } from '@nevermined-io/payments'
+import { Payments } from "@nevermined-io/payments";
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox' // or 'live'
-})
+  environment: "sandbox", // or 'live'
+});
 ```
 
 ## Configuration Options
 
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `nvmApiKey` | `string` | Yes | Your Nevermined API key |
-| `environment` | `Environment` | Yes | `'sandbox'` or `'live'` |
-| `appId` | `string` | No | Optional application identifier |
-| `version` | `string` | No | Optional version string |
+| Option        | Type          | Required | Description                     |
+| ------------- | ------------- | -------- | ------------------------------- |
+| `nvmApiKey`   | `string`      | Yes      | Your Nevermined API key         |
+| `environment` | `Environment` | Yes      | `'sandbox'` or `'live'`         |
+| `appId`       | `string`      | No       | Optional application identifier |
+| `version`     | `string`      | No       | Optional version string         |
 
 ## Environment Details
 
-| Environment | Network | Use Case |
-|-------------|---------|----------|
-| `sandbox` | Base Sepolia | Development and testing |
-| `live` | Base Mainnet | Live applications |
+| Environment | Network      | Use Case                |
+| ----------- | ------------ | ----------------------- |
+| `sandbox`   | Base Sepolia | Development and testing |
+| `live`      | Base Mainnet | Live applications       |
 
 ## TypeScript Support
 
@@ -52,8 +52,8 @@ import type {
   Plan,
   PriceConfig,
   CreditsConfig,
-  ValidationResult
-} from '@nevermined-io/payments'
+  ValidationResult,
+} from "@nevermined-io/payments";
 ```
 
 ## Getting Your API Key
@@ -70,10 +70,18 @@ export NVM_API_KEY="nvm:your-api-key-here"
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Payments Class" icon="code" href="/docs/api-reference/typescript/payments-class">
+  <Card
+    title="Payments Class"
+    icon="code"
+    href="/docs/api-reference/typescript/payments-class"
+  >
     Core SDK class and methods
   </Card>
-  <Card title="Quick Start" icon="rocket" href="/docs/integrate/quickstart/typescript">
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/docs/integrate/quickstart/typescript"
+  >
     Get started quickly
   </Card>
 </CardGroup>

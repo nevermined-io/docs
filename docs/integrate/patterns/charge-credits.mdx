@@ -19,6 +19,7 @@ When using the standard Bearer token flow, credits are automatically deducted wh
     // result.balance shows remaining credits AFTER deduction
     console.log(`Remaining credits: ${result.balance}`)
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -28,6 +29,7 @@ When using the standard Bearer token flow, credits are automatically deducted wh
     # result['balance'] shows remaining credits AFTER deduction
     print(f"Remaining credits: {result['balance']}")
     ```
+
   </Tab>
 </Tabs>
 
@@ -64,6 +66,7 @@ For operations with variable costs, use the x402 flow:
       subscriberAddress: address
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -89,6 +92,7 @@ For operations with variable costs, use the x402 flow:
         extra={'subscriber_address': address}
     ))
     ```
+
   </Tab>
 </Tabs>
 
@@ -148,6 +152,7 @@ Track credits used per request:
       // Or send to analytics, database, etc.
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -192,6 +197,7 @@ Track credits used per request:
         print(f"Credit usage: {usage}")
         # Or send to analytics, database, etc.
     ```
+
   </Tab>
 </Tabs>
 
@@ -246,6 +252,7 @@ Charge different amounts based on usage tiers:
       }
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -295,6 +302,7 @@ Charge different amounts based on usage tiers:
             }
         }
     ```
+
   </Tab>
 </Tabs>
 
@@ -349,6 +357,7 @@ For long-running operations, pre-authorize credits before starting:
       }
     }
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -391,6 +400,7 @@ For long-running operations, pre-authorize credits before starting:
             print(f'Task failed: {error}')
             raise
     ```
+
   </Tab>
 </Tabs>
 
@@ -421,6 +431,7 @@ Include credit information in response headers:
       next()
     })
     ```
+
   </Tab>
   <Tab title="Python">
     ```python
@@ -444,6 +455,7 @@ Include credit information in response headers:
 
         return result
     ```
+
   </Tab>
 </Tabs>
 

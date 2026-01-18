@@ -29,13 +29,14 @@ The observability functionality is automatically available through the `Payments
 import { Payments } from "@nevermined-io/payments";
 
 const payments = Payments.getInstance({
-  nvmApiKey: "your-api-key",
-  environment: "sandbox",
+nvmApiKey: "your-api-key",
+environment: "sandbox",
 });
 
 // Access observability through payments.observability
 const observability = payments.observability;
-```
+
+````
 
   </Tab>
   <Tab title="Python">
@@ -49,7 +50,8 @@ payments = Payments.get_instance(PaymentOptions(
 
 # Access observability through payments.observability
 observability = payments.observability
-```
+````
+
   </Tab>
 </Tabs>
 
@@ -64,24 +66,25 @@ import OpenAI from "openai";
 
 // Create OpenAI client with observability
 const openai = new OpenAI(
-  payments.observability.withOpenAI(
-    "your-openai-api-key",
-    agentRequest, // From payment validation
-    {
-      userid: "your-user-id", // optional custom property
-      operation: "financial_advice", // optional custom property
-    }
-  )
+payments.observability.withOpenAI(
+"your-openai-api-key",
+agentRequest, // From payment validation
+{
+userid: "your-user-id", // optional custom property
+operation: "financial_advice", // optional custom property
+}
+)
 );
 
 // All OpenAI calls will be automatically logged
 const completion = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: messages,
-  temperature: 0.3,
-  max_tokens: 250,
+model: "gpt-4o-mini",
+messages: messages,
+temperature: 0.3,
+max_tokens: 250,
 });
-```
+
+````
   </Tab>
   <Tab title="Python">
 ```python
@@ -110,7 +113,8 @@ completion = openai_client.chat.completions.create(
     temperature=0.3,
     max_tokens=250,
 )
-```
+````
+
   </Tab>
 </Tabs>
 
@@ -124,17 +128,18 @@ Use the `withLangchain` method to wrap your Langchain client with automatic logg
 import { ChatOpenAI } from "@langchain/openai";
 
 const llm = new ChatOpenAI(
-  payments.observability.withLangchain(
-    "gpt-4o-mini",
-    "your-openai-api-key",
-    agentRequest,
-    {
-      userid: "your-user-id", // optional custom property
-      operation: "financial_advice", // optional custom property
-    }
-  )
+payments.observability.withLangchain(
+"gpt-4o-mini",
+"your-openai-api-key",
+agentRequest,
+{
+userid: "your-user-id", // optional custom property
+operation: "financial_advice", // optional custom property
+}
+)
 );
-```
+
+````
   </Tab>
   <Tab title="Python">
 ```python
@@ -153,7 +158,8 @@ langchain_config = payments.observability.with_langchain(
 )
 
 llm = ChatOpenAI(**asdict(langchain_config))
-```
+````
+
   </Tab>
 </Tabs>
 
@@ -222,25 +228,26 @@ const agentRequest = await payments.requests.startSimulationRequest({
 
 // Make LLM calls with observability
 const openai = new OpenAI(
-  payments.observability.withOpenAI(
-    process.env.OPENAI_API_KEY!,
-    agentRequest,
-    {}
-  )
+payments.observability.withOpenAI(
+process.env.OPENAI_API_KEY!,
+agentRequest,
+{}
+)
 );
 
 const completion = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: [{ role: "user", content: "Hello, world!" }],
+model: "gpt-4o-mini",
+messages: [{ role: "user", content: "Hello, world!" }],
 });
 
 // Finish simulation with custom margin
 await payments.requests.finishSimulationRequest(
-  agentRequest.agentRequestId,
-  0.2, // 20% profit margin (default)
-  false // batch mode
+agentRequest.agentRequestId,
+0.2, // 20% profit margin (default)
+false // batch mode
 );
-```
+
+````
   </Tab>
   <Tab title="Python">
 ```python
@@ -272,11 +279,13 @@ payments.requests.finish_simulation_request(
     0.2,  # 20% profit margin (default)
     False  # batch mode
 )
-```
+````
+
   </Tab>
 </Tabs>
 
 **Key Features:**
+
 - No agent or plan registration required
 - No user subscriptions needed
 - Automatic cost calculation with configurable profit margins
@@ -284,6 +293,7 @@ payments.requests.finish_simulation_request(
 - Perfect for testing, development, and cost estimation
 
 **Learn More:** Check out the complete tutorials for full working examples:
+
 - [Pricing Simulation Tutorial (TypeScript)](https://github.com/nevermined-io/tutorials/tree/main/pricing-simulation)
 - [Pricing Simulation Tutorial (Python)](https://github.com/nevermined-io/tutorials/tree/main/pricing-simulation-py)
 
@@ -307,12 +317,13 @@ const agentRequest = await payments.requests.startProcessingRequest(
 
 // Batch request - process multiple requests together
 const agentRequest = await payments.requests.startProcessingBatchRequest(
-  agentId,
-  authHeader,
-  requestedUrl,
-  httpVerb
+agentId,
+authHeader,
+requestedUrl,
+httpVerb
 );
-```
+
+````
   </Tab>
   <Tab title="Python">
 ```python
@@ -331,7 +342,8 @@ agent_request = payments.requests.start_processing_batch_request(
     requested_url,
     http_verb
 )
-```
+````
+
   </Tab>
 </Tabs>
 
@@ -340,9 +352,11 @@ agent_request = payments.requests.start_processing_batch_request(
 There are two ways to redeem credits after processing a request:
 
 <Note>
-**Important:** The redemption method you use must match how you started the request:
-- If you used `startProcessingRequest()`, use `redeemCreditsFromRequest()` or `redeemWithMarginFromRequest()`
-- If you used `startProcessingBatchRequest()`, use `redeemCreditsFromBatchRequest()` or `redeemWithMarginFromBatchRequest()`
+  **Important:** The redemption method you use must match how you started the
+  request: - If you used `startProcessingRequest()`, use
+  `redeemCreditsFromRequest()` or `redeemWithMarginFromRequest()` - If you used
+  `startProcessingBatchRequest()`, use `redeemCreditsFromBatchRequest()` or
+  `redeemWithMarginFromBatchRequest()`
 </Note>
 
 #### Fixed Credit Redemption
@@ -361,21 +375,22 @@ const creditAmount = calculateCreditAmount(tokensUsed, maxTokens); // Computed v
 
 // Redeem fixed credits from a regular request
 const redemptionResult = await payments.requests.redeemCreditsFromRequest(
-  agentRequestId,
-  requestAccessToken,
-  creditAmount
+agentRequestId,
+requestAccessToken,
+creditAmount
 );
 
 // Redeem fixed credits from a batch request
 const redemptionResult = await payments.requests.redeemCreditsFromBatchRequest(
-  agentRequestId,
-  requestAccessToken,
-  creditAmount
+agentRequestId,
+requestAccessToken,
+creditAmount
 );
 
 // Extract credits redeemed
 const creditsRedeemed = redemptionResult.data?.amountOfCredits || 0;
-```
+
+````
   </Tab>
   <Tab title="Python">
 ```python
@@ -400,7 +415,8 @@ redemption_response = payments.requests.redeem_credits_from_batch_request(
 
 # Extract credits redeemed
 credits_redeemed = redemption_response.get("data", {}).get("amountOfCredits", 0)
-```
+````
+
   </Tab>
 </Tabs>
 
@@ -422,21 +438,22 @@ const marginPercent = calculateMargin(userTier, apiCost); // Computed value
 
 // Redeem with margin from a regular request
 const redemptionResult = await payments.requests.redeemWithMarginFromRequest(
-  agentRequestId,
-  requestAccessToken,
-  marginPercent
+agentRequestId,
+requestAccessToken,
+marginPercent
 );
 
 // Redeem with margin from a batch request
 const redemptionResult = await payments.requests.redeemWithMarginFromBatchRequest(
-  agentRequestId,
-  requestAccessToken,
-  marginPercent
+agentRequestId,
+requestAccessToken,
+marginPercent
 );
 
 // Extract credits redeemed
 const creditsRedeemed = redemptionResult.data?.amountOfCredits || 0;
-```
+
+````
   </Tab>
   <Tab title="Python">
 ```python
@@ -461,7 +478,8 @@ redemption_response = payments.requests.redeem_with_margin_from_batch_request(
 
 # Extract credits redeemed
 credits_redeemed = redemption_response.get("data", {}).get("amountOfCredits", 0)
-```
+````
+
   </Tab>
 </Tabs>
 
@@ -480,19 +498,19 @@ const app = express();
 app.use(express.json());
 
 const payments = Payments.getInstance({
-  nvmApiKey: process.env.NVM_API_KEY!,
-  environment: "sandbox",
+nvmApiKey: process.env.NVM_API_KEY!,
+environment: "sandbox",
 });
 
 app.post("/ask", async (req, res) => {
-  try {
-    // Validate payment and get agent request
-    const agentRequest = await payments.requests.startProcessingRequest(
-      process.env.AGENT_ID!,
-      req.headers.authorization as string,
-      req.url,
-      req.method
-    );
+try {
+// Validate payment and get agent request
+const agentRequest = await payments.requests.startProcessingRequest(
+process.env.AGENT_ID!,
+req.headers.authorization as string,
+req.url,
+req.method
+);
 
     // Check user has sufficient balance
     if (
@@ -546,12 +564,13 @@ app.post("/ask", async (req, res) => {
       tokensUsed: completion.usage?.total_tokens,
     });
 
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+} catch (error) {
+console.error("Error:", error);
+res.status(500).json({ error: "Internal server error" });
+}
 });
-```
+
+````
   </Tab>
   <Tab title="Python">
 ```python
@@ -651,7 +670,8 @@ async def ask(
     except Exception as error:
         print(f"Error: {error}")
         raise HTTPException(status_code=500, detail="Internal server error")
-```
+````
+
   </Tab>
 </Tabs>
 
@@ -663,13 +683,14 @@ async def ask(
 
     <Tabs>
       <Tab title="TypeScript">
+
 ```typescript
 // Use batch processing - all operations will share the same agent request ID
 const agentRequest = await payments.requests.startProcessingBatchRequest(
   process.env.AGENT_ID!,
   req.headers.authorization as string,
   req.url,
-  req.method
+  req.method,
 );
 
 // Check user has sufficient balance
@@ -681,11 +702,9 @@ const requestAccessToken = req.headers.authorization?.replace("Bearer ", "")!;
 
 // Create OpenAI client with observability
 const openai = new OpenAI(
-  payments.observability.withOpenAI(
-    process.env.OPENAI_API_KEY!,
-    agentRequest,
-    { operation: "batch_analysis" }
-  )
+  payments.observability.withOpenAI(process.env.OPENAI_API_KEY!, agentRequest, {
+    operation: "batch_analysis",
+  }),
 );
 
 // Make multiple AI calls in the same batch
@@ -699,7 +718,9 @@ const analysis = await openai.chat.completions.create({
 // Call 2: Generate recommendations
 const recommendations = await openai.chat.completions.create({
   model: "gpt-4o-mini",
-  messages: [{ role: "user", content: "Provide investment recommendations..." }],
+  messages: [
+    { role: "user", content: "Provide investment recommendations..." },
+  ],
   max_tokens: 100,
 });
 
@@ -717,7 +738,7 @@ const totalCredits = BigInt(30); // Or calculate based on actual token usage
 await payments.requests.redeemCreditsFromBatchRequest(
   agentRequest.agentRequestId,
   requestAccessToken,
-  totalCredits
+  totalCredits,
 );
 
 res.json({
@@ -726,8 +747,10 @@ res.json({
   summary: summary.choices[0]?.message?.content,
 });
 ```
+
       </Tab>
       <Tab title="Python">
+
 ```python
 # Use batch processing - all operations will share the same agent request ID
 agent_request = payments.requests.start_processing_batch_request(
@@ -790,8 +813,10 @@ return {
     "summary": summary.choices[0].message.content,
 }
 ```
+
       </Tab>
     </Tabs>
+
   </Accordion>
 
   <Accordion title="Margin-based Pricing">
@@ -799,13 +824,14 @@ return {
 
     <Tabs>
       <Tab title="TypeScript">
+
 ```typescript
 // Regular request processing
 const agentRequest = await payments.requests.startProcessingRequest(
   process.env.AGENT_ID!,
   req.headers.authorization as string,
   req.url,
-  req.method
+  req.method,
 );
 
 // ... rest of your agent logic ...
@@ -815,11 +841,13 @@ const marginPercent = 0.2;
 await payments.requests.redeemWithMarginFromRequest(
   agentRequest.agentRequestId,
   requestAccessToken,
-  marginPercent
+  marginPercent,
 );
 ```
+
       </Tab>
       <Tab title="Python">
+
 ```python
 # Regular request processing
 agent_request = payments.requests.start_processing_request(
@@ -839,8 +867,10 @@ payments.requests.redeem_with_margin_from_request(
     margin_percent
 )
 ```
+
       </Tab>
     </Tabs>
+
   </Accordion>
 
   <Accordion title="Batch Mode + Margin-based Pricing">
@@ -848,13 +878,14 @@ payments.requests.redeem_with_margin_from_request(
 
     <Tabs>
       <Tab title="TypeScript">
+
 ```typescript
 // Use batch processing - all operations will share the same agent request ID
 const agentRequest = await payments.requests.startProcessingBatchRequest(
   process.env.AGENT_ID!,
   req.headers.authorization as string,
   req.url,
-  req.method
+  req.method,
 );
 
 // Check user has sufficient balance
@@ -866,11 +897,9 @@ const requestAccessToken = req.headers.authorization?.replace("Bearer ", "")!;
 
 // Create OpenAI client with observability
 const openai = new OpenAI(
-  payments.observability.withOpenAI(
-    process.env.OPENAI_API_KEY!,
-    agentRequest,
-    { operation: "batch_analysis" }
-  )
+  payments.observability.withOpenAI(process.env.OPENAI_API_KEY!, agentRequest, {
+    operation: "batch_analysis",
+  }),
 );
 
 // Make multiple AI calls in the same batch
@@ -884,7 +913,9 @@ const analysis = await openai.chat.completions.create({
 // Call 2: Generate recommendations
 const recommendations = await openai.chat.completions.create({
   model: "gpt-4o-mini",
-  messages: [{ role: "user", content: "Provide investment recommendations..." }],
+  messages: [
+    { role: "user", content: "Provide investment recommendations..." },
+  ],
   max_tokens: 100,
 });
 
@@ -901,7 +932,7 @@ const marginPercent = 0.2; // 20% markup on total API costs
 await payments.requests.redeemWithMarginFromBatchRequest(
   agentRequest.agentRequestId,
   requestAccessToken,
-  marginPercent
+  marginPercent,
 );
 
 res.json({
@@ -910,8 +941,10 @@ res.json({
   summary: summary.choices[0]?.message?.content,
 });
 ```
+
       </Tab>
       <Tab title="Python">
+
 ```python
 # Use batch processing - all operations will share the same agent request ID
 agent_request = payments.requests.start_processing_batch_request(
@@ -973,8 +1006,10 @@ return {
     "summary": summary.choices[0].message.content,
 }
 ```
+
       </Tab>
     </Tabs>
+
   </Accordion>
 </AccordionGroup>
 
