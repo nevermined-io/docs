@@ -1,8 +1,15 @@
 ---
-title: "Nevermined Docs MCP"
-description: "Learn how to build AI applications using the Nevermined Docs MCP"
+title: "Documentation MCP"
+description: "Vibe-code your Nevermined payments integrations directly from your AI IDE using our MCP server."
 icon: "book"
 ---
+
+<Note>
+  You can use the Nevermined Docs MCP server to vibe-code applications directly
+  from Claude Code, Open Code, Cursor, Continue, Zed, and other MCP-aware IDE
+  copilots. Point any MCP-compatible client at the server URL below to stream
+  up-to-date docs into your coding sessions.
+</Note>
 
 The Nevermined Docs MCP Server provides seamless access to all Nevermined's documentation directly within your AI development environment. By integrating this MCP server, you can build AI agents and applications with real-time access to Nevermined's payment SDKs and Libraries, API references, and development guides.
 
@@ -29,6 +36,35 @@ This server provides access to:
 - Payment plan configuration guides
 - AI agent registration workflows
 
+## Quick Setup for Vibe-Code Tools
+
+Follow these lightweight steps to attach the Nevermined Docs MCP server to popular
+code-native AI tools. Each tool simply needs the remote MCP endpoint
+`https://docs.nevermined.app/mcp`.
+
+### Claude Code (VS Code extension)
+
+1. Open the Command Palette and run "Claude: Open Settings".
+2. In **Model Context Protocol** → **Custom Connectors**, click **Add**.
+3. Enter the server URL `https://docs.nevermined.app/mcp` and save.
+4. Start chatting; the Nevermined docs source appears under available connectors.
+
+### Open Code and Cursor
+
+1. Open Settings and search for **Model Context Protocol** or **MCP Servers**.
+2. Add a new remote server with the URL `https://docs.nevermined.app/mcp`.
+3. Enable the connector in the in-editor chat so the assistant can cite docs while coding.
+
+### Continue (VS Code / JetBrains)
+
+1. Open Continue settings (`continue.json` or UI) and locate **MCP / Tools**.
+2. Add an MCP entry named `nevermined-docs` pointing to `https://docs.nevermined.app/mcp`.
+3. Reload Continue; the tool will stream doc context into completions and inline chat.
+
+> If your IDE supports MCP but is not listed, add a remote MCP connector pointing to
+> `https://docs.nevermined.app/mcp` and enable it for chat/code actions. The server
+> requires no extra auth beyond your Nevermined API usage in code samples.
+
 ## Setting Up Your IDE with Nevermined MCP Server
 
 ### Option 1: Using Claude Desktop (Recommended)
@@ -50,6 +86,7 @@ Download and install Claude Desktop from [Claude's official website](https://cla
    ```text
    https://docs.nevermined.app/mcp
    ```
+
 6. **Complete Setup**: Click "Add" to establish the connection
 
 The Nevermined Documentation MCP server will now be available in your Claude conversations\!
@@ -129,7 +166,7 @@ I want to create a multi-agent system where:
 3. Both agents use different payment plans
 4. Users pay once but can access both agents
 
-How do I implement this workflow using Nevermined? Show me the agent registration, 
+How do I implement this workflow using Nevermined? Show me the agent registration,
 payment configuration, and orchestration code.
 ```
 
@@ -147,7 +184,7 @@ Show me how to implement these plans and handle upgrades/downgrades.
 ### 5. Agent-to-Agent Payments
 
 ```text
-I'm building an AI agent marketplace where agents can purchase services from other agents. 
+I'm building an AI agent marketplace where agents can purchase services from other agents.
 Show me how to:
 1. Set up autonomous agent-to-agent payments
 2. Implement automatic credit management
