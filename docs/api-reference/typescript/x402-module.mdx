@@ -94,6 +94,21 @@ interface VerifyPermissionsResult {
   invalidReason?: string     // Reason for invalidity (if isValid is false)
   payer?: string             // Address of the payer's wallet
   agentRequestId?: string    // Request ID for observability (Nevermined extension)
+  urlMatching?: string       // Matched endpoint URL (Nevermined extension)
+  agentRequest?: {           // Full agent request context for observability (Nevermined extension)
+    agentRequestId: string
+    agentName: string
+    agentId: string
+    balance: {
+      planId: string
+      planName: string
+      balance: string
+      isSubscriber: boolean
+      pricePerCredit: number
+    }
+    urlMatching: string
+    verbMatching: string
+  }
 }
 ```
 
@@ -354,9 +369,10 @@ app.use(paymentMiddleware(payments, {
 
 ```typescript
 interface PaymentMiddlewareOptions {
-  tokenHeader?: string | string[]     // Header name(s) for token (default: ['payment-signature', 'x-payment'])
+  tokenHeader?: string | string[]     // Header name(s) for token (default: 'payment-signature')
   onPaymentError?: (error, req, res) => void    // Custom error handler
   onBeforeVerify?: (req, paymentRequired) => void | Promise<void>    // Pre-verification hook
+  onAfterVerify?: (req, verification) => void | Promise<void>        // Post-verification hook (for observability)
   onAfterSettle?: (req, creditsUsed, result) => void | Promise<void> // Post-settlement hook
 }
 ```
@@ -398,7 +414,6 @@ Constants for x402 HTTP transport headers.
 import { X402_HEADERS } from '@nevermined-io/payments/express'
 
 X402_HEADERS.PAYMENT_SIGNATURE  // 'payment-signature' - Client sends token
-X402_HEADERS.X_PAYMENT          // 'x-payment' - Alternative token header
 X402_HEADERS.PAYMENT_REQUIRED   // 'payment-required' - Server sends requirements (base64)
 X402_HEADERS.PAYMENT_RESPONSE   // 'payment-response' - Server sends receipt (base64)
 ```

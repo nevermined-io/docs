@@ -155,12 +155,21 @@ paymentMiddleware(payments, {
 
 ```typescript
 paymentMiddleware(payments, routes, {
-  // Custom token header(s) - default: ['payment-signature', 'x-payment']
+  // Custom token header(s) - default: 'payment-signature' (x402 v2)
   tokenHeader: 'payment-signature',
 
   // Hook before verification
   onBeforeVerify: (req, paymentRequired) => {
     console.log(`Verifying payment for ${req.path}`)
+  },
+
+  // Hook after verification (for observability setup)
+  onAfterVerify: (req, verification) => {
+    // Access agentRequest for observability
+    const agentRequest = verification.agentRequest
+    if (agentRequest) {
+      console.log(`Agent: ${agentRequest.agentName}`)
+    }
   },
 
   // Hook after settlement
