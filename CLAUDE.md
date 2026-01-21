@@ -112,6 +112,12 @@ Use H2 headings (#) for major topics, H3 (#) for subsections.
 4. Buildship
 5. Organizations
 
+**Framework Integrations** (for adding payments to your API)
+
+- Express.js (TypeScript/JavaScript) - `docs/integrate/add-to-your-agent/express.mdx`
+- FastAPI (Python) - `docs/integrate/add-to-your-agent/fastapi.mdx`
+- Generic HTTP (any framework) - `docs/integrate/add-to-your-agent/generic-http.mdx`
+
 ### Mintlify Components to Use
 
 - **`<Card>` / `<CardGroup>`** - Highlight key concepts, navigation, comparisons
@@ -193,6 +199,29 @@ Example usage:
 3. **Include complete objects** - Don't use `...` shorthand; show full structure
 4. **Add inline comments** for non-obvious steps
 5. **Reference the OpenAPI spec** for endpoint details
+
+### x402 Protocol (v2) Code Patterns
+
+When writing x402 payment examples, use these patterns:
+
+**Headers (x402 v2 compliant - the ONLY supported format):**
+- `payment-signature` - Client sends x402 access token
+- `payment-required` - Server sends payment requirements (402 response, base64-encoded JSON)
+- `payment-response` - Server sends settlement receipt (200 response, base64-encoded JSON)
+
+**API Methods:**
+- TypeScript: `payments.facilitator.verifyPermissions()`, `payments.facilitator.settlePermissions()`
+- Python: `payments.facilitator.verify_permissions()`, `payments.facilitator.settle_permissions()`
+
+**Helpers:**
+- TypeScript: `buildPaymentRequired()` from `@nevermined-io/payments`
+- Python: `build_payment_required()` from `payments_py.x402.helpers`
+
+**Framework Middleware (Recommended):**
+- Express.js: `paymentMiddleware` from `@nevermined-io/payments/express`
+- FastAPI: `PaymentMiddleware` from `payments_py.x402.fastapi`
+
+**Important:** Do NOT use the older `isValidRequest` API for x402 examples - always use `verifyPermissions`/`settlePermissions` with proper x402 headers.
 
 ---
 
