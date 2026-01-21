@@ -317,34 +317,75 @@ payment-signature: <x402-access-token>
 
 ## Developer Guide: Agent Flow
 
-### Quick Integration: Express Middleware
+### Quick Integration: Framework Middleware
 
-For Express.js applications, use the `paymentMiddleware` from `@nevermined-io/payments/express` to handle x402 automatically:
+Both TypeScript (Express.js) and Python (FastAPI) have built-in middleware that handles x402 automatically:
 
-```typescript
-import { Payments } from '@nevermined-io/payments'
-import { paymentMiddleware } from '@nevermined-io/payments/express'
+<Tabs>
+  <Tab title="Express.js (TypeScript)">
+    For Express.js applications, use the `paymentMiddleware` from `@nevermined-io/payments/express`:
 
-const payments = Payments.getInstance({
-  nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox'
-})
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+    import { paymentMiddleware } from '@nevermined-io/payments/express'
 
-// One line to protect routes
-app.use(
-  paymentMiddleware(payments, {
-    'POST /ask': { planId: PLAN_ID, credits: 1 }
-  })
-)
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'sandbox'
+    })
 
-// Route handler - no payment logic needed
-app.post('/ask', async (req, res) => {
-  const result = await processRequest(req.body)
-  res.json({ result })
-})
-```
+    // One line to protect routes
+    app.use(
+      paymentMiddleware(payments, {
+        'POST /ask': { planId: PLAN_ID, credits: 1 }
+      })
+    )
 
-The middleware handles verification, settlement, and all x402 headers automatically. See the [Express.js Integration Guide](/docs/integrate/add-to-your-agent/express) for full details.
+    // Route handler - no payment logic needed
+    app.post('/ask', async (req, res) => {
+      const result = await processRequest(req.body)
+      res.json({ result })
+    })
+    ```
+
+    See the [Express.js Integration Guide](/docs/integrate/add-to-your-agent/express) for full details.
+  </Tab>
+  <Tab title="FastAPI (Python)">
+    For FastAPI applications, use the `PaymentMiddleware` from `payments_py.x402.fastapi`:
+
+    ```python
+    from fastapi import FastAPI
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402.fastapi import PaymentMiddleware
+
+    app = FastAPI()
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
+    )
+
+    # One line to protect routes
+    app.add_middleware(
+        PaymentMiddleware,
+        payments=payments,
+        routes={
+            "POST /ask": {"plan_id": PLAN_ID, "credits": 1}
+        }
+    )
+
+    # Route handler - no payment logic needed
+    @app.post("/ask")
+    async def ask(request: Request):
+        body = await request.json()
+        result = await process_request(body)
+        return {"result": result}
+    ```
+
+    See the [FastAPI Integration Guide](/docs/integrate/add-to-your-agent/fastapi) for full details.
+  </Tab>
+</Tabs>
+
+The middleware handles verification, settlement, and all x402 headers automatically.
 
 ### Manual Integration
 
@@ -472,5 +513,5 @@ This section provides a comprehensive guide for developers integrating Nevermine
 - **Subscribers** delegate controlled permissions using session keys
 - **Servers** use `payment-signature` headers and verify/settle via the facilitator
 - **Facilitators** verify and settle on-chain
-- **Python & TS libraries** provide turnkey developer tooling
-- **Express middleware** handles the entire flow automatically
+- **Python & TypeScript libraries** provide turnkey developer tooling
+- **Express.js and FastAPI middleware** handle the entire flow automatically

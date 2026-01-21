@@ -1,0 +1,592 @@
+---
+title: "x402 Module"
+description: "Generate x402 payment tokens and verify/settle payments with the Python SDK"
+icon: "credit-card"
+---
+
+The `x402` module provides x402 protocol support for HTTP-native payments. It includes token generation, permission verification, settlement, and FastAPI middleware.
+
+## Token API
+
+Access via `payments.x402`.
+
+### get_x402_access_token
+
+Generate an x402 access token for authenticating paid requests.
+
+```python
+result = payments.x402.get_x402_access_token(
+    plan_id,
+    agent_id=None,
+    redemption_limit=None,
+    order_limit=None,
+    expiration=None
+)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `plan_id` | `str` | The payment plan ID (required) |
+| `agent_id` | `str` | Agent ID if plan has multiple agents (optional) |
+| `redemption_limit` | `int` | Max credits to redeem per request (optional) |
+| `order_limit` | `int` | Max credits to auto-order if balance is low (optional) |
+| `expiration` | `int` | Token expiration in seconds (optional) |
+
+**Returns:**
+
+```python
+{
+    "accessToken": str,    # Base64-encoded x402 token
+    # Additional token metadata...
+}
+```
+
+**Example:**
+
+```python
+import os
+from payments_py import Payments, PaymentOptions
+
+payments = Payments.get_instance(
+    PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
+)
+
+PLAN_ID = "44742763076047497640080230236781474129970992727896593861997347135613135571071"
+AGENT_ID = "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+
+token_result = payments.x402.get_x402_access_token(PLAN_ID, AGENT_ID)
+access_token = token_result["accessToken"]
+
+# Use token in x402 header
+import httpx
+
+response = httpx.post(
+    "https://api.example.com/ask",
+    headers={
+        "Content-Type": "application/json",
+        "payment-signature": access_token
+    },
+    json={"query": "Hello!"}
+)
+```
+
+## Facilitator API
+
+Access via `payments.facilitator`.
+
+### verify_permissions
+
+Verify if a subscriber has permission to use credits from a payment plan. This method simulates the credit usage without burning credits.
+
+```python
+result = payments.facilitator.verify_permissions(
+    payment_required=payment_required,
+    x402_access_token=x402_access_token,
+    max_amount=None
+)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `payment_required` | `X402PaymentRequired` | Server's 402 response object |
+| `x402_access_token` | `str` | Base64-encoded x402 access token |
+| `max_amount` | `str` | Maximum credits to verify (optional) |
+
+**Returns:**
+
+```python
+class VerifyResponse:
+    is_valid: bool              # Whether the payment authorization is valid
+    invalid_reason: str | None  # Reason for invalidity (if is_valid is False)
+    payer: str | None           # Address of the payer's wallet
+    agent_request_id: str | None  # Request ID for observability (Nevermined extension)
+    url_matching: str | None    # Matched endpoint URL (Nevermined extension)
+    agent_request: Any | None   # Full agent request context for observability
+```
+
+**Agent Request Structure:**
+
+When verification succeeds, `agent_request` contains:
+
+```python
+{
+    "agentRequestId": str,
+    "agentName": str,
+    "agentId": str,
+    "balance": {
+        "planId": str,
+        "planName": str,
+        "balance": str,
+        "isSubscriber": bool,
+        "pricePerCredit": float
+    },
+    "urlMatching": str,
+    "verbMatching": str
+}
+```
+
+**Example:**
+
+```python
+from payments_py.x402.helpers import build_payment_required
+
+PLAN_ID = "44742763076047497640080230236781474129970992727896593861997347135613135571071"
+AGENT_ID = "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+
+payment_required = build_payment_required(
+    plan_id=PLAN_ID,
+    endpoint="/api/v1/ask",
+    agent_id=AGENT_ID,
+    http_verb="POST"
+)
+
+verification = payments.facilitator.verify_permissions(
+    payment_required=payment_required,
+    x402_access_token=token,
+    max_amount="2"
+)
+
+if verification.is_valid:
+    # Process the request
+    print(f"Agent request ID: {verification.agent_request_id}")
+```
+
+### settle_permissions
+
+Settle (burn) credits from a subscriber's payment plan. This method executes the actual credit consumption.
+
+```python
+result = payments.facilitator.settle_permissions(
+    payment_required=payment_required,
+    x402_access_token=x402_access_token,
+    max_amount=None,
+    agent_request_id=None
+)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `payment_required` | `X402PaymentRequired` | Server's 402 response object |
+| `x402_access_token` | `str` | Base64-encoded x402 access token |
+| `max_amount` | `str` | Number of credits to burn (optional) |
+| `agent_request_id` | `str` | Request ID for observability tracking (optional) |
+
+**Returns:**
+
+```python
+class SettleResponse:
+    success: bool               # Whether settlement was successful
+    error_reason: str | None    # Reason for failure (if success is False)
+    payer: str | None           # Address of the payer's wallet
+    transaction: str | None     # Blockchain transaction hash
+    network: str | None         # Network identifier (CAIP-2 format)
+    credits_redeemed: str | None  # Number of credits redeemed (Nevermined extension)
+    remaining_balance: str | None # Subscriber's remaining balance (Nevermined extension)
+    order_tx: str | None        # Transaction hash if auto top-up occurred (Nevermined extension)
+```
+
+**Example:**
+
+```python
+settlement = payments.facilitator.settle_permissions(
+    payment_required=payment_required,
+    x402_access_token=token,
+    max_amount="2",
+    agent_request_id=verification.agent_request_id  # For observability
+)
+
+if settlement.success:
+    print(f"Redeemed {settlement.credits_redeemed} credits")
+    print(f"Transaction: {settlement.transaction}")
+```
+
+## Helper Functions
+
+### build_payment_required
+
+Build an `X402PaymentRequired` object for verify/settle operations.
+
+```python
+from payments_py.x402.helpers import build_payment_required
+
+payment_required = build_payment_required(
+    plan_id=plan_id,
+    endpoint=None,
+    agent_id=None,
+    http_verb=None,
+    network="eip155:84532",
+    description=None
+)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `plan_id` | `str` | The Nevermined plan identifier (required) |
+| `endpoint` | `str` | The protected resource URL (optional) |
+| `agent_id` | `str` | Agent identifier (optional) |
+| `http_verb` | `str` | HTTP method (optional) |
+| `network` | `str` | Network in CAIP-2 format (default: `eip155:84532`) |
+| `description` | `str` | Human-readable description (optional) |
+
+**Returns:**
+
+```python
+class X402PaymentRequired:
+    x402_version: int = 2           # Always 2
+    error: str | None               # Human-readable error message
+    resource: X402Resource          # Protected resource info
+    accepts: list[X402Scheme]       # Accepted payment schemes
+    extensions: dict                # Empty object for nvm:erc4337
+```
+
+**Example:**
+
+```python
+from payments_py.x402.helpers import build_payment_required
+
+PLAN_ID = "44742763076047497640080230236781474129970992727896593861997347135613135571071"
+AGENT_ID = "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+
+payment_required = build_payment_required(
+    plan_id=PLAN_ID,
+    endpoint="/api/v1/agents/task",
+    agent_id=AGENT_ID,
+    http_verb="POST",
+    network="eip155:84532",
+    description="AI agent task execution"
+)
+```
+
+## FastAPI Middleware
+
+Import from `payments_py.x402.fastapi`.
+
+<Note>
+  Requires the `fastapi` extra: `pip install payments-py[fastapi]`
+</Note>
+
+### PaymentMiddleware
+
+FastAPI middleware that protects routes with Nevermined payments.
+
+```python
+from payments_py.x402.fastapi import PaymentMiddleware
+
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes=routes,
+    options=options
+)
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `payments` | `Payments` | Initialized Payments instance |
+| `routes` | `dict[str, RouteConfig | dict]` | Map of routes to protect |
+| `options` | `PaymentMiddlewareOptions` | Optional middleware configuration |
+
+**Route Configuration:**
+
+```python
+from dataclasses import dataclass
+from typing import Union, Callable, Awaitable
+from starlette.requests import Request
+
+# Type alias for dynamic credits function
+CreditsCallable = Callable[[Request], Union[int, Awaitable[int]]]
+
+@dataclass
+class RouteConfig:
+    plan_id: str                                    # Plan ID that protects this route
+    credits: int | CreditsCallable = 1              # Credits to charge (static or dynamic)
+    agent_id: str | None = None                     # Optional agent ID
+    network: str = "eip155:84532"                   # Network (default: Base Sepolia)
+```
+
+Routes can be specified as `RouteConfig` objects or dictionaries:
+
+```python
+routes = {
+    "POST /ask": {"plan_id": PLAN_ID, "credits": 1},
+    "POST /generate": RouteConfig(plan_id=PLAN_ID, credits=5, agent_id=AGENT_ID)
+}
+```
+
+**Dynamic Credits Example:**
+
+Calculate credits based on request parameters:
+
+```python
+async def calculate_credits(request: Request) -> int:
+    """Calculate credits based on requested token count."""
+    body = await request.json()
+    max_tokens = body.get("max_tokens", 100)
+    return max(1, max_tokens // 100)  # 1 credit per 100 tokens
+
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /generate": {
+            "plan_id": PLAN_ID,
+            "credits": calculate_credits  # Dynamic credits function
+        },
+        "POST /analyze": {
+            "plan_id": PLAN_ID,
+            # Sync function also works
+            "credits": lambda req: 5 if req.headers.get("priority") == "high" else 1
+        }
+    }
+)
+```
+
+**Options:**
+
+```python
+from dataclasses import dataclass
+from typing import Callable, Awaitable, Optional
+from starlette.requests import Request
+from starlette.responses import Response
+
+@dataclass
+class PaymentMiddlewareOptions:
+    # Header name(s) for token (default: 'payment-signature')
+    token_header: str | list = "payment-signature"
+
+    # Hook before verification
+    on_before_verify: Callable[[Request, X402PaymentRequired], Awaitable[None]] | None = None
+
+    # Hook after verification (for observability setup)
+    on_after_verify: Callable[[Request, VerifyResponse], Awaitable[None]] | None = None
+
+    # Hook after settlement
+    on_after_settle: Callable[[Request, int, Any], Awaitable[None]] | None = None
+
+    # Custom error handler
+    on_payment_error: Callable[[Exception, Request], Awaitable[Response | None]] | None = None
+```
+
+**Example:**
+
+```python
+from fastapi import FastAPI, Request
+from payments_py import Payments, PaymentOptions
+from payments_py.x402.fastapi import PaymentMiddleware, PaymentMiddlewareOptions
+
+app = FastAPI()
+payments = Payments.get_instance(
+    PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
+)
+
+PLAN_ID = "44742763076047497640080230236781474129970992727896593861997347135613135571071"
+
+# Protect routes with one line
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /ask": {"plan_id": PLAN_ID, "credits": 1},
+        "POST /generate": {"plan_id": PLAN_ID, "credits": 5},
+        "GET /users/:id": {"plan_id": PLAN_ID, "credits": 1}
+    }
+)
+
+# Route handlers - no payment logic needed
+@app.post("/ask")
+async def ask(request: Request):
+    body = await request.json()
+    response = await generate_response(body.get("query"))
+    return {"response": response}
+```
+
+### PaymentContext
+
+Payment context attached to the request after verification. Available as `request.state.payment_context` in route handlers.
+
+```python
+from dataclasses import dataclass
+from typing import Any, Optional
+
+@dataclass
+class PaymentContext:
+    token: str                              # The x402 access token
+    payment_required: X402PaymentRequired   # The payment required object
+    credits_to_settle: int                  # Number of credits to settle
+    verified: bool                          # Whether verification was successful
+    agent_request_id: str | None = None     # Agent request ID for observability
+    agent_request: Any | None = None        # Full agent request context
+```
+
+**Example:**
+
+```python
+from payments_py.x402.fastapi import PaymentContext
+
+@app.post("/ask")
+async def ask(request: Request):
+    # Access payment context for observability
+    payment_context: PaymentContext = request.state.payment_context
+
+    print(f"Agent request ID: {payment_context.agent_request_id}")
+
+    if payment_context.agent_request:
+        print(f"Agent: {payment_context.agent_request.agent_name}")
+        print(f"Balance: {payment_context.agent_request.balance}")
+
+    # Process request...
+    return {"response": "..."}
+```
+
+### X402_HEADERS
+
+Constants for x402 HTTP transport headers.
+
+```python
+from payments_py.x402.fastapi import X402_HEADERS
+
+X402_HEADERS["PAYMENT_SIGNATURE"]  # 'payment-signature' - Client sends token
+X402_HEADERS["PAYMENT_REQUIRED"]   # 'payment-required' - Server sends requirements (base64)
+X402_HEADERS["PAYMENT_RESPONSE"]   # 'payment-response' - Server sends receipt (base64)
+```
+
+### payment_middleware
+
+Factory function to create configured middleware.
+
+```python
+from payments_py.x402.fastapi import payment_middleware
+
+middleware = payment_middleware(
+    payments,
+    routes,
+    options=None
+)
+
+# Use with Starlette/FastAPI
+app.add_middleware(middleware)
+```
+
+## Types
+
+### X402PaymentRequired
+
+Server's 402 response structure (x402 v2 spec).
+
+```python
+class X402PaymentRequired(BaseModel):
+    x402_version: int = Field(alias="x402Version")  # Always 2
+    error: str | None = None                         # Human-readable error message
+    resource: X402Resource                           # Protected resource info
+    accepts: list[X402Scheme]                        # Accepted payment schemes
+    extensions: dict = {}                            # Extensions object
+```
+
+### X402Resource
+
+Protected resource information.
+
+```python
+class X402Resource(BaseModel):
+    url: str                    # The protected resource URL
+    description: str | None     # Human-readable description
+    mime_type: str | None = Field(alias="mimeType")  # Expected response MIME type
+```
+
+### X402Scheme
+
+Payment scheme definition for `nvm:erc4337`.
+
+```python
+class X402Scheme(BaseModel):
+    scheme: str         # Always 'nvm:erc4337' for Nevermined
+    network: str        # CAIP-2 format (e.g., 'eip155:84532')
+    plan_id: str = Field(alias="planId")  # 256-bit plan identifier
+    extra: X402SchemeExtra | None = None  # Scheme-specific fields
+
+class X402SchemeExtra(BaseModel):
+    version: str | None = None    # Scheme version (e.g., '1')
+    agent_id: str | None = Field(alias="agentId")  # Agent identifier
+    http_verb: str | None = Field(alias="httpVerb")  # HTTP method
+```
+
+## Complete Server Example
+
+```python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Load env vars BEFORE importing payments_py
+
+from fastapi import FastAPI, Request
+from payments_py import Payments, PaymentOptions
+from payments_py.x402.fastapi import PaymentMiddleware, PaymentMiddlewareOptions, X402_HEADERS
+
+app = FastAPI()
+
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ["NVM_API_KEY"],
+        environment="sandbox"
+    )
+)
+
+# Payment protection with logging
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /ask": {
+            "plan_id": os.environ["NVM_PLAN_ID"],
+            "credits": 1
+        }
+    },
+    options=PaymentMiddlewareOptions(
+        on_before_verify=lambda req, pr: print(f"Verifying payment for {req.url.path}"),
+        on_after_settle=lambda req, credits, settlement: print(f"Settled {credits} credits")
+    )
+)
+
+# Protected endpoint
+@app.post("/ask")
+async def ask(request: Request):
+    body = await request.json()
+    response = await generate_ai_response(body.get("query"))
+    return {"response": response}
+
+# Public endpoint (not in route config)
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=3000)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="FastAPI Integration" icon="python" href="/docs/integrate/add-to-your-agent/fastapi">
+    Complete FastAPI integration guide
+  </Card>
+  <Card title="x402 Protocol" icon="link" href="/docs/development-guide/nevermined-x402">
+    Deep dive into x402 payment flows
+  </Card>
+  <Card title="Plans Module" icon="credit-card" href="/docs/api-reference/python/plans-module">
+    Create and manage payment plans
+  </Card>
+  <Card title="Tutorial" icon="github" href="https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent-py">
+    http-simple-agent-py example on GitHub
+  </Card>
+</CardGroup>
