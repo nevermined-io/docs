@@ -33,80 +33,198 @@ sequenceDiagram
 
 ## Implementation Steps
 
-**1) Read the payment proof from the request**
+### 1. Extract the x402 token from the request
 
-Nevermined x402 clients retry requests with a `PAYMENT-SIGNATURE` header:
-
-```
-PAYMENT-SIGNATURE: <payment_proof>
-```
-
-Pseudo-code:
+x402 clients send the payment token in the `payment-signature` header (lowercase, per x402 v2 spec):
 
 ```
-paymentProof = request.headers["PAYMENT-SIGNATURE"]
-if !paymentProof:
-    return 402 Payment Required + plans
+payment-signature: <x402_access_token>
 ```
 
-**2) Validate the payment proof with the Nevermined SDK**
+### 2. Return 402 if token is missing
+
+When no token is provided, return HTTP 402 with a base64-encoded `payment-required` header:
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    import { Payments } from '@nevermined-io/payments'
+    import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
 
+    const PLAN_ID = process.env.NVM_PLAN_ID!
+    const AGENT_ID = process.env.NVM_AGENT_ID
+
+    // Build the payment required object
+    const paymentRequired = buildPaymentRequired(PLAN_ID, {
+      endpoint: req.path,
+      agentId: AGENT_ID,
+      httpVerb: req.method
+    })
+
+    // Check for token
+    const token = req.headers['payment-signature']
+    if (!token) {
+      const paymentRequiredBase64 = Buffer.from(
+        JSON.stringify(paymentRequired)
+      ).toString('base64')
+
+      return res
+        .status(402)
+        .setHeader('payment-required', paymentRequiredBase64)
+        .json({ error: 'Payment Required', message: 'Missing x402 access token' })
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import base64
+    import json
+    from payments_py.x402.helpers import build_payment_required
+
+    PLAN_ID = os.environ["NVM_PLAN_ID"]
+    AGENT_ID = os.environ.get("NVM_AGENT_ID")
+
+    # Build the payment required object
+    payment_required = build_payment_required(
+        plan_id=PLAN_ID,
+        endpoint=request.path,
+        agent_id=AGENT_ID,
+        http_verb=request.method
+    )
+
+    # Check for token
+    token = request.headers.get("payment-signature")
+    if not token:
+        payment_required_json = payment_required.model_dump_json(by_alias=True)
+        payment_required_base64 = base64.b64encode(
+            payment_required_json.encode()
+        ).decode()
+
+        return JSONResponse(
+            status_code=402,
+            content={"error": "Payment Required", "message": "Missing x402 access token"},
+            headers={"payment-required": payment_required_base64}
+        )
+    ```
+  </Tab>
+</Tabs>
+
+### 3. Verify permissions with the Facilitator
+
+Before processing the request, verify the subscriber has sufficient credits:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
     const payments = Payments.getInstance({
-      nvmApiKey: process.env.NVM_API_KEY,
+      nvmApiKey: process.env.NVM_API_KEY!,
       environment: 'sandbox'
     })
 
-    const result = await payments.requests.isValidRequest(paymentProof, requestBody)
+    const verification = await payments.facilitator.verifyPermissions({
+      paymentRequired,
+      x402AccessToken: token,
+      maxAmount: BigInt(creditsRequired)  // e.g., 1n
+    })
 
-    if (!result.isValid) {
-      // Return 402 (invalid/expired payment proof)
+    if (!verification.isValid) {
+      const paymentRequiredBase64 = Buffer.from(
+        JSON.stringify(paymentRequired)
+      ).toString('base64')
+
+      return res
+        .status(402)
+        .setHeader('payment-required', paymentRequiredBase64)
+        .json({ error: 'Payment Required', message: verification.invalidReason })
     }
 
-    // Process request, result.balance contains remaining credits
+    // Verification passed - process the request
     ```
-
   </Tab>
   <Tab title="Python">
     ```python
     from payments_py import Payments, PaymentOptions
 
     payments = Payments.get_instance(
-        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
+        PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
     )
 
-    result = payments.requests.is_valid_request(payment_proof, request_body)
+    verification = payments.facilitator.verify_permissions(
+        payment_required=payment_required,
+        x402_access_token=token,
+        max_amount=str(credits_required)  # e.g., "1"
+    )
 
-    if not result['isValid']:
-        # Return 402
-        pass
+    if not verification.is_valid:
+        payment_required_json = payment_required.model_dump_json(by_alias=True)
+        payment_required_base64 = base64.b64encode(
+            payment_required_json.encode()
+        ).decode()
 
-    # Process request, result['balance'] contains remaining credits
+        return JSONResponse(
+            status_code=402,
+            content={"error": "Payment Required", "message": verification.invalid_reason},
+            headers={"payment-required": payment_required_base64}
+        )
+
+    # Verification passed - process the request
     ```
-
   </Tab>
 </Tabs>
 
-**3) Return 402 with plans when payment is missing or invalid**
+### 4. Process the request
 
-When payment is missing (first request) or invalid, return HTTP 402 with plan information:
+Execute your business logic after verification passes.
 
-```json
-{
-  "error": "Payment Required",
-  "code": "PAYMENT_REQUIRED",
-  "plans": [
-    {
-      "planId": "did:nv:your-plan-id",
-      "agentId": "did:nv:your-agent-id"
-    }
-  ]
-}
-```
+### 5. Settle (burn credits) after successful response
+
+After the request completes successfully, settle the credits and include the receipt in the response:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // After processing the request successfully...
+    const settlement = await payments.facilitator.settlePermissions({
+      paymentRequired,
+      x402AccessToken: token,
+      maxAmount: BigInt(creditsUsed)
+    })
+
+    // Include settlement receipt in response header
+    const settlementBase64 = Buffer.from(JSON.stringify(settlement)).toString('base64')
+
+    return res
+      .setHeader('payment-response', settlementBase64)
+      .json({ result: yourResponseData })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # After processing the request successfully...
+    settlement = payments.facilitator.settle_permissions(
+        payment_required=payment_required,
+        x402_access_token=token,
+        max_amount=str(credits_used)
+    )
+
+    # Include settlement receipt in response header
+    settlement_json = settlement.model_dump_json(by_alias=True)
+    settlement_base64 = base64.b64encode(settlement_json.encode()).decode()
+
+    return JSONResponse(
+        content={"result": your_response_data},
+        headers={"payment-response": settlement_base64}
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## x402 Headers Summary
+
+| Header | Direction | Description |
+|--------|-----------|-------------|
+| `payment-signature` | Client → Server | x402 access token |
+| `payment-required` | Server → Client (402) | Base64-encoded payment requirements |
+| `payment-response` | Server → Client (200) | Base64-encoded settlement receipt |
 
 ## HTTP Response Codes
 
@@ -116,216 +234,34 @@ When payment is missing (first request) or invalid, return HTTP 402 with plan in
 | `402` | Payment Required | Missing/invalid payment proof, insufficient credits |
 | `500` | Server Error     | Validation system failure                           |
 
-## Language-Specific Examples
+## Using Framework Middleware (Recommended)
 
-### Go
+For Express.js and FastAPI, use the built-in middleware that handles the entire x402 flow automatically:
 
-```go
-package main
+<Tabs>
+  <Tab title="Express.js">
+    ```typescript
+    import { paymentMiddleware } from '@nevermined-io/payments/express'
 
-import (
-    "encoding/json"
-    "net/http"
-    "os"
-)
+    app.use(paymentMiddleware(payments, {
+      'POST /ask': { planId: PLAN_ID, credits: 1 }
+    }))
+    ```
+    See [Express.js Integration](/docs/integrate/add-to-your-agent/express) for details.
+  </Tab>
+  <Tab title="FastAPI">
+    ```python
+    from payments_py.x402.fastapi import PaymentMiddleware
 
-func queryHandler(w http.ResponseWriter, r *http.Request) {
-    // Extract payment proof
-    paymentProof := r.Header.Get("PAYMENT-SIGNATURE")
-    if paymentProof == "" {
-        w.WriteHeader(http.StatusPaymentRequired)
-        json.NewEncoder(w).Encode(map[string]interface{}{
-            "error": "Payment Required",
-            "code":  "PAYMENT_REQUIRED",
-            "plans": []interface{}{map[string]interface{}{
-                "planId": os.Getenv("PLAN_ID"),
-                "agentId": os.Getenv("AGENT_ID"),
-            }},
-        })
-        return
-    }
-
-    // Parse body
-    var body map[string]interface{}
-    json.NewDecoder(r.Body).Decode(&body)
-
-    // Validate with Nevermined (use the SDK for your language)
-    valid, balance := validatePayment(paymentProof, body)
-    if !valid {
-        w.WriteHeader(http.StatusPaymentRequired)
-        json.NewEncoder(w).Encode(map[string]interface{}{
-            "error": "Payment Required",
-            "code":  "INVALID_PAYMENT",
-            "plans": []interface{}{map[string]interface{}{
-                "planId": os.Getenv("PLAN_ID"),
-                "agentId": os.Getenv("AGENT_ID"),
-            }},
-        })
-        return
-    }
-
-    // Process request
-    result := map[string]interface{}{
-        "result":  "Your response here",
-        "credits": balance,
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(result)
-}
-```
-
-### Rust (Axum)
-
-```rust
-use axum::{
-    extract::Json,
-    http::{HeaderMap, StatusCode},
-    response::IntoResponse,
-};
-use serde_json::{json, Value};
-
-async fn query_handler(
-    headers: HeaderMap,
-    Json(body): Json<Value>,
-) -> impl IntoResponse {
-    let payment_proof = headers
-        .get("payment-signature")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-
-    if payment_proof.is_empty() {
-        return (
-            StatusCode::PAYMENT_REQUIRED,
-            Json(json!({
-                "error": "Payment Required",
-                "code": "PAYMENT_REQUIRED",
-                "plans": [{
-                    "planId": std::env::var("PLAN_ID").unwrap_or_default(),
-                    "agentId": std::env::var("AGENT_ID").unwrap_or_default()
-                }]
-            })),
-        );
-    }
-
-    // Validate with Nevermined (implement SDK call)
-    let (valid, balance) = validate_payment(payment_proof, &body).await;
-
-    if !valid {
-        return (
-            StatusCode::PAYMENT_REQUIRED,
-            Json(json!({
-                "error": "Payment Required",
-                "code": "INVALID_PAYMENT"
-            })),
-        );
-    }
-
-    (
-        StatusCode::OK,
-        Json(json!({
-            "result": "Your response here",
-            "credits": balance
-        })),
+    app.add_middleware(
+        PaymentMiddleware,
+        payments=payments,
+        routes={"POST /ask": {"plan_id": PLAN_ID, "credits": 1}}
     )
-}
-```
-
-### Ruby (Sinatra)
-
-```ruby
-require 'sinatra'
-require 'json'
-
-post '/query' do
-  content_type :json
-
-  payment_proof = request.env['HTTP_PAYMENT_SIGNATURE'] || ''
-
-  if payment_proof.empty?
-    status 402
-    return {
-      error: 'Payment Required',
-      code: 'PAYMENT_REQUIRED',
-      plans: [{ planId: ENV['PLAN_ID'], agentId: ENV['AGENT_ID'] }]
-    }.to_json
-  end
-
-  body = JSON.parse(request.body.read)
-
-  valid, balance = validate_payment(payment_proof, body)
-  unless valid
-    status 402
-    return { error: 'Payment Required', code: 'INVALID_PAYMENT' }.to_json
-  end
-
-  { result: 'Your response here', credits: balance }.to_json
-end
-```
-
-### PHP
-
-```php
-<?php
-
-$headers = getallheaders();
-$paymentProof = $headers['PAYMENT-SIGNATURE'] ?? '';
-
-if ($paymentProof === '') {
-    http_response_code(402);
-    echo json_encode([
-        'error' => 'Payment Required',
-        'code' => 'PAYMENT_REQUIRED',
-        'plans' => [[
-            'planId' => getenv('PLAN_ID'),
-            'agentId' => getenv('AGENT_ID')
-        ]]
-    ]);
-    exit;
-}
-
-$body = json_decode(file_get_contents('php://input'), true);
-
-$result = validatePayment($paymentProof, $body);
-if (!$result['valid']) {
-    http_response_code(402);
-    echo json_encode([
-        'error' => 'Payment Required',
-        'code' => 'INVALID_PAYMENT'
-    ]);
-    exit;
-}
-
-header('Content-Type: application/json');
-echo json_encode([
-    'result' => 'Your response here',
-    'credits' => $result['balance']
-]);
-```
-
-## REST API Validation
-
-If you can't use the SDK, call the Nevermined REST API directly:
-
-```bash
-curl -X POST https://api.nevermined.app/api/v1/payments/validate \
-  -H "Authorization: Bearer YOUR_NVM_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "paymentSignature": "<PAYMENT-SIGNATURE header value>",
-    "requestBody": {}
-  }'
-```
-
-Response:
-
-```json
-{
-  "isValid": true,
-  "balance": 95,
-  "subscriberAddress": "0x..."
-}
-```
+    ```
+    See [FastAPI Integration](/docs/integrate/add-to-your-agent/fastapi) for details.
+  </Tab>
+</Tabs>
 
 ## Best Practices
 
