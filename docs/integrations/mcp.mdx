@@ -197,7 +197,7 @@ Users need to subscribe to your agent's plan and obtain an access token:
 
 ```typescript
 // As a subscriber
-const { accessToken } = await paymentsClient.agents.getAgentAccessToken(
+const { accessToken } = await paymentsClient.x402.getX402AccessToken(
   planId,   // The plan they subscribed to
   agentId   // Your MCP server's agent ID
 )
@@ -213,7 +213,7 @@ const transport = new StreamableHTTPClientTransport(
   new URL("http://localhost:3000/mcp"),
   {
     requestInit: {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: { 'PAYMENT-SIGNATURE': accessToken }
     }
   }
 )

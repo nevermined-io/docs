@@ -19,32 +19,25 @@ Once a user is a subscriber, sending a request is quite simple.
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    const credentials = await payments.agents.getAgentAccessToken(planId, agentId)
-    // OUTPUT: credentials:
-    // {
-    //   accessToken: 'eJyNj0sKgDAURP9lJQ ....',
-    //   proxies: [ 'https://proxy.nevermined.app' ]
-    // }  
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+    // OUTPUT: accessToken is a JWT string containing X402 v2 payment credentials
     ```
   </Tab>
   <Tab title="Python">
     ```python
-    # Get agent access token for the given plan and agent
-    credentials = payments.agents.get_agent_access_token(plan_id, agent_id)
-    # OUTPUT: credentials:
-    # {
-    #   "accessToken": "eJyNj0sKgDAURP9lJQ ....",
-    #   "proxies": [ "https://proxy.nevermined.app" ]
-    # }
+    # Get X402 access token for the given plan and agent
+    token_response = payments.x402.get_x402_access_token(plan_id, agent_id)
+    access_token = token_response['accessToken']
+    # OUTPUT: access_token is a JWT string containing X402 v2 payment credentials
     ```
   </Tab>
 </Tabs>
 
 ## Sending a query to the AI Agent
 
-If the response of the `getAgentAccessToken` method contains a valid `accessToken`, the user can query the AI Agent making a standard HTTP request.
+Once you have a valid X402 access token, you can query the AI Agent by making a standard HTTP request with the token in the `PAYMENT-SIGNATURE` header.
 
-This request must be sent directly to the Agent (the description of the Agent API is in the Agent Metadata) or if the `agentAccessParams` includes an entry in the `proxies` array, through one of the Nevermined Proxy instances listed in the `proxies` array of the response.
+This request must be sent directly to the Agent endpoint (the Agent API description is in the Agent Metadata).
 
 <Info>
   Because Nevermined authorizes standard HTTP requests, they can be used to protect any kind of AI Agent or Service exposing an HTTP API.
@@ -57,7 +50,7 @@ export AGENT_ACCESS_TOKEN="eJyNj0sKgDAURP9lJQ..."
 
 curl -k -X POST \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $AGENT_ACCESS_TOKEN" \
+  -H "PAYMENT-SIGNATURE: $AGENT_ACCESS_TOKEN" \
   -d '{"query": "hey there"}' \
   https://my.agent.io/prompt
 ```
@@ -72,7 +65,7 @@ curl -k -X POST \
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${credentials.accessToken}`,
+        'PAYMENT-SIGNATURE': accessToken,
       },
       body: JSON.stringify({
         query: "What's the weather like today?",
@@ -81,7 +74,7 @@ curl -k -X POST \
         }
       })
     }
-    
+
     const response = await fetch(new URL('https://my.agent.io/prompt'), agentHTTPOptions)
     const result = await response.json()
     console.log('Agent response:', result)
@@ -90,27 +83,27 @@ curl -k -X POST \
   <Tab title="Python">
     ```python
     import requests
-    
+
     # HTTP options for the agent request
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {credentials['accessToken']}",
+        "PAYMENT-SIGNATURE": access_token,
     }
-    
+
     payload = {
         "query": "What's the weather like today?",
         "parameters": {
             "location": "New York"
         }
     }
-    
+
     response = requests.post(
-        "https://my.agent.io/prompt", 
-        headers=headers, 
+        "https://my.agent.io/prompt",
+        headers=headers,
         json=payload
     )
-    
+
     if response.status_code == 200:
         result = response.json()
         print('Agent response:', result)
@@ -129,49 +122,53 @@ Here's a complete example showing the full flow from getting access tokens to qu
     ```typescript
     async function queryAIAgent(planId: string, agentId: string, query: string) {
       try {
-        // Step 1: Get access credentials
-        const credentials = await payments.agents.getAgentAccessToken(planId, agentId)
-        
-        if (!credentials.accessToken) {
+        // Step 1: Get X402 access token
+        const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+
+        if (!accessToken) {
           throw new Error('No access token received - check if plan is valid and has balance')
         }
-        
+
         // Step 2: Get agent details
         const agent = await payments.agents.getAgent(agentId)
         const endpoint = agent.endpoints[0] // Use first endpoint
-        
+
+        // Extract URL from endpoint object (endpoints have HTTP method as key)
+        const method = Object.keys(endpoint)[0] // e.g., 'POST'
+        const url = endpoint[method] // The actual URL
+
         // Step 3: Make the request
-        const response = await fetch(endpoint.url, {
-          method: endpoint.method || 'POST',
+        const response = await fetch(url, {
+          method: method,
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${credentials.accessToken}`
+            'PAYMENT-SIGNATURE': accessToken
           },
           body: JSON.stringify({ query })
         })
-        
+
         if (response.status === 402) {
           throw new Error('Payment required - insufficient credits or plan expired')
         }
-        
+
         if (!response.ok) {
           throw new Error(`Agent request failed: ${response.status} ${response.statusText}`)
         }
-        
+
         const result = await response.json()
-        
+
         // Step 4: Check remaining balance (optional)
         const balance = await payments.plans.getPlanBalance(planId)
         console.log(`Remaining credits: ${balance.balance}`)
-        
+
         return result
-        
+
       } catch (error) {
         console.error('Query failed:', error.message)
         throw error
       }
     }
-    
+
     // Usage
     const result = await queryAIAgent(planId, agentId, "Explain quantum computing")
     console.log('AI Response:', result)
@@ -181,49 +178,54 @@ Here's a complete example showing the full flow from getting access tokens to qu
     ```python
     import requests
     import json
-    
+
     def query_ai_agent(plan_id, agent_id, query):
         try:
-            # Step 1: Get access credentials
-            credentials = payments.agents.get_agent_access_token(plan_id, agent_id)
-            
-            if not credentials.get('accessToken'):
+            # Step 1: Get X402 access token
+            token_response = payments.x402.get_x402_access_token(plan_id, agent_id)
+            access_token = token_response.get('accessToken')
+
+            if not access_token:
                 raise Exception('No access token received - check if plan is valid and has balance')
-            
+
             # Step 2: Get agent details
             agent = payments.agents.get_agent(agent_id)
             endpoint = agent['endpoints'][0]  # Use first endpoint
-            
+
+            # Extract URL from endpoint object (endpoints have HTTP method as key)
+            method = list(endpoint.keys())[0]  # e.g., 'POST'
+            url = endpoint[method]  # The actual URL
+
             # Step 3: Make the request
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f"Bearer {credentials['accessToken']}"
+                'PAYMENT-SIGNATURE': access_token
             }
-            
+
             payload = {'query': query}
-            
+
             response = requests.post(
-                endpoint['url'],
+                url,
                 headers=headers,
                 json=payload
             )
-            
+
             if response.status_code == 402:
                 raise Exception('Payment required - insufficient credits or plan expired')
-            
+
             response.raise_for_status()
             result = response.json()
-            
+
             # Step 4: Check remaining balance (optional)
             balance = payments.get_plan_balance(plan_id)
             print(f"Remaining credits: {balance.get('balance')}")
-            
+
             return result
-            
+
         except Exception as error:
             print(f'Query failed: {error}')
             raise error
-    
+
     # Usage
     result = query_ai_agent(plan_id, agent_id, "Explain quantum computing")
     print('AI Response:', result)
@@ -348,7 +350,7 @@ For efficiency, you can send multiple queries in a single request:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'PAYMENT-SIGNATURE': accessToken
       },
       body: JSON.stringify(batchQuery)
     })
@@ -366,7 +368,7 @@ For efficiency, you can send multiple queries in a single request:
     
     response = requests.post(
         agent_endpoint,
-        headers={'Authorization': f'Bearer {access_token}'},
+        headers={'PAYMENT-SIGNATURE': access_token},
         json=batch_query
     )
     ```

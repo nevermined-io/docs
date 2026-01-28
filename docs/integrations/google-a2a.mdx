@@ -8,7 +8,7 @@ Nevermined Payments integrates with [Google A2A](https://a2a-protocol.org/) to e
 
 - Discovery: publish your AI Agent Card at `/.well-known/agent.json`.
 - Streaming and re-subscribe: set `capabilities.streaming: true` for `message/stream` and `tasks/resubscribe`.
-- Authentication: credentials are sent in HTTP headers (e.g., `Authorization: Bearer ...`), not in the JSON‑RPC payload.
+- Authentication: credentials are sent in HTTP headers (e.g., `PAYMENT-SIGNATURE: <token>`), not in the JSON‑RPC payload.
 - Authorization/charging: the agent emits a final event with `metadata.creditsUsed`; Nevermined validates and burns credits accordingly.
 
 ## Features
@@ -283,14 +283,14 @@ After [purchasing access to the payment plan](/docs/development-guide/order-plan
     ```typescript
     // Purchase the Plan
     const orderResult = await paymentsSubscriber.plans.orderPlan(planId)
-    // Get the credentials associated to the agent and plan
-    const credentials = await paymentsSubscriber.agents.getAgentAccessToken(planId, agentId)
+    // Get the X402 access token associated to the agent and plan
+    const { accessToken } = await paymentsSubscriber.x402.getX402AccessToken(planId, agentId)
     
     
     // Test sending an A2A message with correct format
     const response = await client.sendMessage(
       "Testing push notification!",
-      credentials.accessToken
+      accessToken
     );
     const taskId = response?.result?.id
     ```

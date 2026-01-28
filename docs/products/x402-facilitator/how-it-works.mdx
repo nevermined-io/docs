@@ -293,7 +293,7 @@ Verify the x402 token with the facilitator. The facilitator extracts `planId` an
       maxAmount: BigInt(creditsRequired)
     })
 
-    if (!verification.success) {
+    if (!verification.isValid) {
       return res.status(402).json({ error: 'Payment verification failed' })
     }
     ```
@@ -312,7 +312,7 @@ Verify the x402 token with the facilitator. The facilitator extracts `planId` an
         max_amount=credits_required
     )
 
-    if not verification.success:
+    if not verification.is_valid:
         return jsonify({'error': 'Payment verification failed'}), 402
     ```
   </Tab>

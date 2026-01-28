@@ -35,7 +35,7 @@ export PLAN_ID="did:nv:your-plan-id"
 
 ```typescript filename="index.ts"
 import express from 'express'
-import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
 
 const app = express()
 app.use(express.json())
@@ -73,9 +73,8 @@ async function registerAgent() {
       description: '100 queries',
       dateCreated: new Date()
     },
-    getERC20PriceConfig(10_000_000n, USDC_ADDRESS, process.env.BUILDER_ADDRESS!),
-    getFixedCreditsConfig(100n, 1n),
-    'credits'
+    payments.plans.getERC20PriceConfig(10_000_000n, USDC_ADDRESS, process.env.BUILDER_ADDRESS!),
+    payments.plans.getFixedCreditsConfig(100n, 1n)
   )
 
   agentId = result.agentId
@@ -105,10 +104,18 @@ async function validatePayment(
     return res.status(402).json({ error: 'Payment Required' })
   }
 
+  // Build payment required specification
+  const paymentRequired = buildPaymentRequired(planId, {
+    endpoint: req.url,
+    agentId: agentId,
+    httpVerb: req.method,
+  })
+
   // Verify permissions - facilitator extracts planId and subscriberAddress from token
   const verification = await payments.facilitator.verifyPermissions({
+    paymentRequired,
     x402AccessToken: x402Token,
-    maxAmount: BigInt(creditsRequired),
+    maxAmount: 1n,
   })
 
   if (!verification.isValid) {

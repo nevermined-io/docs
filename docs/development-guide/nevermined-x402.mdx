@@ -422,7 +422,7 @@ For other frameworks or custom implementations, follow these steps:
       maxAmount: BigInt(creditsRequired),
     })
 
-    if (!verification.success) {
+    if (!verification.isValid) {
       return res.status(402).json({ error: 'Payment verification failed' })
     }
     ```
@@ -448,7 +448,7 @@ For other frameworks or custom implementations, follow these steps:
         max_amount=credits_required,
     )
 
-    if not verification.success:
+    if not verification.is_valid:
         return {"error": "Payment verification failed"}, 402
     ```
   </Tab>
