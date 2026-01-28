@@ -5,7 +5,7 @@ icon: "python"
 ---
 
 <Note>
-  **Start here:** need to register a service and create a plan first? Follow the
+  **Start here:** need to register a service and create a plan first or get your Nevermined API Key? Follow the
   [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
 </Note>
 
@@ -42,7 +42,8 @@ from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
 
 app = FastAPI(title="My AI Agent")
 
-# Base Sepolia USDC for testing
+# In this example we require a payment a payment of 10 USDC for 100 requests
+# For that USDC payment we use USDC on Base Sepolia, so we need its contract address:
 USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 
 # Initialize payments
@@ -114,25 +115,24 @@ async def register_agent():
 # ============================================
 async def validate_payment(request: Request) -> int:
     """Validate payment and return remaining credits."""
-    auth_header = request.headers.get('Authorization')
+    # Get token from payment-signature header
+    x402_token = request.headers.get("payment-signature")
 
-    if not auth_header or not auth_header.startswith('Bearer '):
-        raise HTTPException(
-            status_code=402,
-            detail={
-                'error': 'Payment Required',
-                'plans': [{'planId': plan_id, 'agentId': agent_id}]
-            }
-        )
-
-    token = auth_header[7:]
+    if not x402_token:
+        # Return 402 with payment requirements
+        return {"error": "Payment Required"}, 402
 
     # Get request body for validation
     body = await request.json()
 
-    result = payments.requests.is_valid_request(token, body)
+    # Verify permissions - facilitator extracts planId and subscriberAddress from token
+    verification = payments.facilitator.verify_permissions(
+        x402_access_token=x402_token,
+        max_amount=1,
+    )
 
-    if not result['isValid']:
+
+    if not verification.is_valid:
         raise HTTPException(
             status_code=402,
             detail={
@@ -141,7 +141,8 @@ async def validate_payment(request: Request) -> int:
             }
         )
 
-    return result['balance']
+    balance = payments.plans.get_plan_balance(plan_id)
+    return int(balance.balance)
 
 
 # ============================================
@@ -235,12 +236,12 @@ def purchase_and_query():
 
     # 1. Order the plan
     print('Purchasing plan...')
-    payments.plans.order_plan(plan_id)
+    order_result = payments.plans.order_plan(plan_id)
 
     # 2. Get access token
     print('Getting access token...')
-    credentials = payments.agents.get_agent_access_token(plan_id, agent_id)
-    access_token = credentials['accessToken']
+    token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+    access_token = token_res['accessToken']
 
     # 3. Query the agent
     print('Querying agent...')
@@ -248,7 +249,7 @@ def purchase_and_query():
         'http://localhost:8000/query',
         headers={
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {access_token}'
+            'Payment-Signature': f'{access_token}'
         },
         json={'prompt': 'What is 2+2?'}
     )
@@ -288,22 +289,31 @@ def require_payment(f):
     """Decorator to validate payment."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
+        x402_token = request.headers.get("payment-signature")
 
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({
-                'error': 'Payment Required',
-                'plans': [{'planId': plan_id, 'agentId': agent_id}]
-            }), 402
+        if not x402_token:
+            # Return 402 with payment requirements
+            return {"error": "Payment Required"}, 402
 
-        token = auth_header[7:]
-        result = payments.requests.is_valid_request(token, request.json)
+        # Get request body for validation
+        body = await request.json()
 
-        if not result['isValid']:
-            return jsonify({
-                'error': 'Insufficient credits',
-                'plans': [{'planId': plan_id, 'agentId': agent_id}]
-            }), 402
+        # Verify permissions - facilitator extracts planId and subscriberAddress from token
+        verification = payments.facilitator.verify_permissions(
+            x402_access_token=x402_token,
+            max_amount=1,
+        )
+
+
+        if not verification.is_valid:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Insufficient credits',
+                    'plans': [{'planId': plan_id, 'agentId': agent_id}]
+                }
+            )
+        balance = payments.plans.get_plan_balance(plan_id)
 
         # Pass credits to the handler
         kwargs['credits'] = result['balance']
@@ -354,7 +364,7 @@ my-ai-agent/
 ## Requirements File
 
 ```text filename="requirements.txt"
-payments-py>=0.1.0
+payments-py>=1.0.0
 fastapi>=0.100.0
 uvicorn>=0.23.0
 python-dotenv>=1.0.0
