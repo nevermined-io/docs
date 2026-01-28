@@ -4,82 +4,77 @@ description: "Install and configure the payments-py Python SDK"
 icon: "download"
 ---
 
-## Installation
+This guide covers how to install the Nevermined Payments Python SDK.
 
-Install via pip:
+## Overview
+
+The Nevermined Payments Python SDK (`payments-py`) is a Python library that provides tools for integrating AI agent monetization and access control into your applications. It supports:
+
+- Payment plans (credits-based and time-based)
+- AI agent registration and management
+- X402 payment protocol
+- MCP (Model Context Protocol) integration
+- A2A (Agent-to-Agent) protocol support
+
+## Prerequisites
+
+Before installing the SDK, ensure you have:
+
+- **Python 3.10 or higher** - The SDK requires Python 3.10+
+- **pip or Poetry** - Package manager for installation
+- **Nevermined API Key** - Obtain from the [Nevermined App](https://nevermined.app)
+
+## Installation Steps
+
+### Using pip
 
 ```bash
 pip install payments-py
 ```
 
-Or with poetry:
+### Using Poetry
 
 ```bash
 poetry add payments-py
 ```
 
-## Basic Setup
+### With Optional Dependencies
 
-```python
-import os
-from payments_py import Payments, PaymentOptions
-
-payments = Payments.get_instance(
-    PaymentOptions(
-        nvm_api_key=os.environ['NVM_API_KEY'],
-        environment='sandbox'  # or 'live'
-    )
-)
-```
-
-## Configuration Options
-
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `nvm_api_key` | `str` | Yes | Your Nevermined API key |
-| `environment` | `str` | Yes | `'sandbox'` or `'live'` |
-| `app_id` | `str` | No | Optional application identifier |
-| `version` | `str` | No | Optional version string |
-
-## Environment Details
-
-| Environment | Network | Use Case |
-|-------------|---------|----------|
-| `sandbox` | Base Sepolia | Development and testing |
-| `live` | Base Mainnet | Live applications |
-
-## Type Hints
-
-The SDK includes type hints for better IDE support:
-
-```python
-from payments_py.types import (
-    Agent,
-    Plan,
-    PriceConfig,
-    CreditsConfig,
-    ValidationResult
-)
-```
-
-## Getting Your API Key
-
-1. Go to [nevermined.app](https://nevermined.app)
-2. Sign in with Web3Auth
-3. Navigate to **Settings > API Keys**
-4. Generate and copy your key
+For FastAPI/x402 middleware support:
 
 ```bash
-export NVM_API_KEY="nvm:your-api-key-here"
+# Using pip
+pip install payments-py[fastapi]
+
+# Using Poetry
+poetry add payments-py -E fastapi
+```
+
+## Verify Installation
+
+After installation, verify the SDK is working:
+
+```python
+from payments_py import Payments, PaymentOptions
+
+# Check version
+import payments_py
+print(f"payments-py installed successfully")
+```
+
+## Environment Setup
+
+Create a `.env` file or set environment variables:
+
+```bash
+# Required
+NVM_API_KEY=nvm:your-api-key-here
+
+# Optional (for custom environments)
+NVM_BACKEND_URL=https://api.sandbox.nevermined.app
+NVM_PROXY_URL=https://proxy.sandbox.nevermined.app
 ```
 
 ## Next Steps
 
-<CardGroup cols={2}>
-  <Card title="Payments Class" icon="code" href="/docs/api-reference/python/payments-class">
-    Core SDK class and methods
-  </Card>
-  <Card title="Quick Start" icon="rocket" href="/docs/integrate/quickstart/python">
-    Get started quickly
-  </Card>
-</CardGroup>
+Once installed, proceed to [Initializing the Library](/docs/api-reference/python/payments-class) to configure the SDK.
