@@ -134,7 +134,7 @@ const agent = await payments.agents.getAgent('did:nv:your-agent-id')
 await payments.plans.orderPlan(agent.plans[0].planId)
 
 // Credentials work the same way
-const { accessToken } = await payments.agents.getAgentAccessToken(
+const { accessToken } = await payments.x402.getX402AccessToken(
   planId,
   agentId
 )

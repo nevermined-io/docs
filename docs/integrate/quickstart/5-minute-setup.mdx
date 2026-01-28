@@ -52,7 +52,7 @@ If you’re monetizing an agent, MCP tool/server or a protected resource, you’
 <Tabs>
   <Tab title="TypeScript">
     ```typescript filename="register-agent.ts"
-    import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
+    import { Payments } from '@nevermined-io/payments'
 
     // In this example we require a payment a payment of 10 USDC for 100 requests
     // For that USDC payment we use USDC on Base Sepolia, so we need its contract address:
@@ -85,14 +85,13 @@ If you’re monetizing an agent, MCP tool/server or a protected resource, you’
           dateCreated: new Date()
         },
         // Price: 10 USDC
-        getERC20PriceConfig(
+        payments.plans.getERC20PriceConfig(
           10_000_000n, // 10 USDC (6 decimals)
           USDC_ADDRESS,
           process.env.BUILDER_ADDRESS! // Your wallet address
         ),
         // Credits: 100 requests, 1 credit each
-        getFixedCreditsConfig(100n, 1n),
-        'credits'
+        payments.plans.getFixedCreditsConfig(100n, 1n)
       )
 
       console.log('Registered!')
@@ -179,7 +178,7 @@ The example shows an HTTP API route; the same check can be used before calling a
 <Tabs>
   <Tab title="TypeScript">
     ```typescript filename="middleware/payments.ts"
-    import { Payments, decodeAccessToken } from '@nevermined-io/payments'
+    import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
 
     const payments = Payments.getInstance({
       nvmApiKey: 'nvm:agent-key',
@@ -194,13 +193,21 @@ The example shows an HTTP API route; the same check can be used before calling a
       return res.status(402).json({ error: 'Payment Required' })
     }
 
-    // Verify permissions - facilitator extracts planId and subscriberAddress from token
-    const verification = await payments.facilitator.verifyPermissions({
-      x402AccessToken: x402Token,
-      maxAmount: BigInt(creditsRequired),
+    // Build payment required specification
+    const paymentRequired = buildPaymentRequired(planId, {
+      endpoint: req.url,
+      agentId: agentId,
+      httpVerb: req.method,
     })
 
-    if (!verification.success) {
+    // Verify permissions - facilitator extracts planId and subscriberAddress from token
+    const verification = await payments.facilitator.verifyPermissions({
+      paymentRequired,
+      x402AccessToken: x402Token,
+      maxAmount: 1n,
+    })
+
+    if (!verification.isValid) {
       return res.status(402).json({ error: 'Payment verification failed' })
     }
 

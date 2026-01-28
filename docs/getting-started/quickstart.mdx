@@ -73,48 +73,45 @@ For developers who need to automate and integrate directly, our SDKs are the per
     <Tabs>
       <Tab title="TypeScript">
         ```typescript
-        import { getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments';
-        
         // Define agent metadata
         const agentMetadata = {
           name: 'My AI Assistant',
           tags: ['ai', 'assistant'],
           dateCreated: new Date(),
         };
-        
+
         // Define API endpoints
         const agentApi = {
           endpoints: [{ POST: 'https://api.myservice.com/query' }],
           agentDefinitionUrl: 'https://api.myservice.com/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
         };
-        
+
         // Define plan metadata
         const planMetadata = {
           name: 'Basic Plan',
           description: '100 queries per month',
           dateCreated: new Date(),
         };
-        
+
         // Configure pricing (e.g., 10 USDC)
-        const priceConfig = getERC20PriceConfig(
+        const priceConfig = payments.plans.getERC20PriceConfig(
           10_000_000n, // 10 USDC (6 decimals)
           '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C', // USDC address
           process.env.BUILDER_ADDRESS
         );
-        
+
         // Configure credits (e.g., 100 queries)
-        const creditsConfig = getFixedCreditsConfig(100n, 1n);
-        
+        const creditsConfig = payments.plans.getFixedCreditsConfig(100n, 1n);
+
         // Register agent and plan together
         const { agentId, planId } = await payments.agents.registerAgentAndPlan(
           agentMetadata,
           agentApi,
           planMetadata,
           priceConfig,
-          creditsConfig,
-          'credits' // Optional: accessLimit ('credits' or 'time'). Auto-inferred if not specified
+          creditsConfig
         );
-        
+
         console.log(`Agent registered: ${agentId}`);
         ```
       </Tab>
@@ -231,34 +228,39 @@ For developers who need to automate and integrate directly, our SDKs are the per
     // 1. Discover the agent and its plans
     const agent = await payments.agents.getAgent('AGENT_ID');
     const plan = agent.plans[0];
-    
+
     // 2. Purchase the plan
     // Option A: Crypto payment
     const orderResult = await payments.plans.orderPlan(plan.planId);
     console.log('Order transaction:', orderResult.transactionHash);
-    
+
     // Option B: Fiat payment (credit card)
     const { sessionId, url } = await payments.plans.orderFiatPlan(plan.planId);
     window.location.href = url; // Redirect to Stripe
-    
-    // 3. Get access credentials
-    const credentials = await payments.agents.getAgentAccessToken(
+
+    // 3. Get X402 access token
+    const { accessToken } = await payments.x402.getX402AccessToken(
       plan.planId,
       agent.agentId
     );
-    
+
     // 4. Query the agent using the access token
-    const response = await fetch(agent.endpoints[0].url, {
-      method: 'POST',
+    // Extract URL from endpoint object (endpoints have HTTP method as key)
+    const endpoint = agent.endpoints[0]
+    const method = Object.keys(endpoint)[0]
+    const url = endpoint[method]
+
+    const response = await fetch(url, {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${credentials.accessToken}`
+        'PAYMENT-SIGNATURE': accessToken
       },
-      body: JSON.stringify({ 
-        prompt: "Hello, how can you help me?" 
+      body: JSON.stringify({
+        prompt: "Hello, how can you help me?"
       })
     });
-    
+
     const result = await response.json();
     console.log('Agent response:', result);
     ```
@@ -266,36 +268,42 @@ For developers who need to automate and integrate directly, our SDKs are the per
   <Tab title="Python">
     ```python
     import requests
-    
+
     # 1. Discover the agent and its plans
     agent = payments.agents.get_agent('AGENT_ID')
     plan = agent['plans'][0]
-    
+
     # 2. Purchase the plan
     # Option A: Crypto payment
     order_result = payments.plans.order_plan(plan['planId'])
     print(f'Order transaction: {order_result["transactionHash"]}')
-    
+
     # Option B: Fiat payment (credit card)
     fiat_result = payments.plans.order_fiat_plan(plan['planId'])
     print(f'Stripe checkout URL: {fiat_result["url"]}')
-    
-    # 3. Get access credentials
-    credentials = payments.agents.get_agent_access_token(
+
+    # 3. Get X402 access token
+    token_response = payments.x402.get_x402_access_token(
         plan['planId'],
         agent['agentId']
     )
-    
+    access_token = token_response['accessToken']
+
     # 4. Query the agent using the access token
+    # Extract URL from endpoint object (endpoints have HTTP method as key)
+    endpoint = agent['endpoints'][0]
+    method = list(endpoint.keys())[0]
+    url = endpoint[method]
+
     response = requests.post(
-        agent['endpoints'][0]['url'],
+        url,
         headers={
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {credentials["accessToken"]}'
+            'PAYMENT-SIGNATURE': access_token
         },
         json={'prompt': 'Hello, how can you help me?'}
     )
-    
+
     result = response.json()
     print(f'Agent response: {result}')
     ```

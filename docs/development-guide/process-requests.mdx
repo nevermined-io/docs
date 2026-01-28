@@ -15,29 +15,25 @@ When a user wants to query an AI Agent, they need to send a request with the acc
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    
-    // After purchasing a Payment Plan, let's generate the access token
-    const credentials = await payments.agents.getAgentAccessToken(planId, agentId)
-    
-    //// OUTPUT: credentials:
-    //// {
-    ////   accessToken: 'eJyNj0sKgDAURP9lJQ ....',
-    ////   proxies: [ 'https://proxy.nevermined.app' ]
-    //// }  
-          
+
+    // After purchasing a Payment Plan, let's generate the X402 access token
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+
+    //// OUTPUT: accessToken is a JWT string containing X402 v2 payment credentials
+
     // Now we can use this access token to send requests to the AI agent
     const agentHTTPOptions = {
       method: 'POST',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${credentials.accessToken}`,
+        'PAYMENT-SIGNATURE': accessToken,
       }
     }
-    
+
     // Example request to the AI agent
     const response = await fetch(new URL('https://my.agent.io/prompt'), agentHTTPOptions)
-    
+
     if (response.ok) {
       const data = await response.json()
       console.log('AI agent response:', data)
@@ -49,22 +45,19 @@ When a user wants to query an AI Agent, they need to send a request with the acc
   <Tab title="Python">
     ```python
     import requests
-    
-    # Get agent access token for the given plan and agent
-    credentials = payments.agents.get_agent_access_token(plan_id, agent_id)
-    # OUTPUT: credentials:
-    # {
-    #   "accessToken": "eJyNj0sKgDAURP9lJQ ....",
-    #   "proxies": [ "https://proxy.nevermined.app" ]
-    # }
-    
+
+    # Get X402 access token for the given plan and agent
+    token_response = payments.x402.get_x402_access_token(plan_id, agent_id)
+    access_token = token_response['accessToken']
+    # OUTPUT: access_token is a JWT string containing X402 v2 payment credentials
+
     # Now we can use this access token to send requests to the AI agent
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {credentials['accessToken']}",
+        "PAYMENT-SIGNATURE": access_token,
     }
-    
+
     response = requests.post("https://my.agent.io/prompt", headers=headers)
     if response.status_code == 200:
         data = response.json()
