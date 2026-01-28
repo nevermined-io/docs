@@ -39,18 +39,24 @@ By the end, you’ll have a **monetizable service** set up with Nevermined — t
   </Step>
 </Steps>
 
-## Register Your Service (2 minutes)
+## Register Your Agent
 
-Create a file to register your service and a payment plan.
+Create a scrupt to register your agent and a payment plan.
 
-If you’re monetizing an MCP tool/server or a protected resource, you’ll still register the monetizable unit and attach a plan — only the **delivery step** changes.
+<Note>
+  You can register your agent and any payment plan using the following code OR using the [Nevermined App](https://nevermined.app). So not need to code this, just follow the steps in the app to create your agents and plans.
+</Note>
+
+If you’re monetizing an agent, MCP tool/server or a protected resource, you’ll still register the monetizable unit and attach a plan — only the **delivery step** changes.
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript filename="register-agent.ts"
     import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments'
 
-    const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // Base Sepolia USDC
+    // In this example we require a payment a payment of 10 USDC for 100 requests
+    // For that USDC payment we use USDC on Base Sepolia, so we need its contract address:
+    const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 
     async function main() {
       // 1. Initialize the SDK
@@ -104,7 +110,9 @@ If you’re monetizing an MCP tool/server or a protected resource, you’ll stil
     from payments_py import Payments, PaymentOptions
     from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
 
-    USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'  # Base Sepolia USDC
+    # In this example we require a payment a payment of 10 USDC for 100 requests
+    # For that USDC payment we use USDC on Base Sepolia, so we need its contract address:
+    USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 
     def main():
         payments = Payments.get_instance(
@@ -162,168 +170,80 @@ Run it:
   </Tab>
 </Tabs>
 
-## Add Payment Validation (3 minutes)
+## Add Payment Validation in the Agent
 
-Add this middleware to validate entitlement before delivering your response/resource.
+Add this middleware to your agent to validate if a request is valid (have a payment attached) before delivering your response/resource.
 
 The example shows an HTTP API route; the same check can be used before calling an MCP tool handler or before serving a protected asset:
 
 <Tabs>
-  <Tab title="TypeScript (Express)">
+  <Tab title="TypeScript">
     ```typescript filename="middleware/payments.ts"
-    import { Payments } from '@nevermined-io/payments'
-    import { Request, Response, NextFunction } from 'express'
+    import { Payments, decodeAccessToken } from '@nevermined-io/payments'
 
     const payments = Payments.getInstance({
-      nvmApiKey: process.env.NVM_API_KEY!,
-      environment: 'sandbox'
+      nvmApiKey: 'nvm:agent-key',
+      environment: 'sandbox',
     })
 
-    // Your registered IDs
-    const PLAN_ID = 'did:nv:your-plan-id'
-    const AGENT_ID = 'did:nv:your-agent-id'
+    // Get token from payment-signature header
+    const x402Token = req.headers['payment-signature']
 
-    export async function validatePayment(
-      req: Request,
-      res: Response,
-      next: NextFunction
-    ) {
-      const authHeader = req.headers['authorization']
-
-      // Check for Bearer token
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(402).json({
-          error: 'Payment Required',
-          message: 'Purchase a plan to access this API',
-          plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
-        })
-      }
-
-      const token = authHeader.substring(7)
-
-      // Validate the request
-      const { isValid, balance } = await payments.requests.isValidRequest(
-        token,
-        req.body
-      )
-
-      if (!isValid) {
-        return res.status(402).json({
-          error: 'Payment Required',
-          message: 'Insufficient credits or invalid token',
-          plans: [{ planId: PLAN_ID, agentId: AGENT_ID }]
-        })
-      }
-
-      // Attach balance to request for optional use
-      req.creditsRemaining = balance
-
-      next()
+    if (!x402Token) {
+      // Return 402 with payment requirements
+      return res.status(402).json({ error: 'Payment Required' })
     }
+
+    // Verify permissions - facilitator extracts planId and subscriberAddress from token
+    const verification = await payments.facilitator.verifyPermissions({
+      x402AccessToken: x402Token,
+      maxAmount: BigInt(creditsRequired),
+    })
+
+    if (!verification.success) {
+      return res.status(402).json({ error: 'Payment verification failed' })
+    }
+
+    //////////
+    // Here you can execute your logic knowing payment is valid
+    //////////
+
     ```
   </Tab>
-  <Tab title="Python (FastAPI)">
+  <Tab title="Python">
     ```python filename="middleware/payments.py"
-    import os
-    from fastapi import Request, HTTPException
     from payments_py import Payments, PaymentOptions
 
     payments = Payments.get_instance(
-        PaymentOptions(
-            nvm_api_key=os.environ['NVM_API_KEY'],
-            environment='sandbox'
-        )
+        PaymentOptions(nvm_api_key="nvm:agent-key", environment="sandbox")
     )
 
-    # Your registered IDs
-    PLAN_ID = 'did:nv:your-plan-id'
-    AGENT_ID = 'did:nv:your-agent-id'
+    # Get token from payment-signature header
+    x402_token = request.headers.get("payment-signature")
 
-    async def validate_payment(request: Request):
-        auth_header = request.headers.get('Authorization')
+    if not x402_token:
+        # Return 402 with payment requirements
+        return {"error": "Payment Required"}, 402
 
-        # Check for Bearer token
-        if not auth_header or not auth_header.startswith('Bearer '):
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    'error': 'Payment Required',
-                    'message': 'Purchase a plan to access this API',
-                    'plans': [{'planId': PLAN_ID, 'agentId': AGENT_ID}]
-                }
-            )
+    # Verify permissions - facilitator extracts planId and subscriberAddress from token
+    verification = payments.facilitator.verify_permissions(
+        x402_access_token=x402_token,
+        max_amount=credits_required,
+    )
 
-        token = auth_header[7:]
-        body = await request.json()
-
-        # Validate the request
-        result = payments.requests.is_valid_request(token, body)
-
-        if not result['isValid']:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    'error': 'Payment Required',
-                    'message': 'Insufficient credits or invalid token',
-                    'plans': [{'planId': PLAN_ID, 'agentId': AGENT_ID}]
-                }
-            )
-
-        return result['balance']
+    if not verification.is_valid:
+        return {"error": "Payment verification failed"}, 402
+    
+    ######
+    # Here you can execute your logic knowing payment is valid
+    ######
     ```
   </Tab>
 </Tabs>
 
-## Use the Middleware
+## Integrate the validation code in your agent/server
 
-<Tabs>
-  <Tab title="TypeScript (Express)">
-    ```typescript filename="server.ts"
-    import express from 'express'
-    import { validatePayment } from './middleware/payments'
-
-    const app = express()
-    app.use(express.json())
-
-    // Protected endpoint
-    app.post('/query', validatePayment, async (req, res) => {
-      // Your AI logic here
-      const result = await processQuery(req.body.prompt)
-
-      res.json({
-        result,
-        creditsRemaining: req.creditsRemaining
-      })
-    })
-
-    app.listen(3000, () => {
-      console.log('Agent running on http://localhost:3000')
-    })
-    ```
-  </Tab>
-  <Tab title="Python (FastAPI)">
-    ```python filename="server.py"
-    from fastapi import FastAPI, Depends
-    from middleware.payments import validate_payment
-
-    app = FastAPI()
-
-    @app.post("/query")
-    async def query(request: dict, credits: int = Depends(validate_payment)):
-        # Your AI logic here
-        result = await process_query(request['prompt'])
-
-        return {
-            'result': result,
-            'creditsRemaining': credits
-        }
-
-    if __name__ == '__main__':
-        import uvicorn
-        uvicorn.run(app, host='0.0.0.0', port=3000)
-    ```
-  </Tab>
-</Tabs>
+Integrate the above validation code into your agent/server code at the very beginning of your request handling logic. The payment validation should occur before any processing of the request and can be complemented by any other authorization logic you may have.
 
 ## Test It
 
@@ -346,23 +266,55 @@ Response:
 
 **2) Purchase a plan and get an access token**
 
-```typescript
-// As a subscriber
-const payments = Payments.getInstance({ nvmApiKey: subscriberKey, environment: 'sandbox' })
+<Tabs>
+  <Tab title="TypeScript">
+  ```typescript
+  // As a subscriber
+  const payments = Payments.getInstance({ nvmApiKey: subscriberKey, environment: 'sandbox' })
 
-// Order the plan
-await payments.plans.orderPlan(PLAN_ID)
+  // Order the plan
+  await payments.plans.orderPlan(PLAN_ID)
 
-// Get access token
-const { accessToken } = await payments.agents.getAgentAccessToken(PLAN_ID, AGENT_ID)
-```
+  // Get your balance about the plan you just ordered
+  const balance = await payments.plans.getPlanBalance(PLAN_ID)
+
+  // Generate the x402 access token
+  const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID)
+
+  // Use this token in the next request
+  // HTTP header: 'PAYMENT-SIGNATURE'
+  // value: `${accessToken}`
+  ```
+  </Tab>
+  <Tab title="Python">
+  ```python
+    import os
+    from payments_py import Payments, PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
+    )
+
+    # Order the plan
+    order_result = payments.plans.order_plan(plan_id)
+
+    # Get your balance about the plan you just ordered
+    balance = payments.plans.get_plan_balance(plan_id)
+
+    # Generate the x402 access token
+    token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+    access_token = token_res['accessToken']  
+  ```
+  </Tab>
+</Tabs>
+
 
 **3) Query with payment**
 
 ```bash
 curl -X POST http://localhost:3000/query \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "PAYMENT-SIGNATURE: ${agentAccessParams.accessToken}" \
   -d '{"prompt": "Hello"}'
 ```
 

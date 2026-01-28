@@ -5,7 +5,7 @@ icon: "js"
 ---
 
 <Note>
-  **Start here:** need to register a service and create a plan first? Follow the
+  **Start here:** need to register a service and create a plan first or get your Nevermined API Key? Follow the
   [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
 </Note>
 
@@ -40,13 +40,14 @@ import { Payments, getERC20PriceConfig, getFixedCreditsConfig } from '@nevermine
 const app = express()
 app.use(express.json())
 
-// Base Sepolia USDC for testing
+// In this example we require a payment a payment of 10 USDC for 100 requests
+// For that USDC payment we use USDC on Base Sepolia, so we need its contract address:
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 
 // Initialize payments
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'sandbox'
+  environment: 'sandbox' // or 'production'
 })
 
 // Store IDs after registration
@@ -95,24 +96,25 @@ async function validatePayment(
   res: express.Response,
   next: express.NextFunction
 ) {
-  const authHeader = req.headers['authorization']
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(402).json({
-      error: 'Payment Required',
-      plans: [{ planId, agentId }]
-    })
+  // Get token from payment-signature header
+  const x402Token = req.headers['payment-signature']
+
+  if (!x402Token) {
+    // Return 402 with payment requirements
+    return res.status(402).json({ error: 'Payment Required' })
   }
 
-  const token = authHeader.substring(7)
-  const { isValid, balance } = await payments.requests.isValidRequest(token, req.body)
+  // Verify permissions - facilitator extracts planId and subscriberAddress from token
+  const verification = await payments.facilitator.verifyPermissions({
+    x402AccessToken: x402Token,
+    maxAmount: BigInt(creditsRequired),
+  })
 
-  if (!isValid) {
-    return res.status(402).json({
-      error: 'Insufficient credits',
-      plans: [{ planId, agentId }]
-    })
+  if (!verification.isValid) {
+    return res.status(402).json({ error: 'Payment verification failed' })
   }
+  const balance = await payments.plans.getPlanBalance(planId)
 
   // Attach balance to request
   ;(req as any).credits = balance
@@ -218,8 +220,9 @@ async function purchaseAndQuery() {
 
   // 2. Get access token
   console.log('Getting access token...')
-  const { accessToken } = await payments.agents.getAgentAccessToken(
-    process.env.PLAN_ID!,
+
+  const { accessToken } = await payments.x402.getX402AccessToken(
+    process.env.PLAN_ID!, 
     process.env.AGENT_ID!
   )
 
@@ -229,7 +232,7 @@ async function purchaseAndQuery() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
+      'PAYMENT-SIGNATURE': `${accessToken}`
     },
     body: JSON.stringify({ prompt: 'What is 2+2?' })
   })
