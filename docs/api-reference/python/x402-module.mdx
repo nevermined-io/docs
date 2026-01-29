@@ -205,12 +205,10 @@ AGENT_ID = "your-agent-id"
 
 @app.route('/api/process', methods=['POST'])
 def process_request():
-    # 1. Extract token
-    auth = request.headers.get('Authorization', '')
-    if not auth.startswith('Bearer '):
-        return jsonify({'error': 'Missing token'}), 401
-
-    token = auth[7:]
+    # 1. Extract x402 token from payment-signature header
+    token = request.headers.get('payment-signature', '')
+    if not token:
+        return jsonify({'error': 'Missing payment-signature header'}), 402
 
     # 2. Build payment requirement
     payment_required = build_payment_required(
@@ -284,7 +282,7 @@ if __name__ == '__main__':
        │ {accessToken: "..."}           │                                │
        │                                │                                │
        │ GET /api/process               │                                │
-       │ Authorization: Bearer <token>  │                                │
+       │ payment-signature: <token>     │                                │
        │ ─────────────────────────────► │                                │
        │                                │                                │
        │                                │ verify_permissions()           │
@@ -331,7 +329,7 @@ if __name__ == '__main__':
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Validation of Requests" icon="arrow-right" href="/docs/api-reference/python/validation-module">
+  <Card title="Request Validation" icon="arrow-right" href="/docs/api-reference/python/validation-module">
     More validation patterns
   </Card>
   <Card title="MCP Integration" icon="arrow-right" href="/docs/api-reference/python/mcp-module">
