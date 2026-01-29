@@ -22,11 +22,30 @@ When using the standard Bearer token flow, credits are automatically deducted wh
   </Tab>
   <Tab title="Python">
     ```python
-    result = payments.requests.is_valid_request(token, body)
+    from payments_py.x402.helpers import build_payment_required
 
-    # Credits are automatically deducted based on plan configuration
-    # result['balance'] shows remaining credits AFTER deduction
-    print(f"Remaining credits: {result['balance']}")
+    # 1. Verify permissions (does NOT burn credits)
+    verification = payments.facilitator.verify_permissions(
+        payment_required=payment_required,
+        x402_access_token=token,
+        max_amount="1"
+    )
+
+    if not verification.is_valid:
+        raise Exception('Invalid payment')
+
+    # 2. Process request...
+    result = process_request()
+
+    # 3. Settle (burn credits) after successful processing
+    settlement = payments.facilitator.settle_permissions(
+        payment_required=payment_required,
+        x402_access_token=token,
+        max_amount="1"
+    )
+
+    print(f"Credits used: {settlement.credits_redeemed}")
+    print(f"Remaining: {settlement.remaining_balance}")
     ```
   </Tab>
 </Tabs>

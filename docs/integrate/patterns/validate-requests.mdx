@@ -18,33 +18,52 @@ Copy-paste patterns for validating payment requests for APIs, agents/tools, and 
 
 At a minimum, validation has three steps:
 
-1. Extract a Bearer token from the `Authorization` header
-2. Validate it against the request body
-3. Return `402 Payment Required` (optionally including `plans`) when missing/invalid
+1. Extract x402 token from the `payment-signature` header
+2. Verify permissions using the facilitator
+3. Return `402 Payment Required` when missing/invalid
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    import { Payments } from '@nevermined-io/payments'
+    import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
       environment: 'sandbox'
     })
 
-    export async function validateRequest(token: string, body: unknown) {
-      const result = await payments.requests.isValidRequest(token, body)
+    export async function validateRequest(
+      x402Token: string,
+      planId: string,
+      agentId: string,
+      endpoint: string,
+      httpVerb: string
+    ) {
+      // Build payment requirements
+      const paymentRequired = buildPaymentRequired({
+        planId,
+        endpoint,
+        agentId,
+        httpVerb
+      })
+
+      // Verify permissions
+      const verification = await payments.facilitator.verifyPermissions({
+        paymentRequired,
+        x402AccessToken: x402Token,
+        maxAmount: BigInt(1)
+      })
 
       return {
-        isValid: result.isValid,
-        balance: result.balance,
-        reason: result.reason
+        isValid: verification.isValid,
+        balance: verification.balance,
+        subscriberAddress: verification.subscriberAddress
       }
     }
 
     // Pseudo-usage
-    // - Extract token from Authorization: Bearer <token>
-    // - Call validateRequest(token, body)
+    // - Extract token from payment-signature header
+    // - Call validateRequest(token, planId, agentId, endpoint, httpVerb)
     // - If invalid, return 402
     ```
   </Tab>
@@ -52,23 +71,43 @@ At a minimum, validation has three steps:
     ```python
     import os
     from payments_py import Payments, PaymentOptions
+    from payments_py.x402.helpers import build_payment_required
 
     payments = Payments.get_instance(
         PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
     )
 
-    async def validate_request(token: str, body: dict) -> dict:
-        result = await payments.requests.is_valid_request(token, body)
+    def validate_request(
+        x402_token: str,
+        plan_id: str,
+        agent_id: str,
+        endpoint: str,
+        http_verb: str
+    ) -> dict:
+        # Build payment requirements
+        payment_required = build_payment_required(
+            plan_id=plan_id,
+            endpoint=endpoint,
+            agent_id=agent_id,
+            http_verb=http_verb
+        )
+
+        # Verify permissions
+        verification = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount="1"
+        )
 
         return {
-            'is_valid': result['isValid'],
-            'balance': result['balance'],
-            'reason': result.get('reason')
+            'is_valid': verification.is_valid,
+            'balance': verification.balance,
+            'subscriber_address': verification.subscriber_address
         }
 
     # Pseudo-usage:
-    # - Extract token from Authorization: Bearer <token>
-    # - Call await validate_request(token, body)
+    # - Extract token from payment-signature header
+    # - Call validate_request(token, plan_id, agent_id, endpoint, http_verb)
     # - If invalid, return 402
     ```
   </Tab>
