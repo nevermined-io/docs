@@ -115,34 +115,32 @@ async def register_agent():
 # ============================================
 async def validate_payment(request: Request) -> int:
     """Validate payment and return remaining credits."""
-    # Get token from payment-signature header
+    from payments_py.x402.helpers import build_payment_required
+
     x402_token = request.headers.get("payment-signature")
 
     if not x402_token:
-        # Return 402 with payment requirements
-        return {"error": "Payment Required"}, 402
+        raise HTTPException(status_code=402, detail="Payment required")
 
-    # Get request body for validation
-    body = await request.json()
-
-    # Verify permissions - facilitator extracts planId and subscriberAddress from token
-    verification = payments.facilitator.verify_permissions(
-        x402_access_token=x402_token,
-        max_amount=1,
+    # Build payment requirements
+    payment_required = build_payment_required(
+        plan_id=plan_id,
+        endpoint=str(request.url),
+        agent_id=agent_id,
+        http_verb=request.method
     )
 
+    # Verify permissions
+    verification = payments.facilitator.verify_permissions(
+        payment_required=payment_required,
+        x402_access_token=x402_token,
+        max_amount="1"
+    )
 
-    if not verification.is_valid:
-        raise HTTPException(
-            status_code=402,
-            detail={
-                'error': 'Insufficient credits',
-                'plans': [{'planId': plan_id, 'agentId': agent_id}]
-            }
-        )
+    if not verification.get("is_valid"):
+        raise HTTPException(status_code=402, detail="Invalid payment")
 
-    balance = payments.plans.get_plan_balance(plan_id)
-    return int(balance.balance)
+    return verification.get("remaining_credits", 0)
 
 
 # ============================================
@@ -287,36 +285,41 @@ plan_id = os.environ.get('PLAN_ID', '')
 
 def require_payment(f):
     """Decorator to validate payment."""
+    from payments_py.x402.helpers import build_payment_required
+
     @wraps(f)
     def decorated(*args, **kwargs):
         x402_token = request.headers.get("payment-signature")
 
         if not x402_token:
-            # Return 402 with payment requirements
             return {"error": "Payment Required"}, 402
 
-        # Get request body for validation
-        body = await request.json()
+        # Get request body for validation (Flask synchronous method)
+        body = request.get_json()
 
-        # Verify permissions - facilitator extracts planId and subscriberAddress from token
-        verification = payments.facilitator.verify_permissions(
-            x402_access_token=x402_token,
-            max_amount=1,
+        # Build payment requirements
+        payment_required = build_payment_required(
+            plan_id=plan_id,
+            endpoint=request.url,
+            agent_id=agent_id,
+            http_verb=request.method
         )
 
+        # Verify permissions
+        verification = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount="1"
+        )
 
-        if not verification.is_valid:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    'error': 'Insufficient credits',
-                    'plans': [{'planId': plan_id, 'agentId': agent_id}]
-                }
-            )
+        if not verification.get("is_valid"):
+            return {"error": "Invalid payment"}, 402
+
+        # Get balance
         balance = payments.plans.get_plan_balance(plan_id)
 
         # Pass credits to the handler
-        kwargs['credits'] = result['balance']
+        kwargs['credits'] = balance.get('balance', 0)
         return f(*args, **kwargs)
 
     return decorated
