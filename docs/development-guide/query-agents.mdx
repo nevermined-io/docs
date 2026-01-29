@@ -217,7 +217,7 @@ Here's a complete example showing the full flow from getting access tokens to qu
             result = response.json()
 
             # Step 4: Check remaining balance (optional)
-            balance = payments.get_plan_balance(plan_id)
+            balance = payments.plans.get_plan_balance(plan_id)
             print(f"Remaining credits: {balance.get('balance')}")
 
             return result

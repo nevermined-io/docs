@@ -413,7 +413,6 @@ import base64
 import json
 import httpx
 from payments_py import Payments, PaymentOptions
-from payments_py.x402.fastapi import X402_HEADERS
 
 payments = Payments.get_instance(
     PaymentOptions(
@@ -436,7 +435,7 @@ def call_protected_api():
             # Step 2: Decode payment requirements
             payment_required = json.loads(
                 base64.b64decode(
-                    response1.headers.get(X402_HEADERS["PAYMENT_REQUIRED"])
+                    response1.headers.get("payment-required")
                 ).decode()
             )
 
@@ -450,7 +449,7 @@ def call_protected_api():
             # Step 4: Request with token → 200
             response2 = client.post(
                 f"{SERVER_URL}/ask",
-                headers={X402_HEADERS["PAYMENT_SIGNATURE"]: access_token},
+                headers={"payment-signature": access_token},
                 json={"query": "What is 2+2?"}
             )
 
@@ -460,7 +459,7 @@ def call_protected_api():
             # Step 5: Decode settlement receipt
             settlement = json.loads(
                 base64.b64decode(
-                    response2.headers.get(X402_HEADERS["PAYMENT_RESPONSE"])
+                    response2.headers.get("payment-response")
                 ).decode()
             )
             print(f"Credits used: {settlement.get('creditsRedeemed')}")

@@ -57,11 +57,13 @@ For developers who need to automate and integrate directly, our SDKs are the per
 
         ```python
         import os
-        from payments_py import Payments
-        
-        payments = Payments(
-            api_key=os.environ.get('NVM_API_KEY'),
-            environment='sandbox' # or 'live'
+        from payments_py import Payments, PaymentOptions
+
+        payments = Payments.get_instance(
+            PaymentOptions(
+                nvm_api_key=os.environ.get('NVM_API_KEY'),
+                environment='sandbox'  # or 'live'
+            )
         )
         ```
       </Tab>
