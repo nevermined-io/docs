@@ -1,4 +1,9 @@
 ---
+version: 1.0.3-rc0
+lastUpdated: 2026-02-01
+---
+
+---
 title: "Request Validation"
 description: "Verify X402 access tokens and settle payments when subscribers access your agents"
 icon: "shield-check"

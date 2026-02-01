@@ -1,4 +1,9 @@
 ---
+version: 1.0.3-rc0
+lastUpdated: 2026-02-01
+---
+
+---
 title: "Payments & Balance"
 description: "Purchase payment plans and manage credit balances for accessing AI agents"
 icon: "wallet"
