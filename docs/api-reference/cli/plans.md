@@ -1,4 +1,9 @@
 ---
+version: 1.0.3-rc2
+lastUpdated: 2026-02-02
+---
+
+---
 title: "Managing Payment Plans"
 description: "Complete guide to creating and managing payment plans with the Nevermined CLI"
 icon: "credit-card"

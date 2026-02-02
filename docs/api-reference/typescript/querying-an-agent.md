@@ -1,4 +1,9 @@
 ---
+version: 1.0.3-rc2
+lastUpdated: 2026-02-02
+---
+
+---
 title: "Querying Agents"
 description: "Generate X402 access tokens and make authenticated requests to AI agents"
 icon: "message"
