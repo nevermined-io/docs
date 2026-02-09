@@ -14,36 +14,32 @@ Add payment protection to agents running on [Amazon Bedrock AgentCore](https://d
 
 ## x402 Payment Flow
 
-```
-┌─────────┐                              ┌──────────────────┐
-│  Client  │                              │  Agent (Lambda)  │
-└────┬─────┘                              │  @requires_payment│
-     │                                    └────────┬─────────┘
-     │                                             │
-     │  1. Call agent — no payment-signature        │
-     │────────────────────────────────────────────>│
-     │                                             │
-     │     402 PaymentRequired                     │
-     │     (payment-required header, base64 JSON)  │
-     │<────────────────────────────────────────────│
-     │                                             │
-     │  2. Client decodes PaymentRequired,         │
-     │     extracts planId from accepts[]          │
-     │                                             │
-     │  3. Client acquires x402 token via SDK      │
-     │     payments.x402.get_x402_access_token()   │
-     │                                             │
-     │  4. Call agent with payment-signature header │
-     │────────────────────────────────────────────>│
-     │                                             │
-     │     - Verify permissions (pre-flight)       │
-     │     - Execute handler (agent work)          │
-     │     - Settle (burn credits)                 │
-     │                                             │
-     │  5. Response + payment-response header      │
-     │     (settlement receipt, base64 JSON)       │
-     │<────────────────────────────────────────────│
-     │                                             │
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Agent as Agent (Lambda)<br/>@requires_payment
+    participant Facilitator as Nevermined Facilitator
+
+    Client->>Agent: Call agent — no payment-signature
+    Agent-->>Client: 402 PaymentRequired<br/>(payment-required header, base64 JSON)
+
+    Note over Client: Decode PaymentRequired,<br/>extract planId from accepts[]
+
+    Client->>Facilitator: get_x402_access_token(plan_id)
+    Facilitator-->>Client: accessToken
+
+    Client->>Agent: Call agent with payment-signature header
+
+    Agent->>Facilitator: verify_permissions(token, credits)
+    Facilitator-->>Agent: Verification OK
+
+    Note over Agent: Execute handler (agent work)
+
+    Agent->>Facilitator: settle_permissions(token, credits)
+    Facilitator-->>Agent: Settlement OK (creditsRedeemed, tx)
+
+    Agent-->>Client: Response + payment-response header<br/>(settlement receipt, base64 JSON)
 ```
 
 ## MCP Event Format
@@ -189,17 +185,13 @@ The decorator wraps and enriches all formats with payment-response headers and `
 
 ## Credits Flow
 
-```
-Decorator config: credits=1
-                    │
-                    ├── VERIFY: "does subscriber have at least 1 credit?"
-                    │
-                    ├── EXECUTE: handler runs, returns response
-                    │
-                    └── SETTLE: burn credits
-                         │
-                         ├── If response has _meta.creditsToCharge: 5 → burn 5
-                         └── If response has no override → burn 1 (config default)
+```mermaid
+flowchart TD
+    A["Decorator config: credits=1"] --> B["VERIFY: does subscriber have at least 1 credit?"]
+    B --> C["EXECUTE: handler runs, returns response"]
+    C --> D{"Response has<br/>_meta.creditsToCharge?"}
+    D -->|"Yes (e.g. 5)"| E["SETTLE: burn 5 credits"]
+    D -->|"No"| F["SETTLE: burn 1 credit (config default)"]
 ```
 
 The `credits` parameter is used for both verify (pre-flight check) and settle (default burn amount). The handler can override the settle amount by returning `_meta.creditsToCharge` in its response.
@@ -371,9 +363,6 @@ NVM_API_KEY=nvm:your-publisher-api-key
 NVM_ENVIRONMENT=testing
 NVM_PLAN_ID=your-plan-id
 NVM_AGENT_ID=your-agent-id          # Optional
-
-# AWS (for Lambda deployment)
-AWS_DEFAULT_REGION=us-east-1
 ```
 
 ## Next Steps
