@@ -1,4 +1,9 @@
 ---
+version: 1.0.6
+lastUpdated: 2026-02-10
+---
+
+---
 title: "Getting Started"
 description: "Initialize the Payments SDK in Node.js and browser environments with your API key"
 icon: "rocket"

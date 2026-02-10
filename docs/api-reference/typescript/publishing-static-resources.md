@@ -1,4 +1,9 @@
 ---
+version: 1.0.6
+lastUpdated: 2026-02-10
+---
+
+---
 title: "Static Resources"
 description: "Monetize access to static content like files, datasets, and documents with payment protection"
 icon: "folder-open"

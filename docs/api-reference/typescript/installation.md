@@ -1,4 +1,9 @@
 ---
+version: 1.0.6
+lastUpdated: 2026-02-10
+---
+
+---
 title: "Installation"
 description: "Install and configure the @nevermined-io/payments TypeScript SDK for monetizing AI agents"
 icon: "download"

@@ -1,6 +1,6 @@
 ---
-version: 1.0.3
-lastUpdated: 2026-02-02
+version: 1.0.6
+lastUpdated: 2026-02-10
 ---
 
 ---
