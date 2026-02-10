@@ -247,7 +247,7 @@ def purchase_and_query():
         'http://localhost:8000/query',
         headers={
             'Content-Type': 'application/json',
-            'Payment-Signature': f'{access_token}'
+            'payment-signature': f'{access_token}'
         },
         json={'prompt': 'What is 2+2?'}
     )

@@ -35,7 +35,7 @@ Once a user is a subscriber, sending a request is quite simple.
 
 ## Sending a query to the AI Agent
 
-Once you have a valid X402 access token, you can query the AI Agent by making a standard HTTP request with the token in the `PAYMENT-SIGNATURE` header.
+Once you have a valid X402 access token, you can query the AI Agent by making a standard HTTP request with the token in the `payment-signature` header.
 
 This request must be sent directly to the Agent endpoint (the Agent API description is in the Agent Metadata).
 
@@ -50,7 +50,7 @@ export AGENT_ACCESS_TOKEN="eJyNj0sKgDAURP9lJQ..."
 
 curl -k -X POST \
   -H "Content-Type: application/json" \
-  -H "PAYMENT-SIGNATURE: $AGENT_ACCESS_TOKEN" \
+  -H "payment-signature: $AGENT_ACCESS_TOKEN" \
   -d '{"query": "hey there"}' \
   https://my.agent.io/prompt
 ```
@@ -65,7 +65,7 @@ curl -k -X POST \
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        'PAYMENT-SIGNATURE': accessToken,
+        'payment-signature': accessToken,
       },
       body: JSON.stringify({
         query: "What's the weather like today?",
@@ -88,7 +88,7 @@ curl -k -X POST \
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "PAYMENT-SIGNATURE": access_token,
+        "payment-signature": access_token,
     }
 
     payload = {
@@ -142,7 +142,7 @@ Here's a complete example showing the full flow from getting access tokens to qu
           method: method,
           headers: {
             'Content-Type': 'application/json',
-            'PAYMENT-SIGNATURE': accessToken
+            'payment-signature': accessToken
           },
           body: JSON.stringify({ query })
         })
@@ -199,7 +199,7 @@ Here's a complete example showing the full flow from getting access tokens to qu
             # Step 3: Make the request
             headers = {
                 'Content-Type': 'application/json',
-                'PAYMENT-SIGNATURE': access_token
+                'payment-signature': access_token
             }
 
             payload = {'query': query}
@@ -350,7 +350,7 @@ For efficiency, you can send multiple queries in a single request:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'PAYMENT-SIGNATURE': accessToken
+        'payment-signature': accessToken
       },
       body: JSON.stringify(batchQuery)
     })
@@ -368,7 +368,7 @@ For efficiency, you can send multiple queries in a single request:
     
     response = requests.post(
         agent_endpoint,
-        headers={'PAYMENT-SIGNATURE': access_token},
+        headers={'payment-signature': access_token},
         json=batch_query
     )
     ```
@@ -384,7 +384,7 @@ const response = await fetch(agentEndpoint, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${accessToken}`,
+    'payment-signature': accessToken,
     'Accept': 'text/event-stream'
   },
   body: JSON.stringify({ query, stream: true })
