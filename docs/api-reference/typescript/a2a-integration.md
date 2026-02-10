@@ -1,4 +1,9 @@
 ---
+version: 1.0.3
+lastUpdated: 2026-02-02
+---
+
+---
 title: "A2A Integration"
 description: "Enable agent-to-agent communication with payment-protected streaming and task execution"
 icon: "share-nodes"
