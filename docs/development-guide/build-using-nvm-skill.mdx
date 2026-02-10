@@ -4,7 +4,7 @@ description: "Import Nevermined payment knowledge into your AI coding assistant 
 icon: "wand-magic-sparkles"
 ---
 
-Use the **Nevermined AI Skill** to give your coding assistant deep knowledge of the Nevermined Payments SDK, the x402 payment protocol, and integration patterns for Express.js, FastAPI, Strands agents, and MCP servers.
+Use the **Nevermined AI Skill** to give your coding assistant deep knowledge of the Nevermined Payments SDK, the x402 payment protocol, and integration patterns for Express.js, FastAPI, Strands agents, MCP servers, and Google A2A.
 
 Instead of copy-pasting docs, you import the skill once and your AI assistant knows how to wire up payments for you.
 
@@ -13,44 +13,205 @@ Instead of copy-pasting docs, you import the skill once and your AI assistant kn
 The skill provides your coding assistant with:
 
 - **SDK initialization** patterns for TypeScript and Python
-- **Framework-specific middleware** (Express.js, FastAPI, Strands, MCP)
+- **Framework-specific middleware** (Express.js, FastAPI, Strands, MCP, Google A2A)
 - **x402 protocol** flow — headers, verification, settlement
 - **Payment plan** registration and configuration
 - **Client-side** integration — ordering plans, generating tokens, calling protected APIs
 - **Troubleshooting** for common errors (402, `-32003`, `-32002`)
 
-## Import the Skill
+## Install the Skill
 
-### Claude Code
+Choose your AI coding tool below for step-by-step installation instructions.
 
-```bash
-claude /install-skill https://github.com/nevermined-io/docs skills/nevermined-payments
-```
+<Tabs>
+  <Tab title="Claude Code">
+    ### Claude Code
 
-After importing, Claude Code will automatically use the skill when you work on Nevermined integrations.
+    **One-command install** from the Nevermined repository:
 
-### Cursor
+    ```bash
+    claude /install-skill https://github.com/nevermined-io/docs skills/nevermined-payments
+    ```
 
-The Nevermined skill is automatically loaded when you open a project that includes the `.cursorrules` or `.cursor/rules/nevermined-payments.mdc` files. To add these to your own project:
+    This downloads the `SKILL.md` and all reference files into your local Claude Code skills directory. Claude Code automatically loads the skill when it's relevant to your work.
 
-1. Copy `.cursorrules` to your project root
-2. Or copy `.cursor/rules/nevermined-payments.mdc` to your project's `.cursor/rules/` directory
+    **Alternative — manual installation:**
 
-### GitHub Copilot
+    1. Clone or download the skill files:
+       ```bash
+       git clone https://github.com/nevermined-io/docs.git /tmp/nvm-docs
+       ```
+    2. Copy to your personal skills directory:
+       ```bash
+       cp -r /tmp/nvm-docs/skills/nevermined-payments ~/.claude/skills/
+       ```
+    3. Or copy to a project-specific location:
+       ```bash
+       cp -r /tmp/nvm-docs/skills/nevermined-payments .claude/skills/
+       ```
 
-Copy `.github/copilot-instructions.md` to your project's `.github/` directory. Copilot reads this file automatically for repository-specific context.
+    Claude Code discovers skills automatically from `~/.claude/skills/` (personal) and `.claude/skills/` (project).
+  </Tab>
 
-### ChatGPT / Other Assistants
+  <Tab title="Cursor">
+    ### Cursor
 
-Share the skill content directly:
+    **Option A — Remote rule import (recommended):**
 
-1. Open the [`SKILL.md` file](https://github.com/nevermined-io/docs/blob/main/skills/nevermined-payments/SKILL.md)
-2. Copy the contents
-3. Paste into your assistant's context or knowledge base
+    1. Open **Cursor Settings** (gear icon)
+    2. Navigate to **Rules** section
+    3. Click **Add Remote Rule**
+    4. Paste the GitHub repository URL: `https://github.com/nevermined-io/docs`
+    5. Cursor syncs the rules automatically
+
+    **Option B — Copy rule files to your project:**
+
+    Download the rule files and add them to your project:
+
+    ```bash
+    # Modern format (recommended)
+    mkdir -p .cursor/rules
+    curl -o .cursor/rules/nevermined-payments.mdc \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.cursor/rules/nevermined-payments.mdc
+    ```
+
+    Or use the legacy format:
+
+    ```bash
+    # Legacy format
+    curl -o .cursorrules \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.cursorrules
+    ```
+
+    The `.cursor/rules/*.mdc` format supports glob-based activation — the Nevermined rule auto-activates when you work with `.ts`, `.js`, or `.py` files.
+  </Tab>
+
+  <Tab title="Windsurf">
+    ### Windsurf (Codeium)
+
+    Copy the rule file to your project's Windsurf rules directory:
+
+    ```bash
+    mkdir -p .windsurf/rules
+    curl -o .windsurf/rules/nevermined-payments.md \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.windsurf/rules/nevermined-payments.md
+    ```
+
+    Windsurf automatically discovers rules from `.windsurf/rules/` and applies them based on their activation mode.
+
+    <Note>
+      Windsurf rules have a 6,000-character limit per file. The Nevermined rule file stays within this limit with the most essential patterns. For the full reference, point your assistant to the `SKILL.md`.
+    </Note>
+  </Tab>
+
+  <Tab title="GitHub Copilot">
+    ### GitHub Copilot
+
+    **Repository-wide instructions:**
+
+    Add the instructions file to your project:
+
+    ```bash
+    mkdir -p .github
+    curl -o .github/copilot-instructions.md \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.github/copilot-instructions.md
+    ```
+
+    Copilot reads `.github/copilot-instructions.md` automatically for every request within the repository.
+
+    **Path-specific instructions (optional):**
+
+    For more targeted activation, create a file at `.github/instructions/nevermined.instructions.md`:
+
+    ```markdown
+    ---
+    applyTo: "**/*.ts,**/*.tsx,**/*.js,**/*.py"
+    ---
+
+    When working with Nevermined payments, use the patterns from .github/copilot-instructions.md
+    ```
+  </Tab>
+
+  <Tab title="Codex CLI">
+    ### OpenAI Codex CLI
+
+    Codex CLI reads `AGENTS.md` files for project context. Add it to your project:
+
+    ```bash
+    curl -o AGENTS.md \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/AGENTS.md
+    ```
+
+    Codex CLI discovers `AGENTS.md` automatically by scanning from the current directory up to the repository root.
+
+    **Alternative — install as a Codex skill:**
+
+    ```bash
+    mkdir -p .agents/skills
+    cp -r skills/nevermined-payments .agents/skills/
+    ```
+
+    Codex CLI detects skills from `.agents/skills/` and loads them when relevant.
+  </Tab>
+
+  <Tab title="Cline">
+    ### Cline (VS Code)
+
+    Copy the rule file to your project:
+
+    ```bash
+    mkdir -p .clinerules
+    curl -o .clinerules/nevermined-payments.md \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.clinerules/nevermined-payments.md
+    ```
+
+    Cline discovers all `.md` files in the `.clinerules/` directory and applies them based on the `paths` frontmatter. The Nevermined rule activates for `.ts`, `.js`, and `.py` files.
+
+    You can also create rules through the Cline UI: click the **+** button in the Rules popover below the chat input.
+  </Tab>
+
+  <Tab title="Amazon Q">
+    ### Amazon Q Developer
+
+    Copy the rule file to your project:
+
+    ```bash
+    mkdir -p .amazonq/rules
+    curl -o .amazonq/rules/nevermined-payments.md \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.amazonq/rules/nevermined-payments.md
+    ```
+
+    Amazon Q automatically uses rules from `.amazonq/rules/` as context. You can toggle rules on/off via the Rules button in the Amazon Q chat panel.
+  </Tab>
+
+  <Tab title="Other / Manual">
+    ### ChatGPT, Claude.ai, or any other assistant
+
+    Share the skill content directly with your assistant:
+
+    1. Open the [`SKILL.md` file](https://github.com/nevermined-io/docs/blob/main/skills/nevermined-payments/SKILL.md)
+    2. Copy the contents
+    3. Paste into your assistant's context, knowledge base, or system prompt
+
+    For a more concise version, use the [`AGENTS.md` file](https://github.com/nevermined-io/docs/blob/main/AGENTS.md) instead.
+  </Tab>
+</Tabs>
+
+## Supported Tools at a Glance
+
+| Tool | Config File | Auto-Activates |
+|---|---|---|
+| **Claude Code** | `~/.claude/skills/nevermined-payments/SKILL.md` | Yes — when relevant |
+| **Cursor** | `.cursor/rules/nevermined-payments.mdc` | Yes — on `.ts`, `.js`, `.py` files |
+| **Windsurf** | `.windsurf/rules/nevermined-payments.md` | Yes — model decides |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | Yes — always |
+| **Codex CLI** | `AGENTS.md` or `.agents/skills/nevermined-payments/` | Yes — always or when relevant |
+| **Cline** | `.clinerules/nevermined-payments.md` | Yes — on `.ts`, `.js`, `.py` files |
+| **Amazon Q** | `.amazonq/rules/nevermined-payments.md` | Yes — always |
 
 ## Example Prompts
 
-After importing the skill, try prompts like:
+After installing the skill, try prompts like:
 
 <CardGroup cols={2}>
   <Card title="Add payments to Express.js" icon="node-js">
@@ -90,10 +251,10 @@ This gives your assistant the ability to search the full Nevermined documentatio
 
 | Approach | Best For | Tradeoff |
 |---|---|---|
-| **AI Skill** (SKILL.md) | Fast, offline-capable, consistent patterns | Static — you need to update when SDK changes |
+| **AI Skill** (SKILL.md) | Fast, offline-capable, consistent patterns | Static — update when SDK changes |
 | **MCP Search Server** | Always up-to-date, full doc coverage | Requires network, slower per-query |
 
-For the best experience, use both: import the skill for core patterns and connect the MCP server for edge cases.
+For the best experience, use both: install the skill for core patterns and connect the MCP server for edge cases.
 
 ## What's Next?
 
