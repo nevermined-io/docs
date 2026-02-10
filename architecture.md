@@ -215,6 +215,12 @@ docs/
 5. ✅ Payment patterns documentation
 6. ✅ SDK-specific API reference
 
+### AI Coding Tool Integration
+- ✅ Nevermined AI Skill (`skills/nevermined-payments/SKILL.md`) — cross-platform skill for AI coding assistants
+- ✅ Cursor rules (`.cursor/rules/nevermined-payments.mdc`, `.cursorrules`)
+- ✅ GitHub Copilot instructions (`.github/copilot-instructions.md`)
+- ✅ Skill documentation page (`docs/development-guide/build-using-nvm-skill.mdx`)
+
 ### Phase 2: Content Enhancement (IN PROGRESS 🚧)
 1. 📝 Add more code examples to patterns
 2. 📝 Expand x402 Facilitator documentation
