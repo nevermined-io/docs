@@ -1,4 +1,9 @@
 ---
+version: 1.0.3
+lastUpdated: 2026-02-02
+---
+
+---
 title: "Getting Started"
 description: "Complete guide to installing and configuring the Nevermined CLI"
 icon: "rocket"
