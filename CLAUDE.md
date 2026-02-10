@@ -116,6 +116,7 @@ Use H2 headings (#) for major topics, H3 (#) for subsections.
 
 - Express.js (TypeScript/JavaScript) - `docs/integrate/add-to-your-agent/express.mdx`
 - FastAPI (Python) - `docs/integrate/add-to-your-agent/fastapi.mdx`
+- Strands Agent (Python/AWS) - `docs/integrate/add-to-your-agent/strands.mdx`
 - Generic HTTP (any framework) - `docs/integrate/add-to-your-agent/generic-http.mdx`
 
 ### Mintlify Components to Use

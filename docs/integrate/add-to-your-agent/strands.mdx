@@ -1,0 +1,317 @@
+---
+title: "Strands Agent Integration"
+description: "Add Nevermined x402 payments to your Strands AI agent tools"
+icon: "robot"
+frameworks: ["strands", "python", "aws"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
+</Note>
+
+Add payment protection to your Strands AI agent tools using the [x402 protocol](https://github.com/coinbase/x402). The `@requires_payment` decorator handles verification and settlement automatically.
+
+## x402 Payment Flow
+
+```
+┌─────────┐                              ┌─────────┐
+│  Client │                              │  Agent  │
+└────┬────┘                              └────┬────┘
+     │                                        │
+     │  1. agent(prompt) — no token            │
+     │───────────────────────────────────────>│
+     │                                        │
+     │     Tool returns PaymentRequired error  │
+     │     (via tool result, not exception)    │
+     │                                        │
+     │  2. LLM relays error in natural lang.  │
+     │<───────────────────────────────────────│
+     │                                        │
+     │  3. Client extracts PaymentRequired    │
+     │     from agent.messages                │
+     │                                        │
+     │  4. Client acquires x402 token via SDK │
+     │                                        │
+     │  5. agent(prompt, invocation_state=     │
+     │     {"payment_token": token})           │
+     │───────────────────────────────────────>│
+     │                                        │
+     │     - Verify permissions               │
+     │     - Execute tool                     │
+     │     - Settle (burn credits)            │
+     │                                        │
+     │  6. Agent returns result               │
+     │<───────────────────────────────────────│
+     │                                        │
+```
+
+## How Payment Errors Flow
+
+The `@requires_payment` decorator follows the [x402 MCP transport spec](https://github.com/coinbase/x402/blob/main/specs/transports-v2/mcp.md) — payment errors are returned as **tool results** with `status: "error"`, not raised as exceptions. Each error includes:
+
+1. A **human-readable text block** explaining the payment requirement
+2. A **structured JSON block** containing the full `PaymentRequired` object
+
+In Strands, tool errors flow through the LLM. The LLM sees the error and relays it to the user in natural language (e.g., *"I need a payment token to use this tool"*). The structured `PaymentRequired` data is preserved in `agent.messages`.
+
+Clients use `extract_payment_required(agent.messages)` to get the structured `PaymentRequired` dict from the conversation history. The `PaymentRequired` contains the `accepts` array with plan IDs, schemes, and networks needed to acquire an x402 access token.
+
+## Installation
+
+```bash
+pip install payments-py[strands] strands-agents
+```
+
+<Note>
+  The `[strands]` extra installs the Strands SDK dependency required for the decorator.
+</Note>
+
+## Quick Start: Protecting a Tool
+
+The `@requires_payment` decorator wraps a Strands `@tool` function with x402 payment verification and settlement.
+
+<Warning>
+  You **must** use `@tool(context=True)` instead of plain `@tool`. This tells Strands to inject `tool_context` into the function, which the decorator needs to access `invocation_state` for the payment token.
+</Warning>
+
+```python filename="agent.py"
+import os
+from dotenv import load_dotenv
+from strands import Agent, tool
+from payments_py import Payments, PaymentOptions
+from payments_py.x402.strands import requires_payment
+
+load_dotenv()
+
+# Initialize Payments
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ["NVM_API_KEY"],
+        environment=os.environ.get("NVM_ENVIRONMENT", "sandbox"),
+    )
+)
+
+PLAN_ID = os.environ["NVM_PLAN_ID"]
+
+# Protect a tool with payment
+@tool(context=True)
+@requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
+def analyze_data(query: str, tool_context=None) -> dict:
+    """Analyze data based on a query. Costs 1 credit per request.
+
+    Args:
+        query: The data analysis query to process.
+    """
+    return {
+        "status": "success",
+        "content": [{"text": f"Analysis complete for: {query}"}],
+    }
+
+# Create agent with payment-protected tools
+agent = Agent(tools=[analyze_data])
+```
+
+That's it! The decorator automatically:
+- Returns a `PaymentRequired` error when no token is provided
+- Verifies the x402 token via the Nevermined facilitator
+- Executes the tool function on successful verification
+- Burns credits after successful execution
+
+## Client-Side: Payment Discovery
+
+Clients discover payment requirements by calling the agent without a token, then extracting the `PaymentRequired` from the conversation history:
+
+```python filename="client.py"
+from payments_py import Payments, PaymentOptions
+from payments_py.x402.strands import extract_payment_required
+from agent import agent, payments
+
+# Step 1: Call agent without token — triggers PaymentRequired
+result = agent("Analyze the latest sales trends")
+
+# Step 2: Extract PaymentRequired from conversation history
+payment_required = extract_payment_required(agent.messages)
+
+if payment_required:
+    # Step 3: Choose a plan and acquire token
+    chosen_plan = payment_required["accepts"][0]
+    plan_id = chosen_plan["planId"]
+    agent_id = (chosen_plan.get("extra") or {}).get("agentId")
+
+    token_response = payments.x402.get_x402_access_token(
+        plan_id=plan_id,
+        agent_id=agent_id,
+    )
+    access_token = token_response["accessToken"]
+
+    # Step 4: Call agent with payment token
+    state = {"payment_token": access_token}
+    result = agent("Analyze the latest sales trends", invocation_state=state)
+    print(f"Result: {result}")
+
+    # Step 5: Check settlement (stored in invocation_state after successful execution)
+    settlement = state.get("payment_settlement")
+    if settlement:
+        print(f"Credits redeemed: {settlement.credits_redeemed}")
+```
+
+## Decorator Configuration
+
+### Single Plan
+
+```python
+@tool(context=True)
+@requires_payment(payments=payments, plan_id="plan-123", credits=1)
+def my_tool(query: str, tool_context=None) -> dict:
+    ...
+```
+
+### Multiple Plans
+
+Accept multiple payment plans (e.g., basic and premium tiers):
+
+```python
+@tool(context=True)
+@requires_payment(
+    payments=payments,
+    plan_ids=["plan-basic", "plan-premium"],
+    credits=1,
+)
+def my_tool(query: str, tool_context=None) -> dict:
+    ...
+```
+
+### Dynamic Credits
+
+Calculate credits based on tool arguments:
+
+```python
+def calc_credits(kwargs):
+    """Charge based on complexity."""
+    return kwargs.get("complexity", 1) * 2
+
+@tool(context=True)
+@requires_payment(payments=payments, plan_id=PLAN_ID, credits=calc_credits)
+def my_tool(query: str, complexity: int = 1, tool_context=None) -> dict:
+    ...
+```
+
+### With Agent ID
+
+```python
+@tool(context=True)
+@requires_payment(
+    payments=payments,
+    plan_id=PLAN_ID,
+    credits=1,
+    agent_id=os.environ.get("NVM_AGENT_ID"),  # Required for plans with multiple agents
+)
+def my_tool(query: str, tool_context=None) -> dict:
+    ...
+```
+
+### Custom Network
+
+```python
+@tool(context=True)
+@requires_payment(
+    payments=payments,
+    plan_id=PLAN_ID,
+    credits=1,
+    network="eip155:1",  # Ethereum mainnet (default: eip155:84532 Base Sepolia)
+)
+def my_tool(query: str, tool_context=None) -> dict:
+    ...
+```
+
+### Lifecycle Hooks
+
+```python
+def on_before_verify(payment_required):
+    print(f"Verifying payment for {len(payment_required.accepts)} plans")
+
+def on_after_verify(verification):
+    print(f"Verified! Request ID: {verification.agent_request_id}")
+
+def on_after_settle(credits_used, settlement):
+    print(f"Settled {credits_used} credits")
+
+def on_payment_error(error):
+    # Return custom error dict or None for default x402 error
+    return None
+
+@tool(context=True)
+@requires_payment(
+    payments=payments,
+    plan_id=PLAN_ID,
+    credits=1,
+    on_before_verify=on_before_verify,
+    on_after_verify=on_after_verify,
+    on_after_settle=on_after_settle,
+    on_payment_error=on_payment_error,
+)
+def my_tool(query: str, tool_context=None) -> dict:
+    ...
+```
+
+## Accessing Payment Context
+
+After verification, the `PaymentContext` is available in `tool_context.invocation_state["payment_context"]`:
+
+```python
+from payments_py.x402.strands import PaymentContext
+
+@tool(context=True)
+@requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
+def my_tool(query: str, tool_context=None) -> dict:
+    """Tool with payment context access."""
+    ctx = tool_context.invocation_state.get("payment_context")
+    if ctx and isinstance(ctx, PaymentContext):
+        print(f"Token: {ctx.token}")
+        print(f"Credits: {ctx.credits_to_settle}")
+        print(f"Request ID: {ctx.agent_request_id}")
+        print(f"Verified: {ctx.verified}")
+
+    return {"status": "success", "content": [{"text": "Done"}]}
+```
+
+## Complete Example
+
+See the complete working example in the [strands-simple-agent](https://github.com/nevermined-io/hackathons/tree/main/agents/strands-simple-agent) directory on GitHub. It includes:
+
+- `agent.py` — Agent with payment-protected tools
+- `demo.py` — Full payment discovery and token acquisition flow
+
+## Environment Variables
+
+```bash filename=".env"
+# Nevermined (required)
+NVM_API_KEY=nvm:your-api-key
+NVM_ENVIRONMENT=sandbox
+NVM_PLAN_ID=your-plan-id
+NVM_AGENT_ID=your-agent-id          # Optional
+
+# LLM Provider
+OPENAI_API_KEY=sk-your-openai-key   # Or configure your preferred model provider
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/charge-credits">
+    Advanced credit charging patterns
+  </Card>
+
+  <Card title="x402 Protocol" icon="link" href="/docs/development-guide/nevermined-x402">
+    Deep dive into x402 payment flows
+  </Card>
+
+  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
+    Configure credits, subscriptions, and dynamic pricing
+  </Card>
+
+  <Card title="strands-simple-agent" icon="github" href="https://github.com/nevermined-io/hackathons/tree/main/agents/strands-simple-agent">
+    Complete working example on GitHub
+  </Card>
+</CardGroup>
