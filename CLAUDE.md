@@ -18,6 +18,10 @@ This document provides comprehensive guidelines for AI agents to write and maint
 
 **Key Audience**: AI builders, developers integrating Nevermined SDKs, and enterprises monetizing AI services.
 
+### AI Coding Skill
+
+This repository includes a **Nevermined AI Skill** at `skills/nevermined-payments/SKILL.md` with 7 reference files. This skill provides AI coding assistants (Claude Code, Cursor, Copilot, ChatGPT) with SDK patterns and integration knowledge. When updating SDK code examples, framework integrations, or x402 protocol documentation, also update the corresponding skill reference files in `skills/nevermined-payments/references/` to keep them in sync. IDE-specific files (`.cursorrules`, `.cursor/rules/`, `.github/copilot-instructions.md`) contain condensed versions of the skill and should be updated when core patterns change.
+
 ---
 
 ## Content Tone & Voice
@@ -284,8 +288,8 @@ When updating documentation, ensure:
 # 1. Install Mintlify CLI globally
 npm install -g mintlify
 
-# 2. Navigate to the docs_mintlify directory
-cd /path/to/docs_mintlify
+# 2. Navigate to the docs directory
+cd /path/to/docs
 
 # 3. Start local dev server with hot reload
 mintlify dev

@@ -1,0 +1,116 @@
+---
+title: "Build with the Nevermined AI Skill"
+description: "Import Nevermined payment knowledge into your AI coding assistant and start building monetizable agents in minutes."
+icon: "wand-magic-sparkles"
+---
+
+Use the **Nevermined AI Skill** to give your coding assistant deep knowledge of the Nevermined Payments SDK, the x402 payment protocol, and integration patterns for Express.js, FastAPI, Strands agents, and MCP servers.
+
+Instead of copy-pasting docs, you import the skill once and your AI assistant knows how to wire up payments for you.
+
+## What's Included
+
+The skill provides your coding assistant with:
+
+- **SDK initialization** patterns for TypeScript and Python
+- **Framework-specific middleware** (Express.js, FastAPI, Strands, MCP)
+- **x402 protocol** flow — headers, verification, settlement
+- **Payment plan** registration and configuration
+- **Client-side** integration — ordering plans, generating tokens, calling protected APIs
+- **Troubleshooting** for common errors (402, `-32003`, `-32002`)
+
+## Import the Skill
+
+### Claude Code
+
+```bash
+claude /install-skill https://github.com/nevermined-io/docs skills/nevermined-payments
+```
+
+After importing, Claude Code will automatically use the skill when you work on Nevermined integrations.
+
+### Cursor
+
+The Nevermined skill is automatically loaded when you open a project that includes the `.cursorrules` or `.cursor/rules/nevermined-payments.mdc` files. To add these to your own project:
+
+1. Copy `.cursorrules` to your project root
+2. Or copy `.cursor/rules/nevermined-payments.mdc` to your project's `.cursor/rules/` directory
+
+### GitHub Copilot
+
+Copy `.github/copilot-instructions.md` to your project's `.github/` directory. Copilot reads this file automatically for repository-specific context.
+
+### ChatGPT / Other Assistants
+
+Share the skill content directly:
+
+1. Open the [`SKILL.md` file](https://github.com/nevermined-io/docs/blob/main/skills/nevermined-payments/SKILL.md)
+2. Copy the contents
+3. Paste into your assistant's context or knowledge base
+
+## Example Prompts
+
+After importing the skill, try prompts like:
+
+<CardGroup cols={2}>
+  <Card title="Add payments to Express.js" icon="node-js">
+    "Add Nevermined x402 payment protection to my Express.js API. I want to charge 1 credit per request on the `/ask` endpoint."
+  </Card>
+
+  <Card title="Protect a FastAPI endpoint" icon="python">
+    "Integrate Nevermined payments into my FastAPI app. Use dynamic credits based on the token count in the response."
+  </Card>
+
+  <Card title="Build a paid MCP server" icon="laptop">
+    "Create an MCP server with Nevermined payments. Register a weather tool that costs 5 credits per call."
+  </Card>
+
+  <Card title="Add payments to a Strands agent" icon="robot">
+    "Protect my Strands agent tool with the @requires_payment decorator. Charge 2 credits per call."
+  </Card>
+</CardGroup>
+
+## Alternative: Use the MCP Search Server
+
+If you prefer real-time documentation search over a static skill, you can connect your coding assistant to the Nevermined MCP documentation server:
+
+```json
+{
+  "mcpServers": {
+    "nevermined-docs": {
+      "url": "https://docs.nevermined.app/mcp"
+    }
+  }
+}
+```
+
+This gives your assistant the ability to search the full Nevermined documentation on-demand. See [Build Using Nevermined MCP](/docs/development-guide/build-using-nvm-mcp) for details.
+
+## Skill vs. MCP Server
+
+| Approach | Best For | Tradeoff |
+|---|---|---|
+| **AI Skill** (SKILL.md) | Fast, offline-capable, consistent patterns | Static — you need to update when SDK changes |
+| **MCP Search Server** | Always up-to-date, full doc coverage | Requires network, slower per-query |
+
+For the best experience, use both: import the skill for core patterns and connect the MCP server for edge cases.
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
+    Register your first agent and plan
+  </Card>
+
+  <Card title="Express.js Integration" icon="node-js" href="/docs/integrate/add-to-your-agent/express">
+    Full Express.js payment middleware guide
+  </Card>
+
+  <Card title="FastAPI Integration" icon="python" href="/docs/integrate/add-to-your-agent/fastapi">
+    Full FastAPI payment middleware guide
+  </Card>
+
+  <Card title="MCP Integration" icon="laptop" href="/docs/integrations/mcp">
+    Build monetizable MCP servers
+  </Card>
+</CardGroup>
