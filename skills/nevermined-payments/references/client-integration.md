@@ -196,7 +196,7 @@ const transport = new StreamableHTTPClientTransport(
   new URL("http://localhost:3000/mcp"),
   {
     requestInit: {
-      headers: { 'PAYMENT-SIGNATURE': accessToken }
+      headers: { 'payment-signature': accessToken }
     }
   }
 )

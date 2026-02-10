@@ -5,7 +5,7 @@ Integrate Nevermined payments with [Google A2A (Agent-to-Agent)](https://a2a-pro
 ## Features
 
 - **Agent Card with payment extension**: publish at `/.well-known/agent.json`
-- **Bearer Token Authentication**: tokens extracted from HTTP headers (`PAYMENT-SIGNATURE`)
+- **Bearer Token Authentication**: tokens extracted from HTTP headers (`payment-signature`)
 - **Credits Validation**: verify sufficient credits before executing a task
 - **Credits Burning/Redemption**: burn credits specified in `metadata.creditsUsed` after execution
 - **Streaming**: supports `message/stream` and `tasks/resubscribe`
