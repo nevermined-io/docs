@@ -82,6 +82,7 @@ pip install payments-py
 
 <Note>
   No extra dependencies required. The AgentCore decorator uses only the core `payments-py` package.
+  See the [Python SDK installation guide](/docs/api-reference/python/installation) for detailed setup instructions.
 </Note>
 
 ## Quick Start: Protecting a Lambda Handler
@@ -98,7 +99,7 @@ from payments_py.x402.agentcore import requires_payment
 payments = Payments.get_instance(
     PaymentOptions(
         nvm_api_key=os.environ["NVM_API_KEY"],
-        environment=os.environ.get("NVM_ENVIRONMENT", "testing"),
+        environment=os.environ.get("NVM_ENVIRONMENT", "sandbox"),
     )
 )
 
@@ -293,7 +294,7 @@ from payments_py import Payments, PaymentOptions
 payments = Payments.get_instance(
     PaymentOptions(
         nvm_api_key=os.environ["NVM_SUBSCRIBER_API_KEY"],
-        environment=os.environ.get("NVM_ENVIRONMENT", "testing"),
+        environment=os.environ.get("NVM_ENVIRONMENT", "sandbox"),
     )
 )
 
@@ -359,10 +360,10 @@ Use the **decorator** when your agent runs as a Lambda function and you want the
 
 ```bash filename=".env"
 # Nevermined (required)
-NVM_API_KEY=nvm:your-publisher-api-key
-NVM_ENVIRONMENT=testing
+NVM_API_KEY=sandbox:eyxxxx           # sandbox:eyxxxx OR live:eyxxxx
+NVM_ENVIRONMENT=sandbox              # sandbox OR live
 NVM_PLAN_ID=your-plan-id
-NVM_AGENT_ID=your-agent-id          # Optional
+NVM_AGENT_ID=your-agent-id           # Optional
 ```
 
 ## Next Steps
