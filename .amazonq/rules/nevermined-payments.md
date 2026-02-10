@@ -52,6 +52,13 @@ payments.mcp.registerTool(name, config, handler, { credits: 5n })
 await payments.mcp.start({ port: 3000, agentId, serverName })
 ```
 
+## Google A2A Pattern
+
+```typescript
+const agentCard = payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
+await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
+```
+
 ## Priority
 
 High — these patterns ensure correct payment integration and prevent common errors.

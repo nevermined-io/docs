@@ -58,6 +58,13 @@ payments.mcp.registerTool(name, config, handler, { credits: 5n })
 await payments.mcp.start({ port: 3000, agentId, serverName })
 ```
 
+### Google A2A (TypeScript / Python)
+
+```typescript
+const agentCard = payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
+await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
+```
+
 ## x402 Protocol Headers
 
 - `payment-signature` — client sends x402 access token
