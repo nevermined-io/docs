@@ -27,7 +27,7 @@ When a user wants to query an AI Agent, they need to send a request with the acc
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        'PAYMENT-SIGNATURE': accessToken,
+        'payment-signature': accessToken,
       }
     }
 
@@ -55,7 +55,7 @@ When a user wants to query an AI Agent, they need to send a request with the acc
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "PAYMENT-SIGNATURE": access_token,
+        "payment-signature": access_token,
     }
 
     response = requests.post("https://my.agent.io/prompt", headers=headers)
@@ -84,17 +84,17 @@ In the example below, we will start a simple HTTP server that will first validat
     import http from 'http'
     
     const agentHost = 'https://example.com' // The AI agent is running on this host
-    
+
     const server = http.createServer(async (req, res) => {
-      const authHeader = req.headers['authorization'] as string
+      const x402Token = req.headers['payment-signature'] as string
       const requestedUrl = `${agentHost}${req.url}`
       const httpVerb = req.method
-      console.log('Received request:', { endpoint: requestedUrl, httpVerb, authHeader })
-       
+      console.log('Received request:', { endpoint: requestedUrl, httpVerb, x402Token })
+
       try {
         const isValidReq = await payments.requests.startProcessingRequest(
           agentId,
-          authHeader,
+          x402Token,
           requestedUrl,
           httpVerb!,
         )
@@ -105,7 +105,7 @@ In the example below, we will start a simple HTTP server that will first validat
           return
         }
       } catch (error) {
-        console.log('Unauthorized access attempt:', authHeader)
+        console.log('Unauthorized access attempt:', x402Token)
         console.log('Error details:', error)
       }
     
@@ -134,10 +134,10 @@ In the example below, we will start a simple HTTP server that will first validat
             self._handle_request()
 
         def _handle_request(self):
-            auth_header = self.headers.get("Authorization")
+            x402_token = self.headers.get("payment-signature", "")
             requested_url = f"{agent_host}{self.path}"
             http_verb = self.command
-            print("Received request:", {"endpoint": requested_url, "httpVerb": http_verb, "authHeader": auth_header})
+            print("Received request:", {"endpoint": requested_url, "httpVerb": http_verb, "x402Token": x402_token})
 
             try:
                 # Build payment requirements
@@ -147,9 +147,6 @@ In the example below, we will start a simple HTTP server that will first validat
                     agent_id=agent_id,
                     http_verb=http_verb
                 )
-
-                # Extract token from Authorization header
-                x402_token = auth_header.replace("Bearer ", "") if auth_header else ""
 
                 # Verify permissions with x402 access token
                 verification = payments.facilitator.verify_permissions(
@@ -166,7 +163,7 @@ In the example below, we will start a simple HTTP server that will first validat
                     self.wfile.write(json.dumps({"message": "Hello from the agent!"}).encode())
                     return
             except Exception as error:
-                print("Unauthorized access attempt:", auth_header)
+                print("Unauthorized access attempt:", x402_token)
                 print("Error details:", error)
 
             self.send_response(402)
