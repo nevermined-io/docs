@@ -24,11 +24,13 @@ To interact with Nevermined programmatically, you need a **Nevermined API Key**.
     ```bash
     export NVM_API_KEY="nvm:your-api-key-here"
     ```
+
   </Step>
 </Steps>
 
 <Warning>
-  Keep your API key secure. Do not commit it to version control or share it publicly.
+  Keep your API key secure. Do not commit it to version control or share it
+  publicly.
 </Warning>
 
 For a complete walkthrough, see our [5-Minute Setup Guide](/docs/integrate/quickstart/5-minute-setup).
@@ -37,10 +39,10 @@ For a complete walkthrough, see our [5-Minute Setup Guide](/docs/integrate/quick
 
 Nevermined offers two environments:
 
-| Environment | Purpose | Network |
-|-------------|---------|---------|
+| Environment | Purpose                 | Network      |
+| ----------- | ----------------------- | ------------ |
 | **Sandbox** | Testing and development | Base Sepolia |
-| **Live** | Production | Base Mainnet |
+| **Live**    | Production              | Base Mainnet |
 
 <Tabs>
   <Tab title="TypeScript SDK">
@@ -52,6 +54,7 @@ Nevermined offers two environments:
       environment: 'sandbox' // or 'live'
     })
     ```
+
   </Tab>
   <Tab title="Python SDK">
     ```python
@@ -64,33 +67,51 @@ Nevermined offers two environments:
         )
     )
     ```
+
   </Tab>
   <Tab title="REST API">
     | Environment | Base URL |
     |-------------|----------|
-    | **Sandbox** | `https://api.sandbox.nevermined.dev/api/v1` |
-    | **Live** | `https://api.live.nevermined.dev/api/v1` |
+    | **Sandbox** | `https://api.sandbox.nevermined.app/api/v1` |
+    | **Live** | `https://api.live.nevermined.app/api/v1` |
 
     ```bash
-    curl -X GET "https://api.sandbox.nevermined.dev/api/v1/protocol/agents" \
+    curl -X GET "https://api.sandbox.nevermined.app/api/v1/protocol/agents" \
       -H "Authorization: Bearer $NVM_API_KEY"
     ```
+
   </Tab>
 </Tabs>
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
+  <Card
+    title="5-Minute Setup"
+    icon="rocket"
+    href="/docs/integrate/quickstart/5-minute-setup"
+  >
     Complete integration walkthrough.
-  </Card>  
-  <Card title="REST API" icon="code" href="/docs/api-reference/protocol/register-agent">
+  </Card>
+  <Card
+    title="REST API"
+    icon="code"
+    href="/docs/api-reference/protocol/register-agent"
+  >
     Make direct HTTP calls to the Nevermined API.
   </Card>
-  <Card title="TypeScript SDK" icon="js" href="/docs/api-reference/typescript/installation">
+  <Card
+    title="TypeScript SDK"
+    icon="js"
+    href="/docs/api-reference/typescript/installation"
+  >
     Install and use the TypeScript Payment library.
   </Card>
-  <Card title="Python SDK" icon="python" href="/docs/api-reference/python/installation">
+  <Card
+    title="Python SDK"
+    icon="python"
+    href="/docs/api-reference/python/installation"
+  >
     Install and use the Python Payment library.
   </Card>
 </CardGroup>
