@@ -1,9 +1,4 @@
 ---
-version: 1.0.6
-lastUpdated: 2026-02-10
----
-
----
 title: "MCP Integration"
 description: "Build payment-protected MCP servers with OAuth 2.1 authentication and automatic credit management"
 icon: "plug"

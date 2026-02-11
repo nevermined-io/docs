@@ -1,9 +1,4 @@
 ---
-version: 1.0.6
-lastUpdated: 2026-02-10
----
-
----
 title: "Other Commands"
 description: "Reference guide for additional CLI commands including configuration, facilitator operations, organizations, and utilities"
 icon: "terminal"

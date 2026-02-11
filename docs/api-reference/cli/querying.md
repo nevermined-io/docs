@@ -1,9 +1,4 @@
 ---
-version: 1.0.6
-lastUpdated: 2026-02-10
----
-
----
 title: "Querying Agents"
 description: "Complete guide to accessing AI agents using X402 access tokens with the Nevermined CLI"
 icon: "messages"

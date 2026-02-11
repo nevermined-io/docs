@@ -1,9 +1,4 @@
 ---
-version: 1.0.6
-lastUpdated: 2026-02-10
----
-
----
 title: "Making Purchases"
 description: "Complete guide to ordering payment plans and managing subscriptions with the Nevermined CLI"
 icon: "cart-shopping"
