@@ -32,7 +32,7 @@ sequenceDiagram
 
 The libraries provide an `a2a` module that enables seamless integration into new or existing A2A agents, including bearer token authentication, asynchronous task management, and push notification support. Main features:
 
-- **Bearer Token Authentication**: The server extracts bearer tokens from the Authorization header and injects them into the task context.
+- **Payment Signature Authentication**: The server extracts access tokens from the `payment-signature` header and injects them into the task context.
 - **Credits Validation**: Validates that the user has sufficient credits before executing a task.
 - **Credits Burning/Redemption**: Redeem the credits specified in the result after successful execution.
 - **Multi-Plan Support**: Agent cards can advertise multiple plans via `planIds`, allowing consumers to choose which plan to subscribe to.

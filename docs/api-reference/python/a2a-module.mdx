@@ -227,7 +227,7 @@ asyncio.run(result.server.serve())
 
 The A2A server automatically validates payments on every POST request:
 
-1. Extracts Bearer token from Authorization header
+1. Extracts the access token from the `payment-signature` header
 2. Reads `planId` or `planIds` from the agent card's payment extension
 3. Verifies permissions via `build_payment_required_for_plans()`
 4. Rejects requests with 402 if validation fails, including a base64-encoded `payment-required` header
@@ -296,7 +296,7 @@ async with httpx.AsyncClient() as client:
                 }
             },
         },
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers={"payment-signature": access_token},
     )
     result = resp.json()
 ```
