@@ -14,36 +14,24 @@ Add payment protection to your Strands AI agent tools using the [x402 protocol](
 
 ## x402 Payment Flow
 
-```
-┌─────────┐                              ┌─────────┐
-│  Client │                              │  Agent  │
-└────┬────┘                              └────┬────┘
-     │                                        │
-     │  1. agent(prompt) — no token            │
-     │───────────────────────────────────────>│
-     │                                        │
-     │     Tool returns PaymentRequired error  │
-     │     (via tool result, not exception)    │
-     │                                        │
-     │  2. LLM relays error in natural lang.  │
-     │<───────────────────────────────────────│
-     │                                        │
-     │  3. Client extracts PaymentRequired    │
-     │     from agent.messages                │
-     │                                        │
-     │  4. Client acquires x402 token via SDK │
-     │                                        │
-     │  5. agent(prompt, invocation_state=     │
-     │     {"payment_token": token})           │
-     │───────────────────────────────────────>│
-     │                                        │
-     │     - Verify permissions               │
-     │     - Execute tool                     │
-     │     - Settle (burn credits)            │
-     │                                        │
-     │  6. Agent returns result               │
-     │<───────────────────────────────────────│
-     │                                        │
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Agent
+    participant NVM as Nevermined
+
+    Client->>Agent: agent(prompt) — no token
+    Agent-->>Client: PaymentRequired error (tool result)
+    Client->>Client: extract_payment_required(agent.messages)
+    Client->>NVM: get_x402_access_token(plan_id, agent_id)
+    NVM-->>Client: Access token
+    Client->>Agent: agent(prompt, invocation_state=payment_token)
+    Agent->>NVM: Verify permissions
+    NVM-->>Agent: Valid
+    Agent->>Agent: Execute tool
+    Agent->>NVM: Settle (burn credits)
+    NVM-->>Agent: Settled
+    Agent-->>Client: Result
 ```
 
 ## How Payment Errors Flow

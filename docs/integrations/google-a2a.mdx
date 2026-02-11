@@ -11,13 +11,31 @@ Nevermined Payments integrates with [Google A2A](https://a2a-protocol.org/) to e
 - Authentication: credentials are sent in HTTP headers (e.g., `payment-signature: <token>`), not in the JSON‑RPC payload.
 - Authorization/charging: the agent emits a final event with `metadata.creditsUsed`; Nevermined validates and burns credits accordingly.
 
+## Architecture
+
+```mermaid
+sequenceDiagram
+    participant Consumer
+    participant Provider
+    participant Nevermined
+
+    Consumer->>Provider: Discover agent card
+    Consumer->>Nevermined: Order plan and get token
+    Consumer->>Provider: Send message with Bearer token
+    Provider->>Nevermined: Verify permissions
+    Provider->>Provider: Execute agent logic
+    Provider->>Nevermined: Settle credits
+    Provider-->>Consumer: Return response
+```
+
 ## Features
 
 The libraries provide an `a2a` module that enables seamless integration into new or existing A2A agents, including bearer token authentication, asynchronous task management, and push notification support. Main features:
 
-- **Bearer Token Authentication**: The server extracts bearer tokens from the Authorization header and injects them into the task context.
+- **Payment Signature Authentication**: The server extracts access tokens from the `payment-signature` header and injects them into the task context.
 - **Credits Validation**: Validates that the user has sufficient credits before executing a task.
 - **Credits Burning/Redemption**: Redeem the credits specified in the result after successful execution.
+- **Multi-Plan Support**: Agent cards can advertise multiple plans via `planIds`, allowing consumers to choose which plan to subscribe to.
 - **Push Notifications**: Supports the A2A standard flow for push notification configuration and delivery.
 - **Asynchronous Task Handling**: Supports intermediate and final state events, compatible with polling and streaming.
 - **Unified SDK**: Provides both agent and client integration.
@@ -61,7 +79,7 @@ If you already have a Google A2A agent, or you are building a new one, add the P
   <Tab title="TypeScript">
     ```typescript
     import { Payments } from "@nevermined-io/payments"
-    
+
     const payments = Payments.getInstance({
       nvmApiKey,
       environment: 'sandbox',
@@ -70,12 +88,12 @@ If you already have a Google A2A agent, or you are building a new one, add the P
   </Tab>
   <Tab title="Python">
     ```python
-    from payments_py.payments import Payments
-    
-    payments_builder = Payments.get_instance({
-        "nvm_api_key": "<BUILDER_API_KEY>",
-        "environment": "sandbox",
-    })
+    from payments_py import Payments
+    from payments_py.common.types import PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key="<YOUR_API_KEY>", environment="sandbox")
+    )
     ```
   </Tab>
 </Tabs>
@@ -86,6 +104,8 @@ If you already have a Google A2A agent, or you are building a new one, add the P
 
 Because your AI agent charges for requests, add a payment extension to your agent card.
 Add a payment extension under `capabilities.extensions` carrying Nevermined metadata:
+
+#### Single Plan
 
 ```json
 {
@@ -109,6 +129,33 @@ Add a payment extension under `capabilities.extensions` carrying Nevermined meta
   "url": "https://your-agent.example.com/a2a/"
 }
 ```
+
+#### Multiple Plans
+
+When your agent supports multiple plans, use `planIds` (array) instead of `planId` (string):
+
+```json
+{
+  "capabilities": {
+    "extensions": [
+      {
+        "uri": "urn:nevermined:payment",
+        "params": {
+          "paymentType": "dynamic",
+          "credits": 5,
+          "planIds": ["<planId-basic>", "<planId-premium>"],
+          "agentId": "<agentId>",
+          "costDescription": "1-5 credits depending on request complexity"
+        }
+      }
+    ]
+  }
+}
+```
+
+<Note>
+Provide either `planId` or `planIds`, not both. When multiple plans are configured, the 402 Payment Required response includes all plans in `accepts[]`, allowing consumers to choose.
+</Note>
 
 Important notes:
 
@@ -134,7 +181,7 @@ Important notes:
       url: 'http://localhost:3005/a2a/',
       version: '1.0.0',
     }
-    
+
     const agentCard = payments.a2a.buildPaymentAgentCard(baseAgentCard, {
       paymentType: "dynamic",
       credits: 1,
@@ -145,6 +192,8 @@ Important notes:
   </Tab>
   <Tab title="Python">
     ```python
+    from payments_py.a2a import build_payment_agent_card
+
     base_agent_card = {
         "name": "Py A2A Agent",
         "description": "A2A test agent",
@@ -159,27 +208,41 @@ Important notes:
         "url": "https://your-agent.example.com/a2a/",
         "version": "1.0.0",
     }
-    
-    from payments_py.a2a.agent_card import build_payment_agent_card
-    
-    agent_card = build_payment_agent_card(base_agent_card, {
-        "paymentType": "dynamic",
-        "credits": 1,
-        "costDescription": "Dynamic cost per request",
-        "planId": "<planId>",
-        "agentId": "<agentId>",
-    })
+
+    # Single plan
+    agent_card = build_payment_agent_card(
+        base_card=base_agent_card,
+        payment_metadata={
+            "paymentType": "dynamic",
+            "credits": 1,
+            "costDescription": "Dynamic cost per request",
+            "planId": "<planId>",
+            "agentId": "<agentId>",
+        },
+    )
+
+    # Or with multiple plans
+    agent_card = build_payment_agent_card(
+        base_card=base_agent_card,
+        payment_metadata={
+            "paymentType": "dynamic",
+            "credits": 5,
+            "costDescription": "1-5 credits per request",
+            "planIds": ["<planId-basic>", "<planId-premium>"],
+            "agentId": "<agentId>",
+        },
+    )
     ```
   </Tab>
 </Tabs>
 
 ### Start the A2A Server
 
-The agent is initialized using the Nevermined Payments Library and the A2A protocol. The executor defines the business logic for each type of request.
+The agent is initialized using the Nevermined Payments Library and the A2A protocol.
 
-- The Executor class routes and handles all supported operations (greeting, calculation, weather, translation, streaming, push notification).
-- The handleTask method returns both the result and a boolean indicating if more updates are expected (for async flows).
-- The agent publishes the initial task, intermediate status updates, and the final event as per the A2A standard.
+#### Using the Decorator (Simple)
+
+The `@a2a_requires_payment` decorator is the quickest way to create a payment-protected A2A agent in Python:
 
 <Tabs>
   <Tab title="TypeScript">
@@ -190,7 +253,7 @@ The agent is initialized using the Nevermined Payments Library and the A2A proto
         // Returns { result: TaskHandlerResult, expectsMoreUpdates: boolean }
       }
       async cancelTask(taskId) { /* ... */ }
-    
+
       // Publishes the final status-update event when no more updates are expected
       async execute(requestContext, eventBus) {
         const { result, expectsMoreUpdates } = await this.handleTask(requestContext, eventBus)
@@ -198,58 +261,99 @@ The agent is initialized using the Nevermined Payments Library and the A2A proto
         // Publish final status-update event...
       }
     }
-    
+
     serverResult = await paymentsBuilder.a2a.start({
       port: 3005,
       basePath: '/a2a/',
       agentCard: agentCard,
-      // Use resubscribe-friendly executor with longer stream to ensure resubscribe has events to consume
       executor: A2AE2EFactory.createResubscribeStreamingExecutor(),
     })
-    
+
     serverManager.addServer(serverResult)
     ```
   </Tab>
   <Tab title="Python">
     ```python
-    from payments_py.a2a.server import PaymentsA2AServer
-    
-    class DummyExecutor:
-        async def execute(self, ctx, event_queue):
-            event_queue.publish({
-                "kind": "status-update",
-                "taskId": ctx.taskId,
-                "contextId": ctx.userMessage.get("contextId"),
-                "status": {"state": "completed"},
-                "metadata": {"creditsUsed": 1},
-                "final": True,
-            })
-            event_queue.finished()
-    
-    server = PaymentsA2AServer.start(
+    from payments_py.a2a import AgentResponse, a2a_requires_payment
+
+    @a2a_requires_payment(
+        payments=payments,
         agent_card=agent_card,
-        executor=DummyExecutor(),
-        payments_service=payments_builder,
-        port=PORT,
-        base_path="/a2a/",
+        default_credits=1,
     )
+    async def my_agent(context) -> AgentResponse:
+        text = context.get_user_input()
+        return AgentResponse(text=f"Echo: {text}", credits_used=1)
+
+    # Start serving (blocking)
+    my_agent.serve(port=8080)
     ```
   </Tab>
 </Tabs>
 
+#### Using `PaymentsA2AServer` (Advanced)
+
+For more control over the executor and event lifecycle:
+
+```python
+from payments_py.a2a.server import PaymentsA2AServer
+from a2a.server.agent_execution import AgentExecutor
+from a2a.server.events.event_queue import EventQueue
+
+class MyExecutor(AgentExecutor):
+    async def execute(self, ctx, event_queue: EventQueue):
+        # Your agent logic — publish events to event_queue
+        ...
+
+    async def cancel(self, ctx, event_queue: EventQueue):
+        ...
+
+result = PaymentsA2AServer.start(
+    agent_card=agent_card,
+    executor=MyExecutor(),
+    payments_service=payments,
+    port=8080,
+    base_path="/",
+)
+
+import asyncio
+asyncio.run(result.server.serve())
+```
+
 ## A2A Client
 
-The client interacts with the agent using JSON-RPC requests. It can send messages, poll for task status, and configure push notifications.
+The client interacts with the agent using JSON-RPC requests. It discovers available plans from the agent card, purchases a plan, obtains an access token, and sends messages.
+
+### Discovering Plans from the Agent Card
+
+```mermaid
+sequenceDiagram
+    participant Consumer
+    participant Provider
+    participant Nevermined
+
+    Consumer->>Provider: GET /.well-known/agent.json
+    Provider-->>Consumer: Agent Card (planIds, agentId)
+
+    Consumer->>Nevermined: order_plan(selected_plan_id)
+    Nevermined-->>Consumer: Order confirmed
+
+    Consumer->>Nevermined: get_x402_access_token(plan_id, agent_id)
+    Nevermined-->>Consumer: accessToken
+
+    Consumer->>Provider: POST / message/send (Bearer token)
+    Provider-->>Consumer: JSON-RPC response
+```
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    
+
     const paymentsSubscriber = Payments.getInstance({
       nvmApiKey,
       environment: 'sandbox',
     })
-    
+
     const client = paymentsSubscriber.a2a.getClient({
       agentBaseUrl: 'http://localhost:3005/a2a/',
       agentId: process.env.AGENT_ID,
@@ -259,17 +363,23 @@ The client interacts with the agent using JSON-RPC requests. It can send message
   </Tab>
   <Tab title="Python">
     ```python
-    payments_subscriber = Payments.get_instance({
-        "nvm_api_key": "<SUBSCRIBER_API_KEY>",
-        "environment": "sandbox",
-    })
-    
-    client = payments_subscriber.a2a.get_client(
-        agent_base_url="https://your-agent.example.com/a2a/",
-        agent_id="<agentId>",
-        plan_id="<planId>",
+    import httpx
+    from payments_py import Payments
+    from payments_py.common.types import PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key="<SUBSCRIBER_API_KEY>", environment="sandbox")
     )
-    
+
+    # 1. Discover plans from the agent card
+    async with httpx.AsyncClient() as client:
+        resp = await client.get("http://agent-url/.well-known/agent.json")
+        card = resp.json()
+
+    extensions = card["capabilities"]["extensions"]
+    payment_ext = next(e for e in extensions if e["uri"] == "urn:nevermined:payment")
+    plan_ids = payment_ext["params"].get("planIds") or [payment_ext["params"]["planId"]]
+    agent_id = payment_ext["params"]["agentId"]
     ```
   </Tab>
 </Tabs>
@@ -285,8 +395,8 @@ After [purchasing access to the payment plan](/docs/development-guide/order-plan
     const orderResult = await paymentsSubscriber.plans.orderPlan(planId)
     // Get the X402 access token associated to the agent and plan
     const { accessToken } = await paymentsSubscriber.x402.getX402AccessToken(planId, agentId)
-    
-    
+
+
     // Test sending an A2A message with correct format
     const response = await client.sendMessage(
       "Testing push notification!",
@@ -297,17 +407,38 @@ After [purchasing access to the payment plan](/docs/development-guide/order-plan
   </Tab>
   <Tab title="Python">
     ```python
-    
-    # Send a simple request
+    from payments_py.a2a import PaymentsClient
+
+    # 2. Order (purchase) the plan
+    payments.plans.order_plan(plan_ids[0])
+
+    # 3. Create the A2A client (handles token acquisition automatically)
+    client = PaymentsClient(
+        agent_base_url="http://agent-url/",
+        payments=payments,
+        agent_id=agent_id,
+        plan_id=plan_ids[0],
+    )
+
+    # 4. Send a simple request
     result = await client.send_message({
-        "message": {"kind": "message", "role": "user", "messageId": "123", "parts": [{"kind": "text", "text": "Hello"}]}
+        "message": {
+            "messageId": "msg-1",
+            "role": "user",
+            "parts": [{"kind": "text", "text": "Hello"}],
+        }
     })
-    
-    # Stream events
+
+    # 5. Or stream events
     async for event in client.send_message_stream({
-        "message": {"kind": "message", "role": "user", "messageId": "124", "parts": [{"kind": "text", "text": "Stream"}]}
+        "message": {
+            "messageId": "msg-2",
+            "role": "user",
+            "parts": [{"kind": "text", "text": "Stream this"}],
+        }
     }):
-        if event.get("result", {}).get("final"):
+        print(event)
+        if getattr(event, "final", False):
             break
     ```
   </Tab>
