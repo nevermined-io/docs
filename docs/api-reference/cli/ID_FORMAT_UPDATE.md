@@ -1,8 +1,3 @@
----
-version: 1.0.3
-lastUpdated: 2026-02-02
----
-
 # CLI Documentation ID Format Update
 
 ## Issue

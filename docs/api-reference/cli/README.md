@@ -1,8 +1,3 @@
----
-version: 1.0.3
-lastUpdated: 2026-02-02
----
-
 # Nevermined Payments CLI Documentation
 
 Complete documentation for the Nevermined Payments CLI (`nvm`).
@@ -187,7 +182,7 @@ Use profiles to manage multiple environments:
 
 ```bash
 # Create production profile
-nvm config set profiles.production.nvmApiKey nvm-xxxxx...
+nvm config set profiles.production.nvmApiKey live:eyJxxxxaaaabbbbbbbb
 nvm config set profiles.production.environment live
 
 # Use production profile

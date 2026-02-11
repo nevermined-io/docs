@@ -1,9 +1,4 @@
 ---
-version: 1.0.3
-lastUpdated: 2026-02-02
----
-
----
 title: "Agents"
 description: "Register and manage AI agents with payment plans, metadata, and API endpoints"
 icon: "robot"

@@ -1,9 +1,4 @@
 ---
-version: 1.0.3
-lastUpdated: 2026-02-02
----
-
----
 title: "Managing AI Agents"
 description: "Complete guide to registering and managing AI agents with the Nevermined CLI"
 icon: "robot"

@@ -1,8 +1,3 @@
----
-version: 1.0.3
-lastUpdated: 2026-02-02
----
-
 # CLI NPM Package Testing Report
 
 Testing report for `@nevermined-io/cli` package version `1.0.3-rc2`.
