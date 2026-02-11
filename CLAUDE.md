@@ -164,6 +164,7 @@ Example usage:
 - **Use realistic agent names and configurations** (not "TestAgent", use "Legal Assistant", "Data Analyzer")
 - **Show both Web App UI flows AND SDK/programmatic approaches** when available
 - **Include error handling** in complex examples
+- **Environment names**: Only use `sandbox` and `live` in documentation and examples. The internal environment names `staging_sandbox` and `staging_live` are supported by the SDKs and CLI for internal development, but must never appear in public-facing documentation.
 
 ### Code Example Template
 

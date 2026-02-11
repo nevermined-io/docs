@@ -422,7 +422,7 @@ plans/
 
 ### 4. Test in Staging First
 
-Always test new plans in staging_sandbox before production:
+Always test new plans in sandbox before production:
 
 ```bash
 # Test in staging

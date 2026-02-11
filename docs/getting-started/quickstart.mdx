@@ -167,48 +167,78 @@ For developers who need to automate and integrate directly, our SDKs are the per
     </Tabs>
   </Step>
   <Step title="4. Accept Payments">
-    In your agent's backend, add logic to validate requests from subscribers. This ensures that only authorized users can access your service.
+    In your agent's backend, add payment protection to your routes. The `paymentMiddleware` handles the full x402 flow automatically: it returns 402 with payment requirements when no token is present, verifies permissions, executes your handler, and settles (burns) credits.
 
-    ```typescript
-    // Example in an Express.js route
-    app.post('/api/query', async (req, res) => {
-      // Extract authorization header
-      const authHeader = req.headers['authorization'];
-      
-      // For agents using Nevermined Proxy:
-      // The proxy handles validation automatically
-      // Just ensure your agent is registered with endpoints
-      
-      // For direct integration:
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-      
-      const token = authHeader.substring(7);
-      
-      // Validate the access token
-      const validationResult = await payments.requests.isValidRequest(
-        token,
-        req.body
-      );
-      
-      if (!validationResult.isValid) {
-        // Return 402 Payment Required with payment options
-        return res.status(402).json({
-          error: 'Payment Required',
-          plans: validationResult.plans
-        });
-      }
-      
-      // Process the AI request
-      const result = await processAIQuery(req.body.prompt);
-      
-      // Credits are automatically redeemed by the proxy
-      // or you can manually redeem for direct integration
-      
-      res.json(result);
-    });
-    ```
+    <Tabs>
+      <Tab title="TypeScript (Express.js)">
+        ```typescript
+        import express from 'express'
+        import { Payments } from '@nevermined-io/payments'
+        import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+        const app = express()
+        app.use(express.json())
+
+        const payments = Payments.getInstance({
+          nvmApiKey: process.env.NVM_API_KEY!,
+          environment: 'sandbox'
+        })
+
+        const PLAN_ID = process.env.NVM_PLAN_ID!
+
+        // Add payment protection — 1 credit per request to /api/query
+        app.use(paymentMiddleware(payments, {
+          'POST /api/query': { planId: PLAN_ID, credits: 1 }
+        }))
+
+        app.post('/api/query', async (req, res) => {
+          // If we reach here, payment is already verified
+          const result = await processAIQuery(req.body.prompt)
+          res.json(result)
+        })
+
+        app.listen(3000)
+        ```
+
+        <Note>Your `package.json` must include `"type": "module"` for the `@nevermined-io/payments/express` subpath import to work.</Note>
+      </Tab>
+      <Tab title="Python (FastAPI)">
+        ```python
+        import os
+        from fastapi import FastAPI
+        from payments_py import Payments, PaymentOptions
+        from payments_py.x402.fastapi import PaymentMiddleware
+
+        app = FastAPI()
+
+        payments = Payments.get_instance(
+            PaymentOptions(
+                nvm_api_key=os.environ['NVM_API_KEY'],
+                environment='sandbox'
+            )
+        )
+
+        PLAN_ID = os.environ['NVM_PLAN_ID']
+
+        # Add payment protection — 1 credit per request to /api/query
+        app.add_middleware(
+            PaymentMiddleware,
+            payments=payments,
+            routes={
+                "POST /api/query": {"plan_id": PLAN_ID, "credits": 1}
+            }
+        )
+
+        @app.post("/api/query")
+        async def query(request: dict):
+            # If we reach here, payment is already verified
+            result = await process_ai_query(request.get("prompt"))
+            return result
+        ```
+
+        <Note>Install with `pip install payments-py[fastapi]` — the `[fastapi]` extra is required for the middleware.</Note>
+      </Tab>
+    </Tabs>
 
     This flow protects your agent and automates billing.
   </Step>
