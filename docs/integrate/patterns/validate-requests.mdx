@@ -120,12 +120,24 @@ Check that the user has enough credits for the operation:
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
+    import { buildPaymentRequired } from '@nevermined-io/payments'
+
     export async function validateWithMinimum(
-      token: string,
-      body: unknown,
+      x402Token: string,
+      planId: string,
+      agentId: string,
+      endpoint: string,
       minCredits: number
     ) {
-      const result = await payments.requests.isValidRequest(token, body)
+      const paymentRequired = buildPaymentRequired({
+        planId, endpoint, agentId, httpVerb: 'POST'
+      })
+
+      const result = await payments.facilitator.verifyPermissions({
+        paymentRequired,
+        x402AccessToken: x402Token,
+        maxAmount: BigInt(minCredits)
+      })
 
       if (!result.isValid) {
         return { valid: false, reason: 'invalid_token' as const }
@@ -143,8 +155,8 @@ Check that the user has enough credits for the operation:
       return { valid: true, balance: result.balance }
     }
 
-    // Example: expensive operation
-    const validation = await validateWithMinimum(token, body, 10)
+    // Example: expensive operation requiring 10 credits
+    const validation = await validateWithMinimum(token, PLAN_ID, AGENT_ID, '/query', 10)
     if (!validation.valid) {
       // return 402
     }
@@ -152,24 +164,41 @@ Check that the user has enough credits for the operation:
   </Tab>
   <Tab title="Python">
     ```python
-    async def validate_with_minimum(token: str, body: dict, min_credits: int) -> dict:
-        result = await payments.requests.is_valid_request(token, body)
+    from payments_py.x402.helpers import build_payment_required
 
-        if not result['isValid']:
+    async def validate_with_minimum(
+        x402_token: str,
+        plan_id: str,
+        agent_id: str,
+        endpoint: str,
+        min_credits: int
+    ) -> dict:
+        payment_required = build_payment_required(
+            plan_id=plan_id, endpoint=endpoint,
+            agent_id=agent_id, http_verb="POST"
+        )
+
+        result = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount=str(min_credits)
+        )
+
+        if not result.is_valid:
             return {'valid': False, 'reason': 'invalid_token'}
 
-        if result['balance'] < min_credits:
+        if result.balance < min_credits:
             return {
                 'valid': False,
                 'reason': 'insufficient_credits',
                 'required': min_credits,
-                'available': result['balance']
+                'available': result.balance
             }
 
-        return {'valid': True, 'balance': result['balance']}
+        return {'valid': True, 'balance': result.balance}
 
-    # Example: expensive operation
-    validation = await validate_with_minimum(token, body, 10)
+    # Example: expensive operation requiring 10 credits
+    validation = await validate_with_minimum(token, PLAN_ID, AGENT_ID, "/query", 10)
     if not validation['valid']:
         # return 402
         pass
@@ -184,9 +213,17 @@ Handle all possible validation outcomes:
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    async function handleValidation(token: string, body: any) {
+    async function handleValidation(
+      x402Token: string,
+      paymentRequired: string,
+      maxAmount: bigint
+    ) {
       try {
-        const result = await payments.requests.isValidRequest(token, body)
+        const result = await payments.facilitator.verifyPermissions({
+          paymentRequired,
+          x402AccessToken: x402Token,
+          maxAmount
+        })
 
         if (!result.isValid) {
           // Determine specific error
@@ -239,12 +276,20 @@ Handle all possible validation outcomes:
   </Tab>
   <Tab title="Python">
     ```python
-    async def handle_validation(token: str, body: dict) -> dict:
+    async def handle_validation(
+        x402_token: str,
+        payment_required: str,
+        max_amount: str
+    ) -> dict:
         try:
-            result = await payments.requests.is_valid_request(token, body)
+            result = payments.facilitator.verify_permissions(
+                payment_required=payment_required,
+                x402_access_token=x402_token,
+                max_amount=max_amount
+            )
 
-            if not result['isValid']:
-                reason = result.get('reason', 'UNKNOWN')
+            if not result.is_valid:
+                reason = getattr(result, 'reason', 'UNKNOWN')
 
                 error_map = {
                     'TOKEN_EXPIRED': {
@@ -274,7 +319,7 @@ Handle all possible validation outcomes:
                     'action': 'get_new_token'
                 })
 
-            return {'status': 200, 'balance': result['balance']}
+            return {'status': 200, 'balance': result.balance}
 
         except Exception as e:
             print(f'Validation error: {e}')
@@ -301,16 +346,24 @@ For high-traffic endpoints, cache validation briefly:
       ttl: 1000 * 30 // 30 seconds
     })
 
-    async function validateWithCache(token: string, body: any) {
+    async function validateWithCache(
+      x402Token: string,
+      paymentRequired: string,
+      maxAmount: bigint
+    ) {
       // Create cache key from token hash
-      const cacheKey = hashToken(token)
+      const cacheKey = hashToken(x402Token)
       const cached = validationCache.get(cacheKey)
 
       if (cached) {
         return cached
       }
 
-      const result = await payments.requests.isValidRequest(token, body)
+      const result = await payments.facilitator.verifyPermissions({
+        paymentRequired,
+        x402AccessToken: x402Token,
+        maxAmount
+      })
 
       if (result.isValid) {
         validationCache.set(cacheKey, result)
@@ -332,8 +385,12 @@ For high-traffic endpoints, cache validation briefly:
     validation_cache = {}
     CACHE_TTL = timedelta(seconds=30)
 
-    async def validate_with_cache(token: str, body: dict) -> dict:
-        cache_key = hash_token(token)
+    async def validate_with_cache(
+        x402_token: str,
+        payment_required: str,
+        max_amount: str
+    ) -> dict:
+        cache_key = hash_token(x402_token)
 
         # Check cache
         if cache_key in validation_cache:
@@ -341,9 +398,13 @@ For high-traffic endpoints, cache validation briefly:
             if datetime.now() - timestamp < CACHE_TTL:
                 return cached
 
-        result = await payments.requests.is_valid_request(token, body)
+        result = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount=max_amount
+        )
 
-        if result['isValid']:
+        if result.is_valid:
             validation_cache[cache_key] = (result, datetime.now())
 
         return result

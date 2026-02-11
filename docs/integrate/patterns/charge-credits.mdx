@@ -8,21 +8,48 @@ Copy-paste patterns for deducting credits from subscribers.
 
 ## Automatic Credit Deduction
 
-When using the standard Bearer token flow, credits are automatically deducted when you validate the request:
+With the x402 flow, verification checks permissions without burning credits. After processing, settlement burns the credits:
 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    const result = await payments.requests.isValidRequest(token, body)
+    import { buildPaymentRequired } from '@nevermined-io/payments'
 
-    // Credits are automatically deducted based on plan configuration
-    // result.balance shows remaining credits AFTER deduction
-    console.log(`Remaining credits: ${result.balance}`)
+    const paymentRequired = buildPaymentRequired({
+      planId: PLAN_ID, endpoint: '/query', agentId: AGENT_ID, httpVerb: 'POST'
+    })
+
+    // 1. Verify permissions (does NOT burn credits)
+    const verification = await payments.facilitator.verifyPermissions({
+      paymentRequired,
+      x402AccessToken: token,
+      maxAmount: BigInt(1)
+    })
+
+    if (!verification.isValid) {
+      throw new Error('Invalid payment')
+    }
+
+    // 2. Process request...
+    const result = await processRequest()
+
+    // 3. Settle (burn credits) after successful processing
+    const settlement = await payments.facilitator.settlePermissions({
+      paymentRequired,
+      x402AccessToken: token,
+      maxAmount: BigInt(1)
+    })
+
+    console.log(`Remaining credits: ${settlement.remainingBalance}`)
     ```
   </Tab>
   <Tab title="Python">
     ```python
     from payments_py.x402.helpers import build_payment_required
+
+    payment_required = build_payment_required(
+        plan_id=PLAN_ID, endpoint="/query", agent_id=AGENT_ID, http_verb="POST"
+    )
 
     # 1. Verify permissions (does NOT burn credits)
     verification = payments.facilitator.verify_permissions(
@@ -325,44 +352,51 @@ For long-running operations, pre-authorize credits before starting:
   <Tab title="TypeScript">
     ```typescript
     async function processLongRunningTask(
-      token: string,
-      body: any,
+      x402Token: string,
+      paymentRequired: string,
       estimatedCredits: number
     ) {
-      // Step 1: Validate and check balance
-      const validation = await payments.requests.isValidRequest(token, body)
+      // Step 1: Verify permissions (does not burn credits)
+      const verification = await payments.facilitator.verifyPermissions({
+        paymentRequired,
+        x402AccessToken: x402Token,
+        maxAmount: BigInt(estimatedCredits)
+      })
 
-      if (!validation.isValid) {
+      if (!verification.isValid) {
         throw new Error('Invalid token')
       }
 
-      if (validation.balance < estimatedCredits) {
-        throw new Error(`Insufficient credits. Need ${estimatedCredits}, have ${validation.balance}`)
+      if (verification.balance < estimatedCredits) {
+        throw new Error(`Insufficient credits. Need ${estimatedCredits}, have ${verification.balance}`)
       }
 
       // Step 2: Start the long-running task
-      const taskId = await startTask(body)
+      const taskId = await startTask({})
 
       try {
         // Step 3: Wait for completion
         const result = await waitForCompletion(taskId)
 
-        // Step 4: Calculate actual cost and charge
+        // Step 4: Calculate actual cost and settle (burn credits)
         const actualCredits = calculateActualCost(result)
 
-        // Note: For x402 flow, settlement happens here
-        // For standard flow, credits were already deducted during validation
+        const settlement = await payments.facilitator.settlePermissions({
+          paymentRequired,
+          x402AccessToken: x402Token,
+          maxAmount: BigInt(actualCredits)
+        })
 
         return {
           result,
           credits: {
             estimated: estimatedCredits,
             actual: actualCredits,
-            remaining: validation.balance - actualCredits
+            remaining: settlement.remainingBalance
           }
         }
       } catch (error) {
-        // Task failed - don't charge (or refund in x402 flow)
+        // Task failed - don't settle (no credits burned)
         console.error('Task failed:', error)
         throw error
       }
@@ -372,41 +406,51 @@ For long-running operations, pre-authorize credits before starting:
   <Tab title="Python">
     ```python
     async def process_long_running_task(
-        token: str,
-        body: dict,
+        x402_token: str,
+        payment_required: str,
         estimated_credits: int
     ) -> dict:
-        # Step 1: Validate and check balance
-        validation = payments.requests.is_valid_request(token, body)
+        # Step 1: Verify permissions (does not burn credits)
+        verification = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount=str(estimated_credits)
+        )
 
-        if not validation['isValid']:
+        if not verification.is_valid:
             raise ValueError('Invalid token')
 
-        if validation['balance'] < estimated_credits:
+        if verification.balance < estimated_credits:
             raise ValueError(
-                f"Insufficient credits. Need {estimated_credits}, have {validation['balance']}"
+                f"Insufficient credits. Need {estimated_credits}, have {verification.balance}"
             )
 
         # Step 2: Start the long-running task
-        task_id = await start_task(body)
+        task_id = await start_task({})
 
         try:
             # Step 3: Wait for completion
             result = await wait_for_completion(task_id)
 
-            # Step 4: Calculate actual cost
+            # Step 4: Calculate actual cost and settle (burn credits)
             actual_credits = calculate_actual_cost(result)
+
+            settlement = payments.facilitator.settle_permissions(
+                payment_required=payment_required,
+                x402_access_token=x402_token,
+                max_amount=str(actual_credits)
+            )
 
             return {
                 'result': result,
                 'credits': {
                     'estimated': estimated_credits,
                     'actual': actual_credits,
-                    'remaining': validation['balance'] - actual_credits
+                    'remaining': settlement.remaining_balance
                 }
             }
         except Exception as error:
-            # Task failed - don't charge
+            # Task failed - don't settle (no credits burned)
             print(f'Task failed: {error}')
             raise
     ```

@@ -184,7 +184,7 @@ import { Payments } from '@nevermined-io/payments'
 
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
-  environment: 'staging_sandbox'
+  environment: 'sandbox'
 })
 
 // Verify incoming request
