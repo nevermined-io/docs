@@ -1,8 +1,3 @@
----
-version: 1.0.6
-lastUpdated: 2026-02-10
----
-
 # Nevermined Payments CLI Documentation
 
 Complete documentation for the Nevermined Payments CLI (`nvm`).

@@ -1,8 +1,3 @@
----
-version: 1.0.6
-lastUpdated: 2026-02-10
----
-
 # Nevermined Payments CLI
 
 Official command-line interface for the Nevermined Payments SDK.

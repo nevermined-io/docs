@@ -1,9 +1,4 @@
 ---
-version: 1.0.6
-lastUpdated: 2026-02-10
----
-
----
 title: "Payment Plans"
 description: "Create and manage flexible payment plans with credits, time-based access, and multiple pricing options"
 icon: "credit-card"
