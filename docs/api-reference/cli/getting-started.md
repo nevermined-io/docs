@@ -83,7 +83,7 @@ nvm config init
 This will prompt you for:
 - **NVM API Key**: Your API key from nevermined.app
 - **Environment**: Choose from:
-  - `sandbox` - Testing (recommended for learning and development)
+  - `sandbox` - Development and testing (recommended for learning)
   - `live` - Production environment
 
 Example:
@@ -91,7 +91,7 @@ Example:
 ```bash
 $ nvm config init
 
-? Enter your NVM API Key: sandbox:eyJxxxxaaaabbbbbbbb
+? Enter your NVM API Key: live:eyJxxxxaaaabbbbbbbb
 ? Select environment: sandbox
 
 ✅ Configuration saved to /home/user/.config/nvm/config.json
