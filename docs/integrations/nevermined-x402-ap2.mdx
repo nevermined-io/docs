@@ -100,9 +100,11 @@ verification = payments.facilitator.verify_permissions(
 if not verification.is_valid:
     raise Exception("Payment Required")
 
+# Process request and settle credits
 payments.facilitator.settle_permissions(
     payment_required=payment_required,
     x402_access_token=access_token,
+    max_amount="2"  # Credits to burn (matches NVM_PAYMENT_AMOUNT from config)
 )
 ```
 
