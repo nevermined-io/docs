@@ -37,14 +37,14 @@ nvm config init
 This will prompt you for:
 
 - Your Nevermined API key
-- Target environment (staging_sandbox, staging_live, sandbox, live)
+- Target environment (sandbox, live)
 
 Configuration is saved to `~/.config/nvm/config.json`.
 
 ### 2. List Plans
 
 ```bash
-nvm plans list
+nvm plans get-plans
 ```
 
 ### 3. Get Plan Details
@@ -82,7 +82,7 @@ Instead of `nvm config init`, you can set environment variables:
 
 ```bash
 export NVM_API_KEY=nvm-your-api-key
-export NVM_ENVIRONMENT=staging_sandbox
+export NVM_ENVIRONMENT=sandbox
 ```
 
 ### Using Configuration Profiles
@@ -94,7 +94,7 @@ Support for multiple profiles:
 nvm config init --profile production
 
 # Use a specific profile
-nvm plans list --profile production
+nvm plans get-plans --profile production
 
 # Show all profiles
 nvm config show --all
@@ -106,13 +106,13 @@ All commands support multiple output formats:
 
 ```bash
 # Table format (default)
-nvm plans list
+nvm plans get-plans
 
 # JSON format
-nvm plans list --format json
+nvm plans get-plans --format json
 
 # Quiet mode (no output, useful for scripts)
-nvm plans list --format quiet
+nvm plans get-plans --format quiet
 ```
 
 ## Commands
@@ -125,7 +125,7 @@ nvm plans list --format quiet
 
 ### Plan Commands
 
-- `nvm plans list` - List all payment plans
+- `nvm plans get-plans` - List all payment plans
 - `nvm plans get <planId>` - Get details of a specific plan
 - `nvm plans register` - Register a new payment plan (see help for options)
 

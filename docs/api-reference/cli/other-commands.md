@@ -20,7 +20,7 @@ nvm config init
 
 Interactive prompts:
 - NVM API Key
-- Environment (staging_sandbox, sandbox, staging_live, live)
+- Environment (sandbox, live)
 - Profile name (optional)
 
 ### View Configuration
@@ -326,13 +326,13 @@ Control output format:
 
 ```bash
 # Table output (default)
-nvm plans list
+nvm plans get-plans
 
 # JSON output
-nvm plans list --format json
+nvm plans get-plans --format json
 
 # Quiet output (minimal)
-nvm plans list --format quiet
+nvm plans get-plans --format quiet
 ```
 
 ### Profile Flag
@@ -402,7 +402,7 @@ Switch between environments easily:
 case $1 in
   staging)
     nvm config set activeProfile staging
-    nvm config set environment staging_sandbox
+    nvm config set environment sandbox
     echo "Switched to staging environment"
     ;;
   production)
@@ -565,7 +565,7 @@ echo "
 
 # Plans
 echo "Active Plans:"
-nvm plans list
+nvm plans get-plans
 echo "
 
 # Agents
@@ -575,7 +575,7 @@ echo "
 
 # Balances
 echo "Plan Balances:"
-PLANS=$(nvm plans list --format json | jq -r '.[].id')
+PLANS=$(nvm plans get-plans --format json | jq -r '.[].id')
 for PLAN in $PLANS; do
   echo "  $PLAN:"
   nvm plans get-plan-balance $PLAN | grep "Credits"
