@@ -21,7 +21,7 @@ sequenceDiagram
 
     Consumer->>Provider: Discover agent card
     Consumer->>Nevermined: Order plan and get token
-    Consumer->>Provider: Send message with Bearer token
+    Consumer->>Provider: Send message with payment-signature
     Provider->>Nevermined: Verify permissions
     Provider->>Provider: Execute agent logic
     Provider->>Nevermined: Settle credits
@@ -30,7 +30,7 @@ sequenceDiagram
 
 ## Features
 
-The libraries provide an `a2a` module that enables seamless integration into new or existing A2A agents, including bearer token authentication, asynchronous task management, and push notification support. Main features:
+The libraries provide an `a2a` module that enables seamless integration into new or existing A2A agents, including payment-signature authentication, asynchronous task management, and push notification support. Main features:
 
 - **Payment Signature Authentication**: The server extracts access tokens from the `payment-signature` header and injects them into the task context.
 - **Credits Validation**: Validates that the user has sufficient credits before executing a task.
@@ -341,7 +341,7 @@ sequenceDiagram
     Consumer->>Nevermined: get_x402_access_token(plan_id, agent_id)
     Nevermined-->>Consumer: accessToken
 
-    Consumer->>Provider: POST / message/send (Bearer token)
+    Consumer->>Provider: POST / message/send (payment-signature)
     Provider-->>Consumer: JSON-RPC response
 ```
 
