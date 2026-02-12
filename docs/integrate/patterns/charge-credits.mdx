@@ -128,12 +128,11 @@ For operations with variable costs, use the x402 flow:
     # Use in settlement
     cost = calculate_cost(request)
 
-    await facilitator.settle(payment_payload, PaymentRequirements(
-        plan_id=PLAN_ID,
-        agent_id=AGENT_ID,
-        max_amount=cost,
-        extra={'subscriber_address': address}
-    ))
+    await payments.facilitator.settle_permissions(
+        payment_required=payment_required,
+        x402_access_token=access_token,
+        max_amount=str(cost)
+    )
     ```
   </Tab>
 </Tabs>

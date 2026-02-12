@@ -93,11 +93,17 @@ session_key = token_res["accessToken"]
 - Facilitator verification + settlement (merchant):
 
 ```python
-verify = await facilitator.verify(payment_payload, requirements)
-if not verify.is_valid:
+verification = payments.facilitator.verify_permissions(
+    payment_required=payment_required,
+    x402_access_token=access_token,
+)
+if not verification.is_valid:
     raise Exception("Payment Required")
 
-await facilitator.settle(payment_payload, requirements)
+payments.facilitator.settle_permissions(
+    payment_required=payment_required,
+    x402_access_token=access_token,
+)
 ```
 
 ## When to use this pattern

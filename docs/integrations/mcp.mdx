@@ -15,7 +15,7 @@ Nevermined Payments Library provides robust tools to add a paywall to your [Mode
 
 The integration is designed to be seamless, whether you are using a high-level framework like the official MCP SDKs or a custom low-level JSON-RPC router.
 
-- **Paywall Protection**: Wrap your handlers with `withPaywall` to automatically verify `Authorization` tokens and check for valid subscriptions.
+- **Paywall Protection**: Wrap your handlers with `withPaywall` to automatically verify payment tokens and check for valid subscriptions.
 - **Credit Burning**: Automatically burn credits after a successful API call, with support for both fixed and dynamic costs.
 - **Declarative Registration**: Use the `attach` method to register and protect your tools in a single, clean step.
 - **Framework Agnostic**: Works with both high-level servers (like the official TypeScript SDK's `McpServer` or Python's `FastMCP`) and custom low-level ASGI/Express routers.
@@ -34,7 +34,7 @@ Think of MCP as a universal language that allows any AI agent to ask a server, "
 
 While MCP provides a powerful standard for *what* an AI agent can do, it doesn't specify *who* is allowed to do it or *how* those services are paid for. This is where Nevermined Payments Library comes in. By integrating Nevermined, you can transform your open MCP server into a secure, monetizable platform.
 
-The core idea is to place a "paywall" in front of your MCP handlers. This paywall acts as a gatekeeper, intercepting every incoming request to a tool, resource, or prompt. Before executing your logic, it checks the user's `Authorization` header to verify they have a valid subscription and sufficient credits through the Nevermined protocol. If they don't, the request is blocked. If they do, the request proceeds, and after your handler successfully completes, the paywall automatically deducts the configured number of credits.
+The core idea is to place a "paywall" in front of your MCP handlers. This paywall acts as a gatekeeper, intercepting every incoming request to a tool, resource, or prompt. Before executing your logic, it checks the user's payment token to verify they have a valid subscription and sufficient credits through the Nevermined protocol. If they don't, the request is blocked. If they do, the request proceeds, and after your handler successfully completes, the paywall automatically deducts the configured number of credits.
 
 This integration allows you to build a sustainable business model around your AI services. You can offer different subscription tiers (plans), charge dynamically based on usage, and maintain a complete audit trail of every transaction, all without cluttering your core application logic with complex payment code.
 
@@ -351,12 +351,11 @@ Initialize the Nevermined Payments SDK with your builder/agent owner API key and
   <Tab title="Python">
     ```python
     # payments_setup.py
-    from payments_py.payments import Payments
+    from payments_py import Payments, PaymentOptions
 
-    payments = Payments({
-        "nvm_api_key": os.environ["NVM_API_KEY"],
-        "environment": os.environ.get("NVM_ENV", "sandbox"),
-    })
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment=os.environ.get("NVM_ENV", "sandbox"))
+    )
     ```
   </Tab>
 </Tabs>
