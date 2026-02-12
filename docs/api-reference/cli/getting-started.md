@@ -83,7 +83,7 @@ nvm config init
 This will prompt you for:
 - **NVM API Key**: Your API key from nevermined.app
 - **Environment**: Choose from:
-  - `sandbox` - Development and testing (recommended for learning)
+  - `sandbox` - Testing (recommended for learning and development)
   - `live` - Production environment
 
 Example:
@@ -91,7 +91,7 @@ Example:
 ```bash
 $ nvm config init
 
-? Enter your NVM API Key: live:eyJxxxxaaaabbbbbbbb
+? Enter your NVM API Key: sandbox:eyJxxxxaaaabbbbbbbb
 ? Select environment: sandbox
 
 ✅ Configuration saved to /home/user/.config/nvm/config.json
@@ -147,7 +147,7 @@ export NVM_API_KEY=sandbox:eyJxxxxaaaabbbbbbbb
 export NVM_ENVIRONMENT=sandbox
 
 # Run commands
-nvm plans list
+nvm plans get-plans
 ```
 
 This is useful for:
@@ -178,7 +178,7 @@ API Key:        live:eyJxxxxaaaabbbbbbbb (truncated)
 Test your configuration by listing available plans:
 
 ```bash
-nvm plans list
+nvm plans get-plans
 ```
 
 If configured correctly, you should see a table of available payment plans.
