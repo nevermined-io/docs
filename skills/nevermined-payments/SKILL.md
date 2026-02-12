@@ -39,6 +39,21 @@ The x402 protocol uses HTTP 402 responses to advertise payment requirements. Cli
 | `NVM_AGENT_ID` | Sometimes | Required for MCP servers and plans with multiple agents |
 | `BUILDER_ADDRESS` | For registration | Wallet address to receive payments |
 
+### `.env` Template
+
+```bash
+# Required
+NVM_API_KEY=your-api-key-here
+NVM_ENVIRONMENT=sandbox
+NVM_PLAN_ID=your-plan-id-here
+
+# Required for MCP servers or multi-agent plans
+NVM_AGENT_ID=your-agent-id-here
+
+# Required for registration
+BUILDER_ADDRESS=0xYourWalletAddress
+```
+
 ### Prerequisites
 
 - **TypeScript/Express.js**: Node.js 18+. Your `package.json` must include `"type": "module"` for the `@nevermined-io/payments/express` subpath import to work.
