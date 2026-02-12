@@ -88,8 +88,7 @@ If you already have a Google A2A agent, or you are building a new one, add the P
   </Tab>
   <Tab title="Python">
     ```python
-    from payments_py import Payments
-    from payments_py.common.types import PaymentOptions
+    from payments_py import Payments, PaymentOptions
 
     payments = Payments.get_instance(
         PaymentOptions(nvm_api_key="<YOUR_API_KEY>", environment="sandbox")
@@ -364,8 +363,7 @@ sequenceDiagram
   <Tab title="Python">
     ```python
     import httpx
-    from payments_py import Payments
-    from payments_py.common.types import PaymentOptions
+    from payments_py import Payments, PaymentOptions
 
     payments = Payments.get_instance(
         PaymentOptions(nvm_api_key="<SUBSCRIBER_API_KEY>", environment="sandbox")

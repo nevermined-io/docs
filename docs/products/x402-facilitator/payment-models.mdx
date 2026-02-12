@@ -224,12 +224,11 @@ Charge variable amounts based on request complexity. The x402 `max_amount` field
     )
 
     # During settlement, specify actual amount
-    await facilitator.settle(payment_payload, PaymentRequirements(
-        plan_id=plan_id,
-        agent_id=agent_id,
-        max_amount=actual_credits_used,  # 1-10 based on request
-        extra={'subscriber_address': address}
-    ))
+    await payments.facilitator.settle_permissions(
+        payment_required=payment_required,
+        x402_access_token=access_token,
+        max_amount=str(actual_credits_used),  # 1-10 based on request
+    )
     ```
   </Tab>
 </Tabs>

@@ -381,6 +381,7 @@ Before finalizing any documentation:
 - **Structure**: Overview → Setup → Method details → Examples → Error handling
 - **Tone**: Technical and precise
 - **Examples**: [api-reference/introduction.mdx](docs/api-reference/introduction.mdx)
+- **Source of Documentation**: All the documentation included in the "docs/api-reference" folder is sourced from different repositories. Don't modify it directly.
 
 ### 5. Integration Guides
 
@@ -578,6 +579,7 @@ description: "Register AI agents and create payment plans in 5 minutes using the
 - Link to broken or non-existent pages
 - Forget both TypeScript and Python examples
 - Write overly long paragraphs
+- Modify the "docs/api-reference/" folder documentation, that is sourced from different repos
 
 ---
 

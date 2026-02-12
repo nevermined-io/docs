@@ -27,10 +27,21 @@ Choose your AI coding tool below for step-by-step installation instructions.
   <Tab title="Claude Code">
     ### Claude Code
 
-    **One-command install** from the Nevermined repository:
+    **Commands to install** from the Nevermined repository:
 
     ```bash
-    claude /install-skill https://github.com/nevermined-io/docs skills/nevermined-payments
+    mkdir -p ~/.claude/skills
+
+    tmpdir="$(mktemp -d)"
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/nevermined-io/docs "$tmpdir"
+    cd "$tmpdir"
+    git sparse-checkout set skills/nevermined-payments
+
+    cp -R skills/nevermined-payments ~/.claude/skills/
+
+    cd -
+    rm -rf "$tmpdir"
+
     ```
 
     This downloads the `SKILL.md` and all reference files into your local Claude Code skills directory. Claude Code automatically loads the skill when it's relevant to your work.
