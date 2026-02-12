@@ -41,10 +41,10 @@ By the end, you’ll have a **monetizable service** set up with Nevermined — t
 
 ## Register Your Agent
 
-Create a scrupt to register your agent and a payment plan.
+Create a script to register your agent and a payment plan.
 
 <Note>
-  You can register your agent and any payment plan using the following code OR using the [Nevermined App](https://nevermined.app). So not need to code this, just follow the steps in the app to create your agents and plans.
+  You can register your agent and any payment plan using the following code OR using the [Nevermined App](https://nevermined.app). No need to code this — just follow the steps in the app to create your agents and plans.
 </Note>
 
 If you’re monetizing an agent, MCP tool/server or a protected resource, you’ll still register the monetizable unit and attach a plan — only the **delivery step** changes.
@@ -54,7 +54,7 @@ If you’re monetizing an agent, MCP tool/server or a protected resource, you’
     ```typescript filename="register-agent.ts"
     import { Payments } from '@nevermined-io/payments'
 
-    // In this example we require a payment a payment of 10 USDC for 100 requests
+    // In this example we require a payment of 10 USDC for 100 requests
     // For that USDC payment we use USDC on Base Sepolia, so we need its contract address:
     const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 
@@ -109,7 +109,7 @@ If you’re monetizing an agent, MCP tool/server or a protected resource, you’
     from payments_py import Payments, PaymentOptions
     from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
 
-    # In this example we require a payment a payment of 10 USDC for 100 requests
+    # In this example we require a payment of 10 USDC for 100 requests
     # For that USDC payment we use USDC on Base Sepolia, so we need its contract address:
     USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 
@@ -181,26 +181,36 @@ The example shows an HTTP API route; the same check can be used before calling a
     import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
 
     const payments = Payments.getInstance({
-      nvmApiKey: 'nvm:agent-key',
+      nvmApiKey: process.env.NVM_API_KEY!,
       environment: 'sandbox',
     })
 
-    // Get token from payment-signature header
-    const x402Token = req.headers['payment-signature']
-
-    if (!x402Token) {
-      // Return 402 with payment requirements
-      return res.status(402).json({ error: 'Payment Required' })
-    }
+    const PLAN_ID = process.env.NVM_PLAN_ID!
+    const AGENT_ID = process.env.NVM_AGENT_ID!
 
     // Build payment required specification
-    const paymentRequired = buildPaymentRequired(planId, {
+    const paymentRequired = buildPaymentRequired(PLAN_ID, {
       endpoint: req.url,
-      agentId: agentId,
+      agentId: AGENT_ID,
       httpVerb: req.method,
     })
 
-    // Verify permissions - facilitator extracts planId and subscriberAddress from token
+    // Get token from payment-signature header
+    const x402Token = req.headers['payment-signature'] as string
+
+    if (!x402Token) {
+      // Return 402 with payment-required header so clients know how to pay
+      const paymentRequiredBase64 = Buffer.from(
+        JSON.stringify(paymentRequired)
+      ).toString('base64')
+
+      return res
+        .status(402)
+        .setHeader('payment-required', paymentRequiredBase64)
+        .json({ error: 'Payment Required' })
+    }
+
+    // 1. Verify permissions (does NOT burn credits)
     const verification = await payments.facilitator.verifyPermissions({
       paymentRequired,
       x402AccessToken: x402Token,
@@ -208,42 +218,82 @@ The example shows an HTTP API route; the same check can be used before calling a
     })
 
     if (!verification.isValid) {
-      return res.status(402).json({ error: 'Payment verification failed' })
+      return res.status(402).json({ error: verification.invalidReason })
     }
 
-    //////////
-    // Here you can execute your logic knowing payment is valid
-    //////////
+    // 2. Execute your logic here — payment is verified
+    const result = await handleRequest(req)
 
+    // 3. Settle (burn credits) after successful processing
+    await payments.facilitator.settlePermissions({
+      paymentRequired,
+      x402AccessToken: x402Token,
+      maxAmount: 1n,
+    })
+
+    return res.json({ result })
     ```
   </Tab>
   <Tab title="Python">
     ```python filename="middleware/payments.py"
+    import base64
+    import os
     from payments_py import Payments, PaymentOptions
+    from payments_py.x402.helpers import build_payment_required
 
     payments = Payments.get_instance(
-        PaymentOptions(nvm_api_key="nvm:agent-key", environment="sandbox")
+        PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
+    )
+
+    PLAN_ID = os.environ["NVM_PLAN_ID"]
+    AGENT_ID = os.environ["NVM_AGENT_ID"]
+
+    # Build payment required specification
+    payment_required = build_payment_required(
+        plan_id=PLAN_ID,
+        endpoint=request.url,
+        agent_id=AGENT_ID,
+        http_verb=request.method
     )
 
     # Get token from payment-signature header
     x402_token = request.headers.get("payment-signature")
 
     if not x402_token:
-        # Return 402 with payment requirements
-        return {"error": "Payment Required"}, 402
+        # Return 402 with payment-required header so clients know how to pay
+        pr_base64 = base64.b64encode(
+            payment_required.model_dump_json(by_alias=True).encode()
+        ).decode()
+        return JSONResponse(
+            status_code=402,
+            content={"error": "Payment Required"},
+            headers={"payment-required": pr_base64}
+        )
 
-    # Verify permissions - facilitator extracts planId and subscriberAddress from token
+    # 1. Verify permissions (does NOT burn credits)
     verification = payments.facilitator.verify_permissions(
+        payment_required=payment_required,
         x402_access_token=x402_token,
-        max_amount=credits_required,
+        max_amount="1",
     )
 
     if not verification.is_valid:
-        return {"error": "Payment verification failed"}, 402
-    
-    ######
-    # Here you can execute your logic knowing payment is valid
-    ######
+        return JSONResponse(
+            status_code=402,
+            content={"error": verification.invalid_reason}
+        )
+
+    # 2. Execute your logic here — payment is verified
+    result = handle_request(request)
+
+    # 3. Settle (burn credits) after successful processing
+    payments.facilitator.settle_permissions(
+        payment_required=payment_required,
+        x402_access_token=x402_token,
+        max_amount="1",
+    )
+
+    return {"result": result}
     ```
   </Tab>
 </Tabs>
@@ -289,7 +339,7 @@ Response:
   const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID)
 
   // Use this token in the next request
-  // HTTP header: 'PAYMENT-SIGNATURE'
+  // HTTP header: 'payment-signature'
   // value: `${accessToken}`
   ```
   </Tab>
@@ -321,7 +371,7 @@ Response:
 ```bash
 curl -X POST http://localhost:3000/query \
   -H "Content-Type: application/json" \
-  -H "PAYMENT-SIGNATURE: ${agentAccessParams.accessToken}" \
+  -H "payment-signature: ${accessToken}" \
   -d '{"prompt": "Hello"}'
 ```
 
