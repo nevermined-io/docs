@@ -391,13 +391,28 @@ Content-Type: application/json
 
 **Step 10.** Facilitator validates the client's enrolled payment method and creates a delegation record with status `Active`.
 
-**Step 11.** Facilitator signs a JWT token containing the delegation claims (see Section 3.3) and generates the x402 access token.
-
-**Step 12.** Facilitator returns the base64-encoded x402 access token to the client. This token is what the client will include in the `PAYMENT-SIGNATURE` header when accessing protected resources.
+**Step 11.** Facilitator signs a JWT token containing the delegation claims (see Section 3.3) and wraps it in a standard x402 PaymentPayload structure:
 
 ```json
 {
-  "accessToken": "eyJhbGciOiJSUzI1NiIs...",
+  "x402Version": 2,
+  "accepted": {
+    "scheme": "nvm:card-delegation",
+    "network": "stripe",
+    "extra": { "version": "1" }
+  },
+  "payload": {
+    "token": "<signed-delegation-jwt>"
+  },
+  "extensions": {}
+}
+```
+
+**Step 12.** Facilitator base64-encodes the PaymentPayload and returns it to the client. This token is what the client will include in the `PAYMENT-SIGNATURE` header when accessing protected resources.
+
+```json
+{
+  "accessToken": "eyJ4NDAyVmVyc2lvbiI6Mi...",
   "permissionHash": "0x1a2b3c..."
 }
 ```
@@ -422,18 +437,14 @@ HTTP/1.1 402 Payment Required
 PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkLi4u
 ```
 
-**Step 16.** The Client selects the `nvm:card-delegation` scheme from `accepts[]` and sends the delegation JWT as the x402 access token.
+**Step 16.** The Client selects the `nvm:card-delegation` scheme from `accepts[]` and uses the base64-encoded PaymentPayload (received in Step 12) as the x402 access token.
 
-<Note>
-For the `nvm:card-delegation` scheme, the `x402AccessToken` is the **raw delegation JWT** (not wrapped inside a PaymentPayload object). This differs from the `nvm:erc4337` scheme where the token is a base64-encoded PaymentPayload containing session keys. The facilitator auto-detects the scheme by inspecting the token format (JWT vs base64 PaymentPayload).
-</Note>
-
-**Step 17.** Client sends an HTTP request to the server including the delegation JWT in the `PAYMENT-SIGNATURE` HTTP header (base64-encoded).
+**Step 17.** Client sends an HTTP request to the server including the base64-encoded PaymentPayload in the `PAYMENT-SIGNATURE` HTTP header.
 
 ```http
 GET /api/resource HTTP/1.1
 Host: agent.example.com
-PAYMENT-SIGNATURE: <base64-encoded-delegation-jwt>
+PAYMENT-SIGNATURE: <base64-encoded-PaymentPayload>
 ```
 
 **Step 18.** Server validates the incoming data and forwards the payment data to the facilitator for verification.
@@ -445,7 +456,7 @@ Content-Type: application/json
 
 {
   "paymentRequired": { ... },
-  "x402AccessToken": "<delegation-jwt>",
+  "x402AccessToken": "<base64-encoded-PaymentPayload>",
   "maxAmount": "500"
 }
 ```
@@ -485,7 +496,7 @@ Content-Type: application/json
 
 {
   "paymentRequired": { ... },
-  "x402AccessToken": "<delegation-jwt>",
+  "x402AccessToken": "<base64-encoded-PaymentPayload>",
   "maxAmount": "500"
 }
 ```
@@ -558,12 +569,8 @@ Per [x402 HTTP Transport v2](https://github.com/coinbase/x402/blob/main/specs/tr
 | Header | Direction | Content |
 |--------|-----------|---------|
 | `PAYMENT-REQUIRED` | Server -> Client (402) | Base64-encoded `PaymentRequired` object |
-| `PAYMENT-SIGNATURE` | Client -> Server | Base64-encoded delegation JWT (for `nvm:card-delegation`) or base64-encoded `PaymentPayload` (for `nvm:erc4337`) |
+| `PAYMENT-SIGNATURE` | Client -> Server | Base64-encoded `PaymentPayload` object (consistent for both `nvm:card-delegation` and `nvm:erc4337` schemes) |
 | `PAYMENT-RESPONSE` | Server -> Client (200) | Base64-encoded settlement receipt |
-
-<Note>
-For the `nvm:card-delegation` scheme, the `PAYMENT-SIGNATURE` header carries the base64-encoded **delegation JWT directly**. This is different from the `nvm:erc4337` scheme, which wraps its data in a `PaymentPayload` object before base64-encoding. The facilitator auto-detects the scheme by inspecting the decoded token format.
-</Note>
 
 ## 5. Verification Requirements
 
