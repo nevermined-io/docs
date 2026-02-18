@@ -18,12 +18,7 @@ Before installing the CLI, ensure you have:
 
 ## Getting Your API Key
 
-1. Visit [nevermined.app](https://nevermined.app) and sign in
-2. Navigate to your account settings
-3. Generate a new API key from the "API Keys" section
-4. Save your API key securely - you'll need it for CLI configuration
-
-The API key format is: `live:eyJxxxxaaaa`
+Follow the [Get Your API Key](/docs/getting-started/get-your-api-key) guide to create your Nevermined API key. Save it securely — you'll need it for CLI configuration.
 
 ## Installation
 
