@@ -391,18 +391,14 @@ Content-Type: application/json
 
 **Step 10.** Facilitator validates the client's enrolled payment method and creates a delegation record with status `Active`.
 
-**Step 11.** Facilitator signs a JWT token containing the delegation claims (see Section 3.3).
+**Step 11.** Facilitator signs a JWT token containing the delegation claims (see Section 3.3) and generates the x402 access token.
 
-**Step 12.** Facilitator returns the signed JWT token to the client.
+**Step 12.** Facilitator returns the base64-encoded x402 access token to the client. This token is what the client will include in the `PAYMENT-SIGNATURE` header when accessing protected resources.
 
 ```json
 {
-  "delegationId": "deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6",
-  "token": "eyJhbGciOiJSUzI1NiIs...",
-  "status": "Active",
-  "spendingLimitCents": 10000,
-  "spentCents": 0,
-  "expiresAt": "2026-03-19T00:00:00Z"
+  "accessToken": "eyJhbGciOiJSUzI1NiIs...",
+  "permissionHash": "0x1a2b3c..."
 }
 ```
 
