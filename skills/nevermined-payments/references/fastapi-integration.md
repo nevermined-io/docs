@@ -268,7 +268,7 @@ if __name__ == "__main__":
 ## Environment Variables
 
 ```bash
-NVM_API_KEY=nvm:your-api-key
+NVM_API_KEY=sandbox:your-api-key
 NVM_ENVIRONMENT=sandbox
 NVM_PLAN_ID=your-plan-id
 OPENAI_API_KEY=sk-your-openai-api-key

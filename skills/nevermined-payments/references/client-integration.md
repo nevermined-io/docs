@@ -241,6 +241,6 @@ if payment_required:
 ## Environment Variables
 
 ```bash
-NVM_API_KEY=nvm:your-subscriber-api-key
+NVM_API_KEY=sandbox:your-subscriber-api-key
 NVM_ENVIRONMENT=sandbox
 ```

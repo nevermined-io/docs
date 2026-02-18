@@ -249,7 +249,7 @@ For dynamic URIs, use placeholders: `mcp://weather-mcp/resources/weather.today?c
 ## Environment Variables
 
 ```bash
-NVM_API_KEY=nvm:your-api-key
+NVM_API_KEY=sandbox:your-api-key
 NVM_ENVIRONMENT=sandbox
 NVM_AGENT_ID=your-agent-id
 ```

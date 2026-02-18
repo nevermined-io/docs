@@ -23,14 +23,11 @@ For developers who need to automate and integrate directly, our SDKs are the per
 
 <Steps>
   <Step title="1. Get Your API Key">
-    To interact with the Nevermined API, you need an API key.
+    To interact with the Nevermined API, you need an API key. Follow the [Get Your API Key](/docs/getting-started/get-your-api-key) guide to create one, then store it as an environment variable:
 
-    1. Go to the [Nevermined App](https://nevermined.app/).
-    2. Log in via Web3Auth.
-    3. Navigate to the **Settings** section in the user menu.
-    4. Click on the **API Keys** tab.
-    5. Generate a new key, give it a descriptive name, and copy it.
-    6. Store this key securely as an environment variable (e.g., `NVM_API_KEY`).
+    ```bash
+    export NVM_API_KEY="sandbox:your-api-key-here"
+    ```
   </Step>
   <Step title="2. Install and Initialize the Payments Library">
     Install the PaymentsLibrary and initialize the `Payments` client with your API key.

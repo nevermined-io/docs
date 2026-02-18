@@ -1,0 +1,48 @@
+---
+title: "Get Your API Key"
+description: "Create a Nevermined API Key to start building and integrating with Nevermined"
+icon: "key"
+---
+
+You need a **Nevermined API Key** to interact with the platform programmatically — whether through the SDKs, REST API, or CLI.
+
+<Steps>
+  <Step title="Go to the Nevermined App">
+    Open [nevermined.app](https://nevermined.app) and sign in with your account.
+
+    <img src="/images/api-keys/landing.png" alt="Nevermined App landing page" />
+  </Step>
+
+  <Step title="Navigate to API Keys">
+    Go to the **API Keys** section, then select **Global NVM API Keys**.
+
+    <img src="/images/api-keys/global_api_keys.png" alt="Global NVM API Keys page" />
+  </Step>
+
+  <Step title="Create a New API Key">
+    Click the **+ New API Key** button.
+
+    <img src="/images/api-keys/new_api_key_button.png" alt="Click the + New API Key button" />
+  </Step>
+
+  <Step title="Configure and Generate">
+    Give your key a descriptive name, select the permissions you need, and click **Generate API Key**.
+
+    <img src="/images/api-keys/new_key_form.png" alt="Configure your new API key" />
+  </Step>
+
+  <Step title="Copy Your Key">
+    Once created, click **Copy Key** to copy it to your clipboard. Store it securely as an environment variable:
+
+    ```bash
+    export NVM_API_KEY="sandbox:your-api-key-here"
+    ```
+
+    API keys are environment-specific. Keys created in the **Sandbox** environment will start with `sandbox:`, and keys created in the **Live** environment will start with `live:`. Use a different API key for each environment, and set `NVM_ENVIRONMENT` to `sandbox` or `live` to match the key you are using.
+    <img src="/images/api-keys/copy_key_button.png" alt="Copy your new API key" />
+  </Step>
+</Steps>
+
+<Warning>
+  Keep your API key secure. Don't commit it to version control or share it publicly.
+</Warning>

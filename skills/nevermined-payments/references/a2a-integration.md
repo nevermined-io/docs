@@ -259,7 +259,7 @@ async for event in client.send_message_stream({
 ## Environment Variables
 
 ```bash
-NVM_API_KEY=nvm:your-api-key
+NVM_API_KEY=sandbox:your-api-key
 NVM_ENVIRONMENT=sandbox
 NVM_PLAN_ID=your-plan-id
 NVM_AGENT_ID=your-agent-id
