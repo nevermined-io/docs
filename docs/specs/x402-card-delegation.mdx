@@ -274,7 +274,7 @@ sequenceDiagram
     note over client,server: Phase 2: Verification
     client->>server: GET /api
     server->>client: HTTP 402 + PAYMENT-REQUIRED header
-    client->>server: Request + PAYMENT-SIGNATURE header (base64-encoded PaymentPayload containing JWT)
+    client->>server: Request + PAYMENT-SIGNATURE header (base64-encoded x402 token)
 
     activate server
     server->>facilitator: /verify (paymentRequired + paymentPayload)
@@ -426,14 +426,18 @@ HTTP/1.1 402 Payment Required
 PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkLi4u
 ```
 
-**Step 16.** The Client selects the `nvm:card-delegation` scheme from `accepts[]` and constructs a PaymentPayload containing its delegation JWT token.
+**Step 16.** The Client selects the `nvm:card-delegation` scheme from `accepts[]` and sends the delegation JWT as the x402 access token.
 
-**Step 17.** Client sends an HTTP request to the server including the x402 Payment Payload in the `PAYMENT-SIGNATURE` HTTP header.
+<Note>
+For the `nvm:card-delegation` scheme, the `x402AccessToken` is the **raw delegation JWT** (not wrapped inside a PaymentPayload object). This differs from the `nvm:erc4337` scheme where the token is a base64-encoded PaymentPayload containing session keys. The facilitator auto-detects the scheme by inspecting the token format (JWT vs base64 PaymentPayload).
+</Note>
+
+**Step 17.** Client sends an HTTP request to the server including the delegation JWT in the `PAYMENT-SIGNATURE` HTTP header (base64-encoded).
 
 ```http
 GET /api/resource HTTP/1.1
 Host: agent.example.com
-PAYMENT-SIGNATURE: <base64-encoded-x402-payload>
+PAYMENT-SIGNATURE: <base64-encoded-delegation-jwt>
 ```
 
 **Step 18.** Server validates the incoming data and forwards the payment data to the facilitator for verification.
@@ -445,7 +449,7 @@ Content-Type: application/json
 
 {
   "paymentRequired": { ... },
-  "paymentPayload": "<base64-encoded-payment-payload>",
+  "x402AccessToken": "<delegation-jwt>",
   "maxAmount": "500"
 }
 ```
@@ -485,7 +489,7 @@ Content-Type: application/json
 
 {
   "paymentRequired": { ... },
-  "paymentPayload": "<base64-encoded-payment-payload>",
+  "x402AccessToken": "<delegation-jwt>",
   "maxAmount": "500"
 }
 ```
@@ -553,16 +557,16 @@ Steps 27-28 represent a failure scenario where the server has already performed 
 
 ### 4.3 HTTP Header Summary
 
-Per [x402 HTTP Transport v2](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md), all payment data is transmitted via HTTP headers using base64 encoding:
+Per [x402 HTTP Transport v2](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md), payment data is transmitted via HTTP headers:
 
 | Header | Direction | Content |
 |--------|-----------|---------|
 | `PAYMENT-REQUIRED` | Server -> Client (402) | Base64-encoded `PaymentRequired` object |
-| `PAYMENT-SIGNATURE` | Client -> Server | Base64-encoded `PaymentPayload` object (containing JWT) |
+| `PAYMENT-SIGNATURE` | Client -> Server | Base64-encoded delegation JWT (for `nvm:card-delegation`) or base64-encoded `PaymentPayload` (for `nvm:erc4337`) |
 | `PAYMENT-RESPONSE` | Server -> Client (200) | Base64-encoded settlement receipt |
 
 <Note>
-All three headers use **base64 encoding**. The response body contains the actual resource data plus optional Nevermined-specific payment info.
+For the `nvm:card-delegation` scheme, the `PAYMENT-SIGNATURE` header carries the base64-encoded **delegation JWT directly**. This is different from the `nvm:erc4337` scheme, which wraps its data in a `PaymentPayload` object before base64-encoding. The facilitator auto-detects the scheme by inspecting the decoded token format.
 </Note>
 
 ## 5. Verification Requirements
