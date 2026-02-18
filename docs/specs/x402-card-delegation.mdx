@@ -370,7 +370,7 @@ Card enrollment only needs to happen once per payment method. A single enrolled 
 
 #### Phase 1: Delegation Creation (Steps 9-12)
 
-**Step 9.** Client requests a delegation from the facilitator, specifying the scheme, spending limits, and optional constraints.
+**Step 9.** Client requests a delegation from the facilitator, specifying the scheme, spending limits, and optional constraints. The request body follows the `GenerateX402TokenDto` structure, where `accepted` identifies the payment scheme and `delegationConfig` contains card-delegation-specific options.
 
 ```http
 POST /x402/permissions HTTP/1.1
@@ -379,13 +379,22 @@ Authorization: Bearer <user-auth-token>
 Content-Type: application/json
 
 {
-  "scheme": "nvm:card-delegation",
-  "spendingLimitCents": 10000,
-  "currency": "usd",
-  "expiresInDays": 30,
-  "maxTransactions": 100,
-  "merchantAccountId": "acct_1AbCdEfGhIjKlM",
-  "planId": "plan_abc123"
+  "accepted": {
+    "scheme": "nvm:card-delegation",
+    "network": "stripe",
+    "planId": "plan_abc123",
+    "extra": {
+      "version": "1"
+    }
+  },
+  "delegationConfig": {
+    "providerPaymentMethodId": "pm_1AbCdEfGhIjKlM",
+    "spendingLimitCents": 10000,
+    "durationSecs": 2592000,
+    "currency": "usd",
+    "maxTransactions": 100,
+    "merchantAccountId": "acct_1AbCdEfGhIjKlM"
+  }
 }
 ```
 
