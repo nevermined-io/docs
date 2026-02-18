@@ -71,7 +71,7 @@ Full documentation: [Get Your API Key](https://nevermined.ai/docs/docs/getting-s
 
 ```bash
 # Required
-NVM_API_KEY=sandbox:your-api-key-here
+NVM_API_KEY=sandbox:your-api-key
 NVM_ENVIRONMENT=sandbox
 NVM_PLAN_ID=your-plan-id-here
 
