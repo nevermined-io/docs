@@ -25,7 +25,7 @@ Nevermined provides financial rails for AI agents — real-time monetization, ac
 
 The x402 protocol uses HTTP 402 responses to advertise payment requirements. Clients acquire an access token and retry the request. The server verifies permissions, executes the workload, then settles (burns credits).
 
-## Prerequisites — Nevermined API Key
+## Nevermined API Key Prerequisite
 
 A **Nevermined API Key** (`NVM_API_KEY`) is required for ALL interactions with the Nevermined platform — SDK initialization, REST API calls, CLI usage, and agent registration. Without it, nothing works.
 
