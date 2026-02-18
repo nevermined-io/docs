@@ -266,7 +266,7 @@ sequenceDiagram
     note over client,facilitator: Phase 1: Delegation Creation
     client->>facilitator: POST /x402/permissions<br/>scheme: nvm:card-delegation<br/>spendingLimitCents, currency, expiry
     facilitator->>facilitator: Validate customer + payment method<br/>Create delegation record<br/>Sign JWT token
-    facilitator-->>client: Delegation JWT token
+    facilitator-->>client: Base64-encoded PaymentPayload (x402 access token)
   end
 
   %% PHASE 2: VERIFICATION
