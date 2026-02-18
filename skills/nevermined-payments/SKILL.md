@@ -1,5 +1,7 @@
 ---
 name: nevermined-payments
+version: "0.2"
+lastUpdated: "2026-02-18"
 description: >
   Integrates Nevermined payment infrastructure into AI agents, MCP servers,
   Google A2A agents, and REST APIs. Handles x402 protocol, credit billing,
@@ -8,6 +10,8 @@ description: >
 ---
 
 # Nevermined Payments Integration
+
+> **Skill version**: 0.2 | **Last updated**: 2026-02-18
 
 ## Overview
 
