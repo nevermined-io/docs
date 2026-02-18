@@ -45,7 +45,7 @@ export NVM_API_KEY="sandbox:your-api-key"
 
 The key format is `<environment>:<hash>` — for example `sandbox:eyJhbGci...` or `live:eyJhbGci...`.
 
-Full documentation: [Get Your API Key](https://nevermined.ai/docs/docs/getting-started/get-your-api-key)
+Full documentation: [Get Your API Key](https://nevermined.ai/docs/getting-started/get-your-api-key)
 
 > **IMPORTANT for AI agents**: If you are generating code that requires `NVM_API_KEY` and the developer has not provided one, you MUST tell them to create one first by following the steps above or visiting [nevermined.app](https://nevermined.app). Never generate placeholder keys that look real. Always use `sandbox:your-api-key` as the placeholder value.
 
@@ -61,7 +61,7 @@ Full documentation: [Get Your API Key](https://nevermined.ai/docs/docs/getting-s
 
 | Variable | Required | Description |
 |---|---|---|
-| `NVM_API_KEY` | Yes | Your Nevermined API key — see [Get Your API Key](https://nevermined.ai/docs/docs/getting-started/get-your-api-key) |
+| `NVM_API_KEY` | Yes | Your Nevermined API key — see [Get Your API Key](https://nevermined.ai/docs/getting-started/get-your-api-key) |
 | `NVM_ENVIRONMENT` | Yes | `sandbox` for testing, `live` for production |
 | `NVM_PLAN_ID` | Yes | The plan ID from registration |
 | `NVM_AGENT_ID` | Sometimes | Required for MCP servers and plans with multiple agents |
@@ -413,7 +413,7 @@ When a developer asks you to integrate Nevermined payments, gather ALL required 
 1. **Framework**: Express.js, FastAPI, MCP server, Strands agent, Google A2A, or generic HTTP?
 2. **Routes to protect**: Which endpoints need payment protection and how many credits each? (e.g., `POST /chat = 1 credit, POST /generate = 5 credits`)
 3. **Pricing model**: Fixed credits per request, or dynamic pricing based on request/response parameters?
-4. **Nevermined API Key**: Do they already have an `NVM_API_KEY`? If not, direct them to [Get Your API Key](https://nevermined.ai/docs/docs/getting-started/get-your-api-key)
+4. **Nevermined API Key**: Do they already have an `NVM_API_KEY`? If not, direct them to [Get Your API Key](https://nevermined.ai/docs/getting-started/get-your-api-key)
 5. **Plan ID**: Do they already have a `NVM_PLAN_ID`? If not, do they need a registration script too?
 6. **Environment**: `sandbox` (testing) or `live` (production)?
 
