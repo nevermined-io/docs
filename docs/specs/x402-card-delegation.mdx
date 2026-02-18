@@ -105,6 +105,7 @@ When a server requires payment via card delegation, it returns:
   "accepts": [{
     "scheme": "nvm:card-delegation",
     "network": "stripe",
+    "planId": "plan_abc123",
     "extra": {
       "version": "1",
       "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
@@ -130,6 +131,7 @@ The client responds with a PaymentPayload containing a JWT token that encodes th
   "accepted": {
     "scheme": "nvm:card-delegation",
     "network": "stripe",
+    "planId": "plan_abc123",
     "extra": {
       "version": "1",
       "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
@@ -169,6 +171,7 @@ The client responds with a PaymentPayload containing a JWT token that encodes th
 |-------|------|----------|-------------|
 | `scheme` | `string` | Yes | Payment scheme. MUST be `"nvm:card-delegation"`. |
 | `network` | `string` | Yes | Payment network identifier. MUST be `"stripe"`. |
+| `planId` | `string` | No | Plan identifier associated with this delegation. |
 | `extra` | `object` | Yes | Additional scheme-specific fields. |
 
 #### Extra Fields
@@ -405,14 +408,20 @@ Content-Type: application/json
 
 **Step 10.** Facilitator validates the client's enrolled payment method and creates a delegation record with status `Active`.
 
-**Step 11.** Facilitator signs a JWT token containing the delegation claims (see Section 3.3) and wraps it in a standard x402 PaymentPayload structure:
+**Step 11.** Facilitator signs a JWT token containing the delegation claims (see Section 3.3) and wraps it in a standard x402 PaymentPayload structure. The `resource` and `accepted` fields echo back the values from the client's request:
 
 ```json
 {
   "x402Version": 2,
+  "resource": {
+    "url": "/api/v1/agents/80918427023170428029540261117198154464497879145267720259488529685089104529015/tasks",
+    "description": "AI agent task execution",
+    "mimeType": "application/json"
+  },
   "accepted": {
     "scheme": "nvm:card-delegation",
     "network": "stripe",
+    "planId": "plan_abc123",
     "extra": { "version": "1" }
   },
   "payload": {
@@ -475,7 +484,7 @@ Content-Type: application/json
 }
 ```
 
-**Step 19.** Facilitator performs the following verification checks:
+**Step 19.** Facilitator base64-decodes the PaymentPayload, extracts the JWT from the `payload.token` field, and performs the following verification checks:
 
 1. **JWT signature verification** --- validates the JWT was signed by the facilitator's private key
 2. **Delegation status check** --- confirms the delegation record exists and has status `Active`
