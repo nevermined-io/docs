@@ -274,7 +274,7 @@ sequenceDiagram
     note over client,server: Phase 2: Verification
     client->>server: GET /api
     server->>client: HTTP 402 + PAYMENT-REQUIRED header
-    client->>server: Request + PAYMENT-SIGNATURE header (JWT)
+    client->>server: Request + PAYMENT-SIGNATURE header (base64-encoded PaymentPayload containing JWT)
 
     activate server
     server->>facilitator: /verify (paymentRequired + paymentPayload)
