@@ -51,7 +51,7 @@ Full documentation: [Get Your API Key](https://nevermined.ai/docs/getting-starte
 
 ## Quick Start Checklist
 
-1. **Get an API key** — see [Prerequisites](#prerequisites--nevermined-api-key) above
+1. **Get an API key** — see [Nevermined API Key Prerequisite](#nevermined-api-key-prerequisite) above
 2. **Install the SDK** (`npm install @nevermined-io/payments` or `pip install payments-py`)
 3. **Register your agent and plan** (via the App UI or programmatically — see `references/payment-plans.md`)
 4. **Add payment protection** to your routes/tools (see framework-specific references below)
