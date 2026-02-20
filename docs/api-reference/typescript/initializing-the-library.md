@@ -10,7 +10,12 @@ This guide shows how to initialize the Nevermined Payments Library in your appli
 
 ## Get Your NVM API Key
 
-Before initializing the library, you need a Nevermined API key. Follow the [Get Your API Key](/docs/getting-started/get-your-api-key) guide to create one.
+Before initializing the library, you need a Nevermined API key:
+
+1. Visit [nevermined.app](https://nevermined.app)
+2. Sign in or create a free account
+3. Navigate to your profile settings
+4. Generate an API key
 
 **Important**: There are two types of API keys:
 - **Builder Key**: For AI builders who register agents and payment plans
