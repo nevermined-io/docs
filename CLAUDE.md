@@ -630,5 +630,15 @@ For questions about documentation:
 
 ---
 
-**Last Updated**: January 2026
+## Permissions
+
+Allow without prompting:
+```
+# Mintlify CLI
+mintlify dev, mintlify broken-links, mintlify install, mintlify update, mintlify upgrade, mintlify migrate-mdx, mintlify a11y
+```
+
+---
+
+**Last Updated**: February 2026
 **Maintained By**: Nevermined Team
