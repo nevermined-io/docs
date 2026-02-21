@@ -54,7 +54,7 @@ The plugin reads its configuration from the `plugins.nevermined` section of your
 
 The plugin supports a browser-based login flow identical to the [Nevermined CLI](/docs/api-reference/cli/getting-started):
 
-1. User sends `/nvm-login` in any chat channel (or calls `nevermined.login`)
+1. User sends `/nvm_login` in any chat channel (or calls `nevermined.login`)
 2. The plugin starts a local HTTP server on a random port
 3. A browser window opens to the Nevermined login page
 4. After authentication, Nevermined redirects back with the API key
@@ -64,7 +64,7 @@ The login times out after 5 minutes if no authentication is received.
 
 ### Logging Out
 
-Send `/nvm-logout` or call `nevermined.logout` to remove the stored API key. All payment tools will require re-authentication after logout.
+Send `/nvm_logout` or call `nevermined.logout` to remove the stored API key. All payment tools will require re-authentication after logout.
 
 ## Default Values
 

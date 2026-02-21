@@ -10,7 +10,7 @@ The plugin provides slash commands for chat channels and gateway methods for pro
 
 ## Authentication
 
-### `/nvm-login [environment]`
+### `/nvm_login [environment]`
 
 Authenticate with Nevermined via browser login.
 
@@ -22,13 +22,13 @@ Authenticate with Nevermined via browser login.
 
 **Example:**
 ```
-/nvm-login
-/nvm-login live
+/nvm_login
+/nvm_login live
 ```
 
 ---
 
-### `/nvm-logout`
+### `/nvm_logout`
 
 Log out from Nevermined and remove the stored API key.
 

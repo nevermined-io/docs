@@ -14,12 +14,12 @@ The plugin supports two ways to provide your Nevermined API key:
 
 ### Option A: Browser login (recommended)
 
-Use the `/nvm-login` command from any chat channel, or call the `nevermined.login` gateway method. This opens a browser window where you authenticate with Nevermined, and the API key is captured automatically.
+Use the `/nvm_login` command from any chat channel, or call the `nevermined.login` gateway method. This opens a browser window where you authenticate with Nevermined, and the API key is captured automatically.
 
 ```
-/nvm-login          # Login to sandbox (default)
-/nvm-login live     # Login to live environment
-/nvm-logout         # Remove stored API key
+/nvm_login          # Login to sandbox (default)
+/nvm_login live     # Login to live environment
+/nvm_logout         # Remove stored API key
 ```
 
 ### Option B: Manual configuration
@@ -44,7 +44,7 @@ Add your API key directly to `openclaw.json`:
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `nvmApiKey` | No | — | Your Nevermined API key (or use `/nvm-login`) |
+| `nvmApiKey` | No | — | Your Nevermined API key (or use `/nvm_login`) |
 | `environment` | No | `sandbox` | `sandbox` or `live` |
 | `planId` | No | — | Default plan ID for subscriber tools |
 | `agentId` | No | — | Default agent ID for multi-agent plans |
@@ -56,8 +56,8 @@ Add your API key directly to `openclaw.json`:
 
 | Tool / Command | Description |
 |----------------|-------------|
-| `nevermined.login` / `/nvm-login` | Authenticate via browser login |
-| `nevermined.logout` / `/nvm-logout` | Remove stored API key |
+| `nevermined.login` / `/nvm_login` | Authenticate via browser login |
+| `nevermined.logout` / `/nvm_logout` | Remove stored API key |
 
 ### Subscriber Tools
 
