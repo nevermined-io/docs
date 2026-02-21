@@ -65,10 +65,10 @@ nvm x402token get-x402-access-token did:nvm:plan123
 nvm [COMMAND]
 
 TOPICS
-  agents      Manage AI agents
-  config      Manage CLI configuration
-  plans       Manage payment plans
-  x402token   X402 protocol operations
+  agents   Manage AI agents
+  config   Manage CLI configuration
+  plans    Manage payment plans
+  x402     X402 protocol operations
 
 COMMANDS
   help     Display help for nvm
@@ -127,14 +127,22 @@ nvm plans get-plans --format quiet
 
 - `nvm plans get-plans` - List all payment plans
 - `nvm plans get-plan <planId>` - Get details of a specific plan
-- `nvm plans register-credits-plan` - Register a new credits-based payment plan
-- `nvm plans register-time-plan` - Register a new time-based payment plan
+- `nvm plans get-plan-balance <planId>` - Get plan balance for a subscriber
+- `nvm plans register-plan` - Register a new payment plan (flexible)
+- `nvm plans register-credits-plan` - Register a credits-based plan
+- `nvm plans register-time-plan` - Register a time-based plan
+- `nvm plans register-credits-trial-plan` - Register a trial credits plan
+- `nvm plans register-time-trial-plan` - Register a trial time plan
 
 ### Agent Commands
 
 - `nvm agents get-agent <agentId>` - Get details of a specific agent
-- `nvm agents register-agent` - Register a new AI agent
 - `nvm agents get-agent-plans <agentId>` - Get plans associated with an agent
+- `nvm agents register-agent` - Register a new AI agent
+- `nvm agents register-agent-and-plan` - Register an agent with a plan
+- `nvm agents add-plan-to-agent <planId>` - Associate a plan with an agent
+- `nvm agents remove-plan-from-agent <planId>` - Remove a plan from an agent
+- `nvm agents update-agent-metadata <agentId>` - Update agent metadata
 
 ### X402 Commands
 
@@ -159,10 +167,10 @@ nvm plans get-plan did:nvm:abc123
 
 ```bash
 # Register plan from JSON config
-nvm plans register --config plan-config.json
+nvm plans register-plan --config plan-config.json
 
 # Register agent from JSON config
-nvm agents register did:nvm:plan123 --config agent-config.json
+nvm agents register-agent did:nvm:plan123 --config agent-config.json
 ```
 
 ## Development
