@@ -66,9 +66,9 @@ You can obtain an API key from the [Nevermined App](https://nevermined.app) unde
 
 After authenticating, verify the plugin is working:
 
-1. **Check your balance** — from any chat channel, the agent can call `nevermined.checkBalance` to verify connectivity.
+1. **Check your balance** — from any chat channel, the agent can call `nevermined_checkBalance` to verify connectivity.
 
-2. **List plans** — call `nevermined.listPlans` to see available payment plans.
+2. **List plans** — call `nevermined_listPlans` to see available payment plans.
 
 ## Next Steps
 
