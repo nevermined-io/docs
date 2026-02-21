@@ -1,0 +1,119 @@
+---
+title: "OpenClaw Integration"
+description: "Monetize AI agents directly from Telegram, Discord, WhatsApp, and other chat channels using the Nevermined OpenClaw plugin."
+icon: "comments"
+---
+
+The [Nevermined OpenClaw plugin](https://github.com/nevermined-io/openclaw-plugin) brings AI agent payments into any chat channel. Install it on an [OpenClaw](https://openclaw.ai) gateway and your users can subscribe to plans, check balances, and query paid agents — all from Telegram, Discord, WhatsApp, or any other connected channel.
+
+## What is OpenClaw?
+
+OpenClaw is an open-source AI gateway that connects large language models to messaging platforms. It turns chat channels into AI-powered assistants by routing messages through configurable plugins.
+
+The Nevermined plugin extends OpenClaw with **7 payment tools** and **2 slash commands**, giving every connected channel full access to the Nevermined payment infrastructure.
+
+## What You Can Do
+
+<CardGroup cols={2}>
+  <Card title="Monetize from Chat" icon="message-dollar">
+    Charge per request for any AI agent accessible through your OpenClaw gateway — no custom billing code required.
+  </Card>
+  <Card title="Multi-Channel Payments" icon="grid-2">
+    One plugin handles payments across Telegram, Discord, WhatsApp, and any other channel OpenClaw supports.
+  </Card>
+  <Card title="x402 Built In" icon="shield-check">
+    The plugin implements the full x402 payment lifecycle — token acquisition, permission verification, and credit settlement — automatically.
+  </Card>
+  <Card title="Builder & Subscriber Tools" icon="toolbox">
+    Register agents, create plans, and list your offerings as a builder. Order plans, check balances, and query agents as a subscriber.
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+### Paid AI Assistants in Group Chats
+
+Deploy a specialized AI agent (legal advisor, data analyst, coding tutor) and let users pay per query directly from a Telegram or Discord group. The plugin handles credit checks and settlement transparently.
+
+### Agent-to-Agent Commerce via Chat
+
+Connect multiple OpenClaw gateways so one agent can call another's paid endpoint. The subscriber gateway acquires an x402 token and sends it automatically — enabling autonomous agent-to-agent transactions.
+
+### Rapid Prototyping for AI Monetization
+
+Test your pricing model without writing a frontend. Register an agent and plan from chat, enable the paid endpoint, and start collecting payments in minutes.
+
+## How It Works
+
+```
+Chat Channel          OpenClaw Gateway           Nevermined
+(Telegram, Discord)   (with Nevermined plugin)   Protocol
+      │                        │                     │
+      │  "Query the agent"     │                     │
+      │───────────────────────>│                     │
+      │                        │  getAccessToken()   │
+      │                        │────────────────────>│
+      │                        │<────────────────────│
+      │                        │                     │
+      │                        │  POST /agent        │
+      │                        │  + payment-signature│
+      │                        │────────────────────>│ verify + settle
+      │                        │<────────────────────│
+      │  Agent response        │                     │
+      │<───────────────────────│                     │
+```
+
+1. A user sends a message in any connected chat channel
+2. The plugin acquires an x402 access token from Nevermined
+3. The request is forwarded to the agent with a `payment-signature` header
+4. Nevermined verifies the subscriber's balance, processes the request, and settles credits
+5. The response is returned to the chat channel
+
+## Getting Started
+
+<Steps>
+  <Step title="Install the plugin">
+    ```bash
+    openclaw plugin install @nevermined-io/openclaw-plugin
+    ```
+  </Step>
+  <Step title="Authenticate">
+    Send `/nvm-login` from any connected chat channel to authenticate with your Nevermined account.
+  </Step>
+  <Step title="Start building">
+    Register an agent, create a plan, and enable the paid endpoint — all from chat or via the gateway config.
+  </Step>
+</Steps>
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card
+    title="Getting Started"
+    icon="rocket"
+    href="/docs/api-reference/openclaw-plugin/getting-started"
+  >
+    Install and configure the plugin
+  </Card>
+  <Card
+    title="Setup"
+    icon="gear"
+    href="/docs/api-reference/openclaw-plugin/setup"
+  >
+    Full configuration reference
+  </Card>
+  <Card
+    title="Commands"
+    icon="terminal"
+    href="/docs/api-reference/openclaw-plugin/commands"
+  >
+    All tools and slash commands
+  </Card>
+  <Card
+    title="Build a Paid Agent"
+    icon="book-open"
+    href="/docs/api-reference/openclaw-plugin/guide"
+  >
+    Step-by-step tutorial
+  </Card>
+</CardGroup>
