@@ -146,6 +146,13 @@ if payment_required:
 
 ## Decorator Configuration
 
+<Note>
+The decorator automatically detects the payment scheme from plan metadata.
+Plans with fiat pricing (`isCrypto: false`) use `nvm:card-delegation` (Stripe).
+**No code changes are needed on the agent side.** You can explicitly override with
+the `scheme` parameter.
+</Note>
+
 ### Single Plan
 
 ```python
@@ -199,9 +206,10 @@ def my_tool(query: str, tool_context=None) -> dict:
     ...
 ```
 
-### Custom Network
+### Scheme and Network
 
 ```python
+# Custom network for crypto payments
 @tool(context=True)
 @requires_payment(
     payments=payments,
@@ -209,7 +217,18 @@ def my_tool(query: str, tool_context=None) -> dict:
     credits=1,
     network="eip155:1",  # Ethereum mainnet (default: eip155:84532 Base Sepolia)
 )
-def my_tool(query: str, tool_context=None) -> dict:
+def my_crypto_tool(query: str, tool_context=None) -> dict:
+    ...
+
+# Explicit card-delegation scheme for fiat payments
+@tool(context=True)
+@requires_payment(
+    payments=payments,
+    plan_id=PLAN_ID,
+    credits=1,
+    scheme="nvm:card-delegation",  # Fiat/Stripe (network auto-set to "stripe")
+)
+def my_fiat_tool(query: str, tool_context=None) -> dict:
     ...
 ```
 

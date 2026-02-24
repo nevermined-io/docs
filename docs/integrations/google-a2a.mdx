@@ -36,6 +36,7 @@ The libraries provide an `a2a` module that enables seamless integration into new
 - **Credits Validation**: Validates that the user has sufficient credits before executing a task.
 - **Credits Burning/Redemption**: Redeem the credits specified in the result after successful execution.
 - **Multi-Plan Support**: Agent cards can advertise multiple plans via `planIds`, allowing consumers to choose which plan to subscribe to.
+- **Scheme Auto-Detection**: Resolves `nvm:erc4337` or `nvm:card-delegation` from plan metadata automatically
 - **Push Notifications**: Supports the A2A standard flow for push notification configuration and delivery.
 - **Asynchronous Task Handling**: Supports intermediate and final state events, compatible with polling and streaming.
 - **Unified SDK**: Provides both agent and client integration.
@@ -91,6 +92,11 @@ If you already have a Google A2A agent, or you are building a new one, add the P
 </Tabs>
 
 ## A2A Server
+
+<Note>
+The A2A server handles both `nvm:erc4337` and `nvm:card-delegation` schemes automatically.
+The scheme is resolved from plan metadata — no server-side code changes are needed for fiat plans.
+</Note>
 
 ### Add the Payment Extension to the Agent Card
 
