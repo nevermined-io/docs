@@ -54,10 +54,12 @@ When no token is provided, return HTTP 402 with a base64-encoded `payment-requir
     const AGENT_ID = process.env.NVM_AGENT_ID
 
     // Build the payment required object
+    // scheme is auto-detected from plan metadata when omitted
     const paymentRequired = buildPaymentRequired(PLAN_ID, {
       endpoint: req.path,
       agentId: AGENT_ID,
-      httpVerb: req.method
+      httpVerb: req.method,
+      scheme: 'nvm:erc4337'  // Optional: omit to auto-detect from plan metadata
     })
 
     // Check for token
@@ -84,11 +86,13 @@ When no token is provided, return HTTP 402 with a base64-encoded `payment-requir
     AGENT_ID = os.environ.get("NVM_AGENT_ID")
 
     # Build the payment required object
+    # scheme is auto-detected from plan metadata when omitted
     payment_required = build_payment_required(
         plan_id=PLAN_ID,
         endpoint=request.path,
         agent_id=AGENT_ID,
-        http_verb=request.method
+        http_verb=request.method,
+        scheme="nvm:erc4337"  # Optional: omit to auto-detect from plan metadata
     )
 
     # Check for token
@@ -225,6 +229,10 @@ After the request completes successfully, settle the credits and include the rec
 | `payment-signature` | Client → Server | x402 access token |
 | `payment-required` | Server → Client (402) | Base64-encoded payment requirements |
 | `payment-response` | Server → Client (200) | Base64-encoded settlement receipt |
+
+<Note>
+When the `scheme` parameter is omitted from `buildPaymentRequired` / `build_payment_required`, the network is auto-derived from the scheme (`eip155:84532` for `nvm:erc4337`, `stripe` for `nvm:card-delegation`). The middleware and helpers call `resolveScheme()` / `resolve_scheme()` to detect the correct scheme from plan metadata automatically.
+</Note>
 
 ## HTTP Response Codes
 

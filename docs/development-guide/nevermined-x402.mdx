@@ -83,11 +83,20 @@ Roles:
 - Blockchain: executes credit burns, orders, or other plan-specific actions
 
 
-## The Nevermined x402 Smart-Account Extension
+## The Nevermined x402 Extensions
 
-Nevermined introduces a new x402 scheme: `nvm:erc4337`
+Nevermined introduces two x402 schemes for different payment rails:
 
-This scheme uses ERC-4337 smart accounts instead of EOA wallets, enabling programmable settlement through session keys and UserOperations.
+| Scheme | Network | Use Case | Settlement |
+|--------|---------|----------|------------|
+| `nvm:erc4337` | `eip155:84532` | Crypto payments | ERC-4337 UserOps + session keys |
+| `nvm:card-delegation` | `stripe` | Fiat/credit card | Stripe PaymentIntent + credit burn |
+
+For the complete card-delegation specification, see the [Card Delegation Spec](/docs/specs/x402-card-delegation).
+
+### `nvm:erc4337` — Smart Account Extension
+
+The `nvm:erc4337` scheme uses ERC-4337 smart accounts instead of EOA wallets, enabling programmable settlement through session keys and UserOperations.
 
 Instead of embedding an EIP-3009 transfer, the payload includes:
 
@@ -100,7 +109,9 @@ Instead of embedding an EIP-3009 transfer, the payload includes:
 
 ### PaymentRequired Response (402)
 
-When a server requires payment, it returns a `402` response with a `payment-required` header:
+When a server requires payment, it returns a `402` response with a `payment-required` header. The scheme depends on the plan's pricing configuration:
+
+**Crypto plan (`nvm:erc4337`):**
 
 ```json
 {
@@ -114,6 +125,30 @@ When a server requires payment, it returns a `402` response with a `payment-requ
   "accepts": [{
     "scheme": "nvm:erc4337",
     "network": "eip155:84532",
+    "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+    "extra": {
+      "version": "1",
+      "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+    }
+  }],
+  "extensions": {}
+}
+```
+
+**Fiat plan (`nvm:card-delegation`):**
+
+```json
+{
+  "x402Version": 2,
+  "error": "Payment required to access resource",
+  "resource": {
+    "url": "/api/v1/agents/80918427023170428029540261117198154464497879145267720259488529685089104529015/tasks",
+    "description": "AI agent task execution",
+    "mimeType": "application/json"
+  },
+  "accepts": [{
+    "scheme": "nvm:card-delegation",
+    "network": "stripe",
     "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
     "extra": {
       "version": "1",
@@ -307,6 +342,10 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
   </Tab>
 </Tabs>
 
+<Note>
+The SDK auto-detects the payment scheme from plan metadata. For fiat plans (`isCrypto: false`), use `resolveScheme()` (TypeScript) or `resolve_scheme()` (Python) to determine the correct scheme. Middleware handles this automatically — see the [Express.js](/docs/integrate/add-to-your-agent/express) and [FastAPI](/docs/integrate/add-to-your-agent/fastapi) integration guides.
+</Note>
+
 ### Step 3 — Submit with HTTP header
 
 Clients include the x402 access token in the `payment-signature` header:
@@ -386,6 +425,13 @@ Both TypeScript (Express.js) and Python (FastAPI) have built-in middleware that 
 </Tabs>
 
 The middleware handles verification, settlement, and all x402 headers automatically.
+
+<Note>
+The middleware automatically detects the payment scheme from plan metadata.
+Plans with fiat pricing (`isCrypto: false`) use `nvm:card-delegation` (Stripe).
+**No code changes are needed on the agent side.** You can explicitly override with
+the `scheme` parameter in the route configuration.
+</Note>
 
 ### Manual Integration
 
@@ -509,7 +555,8 @@ For other frameworks or custom implementations, follow these steps:
 This section provides a comprehensive guide for developers integrating Nevermined with x402:
 
 - **x402** gives a universal payment-required protocol
-- **Nevermined** enriches it with Smart Accounts, UserOps, and advanced billing models using the `nvm:erc4337` scheme
+- **Nevermined** enriches it with Smart Accounts, UserOps, and advanced billing models using the `nvm:erc4337` and `nvm:card-delegation` schemes
+- **Card delegation** enables fiat/credit card payments via `nvm:card-delegation`, with auto-detection from plan metadata
 - **Subscribers** delegate controlled permissions using session keys
 - **Servers** use `payment-signature` headers and verify/settle via the facilitator
 - **Facilitators** verify and settle on-chain

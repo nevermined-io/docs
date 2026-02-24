@@ -168,11 +168,16 @@ app.add_middleware(
             plan_id=PLAN_ID,
             credits=1,
             agent_id=AGENT_ID,
-            network="eip155:84532"  # Base Sepolia
+            network="eip155:84532",  # Base Sepolia
+            scheme="nvm:erc4337"     # Optional: auto-detected from plan metadata
         )
     }
 )
 ```
+
+<Note>
+When `scheme` is omitted, the middleware calls `resolve_scheme()` to auto-detect the correct scheme from plan metadata. Plans with fiat pricing (`isCrypto: false`) automatically use `nvm:card-delegation` (Stripe).
+</Note>
 
 ### Dynamic Credits
 
@@ -212,6 +217,35 @@ app.add_middleware(
     }
 )
 ```
+
+### Payment Scheme (Crypto vs. Fiat)
+
+The middleware auto-detects the payment scheme from plan metadata. Plans with fiat pricing (`isCrypto: false`) automatically use `nvm:card-delegation` (Stripe), while crypto plans use `nvm:erc4337`.
+
+You can explicitly override the scheme in the route configuration:
+
+```python
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /ask": {
+            "plan_id": PLAN_ID,
+            "credits": 1,
+            "scheme": "nvm:card-delegation"  # Force fiat/Stripe scheme
+        }
+    }
+)
+```
+
+<Note>
+The middleware automatically detects the payment scheme from plan metadata.
+Plans with fiat pricing (`isCrypto: false`) use `nvm:card-delegation` (Stripe).
+**No code changes are needed on the agent side.** You can explicitly override with
+the `scheme` parameter.
+</Note>
+
+For the full card-delegation specification, see the [Card Delegation Spec](/docs/specs/x402-card-delegation).
 
 ## Middleware Options
 
@@ -404,6 +438,10 @@ async def ask(request: Request):
 ```
 
 ## Client Implementation
+
+<Note>
+For fiat plans, clients can use `resolve_scheme()` to auto-detect the payment scheme before generating tokens. See the [x402 developer guide](/docs/development-guide/nevermined-x402) for details on scheme resolution and `X402TokenOptions`.
+</Note>
 
 Here's how clients interact with your payment-protected API:
 
