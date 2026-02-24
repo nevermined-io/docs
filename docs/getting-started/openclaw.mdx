@@ -1,6 +1,6 @@
 ---
-title: "OpenClaw Integration"
-description: "Monetize AI agents directly from Telegram, Discord, WhatsApp, and other chat channels using the Nevermined OpenClaw plugin."
+title: "Use with OpenClaw"
+description: "Build monetizable AI agents, chatbots, and multi-agent systems on Telegram, Discord, WhatsApp, and other chat channels using the Nevermined OpenClaw plugin."
 icon: "comments"
 ---
 
@@ -13,6 +13,13 @@ OpenClaw is an open-source AI gateway that connects large language models to mes
 The Nevermined plugin extends OpenClaw with **7 payment tools** and **2 slash commands**, giving every connected channel full access to the Nevermined payment infrastructure.
 
 ## What You Can Do
+
+- **Paid chatbot over private data** — Build a chatbot that answers questions against your proprietary knowledge base and put a paywall in front of it. Users subscribe to a plan and pay per query — you monetize your data without exposing it.
+- **Autonomous paid agent** — Deploy a standalone AI agent that other agents can discover and query programmatically. The x402 protocol handles payment negotiation automatically, so your agent earns revenue with zero manual intervention.
+- **Multi-agent orchestrator** — Build an orchestrator service that delegates tasks to specialized paid agents. The orchestrator acquires access tokens, pays each agent per request, and combines their outputs — enabling complex workflows across independent providers.
+- **Knowledge marketplace** — Create a shared chat channel where multiple independent experts (human or AI) register as paid agents. Users browse available agents, subscribe to the ones they need, and get answers in the same conversation — turning any group chat into a pay-per-use knowledge marketplace.
+
+## Features
 
 <CardGroup cols={2}>
   <Card title="Monetize from Chat" icon="message-dollar">
@@ -28,46 +35,6 @@ The Nevermined plugin extends OpenClaw with **7 payment tools** and **2 slash co
     Register agents, create plans, and list your offerings as a builder. Order plans, check balances, and query agents as a subscriber.
   </Card>
 </CardGroup>
-
-## Use Cases
-
-### Paid AI Assistants in Group Chats
-
-Deploy a specialized AI agent (legal advisor, data analyst, coding tutor) and let users pay per query directly from a Telegram or Discord group. The plugin handles credit checks and settlement transparently.
-
-### Agent-to-Agent Commerce via Chat
-
-Connect multiple OpenClaw gateways so one agent can call another's paid endpoint. The subscriber gateway acquires an x402 token and sends it automatically — enabling autonomous agent-to-agent transactions.
-
-### Rapid Prototyping for AI Monetization
-
-Test your pricing model without writing a frontend. Register an agent and plan from chat, enable the paid endpoint, and start collecting payments in minutes.
-
-## How It Works
-
-```
-Chat Channel          OpenClaw Gateway           Nevermined
-(Telegram, Discord)   (with Nevermined plugin)   Protocol
-      │                        │                     │
-      │  "Query the agent"     │                     │
-      │───────────────────────>│                     │
-      │                        │  getAccessToken()   │
-      │                        │────────────────────>│
-      │                        │<────────────────────│
-      │                        │                     │
-      │                        │  POST /agent        │
-      │                        │  + payment-signature│
-      │                        │────────────────────>│ verify + settle
-      │                        │<────────────────────│
-      │  Agent response        │                     │
-      │<───────────────────────│                     │
-```
-
-1. A user sends a message in any connected chat channel
-2. The plugin acquires an x402 access token from Nevermined
-3. The request is forwarded to the agent with a `payment-signature` header
-4. Nevermined verifies the subscriber's balance, processes the request, and settles credits
-5. The response is returned to the chat channel
 
 ## Getting Started
 
