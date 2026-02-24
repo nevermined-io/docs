@@ -1,0 +1,154 @@
+---
+title: "Stablecoin Payments"
+description: "Accept USDC, USDT, or any ERC-20 token on-chain with the lowest fees and full transparency."
+icon: "coins"
+---
+
+Accept USDC, USDT, or any ERC-20 token directly on-chain. Stablecoin payments are Nevermined's native payment method, purpose-built for crypto users and autonomous agent-to-agent commerce.
+
+## When to Use Stablecoins
+
+<CardGroup cols={2}>
+  <Card title="Agent-to-Agent Payments" icon="robot">
+    Agents with wallets can purchase plans and pay per request autonomously, with no human in the loop.
+  </Card>
+
+  <Card title="Human-to-Agent Purchases" icon="user">
+    Users buy plans through the Nevermined App checkout page, paying with tokens from their connected wallet.
+  </Card>
+
+  <Card title="Crypto-Native Users" icon="wallet">
+    Your audience already holds stablecoins and prefers on-chain payments over traditional card flows.
+  </Card>
+
+  <Card title="Lowest Fees" icon="piggy-bank">
+    Just 1% Nevermined fee with no additional processing surcharges. Ideal for high-volume or high-value use cases.
+  </Card>
+
+  <Card title="On-Chain Transparency" icon="magnifying-glass">
+    Every payment settles on-chain, giving both parties a verifiable, auditable record of every transaction.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+<Steps>
+  <Step title="Fund a smart account">
+    The subscriber funds their Nevermined smart account with ERC-20 tokens (USDC, USDT, or another supported token). This account is an ERC-4337 smart account that supports programmable permissions.
+  </Step>
+
+  <Step title="Create session keys">
+    The subscriber generates scoped session keys that grant the facilitator permission to execute specific actions (order plans, burn credits, redeem access) on their behalf. Each key follows the principle of least privilege.
+  </Step>
+
+  <Step title="Payment settles on-chain">
+    When the subscriber purchases a plan or makes a request, the facilitator submits a UserOperation to the smart contract. The payment settles on-chain and credits are minted to the subscriber.
+  </Step>
+
+  <Step title="Credits consumed per request">
+    Each API call or agent query burns credits according to the plan configuration. If the subscriber's balance runs low, the system can auto-order more credits (if the wallet has sufficient balance and the session key permits it).
+  </Step>
+</Steps>
+
+## Supported Networks and Tokens
+
+Payments settle on the **Base** network. The most common tokens are:
+
+| Token | Description |
+|-------|-------------|
+| USDC  | USD-pegged stablecoin by Circle |
+| USDT  | USD-pegged stablecoin by Tether |
+
+<Tip>
+Nevermined supports any ERC-20 token on Base. If you need to accept a custom token, you can specify its contract address when creating your plan's price configuration.
+</Tip>
+
+## Permission Model
+
+Session keys are the core of the stablecoin permission model. Instead of giving the facilitator full control over a wallet, subscribers create scoped keys that limit exactly what can be done.
+
+Each session key enforces the **principle of least privilege** through three limits:
+
+| Limit | Description |
+|-------|-------------|
+| `orderLimit` | Maximum token amount the key can spend on plan purchases |
+| `redemptionLimit` | Maximum number of credit burn or redeem operations the key can perform |
+| `expiresAt` | Expiration date after which the key becomes invalid |
+
+When any limit is reached, the session key stops working. The subscriber must generate a new one with fresh limits to continue.
+
+<Note>
+Session keys are revocable at any time by the smart account owner. You always retain full control over your wallet.
+</Note>
+
+## Fees and Settlement
+
+| Item | Cost |
+|------|------|
+| Nevermined fee | 1% of the plan price |
+| Processing surcharge | None |
+| Settlement | On-chain via Nevermined smart contracts on Base |
+
+Because there's no payment processor in the middle, stablecoin payments carry no additional fees beyond the 1% Nevermined fee. This makes them the most cost-effective option, especially for high-volume use cases.
+
+## Supported Plan Types
+
+<CardGroup cols={2}>
+  <Card title="Credits-Based" icon="coins">
+    Prepaid credits consumed per request. Set total credits and cost per request when creating the plan.
+  </Card>
+
+  <Card title="Time-Based" icon="clock">
+    Unlimited access for a set duration (days, months, years). Great for subscription-style access.
+  </Card>
+
+  <Card title="Dynamic Pricing" icon="chart-line">
+    Variable credit charges based on request complexity, token count, or custom metrics.
+  </Card>
+
+  <Card title="Hybrid" icon="layer-group">
+    Combine time-based access with credit limits for balanced monetization.
+  </Card>
+
+  <Card title="Trial" icon="flask">
+    Offer free credits or time-limited trials to let users test your agent before purchasing.
+  </Card>
+
+  <Card title="Pay-As-You-Go" icon="meter">
+    Per-request settlement in USDC. No prepaid credits needed -- customers pay on demand.
+  </Card>
+</CardGroup>
+
+## Auto-Ordering
+
+When a subscriber's credit balance runs low, the system can automatically purchase more credits on their behalf. This happens seamlessly if:
+
+- The subscriber's wallet has sufficient token balance
+- The active session key has remaining `orderLimit` capacity
+- The plan supports re-ordering
+
+This keeps agent-to-agent workflows running without interruption.
+
+<Warning>
+If the session key's `orderLimit` or `redemptionLimit` is exhausted, auto-ordering stops. The subscriber must create a new session key with fresh limits to resume.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Fiat Payments" icon="credit-card" href="/docs/integrate/patterns/fiat-payments">
+    Accept credit cards via Stripe for mainstream and enterprise users
+  </Card>
+
+  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
+    Configure credits, time-based, dynamic, and hybrid plans
+  </Card>
+
+  <Card title="Nevermined x402" icon="handshake" href="/docs/development-guide/nevermined-x402">
+    Deep dive into the x402 protocol and smart account settlement
+  </Card>
+
+  <Card title="Payment Plans API" icon="code" href="/docs/api-reference/typescript/payment-plans">
+    Create and manage plans programmatically with the TypeScript SDK
+  </Card>
+</CardGroup>

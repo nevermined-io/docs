@@ -1,0 +1,194 @@
+---
+title: "Fiat Payments"
+description: "Accept credit cards via Stripe with no crypto wallet required. The easiest path for mainstream and enterprise adoption."
+icon: "credit-card"
+---
+
+Accept credit cards via Stripe, with no crypto wallet required. Fiat payments are the fastest path to mainstream adoption -- your users can start paying with a card they already have.
+
+## When to Use Fiat Payments
+
+<CardGroup cols={2}>
+  <Card title="Enterprise Adoption" icon="building">
+    Organizations that already pay for SaaS with corporate cards can onboard without touching crypto.
+  </Card>
+
+  <Card title="Mainstream Users" icon="users">
+    No wallet setup, no token bridging. Users pay with the card in their pocket.
+  </Card>
+
+  <Card title="Regulatory Compliance" icon="scale-balanced">
+    Fiat-denominated billing simplifies accounting, invoicing, and compliance for businesses.
+  </Card>
+
+  <Card title="Instant Onboarding" icon="bolt">
+    Users go from discovery to first API call in seconds. No wallet funding step required.
+  </Card>
+</CardGroup>
+
+## Fiat Payment Scenarios
+
+Nevermined supports fiat payments in two scenarios:
+
+- **Human-to-Agent**: A user visits the Nevermined App checkout page and purchases a plan with their credit card. This is the simplest flow for onboarding new customers.
+- **Agent-to-Agent**: An agent owner enrolls a credit card and delegates payment permissions to an agent. The agent can then make autonomous payments on behalf of the owner, charging the delegated card per request.
+
+## Pay-per-request or a bundle of credits
+
+Nevermined offers two distinct fiat payment flows depending on whether you want upfront plan purchases or per-request charging.
+
+<CardGroup cols={2}>
+  <Card title="Plan Purchase" icon="cart-shopping">
+    One-time or recurring payment via Stripe Checkout. The user buys a plan, a webhook confirms the payment, and credits are minted on-chain. Best for human users who want a familiar checkout experience.
+  </Card>
+
+  <Card title="Card Delegation (x402)" icon="key">
+    Per-request charging via the x402 protocol. The user delegates their card with spending limits, and the agent charges it off-session for each request. Best for automated workflows and agent-to-agent payments.
+  </Card>
+</CardGroup>
+
+## Human-to-Agent Purchase Flow
+
+The simplest way to accept fiat. Users complete a standard Stripe Checkout session, and Nevermined handles the rest.
+
+<Steps>
+  <Step title="Select a plan">
+    The user browses available plans in the Nevermined App or your custom UI and selects one priced in fiat.
+  </Step>
+
+  <Step title="Redirect to Stripe Checkout">
+    Nevermined creates a Stripe Checkout session and redirects the user to complete payment with their card.
+  </Step>
+
+  <Step title="Payment completes">
+    Stripe processes the charge. For recurring plans, Stripe manages subsequent billing automatically.
+  </Step>
+
+  <Step title="Webhook confirms payment">
+    Nevermined receives a webhook from Stripe confirming the successful payment.
+  </Step>
+
+  <Step title="Credits minted on-chain">
+    The corresponding credits are minted to the subscriber's account, and they can immediately start using the agent.
+  </Step>
+</Steps>
+
+Both one-time and recurring plan purchases are supported. For recurring plans, Stripe handles rebilling and Nevermined mints fresh credits each billing cycle.
+
+## Agent-to-Agent Purchase Flow
+
+Fully autonomous agent-to-agent payments in fiat are enabled through card delegation. This allows an agent to charge a user's card on-demand, without the user needing to pre-purchase credits. Instead of buying credits upfront, the user authorizes Nevermined to charge their card within defined limits.
+
+<Steps>
+  <Step title="Card Enrollment">
+    The user enrolls a Card as a payment method. The card is registered through VGS (Very Good Security) to ensure PCI compliance, and a token is created that represents the card without exposing sensitive data.
+  </Step>
+
+  <Step title="Authorize delegation">
+    The user authorizes a card delegation through the Nevermined App, setting spending limits (max total spend, max transactions, expiration date).
+  </Step>
+
+  <Step title="Receive delegation token">
+    The user receives a delegation token that encodes their card authorization and spending limits.
+  </Step>
+
+  <Step title="Per-request charging via x402">
+    When the agent makes a request, it includes the delegation token using the `nvm:card-delegation` x402 scheme. The facilitator charges the delegated card off-session for each request.
+  </Step>
+
+  <Step title="Settlement via Stripe">
+    Stripe creates a PaymentIntent and charges the card without the user being present. The agent receives access to the requested resource.
+  </Step>
+</Steps>
+
+<Note>
+Card delegation is what enables fiat-based agent-to-agent payments. An agent owner delegates their card, and the agent can autonomously pay for services from other agents -- all settled in fiat.
+</Note>
+
+## Permission Model
+
+Card delegations enforce strict spending limits to protect the cardholder. Each delegation has three controls:
+
+| Limit | Description |
+|-------|-------------|
+| `spendingLimitCents` | Maximum total amount (in cents) that can be charged across all transactions |
+| `maxTransactions` | Maximum number of individual charges allowed |
+| `expiresAt` | Expiration date after which the delegation becomes invalid |
+
+A delegation moves through a simple lifecycle:
+
+| State | Meaning |
+|-------|---------|
+| **Active** | The delegation is valid and can be used for charges |
+| **Exhausted** | The spending limit or transaction count has been reached |
+| **Expired** | The expiration date has passed |
+| **Revoked** | The cardholder manually revoked the delegation |
+
+Once a delegation leaves the **Active** state, a new one must be created to continue charging.
+
+## Security and PCI Compliance
+
+Card data never reaches Nevermined servers. All sensitive card information is tokenized through **VGS (Very Good Security)**, a PCI-compliant proxy, before it reaches the facilitator. Nevermined only stores Stripe tokens, never raw card numbers.
+
+<Note>
+**Nevermined is PCI compliant** (PCI SAQ D level). VGS tokenizes card data in transit, and Stripe manages secure storage and charging. Your users' card data is protected by industry-standard security at every step.
+</Note>
+
+
+## Revenue Routing with Stripe Connect
+
+When a user pays with a card, Nevermined routes the revenue to the builder's connected Stripe account using Stripe Connect. Fees are deducted automatically before the payout reaches the builder.
+
+This means you receive funds directly in your Stripe account -- no manual transfers or reconciliation needed.
+
+## Fees and Settlement
+
+| Item | Cost |
+|------|------|
+| Nevermined fee | 2% of the transaction amount |
+| Stripe processing fee | $0.50 + 4% per transaction |
+| Settlement | Via Stripe PaymentIntents to builder's connected account |
+
+<Warning>
+Fiat payments carry higher fees than stablecoin payments (2% + Stripe fees vs. 1% flat). For high-volume or high-value use cases, consider [stablecoin payments](/docs/integrate/patterns/stablecoin-payments) to reduce costs.
+</Warning>
+
+## Supported Plan Types
+
+<CardGroup cols={2}>
+  <Card title="Credits-Based" icon="coins">
+    Prepaid credits purchased via Stripe Checkout. Credits are minted once payment confirms.
+  </Card>
+
+  <Card title="Time-Based" icon="clock">
+    Subscription access for a set duration. Stripe handles recurring billing automatically.
+  </Card>
+
+  <Card title="Pay-As-You-Go" icon="meter">
+    Per-request charging via card delegation. No upfront purchase needed.
+  </Card>
+
+  <Card title="Recurring" icon="arrows-rotate">
+    Automatic rebilling at the end of each period. Stripe manages the billing cycle.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Stablecoin Payments" icon="coins" href="/docs/integrate/patterns/stablecoin-payments">
+    Accept crypto payments with the lowest fees and on-chain transparency
+  </Card>
+
+  <Card title="x402 Card Delegation Spec" icon="file-lines" href="/docs/specs/x402-card-delegation">
+    Full technical specification for the card delegation extension
+  </Card>
+
+  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
+    Configure credits, time-based, dynamic, and hybrid plans
+  </Card>
+
+  <Card title="Manage Plans" icon="sliders" href="https://nevermined.app">
+    Create and manage payment plans in the Nevermined App
+  </Card>
+</CardGroup>
