@@ -6,7 +6,7 @@ icon: "credit-card"
 
 ## Abstract
 
-This specification defines a **card-delegation extension** to the [x402 protocol](https://x402.org/) that enables payment settlement through traditional credit/debit cards via Stripe. While standard x402 settles payments via EIP-3009 ERC-20 token transfers and the smart accounts extension uses ERC-4337 UserOperations, this extension allows settlement through Stripe PaymentIntents backed by pre-authorized card delegations.
+This specification defines a **card-delegation extension** to the [x402 protocol](https://x402.org/) that enables payment settlement through on-chain credit burns, with automatic card-funded credit top-ups when the subscriber's balance is insufficient. While standard x402 settles payments via EIP-3009 ERC-20 token transfers and the smart accounts extension uses ERC-4337 UserOperations with crypto-funded ordering, this extension allows the ordering step to be funded via Stripe PaymentIntents backed by pre-authorized card delegations.
 
 The scheme identifier is: `nvm:card-delegation`
 
@@ -42,7 +42,7 @@ Many real-world payment scenarios involve users and organizations that prefer or
 - **Budgetary controls** --- organizations need spending limits, approval workflows, and reconciliation against traditional accounting systems
 - **Instant onboarding** --- new users can start consuming services immediately with an existing payment card, without acquiring tokens
 
-This extension enables these use cases by replacing on-chain settlement with Stripe PaymentIntents, authorized through pre-established card delegations managed by the facilitator.
+This extension enables these use cases by funding on-chain credit purchases via Stripe PaymentIntents, authorized through pre-established card delegations managed by the facilitator. Settlement itself uses the same on-chain credit burn mechanism as the smart accounts extension.
 
 ### 1.3 Design Goals
 
@@ -139,7 +139,11 @@ The client responds with a PaymentPayload containing a JWT token that encodes th
     }
   },
   "payload": {
-    "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FwaS5uZXZlcm1pbmVkLmFwcCIsInN1YiI6InVzZXJfMTIzNDU2Nzg5MCIsImF1ZCI6Im52bTpjYXJkLWRlbGVnYXRpb24iLCJqdGkiOiJkZWxlZy04ZjE0ZTQ1Zi1jZTM0LTQ3OTctYjg4ZS05NjgzNzRiMGQ0YjYiLCJpYXQiOjE3MDkxMjk2MDAsImV4cCI6MTcxMTgwODAwMCwibnZtIjp7ImRlbGVnYXRpb25JZCI6ImRlbGVnLThmMTRlNDVmLWNlMzQtNDc5Ny1iODhlLTk2ODM3NGIwZDRiNiIsInByb3ZpZGVyIjoic3RyaXBlIiwicHJvdmlkZXJDdXN0b21lcklkIjoiY3VzX1BhQmNEZUZnSGlKayIsInByb3ZpZGVyUGF5bWVudE1ldGhvZElkIjoicG1fMUFiQ2RFZkdoSWpLbE0iLCJzcGVuZGluZ0xpbWl0Q2VudHMiOjEwMDAwLCJjdXJyZW5jeSI6InVzZCIsIm1lcmNoYW50QWNjb3VudElkIjoiYWNjdF8xQWJDZEVmR2hJaktsTSIsInBsYW5JZCI6InBsYW5fYWJjMTIzIiwibWF4VHJhbnNhY3Rpb25zIjoxMDB9fQ.signature"
+    "token": "eyJhbGciOiJSUzI1NiIs...",
+    "authorization": {
+      "from": "0xD4f58B60330bC59cB0A07eE6A1A66ad64244eC8c",
+      "sessionKeys": [{ "id": "redeem", "data": "0xabc123..." }]
+    }
   },
   "extensions": {}
 }
@@ -197,6 +201,11 @@ The client responds with a PaymentPayload containing a JWT token that encodes th
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `token` | `string` | Yes | JWT token encoding the card delegation authorization. See JWT Claims below. |
+| `authorization` | `object` | No | On-chain authorization for credit burns. Contains subscriber address and session keys. |
+| `authorization.from` | `string` | Yes (if authorization present) | Subscriber's blockchain address (smart account). |
+| `authorization.sessionKeys` | `array` | Yes (if authorization present) | Array of session key references for on-chain operations. |
+| `authorization.sessionKeys[].id` | `string` | Yes | Session key identifier. Must be `"redeem"` for burn session keys. |
+| `authorization.sessionKeys[].data` | `string` | Yes | Keccak-256 hash of the serialized session key. |
 
 #### JWT Claims
 
@@ -297,24 +306,28 @@ sequenceDiagram
 
   %% PHASE 3: SETTLEMENT
   rect rgb(255, 240, 255)
-    note over server,stripe: Phase 3: Settlement
+    note over server,stripe: Phase 3: Settlement (Credit-Based)
     server->>server: Execute work (AI task, etc.)
-    server->>facilitator: /settle (paymentRequired + paymentPayload + amount)
+    server->>facilitator: /settle (paymentRequired + paymentPayload + maxAmount)
 
     activate facilitator
-    facilitator->>facilitator: Atomic: increment spend counter
-    facilitator->>stripe: Create PaymentIntent (off-session)<br/>customer, payment_method, amount
-    alt Stripe failure
-      stripe-->>facilitator: PaymentIntent failed
-      facilitator->>facilitator: Rollback spend counter
-      facilitator-->>server: Settlement failed
-      server-->>client: HTTP 402 + PAYMENT-REQUIRED header
-    else Stripe success
-      stripe-->>facilitator: PaymentIntent succeeded
-      facilitator->>facilitator: Record transaction
-      facilitator->>facilitator: Check if limits reached → set Exhausted
-      facilitator-->>server: Settlement OK (paymentIntentId, amountCharged)
+    facilitator->>facilitator: Resolve subscriber address
+    facilitator->>facilitator: Check on-chain credit balance
+
+    alt Insufficient credits
+      facilitator->>stripe: Create PaymentIntent (plan price)
+      alt Stripe failure
+        stripe-->>facilitator: Payment failed
+        facilitator-->>server: Settlement failed
+        server-->>client: HTTP 402 + PAYMENT-REQUIRED header
+      else Stripe success
+        stripe-->>facilitator: PaymentIntent succeeded
+        facilitator->>facilitator: Mint credits on-chain
+      end
     end
+
+    facilitator->>facilitator: Burn credits on-chain (session key)
+    facilitator-->>server: Settlement OK (txHash, creditsRedeemed)
     deactivate facilitator
 
     server-->>client: Response + PAYMENT-RESPONSE header
@@ -489,8 +502,8 @@ Content-Type: application/json
 1. **JWT signature verification** --- validates the JWT was signed by the facilitator's private key
 2. **Delegation status check** --- confirms the delegation record exists and has status `Active`
 3. **Expiry check** --- confirms `exp` claim is in the future
-4. **Budget check** --- confirms `spentCents + requestedAmountCents <= nvm.spendingLimitCents`
-5. **Transaction count check** --- if `nvm.maxTransactions` is set, confirms the transaction count has not been exceeded
+4. **Credit balance check** --- if `planId` is present, checks the subscriber's on-chain credit balance
+5. **Session key validation** --- if `authorization` is present, validates the burn session key exists and is active
 
 **Step 20.** IF any verification check fails, the facilitator returns an error to the server.
 
@@ -524,33 +537,25 @@ Content-Type: application/json
 }
 ```
 
-The `maxAmount` specifies the amount in cents to charge for this request.
+The `maxAmount` specifies the number of **credits** to burn for this request (not cents).
 
-**Step 25.** Facilitator atomically increments the spend counter for the delegation.
+**Step 25.** Facilitator resolves the subscriber's blockchain address and loads the plan from the on-chain registry.
 
-**Step 26.** Facilitator creates an off-session Stripe PaymentIntent using the delegated customer and payment method.
+**Step 26.** Facilitator checks the subscriber's on-chain credit balance for the plan.
 
-```json
-{
-  "amount": 500,
-  "currency": "usd",
-  "customer": "cus_PaBcDeFgHiJk",
-  "payment_method": "pm_1AbCdEfGhIjKlM",
-  "off_session": true,
-  "confirm": true,
-  "transfer_data": {
-    "destination": "acct_1AbCdEfGhIjKlM"
-  }
-}
-```
+**Step 27.** IF balance is insufficient for the requested `maxAmount`:
+  - Calculate plan price in cents from `plan.price.amounts`
+  - Atomically increment the delegation's spend counter (card charge ceiling)
+  - Create an off-session Stripe PaymentIntent to charge the card for the plan price
+  - On Stripe failure: roll back spend counter, return settlement failure
+  - On Stripe success: mint credits to the subscriber's blockchain address
+  - Wait for the credit balance to update on-chain
 
-**Step 27.** IF the Stripe PaymentIntent fails, the facilitator rolls back the spend counter and returns an error to the server.
+**Step 28.** Facilitator burns the requested credits on-chain using the burn session key from the token's `authorization.sessionKeys`.
 
-**Step 28.** The Server returns to the client a `HTTP 402 PAYMENT-FAILED` response.
+**Step 29.** IF the credit burn fails, the facilitator returns a settlement failure.
 
-**Step 29.** IF the Stripe PaymentIntent succeeds, the facilitator records the transaction and checks whether spending limits or transaction counts have been reached. If limits are reached, the delegation status is updated to `Exhausted`.
-
-**Step 30.** Facilitator confirms settlement to the server.
+**Step 30.** Facilitator returns the settlement receipt to the server.
 
 **Step 31.** Server returns to the client the response with the payment confirmation in the `PAYMENT-RESPONSE` header (base64-encoded).
 
@@ -562,9 +567,9 @@ PAYMENT-RESPONSE: eyJzdWNjZXNzIjp0cnVlLCJwYXltZW50SW50ZW50SWQiOi4uLg==
 {
   "result": "...",
   "payment": {
-    "amountChargedCents": 500,
-    "currency": "usd",
-    "remainingBudgetCents": 9500
+    "creditsRedeemed": 2,
+    "remainingBalance": 98,
+    "orderTx": "pi_1AbCdEfGhIjKlM"
   }
 }
 ```
@@ -574,12 +579,15 @@ PAYMENT-RESPONSE: eyJzdWNjZXNzIjp0cnVlLCJwYXltZW50SW50ZW50SWQiOi4uLg==
 ```json
 {
   "success": true,
-  "paymentIntentId": "pi_1AbCdEfGhIjKlM",
-  "network": "stripe"
+  "transaction": "0x1234567890abcdef...",
+  "network": "stripe",
+  "creditsRedeemed": "2",
+  "remainingBalance": "98",
+  "orderTx": "pi_1AbCdEfGhIjKlM"
 }
 ```
 
-The `PAYMENT-RESPONSE` header contains x402-standard settlement fields. Additional Nevermined-specific info (like `amountChargedCents` and `remainingBudgetCents`) can be included in the response body.
+The `PAYMENT-RESPONSE` header contains x402-standard settlement fields. Additional Nevermined-specific info (like `creditsRedeemed` and `remainingBalance`) can be included in the response body.
 
 <Warning>
 Steps 27-28 represent a failure scenario where the server has already performed work but settlement failed. Implementations SHOULD have mechanisms to handle this edge case, such as retry logic or dispute resolution.
@@ -622,15 +630,19 @@ The facilitator MUST verify:
 | Customer Match | `nvm.providerCustomerId` MUST match the delegation record |
 | Payment Method | `nvm.providerPaymentMethodId` MUST match a valid, active payment method |
 
-### 5.3 Budget and Limit Checks
+### 5.3 Balance and Permission Checks
 
 The facilitator MUST verify:
 
 | Check | Requirement |
 |-------|-------------|
-| Spending Limit | `spentCents + requestedAmountCents` MUST NOT exceed `nvm.spendingLimitCents` |
-| Transaction Count | If `nvm.maxTransactions` is set, the current transaction count MUST be less than `nvm.maxTransactions` |
-| Currency Match | The request currency MUST match `nvm.currency` |
+| Credit Balance | If a `planId` is present, the subscriber's on-chain credit balance SHOULD be checked (informational — settle auto-orders if needed) |
+| Session Key | If `authorization` is present, the burn session key hash MUST match an active `PermissionEntity` |
+| Delegation Active | The delegation MUST have status `Active` |
+
+<Note>
+Unlike the previous cents-based budget check, verification always returns valid for active delegations. The settle step handles insufficient credits by auto-ordering via card charge. The delegation's spending limit serves as a ceiling on total card charges, not a per-request budget.
+</Note>
 
 ## 6. Settlement Requirements
 
@@ -638,12 +650,19 @@ The facilitator MUST verify:
 
 When executing settlement, the facilitator MUST:
 
-1. Atomically increment the spend counter for the delegation
-2. Create a Stripe PaymentIntent with `off_session: true` and `confirm: true`
-3. If `nvm.merchantAccountId` is present, include `transfer_data.destination` for Stripe Connect routing
-4. On Stripe failure, roll back the spend counter
-5. On Stripe success, record the transaction and check limits
-6. Return settlement receipt
+1. Decode the x402 token and verify the delegation JWT
+2. Resolve the subscriber's blockchain address from their userId
+3. Load the plan from the on-chain asset registry
+4. Check the subscriber's on-chain credit balance
+5. If balance is insufficient for `maxAmount`:
+   a. Calculate plan price: `sum(plan.price.amounts)` (in cents)
+   b. Atomically increment delegation spend counter
+   c. Create off-session Stripe PaymentIntent for the plan price
+   d. On Stripe failure: roll back spend counter, return error
+   e. Mint credits to subscriber using the node account
+   f. Wait for balance update on-chain
+6. Burn credits on-chain using the burn session key
+7. Return settlement receipt with `creditsRedeemed` and `remainingBalance`
 
 ### 6.2 Atomicity
 
@@ -677,17 +696,16 @@ The facilitator MUST return a receipt. The `PAYMENT-RESPONSE` header contains x4
 | Field | Type | Description |
 |-------|------|-------------|
 | `success` | `boolean` | Whether settlement succeeded. |
-| `paymentIntentId` | `string` | Stripe PaymentIntent ID of the settlement. |
 | `network` | `string` | Payment network. MUST be `"stripe"`. |
 
 Additional settlement details MAY be included in the response body:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `amountChargedCents` | `number` | Amount charged in cents. |
-| `currency` | `string` | Currency of the charge (ISO 4217). |
-| `remainingBudgetCents` | `number` | Remaining spending budget in cents. |
-| `transactionCount` | `number` | Total transactions executed under this delegation. |
+| `creditsRedeemed` | `string` | Number of credits burned on-chain. |
+| `remainingBalance` | `string` | Subscriber's remaining credit balance. |
+| `orderTx` | `string` | Stripe PaymentIntent ID if auto top-up occurred (only present when card was charged). |
+| `transaction` | `string` | Blockchain transaction hash of the credit burn. |
 
 ## 7. Error Handling
 
@@ -700,7 +718,10 @@ Additional settlement details MAY be included in the response body:
 | `EXPIRED_TOKEN` | Expired Token | The JWT token `exp` claim is in the past |
 | `DELEGATION_NOT_FOUND` | Delegation Not Found | No delegation record found for the given `jti` / `delegationId` |
 | `DELEGATION_INACTIVE` | Delegation Inactive | Delegation status is not `Active` (may be `Exhausted`, `Expired`, or `Revoked`) |
-| `BUDGET_EXCEEDED` | Budget Exceeded | The requested amount would exceed the delegation spending limit |
+| `BUDGET_EXCEEDED` | Budget Exceeded | **Deprecated.** The requested amount would exceed the delegation spending limit |
+| `INSUFFICIENT_BALANCE` | Insufficient Balance | Credit balance too low and card charge failed |
+| `MINT_FAILED` | Mint Failed | Credit minting failed after successful card charge |
+| `BURN_FAILED` | Burn Failed | On-chain credit burn failed |
 | `TRANSACTION_LIMIT_REACHED` | Transaction Limit Reached | The maximum number of transactions has been reached |
 | `PAYMENT_FAILED` | Payment Failed | Stripe PaymentIntent creation or confirmation failed |
 | `CARD_DECLINED` | Card Declined | The card was declined by the issuing bank |
@@ -757,6 +778,14 @@ Additional settlement details MAY be included in the response body:
 - Clients MUST be able to revoke delegations at any time
 - Revoked delegations MUST immediately fail verification
 - In-flight settlements at the time of revocation MAY complete if the Stripe PaymentIntent has already been confirmed
+
+### 8.6 Session Key Security
+
+- Burn session keys MUST be scoped to specific plan IDs and subscriber addresses
+- Session keys MUST have expiration times aligned with the delegation expiry
+- Session keys MUST be stored securely in the facilitator's database
+- The facilitator MUST validate that the session key referenced in the token matches an active permission record
+- Session key policies MUST limit the maximum burn amount per operation
 
 ## 9. Implementation Notes
 
