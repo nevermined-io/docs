@@ -78,6 +78,10 @@ After authenticating, verify the plugin is working:
 
 2. **List plans** — you can ask `Example prompt: Show me all my payment plans”` to see available payment plans.
 
+## Fiat Payments
+
+The plugin also supports fiat payments via credit card delegation. Enroll a card at [nevermined.app](https://nevermined.app), then use `paymentType: fiat` with any token or query tool. See the [guide](./guide.md#fiat-payments-credit-card) for details.
+
 ## Next Steps
 
 - [Setup](/docs/api-reference/openclaw-plugin/setup) — full configuration reference
