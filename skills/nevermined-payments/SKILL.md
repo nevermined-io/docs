@@ -38,7 +38,7 @@ export NVM_API_KEY="sandbox:your-api-key"
 **If the developer does NOT have a key**, guide them through these steps:
 
 1. Open **[nevermined.app](https://nevermined.app)** and sign in
-2. Navigate to the **API Keys** section, then select **Global NVM API Keys**
+2. Navigate to **Settings > Global NVM API Keys**
 3. Click **+ New API Key**
 4. Enter a descriptive name, select the required permissions, and click **Generate API Key**
 5. Click **Copy Key** and store it securely as an environment variable (`NVM_API_KEY`)
