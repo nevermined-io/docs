@@ -1,0 +1,91 @@
+---
+title: "FAQ"
+description: "Frequently asked questions about getting started with Nevermined, including Stripe Connect onboarding."
+icon: "question"
+---
+
+Find answers to the most common questions about getting started with Nevermined.
+
+## Stripe Connect
+
+Nevermined uses [Stripe Connect](https://stripe.com/connect) to route fiat payments directly to your Stripe account. You need to connect a Stripe account before you can receive credit card payments from your users.
+
+<Accordion title="How do I connect my Stripe account to Nevermined?">
+  <Steps>
+    <Step title="Go to your User Profile">
+      Open the [Nevermined App](https://nevermined.app) and navigate to **Settings > User Profile**. Scroll down to the **Stripe** section. You'll see your current connection status.
+    </Step>
+    <Step title="Click Connect Stripe">
+      Click the **Connect Stripe** button. This opens Stripe's onboarding flow where you'll set up or link your Stripe account.
+    </Step>
+    <Step title="Skip phone verification (sandbox)">
+      Stripe asks for an email and phone number. In the sandbox environment, you'll see a banner saying "You're using a test account with test data." Click **Use test phone number** to skip SMS verification and proceed.
+
+      ![Stripe Connect phone verification step](/images/faq/stripe-connect-phone-verification.png)
+    </Step>
+    <Step title="Skip SMS verification (sandbox)">
+      Stripe will show a verification code screen. Since you're in sandbox, click **Use test code** to auto-fill the test code `000000` and continue.
+
+      ![Stripe Connect test code step](/images/faq/stripe-connect-test-code.png)
+    </Step>
+    <Step title="Select business type (sandbox)">
+      Select **Individual** from the business type dropdown and click **Continue**.
+
+      ![Stripe Connect business type step](/images/faq/stripe-connect-business-type.png)
+    </Step>
+    <Step title="Fill in personal details (sandbox)">
+      Stripe asks for your legal name, date of birth, address, and last 4 digits of your SSN. In the sandbox environment, you can use the following test values:
+
+      | Field | Test value |
+      |-------|------------|
+      | Legal first name | `Sarah` |
+      | Legal last name | `Mitchell` |
+      | Date of birth | `15 / 03 / 1990` |
+      | Address | `350 Fifth Avenue` |
+      | City | `New York` |
+      | State | `New York` |
+      | Zip code | `10118` |
+      | Last 4 SSN | `0000` |
+
+      <Warning>
+        Use `0000` for the last 4 digits of SSN. Any other value may trigger Stripe's additional identity verification flow.
+      </Warning>
+
+      ![Stripe Connect personal details step](/images/faq/stripe-connect-personal-details.png)
+    </Step>
+    <Step title="Add bank details for payouts (sandbox)">
+      Stripe asks for a bank account to receive payouts. Click **Use test account** to auto-fill the test routing number (`110000000`) and account number (`000123456789`), then click **Continue**.
+
+      ![Stripe Connect bank details step](/images/faq/stripe-connect-business-details.png)
+    </Step>
+    <Step title="Review and submit">
+      Stripe shows a summary of your public details, personal details, and payout information. Review everything and click **Agree and submit**. You'll be redirected back to the Nevermined App and see a "Stripe successfully connected 🎉" confirmation.
+
+      ![Stripe Connect review and submit step](/images/faq/stripe-connect-review-submit.png)
+    </Step>
+  </Steps>
+</Accordion>
+
+<Accordion title="Do I need a Stripe account before connecting?">
+  No. If you don't have one, Stripe's onboarding flow will create a new account for you. If you already have a Stripe account, you can link it during the same flow.
+</Accordion>
+
+<Accordion title="What happens if my Stripe onboarding is incomplete?">
+  Stripe may require additional information (identity documents, bank details) before your account is fully active. Until onboarding is complete, you won't be able to receive fiat payouts. You can return to **Settings > Stripe Connect** in the Nevermined App to resume the process.
+</Accordion>
+
+<Accordion title="Is Stripe Connect required for all payment plans?">
+  No. Stripe Connect is only required if you want to accept **fiat (credit card) payments**. If your plans only accept stablecoin or crypto payments, you don't need a Stripe account.
+</Accordion>
+
+<Accordion title="How do payouts work after connecting Stripe?">
+  When a user pays for one of your plans with a credit card, Nevermined routes the payment to your connected Stripe account using Stripe Connect. Fees (Nevermined's 2% + Stripe's processing fees) are deducted automatically before the funds reach your account. Stripe handles the payout schedule to your bank.
+</Accordion>
+
+<Accordion title="Can I use Stripe Connect in the sandbox environment?">
+  Yes. You can connect a Stripe account in the sandbox environment to test the full fiat payment flow. Sandbox transactions use [Stripe test cards](https://stripe.com/docs/testing#international-cards), so no real money is charged.
+</Accordion>
+
+<Accordion title="Can I disconnect or change my Stripe account?">
+  Yes. Go to **Settings > Stripe Connect** in the Nevermined App. You can disconnect your current account and connect a different one. Any pending payouts will still be routed to the previously connected account.
+</Accordion>
