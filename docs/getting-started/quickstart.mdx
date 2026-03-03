@@ -23,14 +23,11 @@ For developers who need to automate and integrate directly, our SDKs are the per
 
 <Steps>
   <Step title="1. Get Your API Key">
-    To interact with the Nevermined API, you need an API key.
+    To interact with the Nevermined API, you need an API key. Follow the [Get Your API Key](/docs/getting-started/get-your-api-key) guide to create one, then store it as an environment variable:
 
-    1. Go to the [Nevermined App](https://nevermined.app/).
-    2. Log in via Web3Auth.
-    3. Navigate to the **Settings** section in the user menu.
-    4. Click on the **API Keys** tab.
-    5. Generate a new key, give it a descriptive name, and copy it.
-    6. Store this key securely as an environment variable (e.g., `NVM_API_KEY`).
+    ```bash
+    export NVM_API_KEY="sandbox:your-api-key-here"
+    ```
   </Step>
   <Step title="2. Install and Initialize the Payments Library">
     Install the PaymentsLibrary and initialize the `Payments` client with your API key.
@@ -46,7 +43,7 @@ For developers who need to automate and integrate directly, our SDKs are the per
         
         const payments = Payments.getInstance({
           nvmApiKey: process.env.NVM_API_KEY,
-          environment: 'testing' // or 'production'
+          environment: 'sandbox' // or 'live'
         })
         ```
       </Tab>
@@ -57,11 +54,13 @@ For developers who need to automate and integrate directly, our SDKs are the per
 
         ```python
         import os
-        from payments_py import Payments
-        
-        payments = Payments(
-            api_key=os.environ.get('NVM_API_KEY'),
-            environment='testing' # or 'production'
+        from payments_py import Payments, PaymentOptions
+
+        payments = Payments.get_instance(
+            PaymentOptions(
+                nvm_api_key=os.environ.get('NVM_API_KEY'),
+                environment='sandbox'  # or 'live'
+            )
         )
         ```
       </Tab>
@@ -73,37 +72,36 @@ For developers who need to automate and integrate directly, our SDKs are the per
     <Tabs>
       <Tab title="TypeScript">
         ```typescript
-        import { getERC20PriceConfig, getFixedCreditsConfig } from '@nevermined-io/payments';
-        
         // Define agent metadata
         const agentMetadata = {
           name: 'My AI Assistant',
           tags: ['ai', 'assistant'],
           dateCreated: new Date(),
         };
-        
+
         // Define API endpoints
         const agentApi = {
           endpoints: [{ POST: 'https://api.myservice.com/query' }],
+          agentDefinitionUrl: 'https://api.myservice.com/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
         };
-        
+
         // Define plan metadata
         const planMetadata = {
           name: 'Basic Plan',
           description: '100 queries per month',
           dateCreated: new Date(),
         };
-        
+
         // Configure pricing (e.g., 10 USDC)
-        const priceConfig = getERC20PriceConfig(
+        const priceConfig = payments.plans.getERC20PriceConfig(
           10_000_000n, // 10 USDC (6 decimals)
           '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C', // USDC address
           process.env.BUILDER_ADDRESS
         );
-        
+
         // Configure credits (e.g., 100 queries)
-        const creditsConfig = getFixedCreditsConfig(100n, 1n);
-        
+        const creditsConfig = payments.plans.getFixedCreditsConfig(100n, 1n);
+
         // Register agent and plan together
         const { agentId, planId } = await payments.agents.registerAgentAndPlan(
           agentMetadata,
@@ -112,7 +110,7 @@ For developers who need to automate and integrate directly, our SDKs are the per
           priceConfig,
           creditsConfig
         );
-        
+
         console.log(`Agent registered: ${agentId}`);
         ```
       </Tab>
@@ -127,7 +125,8 @@ For developers who need to automate and integrate directly, our SDKs are the per
         
         # Define API endpoints
         agent_api = {
-            'endpoints': [{'POST': 'https://api.myservice.com/query'}]
+            'endpoints': [{'POST': 'https://api.myservice.com/query'}],
+            'agentDefinitionUrl': 'https://api.myservice.com/openapi.json'  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
         }
         
         # Define plan metadata
@@ -137,20 +136,17 @@ For developers who need to automate and integrate directly, our SDKs are the per
             'dateCreated': '2023-10-27T10:00:00Z',
         }
         
+        from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+        
         # Configure pricing (e.g., 10 USDC)
-        price_config = {
-            'priceType': 'FIXED_PRICE',
-            'tokenAddress': '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',
-            'amounts': [10000000],
-            'receivers': [os.environ.get('BUILDER_ADDRESS')]
-        }
+        price_config = get_erc20_price_config(
+            10_000_000,  # 10 USDC (6 decimals)
+            '0xA0b86a33E6441c41F4F2B8Bf4F2B0f1B0F1C1C1C',  # USDC address
+            os.environ.get('BUILDER_ADDRESS')
+        )
         
         # Configure credits (e.g., 100 queries)
-        credits_config = {
-            'creditsType': 'FIXED',
-            'amount': 100,
-            'creditsPerRequest': 1
-        }
+        credits_config = get_fixed_credits_config(100, 1)  # 100 credits, 1 credit per request
         
         # Register agent and plan together
         agent_info = payments.agents.register_agent_and_plan(
@@ -158,7 +154,8 @@ For developers who need to automate and integrate directly, our SDKs are the per
             agent_api,
             plan_metadata,
             price_config,
-            credits_config
+            credits_config,
+            'credits'  # Optional: access_limit ('credits' or 'time'). Auto-inferred if not specified
         )
         
         print(f"Agent registered: {agent_info['agentId']}")
@@ -167,48 +164,78 @@ For developers who need to automate and integrate directly, our SDKs are the per
     </Tabs>
   </Step>
   <Step title="4. Accept Payments">
-    In your agent's backend, add logic to validate requests from subscribers. This ensures that only authorized users can access your service.
+    In your agent's backend, add payment protection to your routes. The `paymentMiddleware` handles the full x402 flow automatically: it returns 402 with payment requirements when no token is present, verifies permissions, executes your handler, and settles (burns) credits.
 
-    ```typescript
-    // Example in an Express.js route
-    app.post('/api/query', async (req, res) => {
-      // Extract authorization header
-      const authHeader = req.headers['authorization'];
-      
-      // For agents using Nevermined Proxy:
-      // The proxy handles validation automatically
-      // Just ensure your agent is registered with endpoints
-      
-      // For direct integration:
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-      
-      const token = authHeader.substring(7);
-      
-      // Validate the access token
-      const validationResult = await payments.requests.isValidRequest(
-        token,
-        req.body
-      );
-      
-      if (!validationResult.isValid) {
-        // Return 402 Payment Required with payment options
-        return res.status(402).json({
-          error: 'Payment Required',
-          plans: validationResult.plans
-        });
-      }
-      
-      // Process the AI request
-      const result = await processAIQuery(req.body.prompt);
-      
-      // Credits are automatically redeemed by the proxy
-      // or you can manually redeem for direct integration
-      
-      res.json(result);
-    });
-    ```
+    <Tabs>
+      <Tab title="TypeScript (Express.js)">
+        ```typescript
+        import express from 'express'
+        import { Payments } from '@nevermined-io/payments'
+        import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+        const app = express()
+        app.use(express.json())
+
+        const payments = Payments.getInstance({
+          nvmApiKey: process.env.NVM_API_KEY!,
+          environment: 'sandbox'
+        })
+
+        const PLAN_ID = process.env.NVM_PLAN_ID!
+
+        // Add payment protection — 1 credit per request to /api/query
+        app.use(paymentMiddleware(payments, {
+          'POST /api/query': { planId: PLAN_ID, credits: 1 }
+        }))
+
+        app.post('/api/query', async (req, res) => {
+          // If we reach here, payment is already verified
+          const result = await processAIQuery(req.body.prompt)
+          res.json(result)
+        })
+
+        app.listen(3000)
+        ```
+
+        <Note>Your `package.json` must include `"type": "module"` for the `@nevermined-io/payments/express` subpath import to work.</Note>
+      </Tab>
+      <Tab title="Python (FastAPI)">
+        ```python
+        import os
+        from fastapi import FastAPI
+        from payments_py import Payments, PaymentOptions
+        from payments_py.x402.fastapi import PaymentMiddleware
+
+        app = FastAPI()
+
+        payments = Payments.get_instance(
+            PaymentOptions(
+                nvm_api_key=os.environ['NVM_API_KEY'],
+                environment='sandbox'
+            )
+        )
+
+        PLAN_ID = os.environ['NVM_PLAN_ID']
+
+        # Add payment protection — 1 credit per request to /api/query
+        app.add_middleware(
+            PaymentMiddleware,
+            payments=payments,
+            routes={
+                "POST /api/query": {"plan_id": PLAN_ID, "credits": 1}
+            }
+        )
+
+        @app.post("/api/query")
+        async def query(request: dict):
+            # If we reach here, payment is already verified
+            result = await process_ai_query(request.get("prompt"))
+            return result
+        ```
+
+        <Note>Install with `pip install payments-py[fastapi]` — the `[fastapi]` extra is required for the middleware.</Note>
+      </Tab>
+    </Tabs>
 
     This flow protects your agent and automates billing.
   </Step>
@@ -230,34 +257,39 @@ For developers who need to automate and integrate directly, our SDKs are the per
     // 1. Discover the agent and its plans
     const agent = await payments.agents.getAgent('AGENT_ID');
     const plan = agent.plans[0];
-    
+
     // 2. Purchase the plan
     // Option A: Crypto payment
     const orderResult = await payments.plans.orderPlan(plan.planId);
     console.log('Order transaction:', orderResult.transactionHash);
-    
+
     // Option B: Fiat payment (credit card)
     const { sessionId, url } = await payments.plans.orderFiatPlan(plan.planId);
     window.location.href = url; // Redirect to Stripe
-    
-    // 3. Get access credentials
-    const credentials = await payments.agents.getAgentAccessToken(
+
+    // 3. Get X402 access token
+    const { accessToken } = await payments.x402.getX402AccessToken(
       plan.planId,
       agent.agentId
     );
-    
+
     // 4. Query the agent using the access token
-    const response = await fetch(agent.endpoints[0].url, {
-      method: 'POST',
+    // Extract URL from endpoint object (endpoints have HTTP method as key)
+    const endpoint = agent.endpoints[0]
+    const method = Object.keys(endpoint)[0]
+    const url = endpoint[method]
+
+    const response = await fetch(url, {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${credentials.accessToken}`
+        'payment-signature': accessToken
       },
-      body: JSON.stringify({ 
-        prompt: "Hello, how can you help me?" 
+      body: JSON.stringify({
+        prompt: "Hello, how can you help me?"
       })
     });
-    
+
     const result = await response.json();
     console.log('Agent response:', result);
     ```
@@ -265,36 +297,42 @@ For developers who need to automate and integrate directly, our SDKs are the per
   <Tab title="Python">
     ```python
     import requests
-    
+
     # 1. Discover the agent and its plans
     agent = payments.agents.get_agent('AGENT_ID')
     plan = agent['plans'][0]
-    
+
     # 2. Purchase the plan
     # Option A: Crypto payment
     order_result = payments.plans.order_plan(plan['planId'])
     print(f'Order transaction: {order_result["transactionHash"]}')
-    
+
     # Option B: Fiat payment (credit card)
     fiat_result = payments.plans.order_fiat_plan(plan['planId'])
     print(f'Stripe checkout URL: {fiat_result["url"]}')
-    
-    # 3. Get access credentials
-    credentials = payments.agents.get_agent_access_token(
+
+    # 3. Get X402 access token
+    token_response = payments.x402.get_x402_access_token(
         plan['planId'],
         agent['agentId']
     )
-    
+    access_token = token_response['accessToken']
+
     # 4. Query the agent using the access token
+    # Extract URL from endpoint object (endpoints have HTTP method as key)
+    endpoint = agent['endpoints'][0]
+    method = list(endpoint.keys())[0]
+    url = endpoint[method]
+
     response = requests.post(
-        agent['endpoints'][0]['url'],
+        url,
         headers={
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {credentials["accessToken"]}'
+            'payment-signature': access_token
         },
         json={'prompt': 'Hello, how can you help me?'}
     )
-    
+
     result = response.json()
     print(f'Agent response: {result}')
     ```

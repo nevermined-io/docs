@@ -1,0 +1,522 @@
+---
+title: "Charge Credits"
+description: "Patterns for charging credits when processing requests"
+icon: "coins"
+---
+
+Copy-paste patterns for deducting credits from subscribers.
+
+## Automatic Credit Deduction
+
+With the x402 flow, verification checks permissions without burning credits. After processing, settlement burns the credits:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { buildPaymentRequired } from '@nevermined-io/payments'
+
+    const paymentRequired = buildPaymentRequired({
+      planId: PLAN_ID, endpoint: '/query', agentId: AGENT_ID, httpVerb: 'POST'
+    })
+
+    // 1. Verify permissions (does NOT burn credits)
+    const verification = await payments.facilitator.verifyPermissions({
+      paymentRequired,
+      x402AccessToken: token,
+      maxAmount: BigInt(1)
+    })
+
+    if (!verification.isValid) {
+      throw new Error('Invalid payment')
+    }
+
+    // 2. Process request...
+    const result = await processRequest()
+
+    // 3. Settle (burn credits) after successful processing
+    const settlement = await payments.facilitator.settlePermissions({
+      paymentRequired,
+      x402AccessToken: token,
+      maxAmount: BigInt(1)
+    })
+
+    console.log(`Remaining credits: ${settlement.remainingBalance}`)
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402.helpers import build_payment_required
+
+    payment_required = build_payment_required(
+        plan_id=PLAN_ID, endpoint="/query", agent_id=AGENT_ID, http_verb="POST"
+    )
+
+    # 1. Verify permissions (does NOT burn credits)
+    verification = payments.facilitator.verify_permissions(
+        payment_required=payment_required,
+        x402_access_token=token,
+        max_amount="1"
+    )
+
+    if not verification.is_valid:
+        raise Exception('Invalid payment')
+
+    # 2. Process request...
+    result = process_request()
+
+    # 3. Settle (burn credits) after successful processing
+    settlement = payments.facilitator.settle_permissions(
+        payment_required=payment_required,
+        x402_access_token=token,
+        max_amount="1"
+    )
+
+    print(f"Credits used: {settlement.credits_redeemed}")
+    print(f"Remaining: {settlement.remaining_balance}")
+    ```
+  </Tab>
+</Tabs>
+
+## Variable Credit Charges
+
+For operations with variable costs, use the x402 flow:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Calculate cost based on request
+    function calculateCost(request: any): number {
+      const baseCredits = 1
+
+      // Add cost for complexity
+      if (request.options?.highQuality) {
+        return baseCredits + 5
+      }
+
+      if (request.prompt.length > 1000) {
+        return baseCredits + 2
+      }
+
+      return baseCredits
+    }
+
+    // Use in settlement
+    const cost = calculateCost(req.body)
+
+    await payments.facilitator.settlePermissions({
+      planId: PLAN_ID,
+      maxAmount: BigInt(cost),
+      x402AccessToken: token,
+      subscriberAddress: address
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    def calculate_cost(request: dict) -> int:
+        base_credits = 1
+
+        # Add cost for complexity
+        if request.get('options', {}).get('high_quality'):
+            return base_credits + 5
+
+        if len(request.get('prompt', '')) > 1000:
+            return base_credits + 2
+
+        return base_credits
+
+    # Use in settlement
+    cost = calculate_cost(request)
+
+    await payments.facilitator.settle_permissions(
+        payment_required=payment_required,
+        x402_access_token=access_token,
+        max_amount=str(cost)
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Credit Tracking Middleware
+
+Track credits used per request:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface CreditUsage {
+      requestId: string
+      subscriberAddress: string
+      creditsUsed: number
+      creditsBefore: number
+      creditsAfter: number
+      timestamp: Date
+      endpoint: string
+    }
+
+    async function trackCredits(
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ) {
+      const startBalance = req.payment?.balance || 0
+
+      // Store original json method
+      const originalJson = res.json.bind(res)
+
+      // Override to track response
+      res.json = (body: any) => {
+        const creditsUsed = body.credits?.used || 1
+        const creditsAfter = body.credits?.remaining || startBalance - creditsUsed
+
+        const usage: CreditUsage = {
+          requestId: req.id,
+          subscriberAddress: req.payment?.subscriberAddress || 'unknown',
+          creditsUsed,
+          creditsBefore: startBalance,
+          creditsAfter,
+          timestamp: new Date(),
+          endpoint: req.path
+        }
+
+        // Log or store usage
+        logCreditUsage(usage)
+
+        return originalJson(body)
+      }
+
+      next()
+    }
+
+    function logCreditUsage(usage: CreditUsage) {
+      console.log(`Credit usage: ${JSON.stringify(usage)}`)
+      // Or send to analytics, database, etc.
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from dataclasses import dataclass
+    from datetime import datetime
+    import uuid
+
+    @dataclass
+    class CreditUsage:
+        request_id: str
+        subscriber_address: str
+        credits_used: int
+        credits_before: int
+        credits_after: int
+        timestamp: datetime
+        endpoint: str
+
+    async def track_credits(request: Request, call_next):
+        # Get initial balance from payment validation
+        start_balance = getattr(request.state, 'credits_balance', 0)
+        request_id = str(uuid.uuid4())
+
+        response = await call_next(request)
+
+        # Track usage after response
+        if hasattr(request.state, 'credits_used'):
+            usage = CreditUsage(
+                request_id=request_id,
+                subscriber_address=getattr(request.state, 'subscriber_address', 'unknown'),
+                credits_used=request.state.credits_used,
+                credits_before=start_balance,
+                credits_after=start_balance - request.state.credits_used,
+                timestamp=datetime.now(),
+                endpoint=str(request.url.path)
+            )
+
+            log_credit_usage(usage)
+
+        return response
+
+    def log_credit_usage(usage: CreditUsage):
+        print(f"Credit usage: {usage}")
+        # Or send to analytics, database, etc.
+    ```
+  </Tab>
+</Tabs>
+
+## Tiered Pricing
+
+Charge different amounts based on usage tiers:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface PricingTier {
+      name: string
+      minTokens: number
+      maxTokens: number
+      creditsPerRequest: number
+    }
+
+    const PRICING_TIERS: PricingTier[] = [
+      { name: 'small', minTokens: 0, maxTokens: 100, creditsPerRequest: 1 },
+      { name: 'medium', minTokens: 101, maxTokens: 500, creditsPerRequest: 3 },
+      { name: 'large', minTokens: 501, maxTokens: 2000, creditsPerRequest: 5 },
+      { name: 'xlarge', minTokens: 2001, maxTokens: Infinity, creditsPerRequest: 10 }
+    ]
+
+    function getCreditsForTokens(tokenCount: number): number {
+      const tier = PRICING_TIERS.find(
+        t => tokenCount >= t.minTokens && tokenCount <= t.maxTokens
+      )
+      return tier?.creditsPerRequest || 1
+    }
+
+    // Usage
+    async function processWithTieredPricing(prompt: string, payment: PaymentInfo) {
+      const estimatedTokens = estimateTokens(prompt)
+      const requiredCredits = getCreditsForTokens(estimatedTokens)
+
+      if (payment.balance < requiredCredits) {
+        throw new Error(`Insufficient credits. Need ${requiredCredits}, have ${payment.balance}`)
+      }
+
+      const result = await generateResponse(prompt)
+      const actualTokens = countTokens(result)
+      const actualCredits = getCreditsForTokens(actualTokens)
+
+      return {
+        result,
+        credits: {
+          estimated: requiredCredits,
+          actual: actualCredits,
+          remaining: payment.balance - actualCredits
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from dataclasses import dataclass
+    from typing import List
+
+    @dataclass
+    class PricingTier:
+        name: str
+        min_tokens: int
+        max_tokens: int
+        credits_per_request: int
+
+    PRICING_TIERS: List[PricingTier] = [
+        PricingTier('small', 0, 100, 1),
+        PricingTier('medium', 101, 500, 3),
+        PricingTier('large', 501, 2000, 5),
+        PricingTier('xlarge', 2001, float('inf'), 10)
+    ]
+
+    def get_credits_for_tokens(token_count: int) -> int:
+        for tier in PRICING_TIERS:
+            if tier.min_tokens <= token_count <= tier.max_tokens:
+                return tier.credits_per_request
+        return 1
+
+    # Usage
+    async def process_with_tiered_pricing(prompt: str, payment: dict) -> dict:
+        estimated_tokens = estimate_tokens(prompt)
+        required_credits = get_credits_for_tokens(estimated_tokens)
+
+        if payment['balance'] < required_credits:
+            raise ValueError(
+                f"Insufficient credits. Need {required_credits}, have {payment['balance']}"
+            )
+
+        result = await generate_response(prompt)
+        actual_tokens = count_tokens(result)
+        actual_credits = get_credits_for_tokens(actual_tokens)
+
+        return {
+            'result': result,
+            'credits': {
+                'estimated': required_credits,
+                'actual': actual_credits,
+                'remaining': payment['balance'] - actual_credits
+            }
+        }
+    ```
+  </Tab>
+</Tabs>
+
+## Pre-Authorization Pattern
+
+For long-running operations, pre-authorize credits before starting:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    async function processLongRunningTask(
+      x402Token: string,
+      paymentRequired: string,
+      estimatedCredits: number
+    ) {
+      // Step 1: Verify permissions (does not burn credits)
+      const verification = await payments.facilitator.verifyPermissions({
+        paymentRequired,
+        x402AccessToken: x402Token,
+        maxAmount: BigInt(estimatedCredits)
+      })
+
+      if (!verification.isValid) {
+        throw new Error('Invalid token')
+      }
+
+      if (verification.balance < estimatedCredits) {
+        throw new Error(`Insufficient credits. Need ${estimatedCredits}, have ${verification.balance}`)
+      }
+
+      // Step 2: Start the long-running task
+      const taskId = await startTask({})
+
+      try {
+        // Step 3: Wait for completion
+        const result = await waitForCompletion(taskId)
+
+        // Step 4: Calculate actual cost and settle (burn credits)
+        const actualCredits = calculateActualCost(result)
+
+        const settlement = await payments.facilitator.settlePermissions({
+          paymentRequired,
+          x402AccessToken: x402Token,
+          maxAmount: BigInt(actualCredits)
+        })
+
+        return {
+          result,
+          credits: {
+            estimated: estimatedCredits,
+            actual: actualCredits,
+            remaining: settlement.remainingBalance
+          }
+        }
+      } catch (error) {
+        // Task failed - don't settle (no credits burned)
+        console.error('Task failed:', error)
+        throw error
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    async def process_long_running_task(
+        x402_token: str,
+        payment_required: str,
+        estimated_credits: int
+    ) -> dict:
+        # Step 1: Verify permissions (does not burn credits)
+        verification = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount=str(estimated_credits)
+        )
+
+        if not verification.is_valid:
+            raise ValueError('Invalid token')
+
+        if verification.balance < estimated_credits:
+            raise ValueError(
+                f"Insufficient credits. Need {estimated_credits}, have {verification.balance}"
+            )
+
+        # Step 2: Start the long-running task
+        task_id = await start_task({})
+
+        try:
+            # Step 3: Wait for completion
+            result = await wait_for_completion(task_id)
+
+            # Step 4: Calculate actual cost and settle (burn credits)
+            actual_credits = calculate_actual_cost(result)
+
+            settlement = payments.facilitator.settle_permissions(
+                payment_required=payment_required,
+                x402_access_token=x402_token,
+                max_amount=str(actual_credits)
+            )
+
+            return {
+                'result': result,
+                'credits': {
+                    'estimated': estimated_credits,
+                    'actual': actual_credits,
+                    'remaining': settlement.remaining_balance
+                }
+            }
+        except Exception as error:
+            # Task failed - don't settle (no credits burned)
+            print(f'Task failed: {error}')
+            raise
+    ```
+  </Tab>
+</Tabs>
+
+## Credit Response Headers
+
+Include credit information in response headers:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    function addCreditHeaders(res: Response, credits: CreditInfo) {
+      res.setHeader('X-Credits-Used', credits.used.toString())
+      res.setHeader('X-Credits-Remaining', credits.remaining.toString())
+      res.setHeader('X-Credits-Plan', credits.planId)
+    }
+
+    // Usage in middleware
+    app.use((req, res, next) => {
+      const originalJson = res.json.bind(res)
+
+      res.json = (body: any) => {
+        if (req.payment && body.credits) {
+          addCreditHeaders(res, body.credits)
+        }
+        return originalJson(body)
+      }
+
+      next()
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from fastapi import Response
+
+    def add_credit_headers(response: Response, credits: dict):
+        response.headers['X-Credits-Used'] = str(credits['used'])
+        response.headers['X-Credits-Remaining'] = str(credits['remaining'])
+        response.headers['X-Credits-Plan'] = credits['plan_id']
+
+    # Usage in endpoint
+    @app.post("/query")
+    async def query(request: dict, response: Response):
+        result = await process_query(request)
+
+        add_credit_headers(response, {
+            'used': 1,
+            'remaining': 99,
+            'plan_id': PLAN_ID
+        })
+
+        return result
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Subscription Access" icon="calendar" href="/docs/integrate/patterns/subscription-access">
+    Time-based access patterns
+  </Card>
+
+  <Card title="Dynamic Pricing" icon="chart-line" href="/docs/integrate/patterns/dynamic-pricing">
+    Variable pricing strategies
+  </Card>
+</CardGroup>

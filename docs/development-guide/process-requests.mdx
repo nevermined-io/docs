@@ -15,29 +15,25 @@ When a user wants to query an AI Agent, they need to send a request with the acc
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    
-    // After purchasing a Payment Plan, let's generate the access token
-    const credentials = await payments.agents.getAgentAccessToken(planId, agentId)
-    
-    //// OUTPUT: credentials:
-    //// {
-    ////   accessToken: 'eJyNj0sKgDAURP9lJQ ....',
-    ////   proxies: [ 'https://proxy.nevermined.app' ]
-    //// }  
-          
+
+    // After purchasing a Payment Plan, let's generate the X402 access token
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+
+    //// OUTPUT: accessToken is a JWT string containing X402 v2 payment credentials
+
     // Now we can use this access token to send requests to the AI agent
     const agentHTTPOptions = {
       method: 'POST',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${credentials.accessToken}`,
+        'payment-signature': accessToken,
       }
     }
-    
+
     // Example request to the AI agent
     const response = await fetch(new URL('https://my.agent.io/prompt'), agentHTTPOptions)
-    
+
     if (response.ok) {
       const data = await response.json()
       console.log('AI agent response:', data)
@@ -49,22 +45,19 @@ When a user wants to query an AI Agent, they need to send a request with the acc
   <Tab title="Python">
     ```python
     import requests
-    
-    # Get agent access token for the given plan and agent
-    credentials = payments.agents.get_agent_access_token(plan_id, agent_id)
-    # OUTPUT: credentials:
-    # {
-    #   "accessToken": "eJyNj0sKgDAURP9lJQ ....",
-    #   "proxies": [ "https://proxy.nevermined.app" ]
-    # }
-    
+
+    # Get X402 access token for the given plan and agent
+    token_response = payments.x402.get_x402_access_token(plan_id, agent_id)
+    access_token = token_response['accessToken']
+    # OUTPUT: access_token is a JWT string containing X402 v2 payment credentials
+
     # Now we can use this access token to send requests to the AI agent
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {credentials['accessToken']}",
+        "payment-signature": access_token,
     }
-    
+
     response = requests.post("https://my.agent.io/prompt", headers=headers)
     if response.status_code == 200:
         data = response.json()
@@ -91,17 +84,17 @@ In the example below, we will start a simple HTTP server that will first validat
     import http from 'http'
     
     const agentHost = 'https://example.com' // The AI agent is running on this host
-    
+
     const server = http.createServer(async (req, res) => {
-      const authHeader = req.headers['authorization'] as string
+      const x402Token = req.headers['payment-signature'] as string
       const requestedUrl = `${agentHost}${req.url}`
       const httpVerb = req.method
-      console.log('Received request:', { endpoint: requestedUrl, httpVerb, authHeader })
-       
+      console.log('Received request:', { endpoint: requestedUrl, httpVerb, x402Token })
+
       try {
         const isValidReq = await payments.requests.startProcessingRequest(
           agentId,
-          authHeader,
+          x402Token,
           requestedUrl,
           httpVerb!,
         )
@@ -112,7 +105,7 @@ In the example below, we will start a simple HTTP server that will first validat
           return
         }
       } catch (error) {
-        console.log('Unauthorized access attempt:', authHeader)
+        console.log('Unauthorized access attempt:', x402Token)
         console.log('Error details:', error)
       }
     
@@ -129,45 +122,55 @@ In the example below, we will start a simple HTTP server that will first validat
     ```python
     from http.server import HTTPServer, BaseHTTPRequestHandler
     import json
-    
+    from payments_py.x402.helpers import build_payment_required
+
     agent_host = "https://example.com"  # The AI agent is running on this host
-    
+
     class AgentRequestHandler(BaseHTTPRequestHandler):
         def do_POST(self):
             self._handle_request()
-    
+
         def do_GET(self):
             self._handle_request()
-    
+
         def _handle_request(self):
-            auth_header = self.headers.get("Authorization")
+            x402_token = self.headers.get("payment-signature", "")
             requested_url = f"{agent_host}{self.path}"
             http_verb = self.command
-            print("Received request:", {"endpoint": requested_url, "httpVerb": http_verb, "authHeader": auth_header})
-    
+            print("Received request:", {"endpoint": requested_url, "httpVerb": http_verb, "x402Token": x402_token})
+
             try:
-                is_valid_req = payments.requests.start_processing_request(
-                    agent_id,
-                    auth_header,
-                    requested_url,
-                    http_verb
+                # Build payment requirements
+                payment_required = build_payment_required(
+                    plan_id=plan_id,
+                    endpoint=requested_url,
+                    agent_id=agent_id,
+                    http_verb=http_verb
                 )
-                print("isValidReq", is_valid_req)
-                if is_valid_req["balance"]["isSubscriber"]:
+
+                # Verify permissions with x402 access token
+                verification = payments.facilitator.verify_permissions(
+                    payment_required=payment_required,
+                    x402_access_token=x402_token,
+                    max_amount="1"
+                )
+
+                print("Verification result:", verification)
+                if verification.get("is_valid"):
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
                     self.wfile.write(json.dumps({"message": "Hello from the agent!"}).encode())
                     return
             except Exception as error:
-                print("Unauthorized access attempt:", auth_header)
+                print("Unauthorized access attempt:", x402_token)
                 print("Error details:", error)
-    
+
             self.send_response(402)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Payment Required"}).encode())
-    
+
     # To start the server:
     server = HTTPServer(("localhost", 8889), AgentRequestHandler)
     print("AI agent server running on port 8889")

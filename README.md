@@ -17,14 +17,14 @@ This documentation is built using the [Mintlify Docs Framework](https://www.mint
 
 To preview and edit the documentation locally:
 
-1. Install the Mintlify CLI:
-
 ```bash
-npm install -g mintlify
+1.	Install the Mintlify CLI:
 
-	2.	At the root of the project (where docs.json lives), run:
+	npm install -g mintlify
 
-mintlify dev
+2.	At the root of the project (where docs.json lives), run:
+
+	mintlify dev
 
 This will spin up a local server with hot reloading so you can edit .mdx files and preview changes live.
 

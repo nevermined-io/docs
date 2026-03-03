@@ -1,0 +1,371 @@
+---
+title: "Express.js Integration"
+description: "Add Nevermined x402 payments to your Express.js application with one line of code"
+icon: "node-js"
+frameworks: ["express", "node", "javascript"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
+</Note>
+
+Add payment protection to your Express.js API using the [x402 protocol](https://github.com/coinbase/x402). The `paymentMiddleware` handles verification and settlement automatically.
+
+## x402 Payment Flow
+
+```
+┌─────────┐                              ┌─────────┐
+│  Client │                              │  Agent  │
+└────┬────┘                              └────┬────┘
+     │                                        │
+     │  1. POST /ask (no token)               │
+     │───────────────────────────────────────>│
+     │                                        │
+     │  2. 402 Payment Required               │
+     │     Header: payment-required (base64)  │
+     │<───────────────────────────────────────│
+     │                                        │
+     │  3. Generate x402 token via SDK        │
+     │                                        │
+     │  4. POST /ask                          │
+     │     Header: payment-signature (token)  │
+     │───────────────────────────────────────>│
+     │                                        │
+     │     - Verify permissions               │
+     │     - Execute request                  │
+     │     - Settle (burn credits)            │
+     │                                        │
+     │  5. 200 OK + AI response               │
+     │     Header: payment-response (base64)  │
+     │<───────────────────────────────────────│
+     │                                        │
+```
+
+## Installation
+
+```bash
+npm install @nevermined-io/payments express
+```
+
+## Quick Start: One-Line Payment Protection
+
+The `paymentMiddleware` from `@nevermined-io/payments/express` handles the entire x402 flow:
+
+```typescript filename="src/agent.ts"
+import express from 'express'
+import { Payments } from '@nevermined-io/payments'
+import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+const app = express()
+app.use(express.json())
+
+// Initialize Payments
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: process.env.NVM_ENVIRONMENT === 'live' ? 'live' : 'sandbox'
+})
+
+// Protect routes with one line
+app.use(
+  paymentMiddleware(payments, {
+    'POST /ask': {
+      planId: process.env.NVM_PLAN_ID!,
+      credits: 1
+    }
+  })
+)
+
+// Route handler - no payment logic needed!
+app.post('/ask', async (req, res) => {
+  const { query } = req.body
+  const response = await generateAIResponse(query)
+  res.json({ response })
+})
+
+app.listen(3000, () => console.log('Server running on http://localhost:3000'))
+```
+
+That's it! The middleware automatically:
+- Returns `402` with `payment-required` header when no token is provided
+- Verifies the x402 token via the Nevermined facilitator
+- Burns credits after request completion
+- Returns `payment-response` header with settlement receipt
+
+## x402 Headers
+
+The middleware follows the [x402 HTTP transport spec](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md):
+
+| Header              | Direction             | Description                         |
+| ------------------- | --------------------- | ----------------------------------- |
+| `payment-signature` | Client → Server       | Base64-encoded x402 access token    |
+| `payment-required`  | Server → Client (402) | Base64-encoded payment requirements |
+| `payment-response`  | Server → Client (200) | Base64-encoded settlement receipt   |
+
+## Route Configuration
+
+### Fixed Credits
+
+```typescript
+paymentMiddleware(payments, {
+  'POST /ask': { planId: PLAN_ID, credits: 1 },
+  'POST /generate': { planId: PLAN_ID, credits: 5 }
+})
+```
+
+### Dynamic Credits
+
+Calculate credits based on request/response:
+
+```typescript
+paymentMiddleware(payments, {
+  'POST /generate': {
+    planId: PLAN_ID,
+    credits: (req, res) => {
+      // Charge based on token count in response
+      const tokens = res.locals.tokenCount || 100
+      return Math.ceil(tokens / 100)
+    }
+  }
+})
+```
+
+### Path Parameters
+
+```typescript
+paymentMiddleware(payments, {
+  'GET /users/:id': { planId: PLAN_ID, credits: 1 },
+  'POST /agents/:agentId/task': { planId: PLAN_ID, credits: 2 }
+})
+```
+
+### With Agent ID
+
+```typescript
+paymentMiddleware(payments, {
+  'POST /task': {
+    planId: PLAN_ID,
+    agentId: AGENT_ID,  // Required for plans with multiple agents
+    credits: 5
+  }
+})
+```
+
+### Payment Scheme (Crypto vs. Fiat)
+
+The middleware auto-detects the payment scheme from plan metadata. Plans with fiat pricing (`isCrypto: false`) automatically use `nvm:card-delegation` (Stripe), while crypto plans use `nvm:erc4337`.
+
+You can explicitly override the scheme in the route configuration:
+
+```typescript
+paymentMiddleware(payments, {
+  'POST /ask': {
+    planId: PLAN_ID,
+    credits: 1,
+    scheme: 'nvm:card-delegation'  // Force fiat/Stripe scheme
+  }
+})
+```
+
+<Note>
+The middleware automatically detects the payment scheme from plan metadata.
+Plans with fiat pricing (`isCrypto: false`) use `nvm:card-delegation` (Stripe).
+**No code changes are needed on the agent side.** You can explicitly override with
+the `scheme` parameter.
+</Note>
+
+For the full card-delegation specification, see the [Card Delegation Spec](/docs/specs/x402-card-delegation).
+
+## Middleware Options
+
+```typescript
+paymentMiddleware(payments, routes, {
+  // Custom token header(s) - default: 'payment-signature' (x402 v2)
+  tokenHeader: 'payment-signature',
+
+  // Hook before verification
+  onBeforeVerify: (req, paymentRequired) => {
+    console.log(`Verifying payment for ${req.path}`)
+  },
+
+  // Hook after verification (for observability setup)
+  onAfterVerify: (req, verification) => {
+    // Access agentRequest for observability
+    const agentRequest = verification.agentRequest
+    if (agentRequest) {
+      console.log(`Agent: ${agentRequest.agentName}`)
+    }
+  },
+
+  // Hook after settlement
+  onAfterSettle: (req, creditsUsed, settlement) => {
+    console.log(`Settled ${creditsUsed} credits, tx: ${settlement.txHash}`)
+  },
+
+  // Custom error handler
+  onPaymentError: (error, req, res) => {
+    res.status(402).json({ error: error.message })
+  }
+})
+```
+
+## Complete Example
+
+See the complete working example in the [http-simple-agent tutorial](https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent) on GitHub.
+
+```typescript filename="src/agent.ts"
+import express from 'express'
+import OpenAI from 'openai'
+import { Payments } from '@nevermined-io/payments'
+import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+const app = express()
+app.use(express.json())
+
+// Initialize services
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox'
+})
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+// Payment protection with logging
+app.use(
+  paymentMiddleware(payments, {
+    'POST /ask': {
+      planId: process.env.NVM_PLAN_ID!,
+      credits: 1
+    }
+  }, {
+    onBeforeVerify: (req) => {
+      console.log(`[Payment] Verifying request to ${req.path}`)
+    },
+    onAfterSettle: (req, credits) => {
+      console.log(`[Payment] Settled ${credits} credits`)
+    }
+  })
+)
+
+// Protected endpoint
+app.post('/ask', async (req, res) => {
+  const { query } = req.body
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: query }]
+  })
+
+  res.json({ response: completion.choices[0]?.message?.content })
+})
+
+// Public endpoint (not in route config)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' })
+})
+
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => {
+  console.log(`Agent running on http://localhost:${PORT}`)
+})
+```
+
+## Client Implementation
+
+<Note>
+For fiat plans, clients can use `resolveScheme()` to auto-detect the payment scheme before generating tokens. See the [x402 developer guide](/docs/development-guide/nevermined-x402) for details on scheme resolution and `X402TokenOptions`.
+</Note>
+
+Here's how clients interact with your payment-protected API:
+
+```typescript filename="src/client.ts"
+import { Payments } from '@nevermined-io/payments'
+import { X402_HEADERS } from '@nevermined-io/payments/express'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox'
+})
+
+async function callProtectedAPI() {
+  const SERVER_URL = 'http://localhost:3000'
+
+  // Step 1: Request without token → 402
+  const response1 = await fetch(`${SERVER_URL}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: 'What is 2+2?' })
+  })
+
+  if (response1.status === 402) {
+    // Step 2: Decode payment requirements
+    const paymentRequired = JSON.parse(
+      Buffer.from(
+        response1.headers.get(X402_HEADERS.PAYMENT_REQUIRED)!,
+        'base64'
+      ).toString()
+    )
+
+    const { planId, extra } = paymentRequired.accepts[0]
+    const agentId = extra?.agentId
+
+    // Step 3: Generate x402 token
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+
+    // Step 4: Request with token → 200
+    const response2 = await fetch(`${SERVER_URL}/ask`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [X402_HEADERS.PAYMENT_SIGNATURE]: accessToken
+      },
+      body: JSON.stringify({ query: 'What is 2+2?' })
+    })
+
+    const data = await response2.json()
+    console.log('Response:', data.response)
+
+    // Step 5: Decode settlement receipt
+    const settlement = JSON.parse(
+      Buffer.from(
+        response2.headers.get(X402_HEADERS.PAYMENT_RESPONSE)!,
+        'base64'
+      ).toString()
+    )
+    console.log('Credits used:', settlement.creditsRedeemed)
+  }
+}
+```
+
+## Environment Variables
+
+```bash filename=".env"
+# Nevermined (required)
+NVM_API_KEY=sandbox:your-api-key
+NVM_ENVIRONMENT=sandbox
+NVM_PLAN_ID=your-plan-id
+
+# Agent
+OPENAI_API_KEY=sk-your-openai-api-key
+PORT=3000
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/charge-credits">
+    Advanced credit charging patterns
+  </Card>
+
+  <Card title="x402 Protocol" icon="link" href="/docs/development-guide/nevermined-x402">
+    Deep dive into x402 payment flows
+  </Card>
+
+  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
+    Configure credits, subscriptions, and dynamic pricing
+  </Card>
+
+  <Card title="http-simple-agent Tutorial" icon="github" href="https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent">
+    Complete working example on GitHub
+  </Card>
+</CardGroup>

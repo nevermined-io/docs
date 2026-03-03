@@ -1,0 +1,652 @@
+---
+title: "Subscription Access"
+description: "Patterns for time-based subscription access control"
+icon: "calendar"
+---
+
+Copy-paste patterns for implementing time-based subscription access.
+
+## Basic Time-Based Validation
+
+For subscription plans, validate that the user's access hasn't expired:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { buildPaymentRequired } from '@nevermined-io/payments'
+
+    async function validateSubscription(
+      x402Token: string,
+      planId: string,
+      agentId: string,
+      endpoint: string
+    ) {
+      const paymentRequired = buildPaymentRequired({
+        planId, endpoint, agentId, httpVerb: 'POST'
+      })
+
+      const result = await payments.facilitator.verifyPermissions({
+        paymentRequired,
+        x402AccessToken: x402Token,
+        maxAmount: BigInt(1)
+      })
+
+      if (!result.isValid) {
+        return {
+          valid: false,
+          reason: result.reason
+        }
+      }
+
+      // For time-based plans, check expiration
+      if (result.expiresAt) {
+        const now = new Date()
+        const expiry = new Date(result.expiresAt)
+
+        if (now > expiry) {
+          return {
+            valid: false,
+            reason: 'SUBSCRIPTION_EXPIRED',
+            expiredAt: expiry
+          }
+        }
+
+        const daysRemaining = Math.ceil(
+          (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+
+        return {
+          valid: true,
+          expiresAt: expiry,
+          daysRemaining
+        }
+      }
+
+      return { valid: true }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from datetime import datetime
+    from payments_py.x402.helpers import build_payment_required
+
+    def validate_subscription(
+        x402_token: str,
+        plan_id: str,
+        agent_id: str,
+        endpoint: str
+    ) -> dict:
+        payment_required = build_payment_required(
+            plan_id=plan_id, endpoint=endpoint,
+            agent_id=agent_id, http_verb="POST"
+        )
+
+        result = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount="1"
+        )
+
+        if not result.is_valid:
+            return {
+                'valid': False,
+                'reason': getattr(result, 'reason', None)
+            }
+
+        # For time-based plans, check expiration
+        if hasattr(result, 'expires_at') and result.expires_at:
+            now = datetime.now()
+            expiry = datetime.fromisoformat(result.expires_at)
+
+            if now > expiry:
+                return {
+                    'valid': False,
+                    'reason': 'SUBSCRIPTION_EXPIRED',
+                    'expired_at': expiry.isoformat()
+                }
+
+            days_remaining = (expiry - now).days
+
+            return {
+                'valid': True,
+                'expires_at': expiry.isoformat(),
+                'days_remaining': days_remaining
+            }
+
+        return {'valid': True}
+    ```
+  </Tab>
+</Tabs>
+
+## Subscription Middleware
+
+Express middleware for subscription-only endpoints:
+
+```typescript filename="middleware/subscription.ts"
+import { Request, Response, NextFunction } from 'express'
+import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox'
+})
+
+export interface SubscriptionInfo {
+  valid: boolean
+  expiresAt?: Date
+  daysRemaining?: number
+  planId: string
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      subscription?: SubscriptionInfo
+    }
+  }
+}
+
+export function requireSubscription(
+  planId: string,
+  agentId: string,
+  options?: { warnDaysBefore?: number }
+) {
+  const warnDays = options?.warnDaysBefore || 7
+
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const x402Token = req.headers['payment-signature'] as string
+
+    if (!x402Token) {
+      return res.status(402).json({
+        error: 'Subscription Required',
+        code: 'MISSING_TOKEN'
+      })
+    }
+
+    try {
+      const paymentRequired = buildPaymentRequired({
+        planId, endpoint: req.path, agentId, httpVerb: req.method
+      })
+
+      const result = await payments.facilitator.verifyPermissions({
+        paymentRequired,
+        x402AccessToken: x402Token,
+        maxAmount: BigInt(1)
+      })
+
+      if (!result.isValid) {
+        return res.status(402).json({
+          error: 'Subscription Required',
+          code: result.reason || 'INVALID_TOKEN'
+        })
+      }
+
+      // Check expiration for time-based plans
+      if (result.expiresAt) {
+        const now = new Date()
+        const expiry = new Date(result.expiresAt)
+
+        if (now > expiry) {
+          return res.status(402).json({
+            error: 'Subscription Expired',
+            code: 'SUBSCRIPTION_EXPIRED',
+            expiredAt: expiry.toISOString()
+          })
+        }
+
+        const daysRemaining = Math.ceil(
+          (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+
+        req.subscription = {
+          valid: true,
+          expiresAt: expiry,
+          daysRemaining,
+          planId
+        }
+
+        // Add warning header if expiring soon
+        if (daysRemaining <= warnDays) {
+          res.setHeader('X-Subscription-Warning', `Expires in ${daysRemaining} days`)
+        }
+      } else {
+        req.subscription = {
+          valid: true,
+          planId
+        }
+      }
+
+      next()
+    } catch (error) {
+      console.error('Subscription validation error:', error)
+      return res.status(500).json({ error: 'Validation failed' })
+    }
+  }
+}
+```
+
+<Note>
+  For most use cases, the built-in `paymentMiddleware` from `@nevermined-io/payments/express` handles all of this automatically. Use this custom middleware only when you need fine-grained control over subscription expiration warnings.
+</Note>
+
+## FastAPI Subscription Dependency
+
+```python filename="dependencies/subscription.py"
+from fastapi import Request, HTTPException
+from datetime import datetime
+from dataclasses import dataclass
+from typing import Optional
+from payments_py.x402.helpers import build_payment_required
+
+@dataclass
+class SubscriptionInfo:
+    valid: bool
+    expires_at: Optional[datetime] = None
+    days_remaining: Optional[int] = None
+    plan_id: Optional[str] = None
+
+def require_subscription(
+    plan_id: str,
+    agent_id: str,
+    warn_days_before: int = 7
+):
+    async def validate(request: Request) -> SubscriptionInfo:
+        x402_token = request.headers.get('payment-signature', '')
+
+        if not x402_token:
+            raise HTTPException(
+                status_code=402,
+                detail={'error': 'Subscription Required', 'code': 'MISSING_TOKEN'}
+            )
+
+        payment_required = build_payment_required(
+            plan_id=plan_id,
+            endpoint=str(request.url.path),
+            agent_id=agent_id,
+            http_verb=request.method
+        )
+
+        result = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount="1"
+        )
+
+        if not result.is_valid:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    'error': 'Subscription Required',
+                    'code': getattr(result, 'reason', 'INVALID_TOKEN')
+                }
+            )
+
+        # Check expiration for time-based plans
+        if hasattr(result, 'expires_at') and result.expires_at:
+            now = datetime.now()
+            expiry = datetime.fromisoformat(result.expires_at)
+
+            if now > expiry:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        'error': 'Subscription Expired',
+                        'code': 'SUBSCRIPTION_EXPIRED',
+                        'expired_at': expiry.isoformat()
+                    }
+                )
+
+            days_remaining = (expiry - now).days
+
+            return SubscriptionInfo(
+                valid=True,
+                expires_at=expiry,
+                days_remaining=days_remaining,
+                plan_id=plan_id
+            )
+
+        return SubscriptionInfo(valid=True, plan_id=plan_id)
+
+    return validate
+```
+
+<Note>
+  For most use cases, the built-in `PaymentMiddleware` from `payments_py.x402.fastapi` handles all of this automatically. Use this custom dependency only when you need fine-grained control over subscription expiration warnings.
+</Note>
+
+## Subscription Status Endpoint
+
+Provide an endpoint for clients to check their subscription status:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    app.get('/subscription/status', async (req, res) => {
+      const x402Token = req.headers['payment-signature'] as string
+
+      if (!x402Token) {
+        return res.status(402).json({ error: 'Missing payment-signature header' })
+      }
+
+      try {
+        const paymentRequired = buildPaymentRequired({
+          planId: PLAN_ID, endpoint: '/subscription/status',
+          agentId: AGENT_ID, httpVerb: 'GET'
+        })
+
+        const result = await payments.facilitator.verifyPermissions({
+          paymentRequired,
+          x402AccessToken: x402Token,
+          maxAmount: BigInt(0) // status check, no credits consumed
+        })
+
+        if (!result.isValid) {
+          return res.json({
+            active: false,
+            reason: result.reason
+          })
+        }
+
+        const response: any = {
+          active: true,
+          planId: PLAN_ID
+        }
+
+        if (result.expiresAt) {
+          const expiry = new Date(result.expiresAt)
+          const now = new Date()
+          const daysRemaining = Math.ceil(
+            (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          )
+
+          response.expiresAt = expiry.toISOString()
+          response.daysRemaining = daysRemaining
+          response.status = daysRemaining <= 7 ? 'expiring_soon' : 'active'
+        }
+
+        if (result.balance !== undefined) {
+          response.creditsRemaining = result.balance
+        }
+
+        res.json(response)
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to check status' })
+      }
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    @app.get("/subscription/status")
+    async def subscription_status(request: Request):
+        x402_token = request.headers.get('payment-signature', '')
+
+        if not x402_token:
+            raise HTTPException(status_code=402, detail='Missing payment-signature header')
+
+        try:
+            payment_required = build_payment_required(
+                plan_id=PLAN_ID, endpoint="/subscription/status",
+                agent_id=AGENT_ID, http_verb="GET"
+            )
+
+            result = payments.facilitator.verify_permissions(
+                payment_required=payment_required,
+                x402_access_token=x402_token,
+                max_amount="0"  # status check, no credits consumed
+            )
+
+            if not result.is_valid:
+                return {
+                    'active': False,
+                    'reason': getattr(result, 'reason', None)
+                }
+
+            response = {
+                'active': True,
+                'plan_id': PLAN_ID
+            }
+
+            if hasattr(result, 'expires_at') and result.expires_at:
+                expiry = datetime.fromisoformat(result.expires_at)
+                now = datetime.now()
+                days_remaining = (expiry - now).days
+
+                response['expires_at'] = expiry.isoformat()
+                response['days_remaining'] = days_remaining
+                response['status'] = 'expiring_soon' if days_remaining <= 7 else 'active'
+
+            if hasattr(result, 'balance') and result.balance is not None:
+                response['credits_remaining'] = result.balance
+
+            return response
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail='Failed to check status')
+    ```
+  </Tab>
+</Tabs>
+
+## Graceful Expiration Handling
+
+Handle subscription expiration gracefully with warnings:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface ExpirationResponse {
+      allowed: boolean
+      warning?: string
+      action?: string
+      daysRemaining?: number
+    }
+
+    function handleExpiration(expiresAt: Date): ExpirationResponse {
+      const now = new Date()
+      const daysRemaining = Math.ceil(
+        (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      )
+
+      // Already expired
+      if (daysRemaining <= 0) {
+        return {
+          allowed: false,
+          warning: 'Your subscription has expired',
+          action: 'renew',
+          daysRemaining: 0
+        }
+      }
+
+      // Grace period (allow access but warn)
+      if (daysRemaining <= 3) {
+        return {
+          allowed: true,
+          warning: `Your subscription expires in ${daysRemaining} day(s). Please renew to avoid interruption.`,
+          action: 'renew_soon',
+          daysRemaining
+        }
+      }
+
+      // Warning period
+      if (daysRemaining <= 7) {
+        return {
+          allowed: true,
+          warning: `Your subscription expires in ${daysRemaining} days`,
+          daysRemaining
+        }
+      }
+
+      // All good
+      return {
+        allowed: true,
+        daysRemaining
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from dataclasses import dataclass
+    from typing import Optional
+
+    @dataclass
+    class ExpirationResponse:
+        allowed: bool
+        warning: Optional[str] = None
+        action: Optional[str] = None
+        days_remaining: Optional[int] = None
+
+    def handle_expiration(expires_at: datetime) -> ExpirationResponse:
+        now = datetime.now()
+        days_remaining = (expires_at - now).days
+
+        # Already expired
+        if days_remaining <= 0:
+            return ExpirationResponse(
+                allowed=False,
+                warning='Your subscription has expired',
+                action='renew',
+                days_remaining=0
+            )
+
+        # Grace period (allow access but warn)
+        if days_remaining <= 3:
+            return ExpirationResponse(
+                allowed=True,
+                warning=f'Your subscription expires in {days_remaining} day(s). Please renew to avoid interruption.',
+                action='renew_soon',
+                days_remaining=days_remaining
+            )
+
+        # Warning period
+        if days_remaining <= 7:
+            return ExpirationResponse(
+                allowed=True,
+                warning=f'Your subscription expires in {days_remaining} days',
+                days_remaining=days_remaining
+            )
+
+        # All good
+        return ExpirationResponse(
+            allowed=True,
+            days_remaining=days_remaining
+        )
+    ```
+  </Tab>
+</Tabs>
+
+## Hybrid Plans (Time + Credits)
+
+Handle plans that have both time limits and credit limits:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    interface HybridValidation {
+      valid: boolean
+      reason?: string
+      timeRemaining?: number  // days
+      creditsRemaining?: number
+    }
+
+    async function validateHybridPlan(
+      x402Token: string,
+      paymentRequired: string,
+      maxAmount: bigint
+    ): Promise<HybridValidation> {
+      const result = await payments.facilitator.verifyPermissions({
+        paymentRequired, x402AccessToken: x402Token, maxAmount
+      })
+
+      if (!result.isValid) {
+        return { valid: false, reason: result.reason }
+      }
+
+      const issues: string[] = []
+
+      // Check time
+      if (result.expiresAt) {
+        const now = new Date()
+        const expiry = new Date(result.expiresAt)
+        const daysRemaining = Math.ceil(
+          (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+
+        if (daysRemaining <= 0) {
+          return { valid: false, reason: 'TIME_EXPIRED' }
+        }
+      }
+
+      // Check credits
+      if (result.balance !== undefined && result.balance <= 0) {
+        return { valid: false, reason: 'NO_CREDITS' }
+      }
+
+      return {
+        valid: true,
+        timeRemaining: result.expiresAt
+          ? Math.ceil((new Date(result.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : undefined,
+        creditsRemaining: result.balance
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    @dataclass
+    class HybridValidation:
+        valid: bool
+        reason: Optional[str] = None
+        time_remaining: Optional[int] = None  # days
+        credits_remaining: Optional[int] = None
+
+    def validate_hybrid_plan(
+        x402_token: str,
+        payment_required: str,
+        max_amount: str
+    ) -> HybridValidation:
+        result = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=x402_token,
+            max_amount=max_amount
+        )
+
+        if not result.is_valid:
+            return HybridValidation(valid=False, reason=getattr(result, 'reason', None))
+
+        # Check time
+        expiry = None
+        if hasattr(result, 'expires_at') and result.expires_at:
+            now = datetime.now()
+            expiry = datetime.fromisoformat(result.expires_at)
+            days_remaining = (expiry - now).days
+
+            if days_remaining <= 0:
+                return HybridValidation(valid=False, reason='TIME_EXPIRED')
+
+        # Check credits
+        if hasattr(result, 'balance') and result.balance is not None and result.balance <= 0:
+            return HybridValidation(valid=False, reason='NO_CREDITS')
+
+        return HybridValidation(
+            valid=True,
+            time_remaining=(expiry - datetime.now()).days if expiry else None,
+            credits_remaining=getattr(result, 'balance', None)
+        )
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dynamic Pricing" icon="chart-line" href="/docs/integrate/patterns/dynamic-pricing">
+    Variable pricing strategies
+  </Card>
+
+  <Card title="Validate Requests" icon="shield-check" href="/docs/integrate/patterns/validate-requests">
+    Request validation patterns
+  </Card>
+</CardGroup>

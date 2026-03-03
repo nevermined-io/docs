@@ -1,0 +1,220 @@
+---
+title: "Manage Payment Plans"
+description: "Create and configure payment plans for your AI agents through the Nevermined App"
+icon: "credit-card"
+---
+
+Payment plans define how subscribers pay to access your AI agents. Use the Nevermined App to create, edit, and manage plans visually.
+
+## Creating a Payment Plan
+
+<Steps>
+  <Step title="Select Your Agent">
+    From the Agents tab, click on the agent you want to add a plan to, then click **Create Plan**.
+  </Step>
+
+  <Step title="Choose Plan Type">
+    Select how access will be limited:
+
+    | Type | Description | Best For |
+    |------|-------------|----------|
+    | **Credits-Based** | Users purchase credits, consume per request | API calls, queries |
+    | **Time-Based** | Access expires after a duration | Subscriptions |
+    | **Dynamic** | Variable charge per request | Complex workloads |
+  </Step>
+
+  <Step title="Configure Pricing">
+    Set the price and currency:
+
+    **Cryptocurrency**:
+    - Amount (e.g., 10)
+    - Token (USDC, USDT, or custom ERC-20)
+    - Network (Base, Ethereum, etc.)
+
+    **Fiat**:
+    - Amount (e.g., $10.00)
+    - Currency (USD, EUR, etc.)
+    - Payment via Stripe checkout
+  </Step>
+
+  <Step title="Set Access Parameters">
+    Configure what subscribers get:
+
+    **For Credits-Based**:
+    - Total credits included
+    - Credits consumed per request
+
+    **For Time-Based**:
+    - Access duration (days, weeks, months)
+
+    **For Dynamic**:
+    - Minimum credits per request
+    - Maximum credits per request
+  </Step>
+
+  <Step title="Add Plan Details">
+    | Field | Description |
+    |-------|-------------|
+    | **Name** | Plan display name (e.g., "Pro Plan") |
+    | **Description** | What's included (e.g., "100 queries per month") |
+  </Step>
+
+  <Step title="Create Plan">
+    Review your configuration and click **Create Plan**. The plan will be immediately available for purchase.
+  </Step>
+</Steps>
+
+## Plan Types in Detail
+
+### Credits-Based Plans
+
+Charge per usage - subscribers buy credits that are deducted with each request.
+
+**Example Configuration**:
+```
+Name: Pro Plan
+Price: 10 USDC
+Credits: 100
+Credits per Request: 1
+
+→ $0.10 per query
+```
+
+**Use When**:
+- Each request has similar cost
+- You want pay-as-you-go pricing
+- Usage varies significantly between users
+
+### Time-Based Plans
+
+Subscription model - unlimited access for a fixed duration.
+
+**Example Configuration**:
+```
+Name: Monthly Subscription
+Price: 50 USDC
+Duration: 30 days
+
+→ Unlimited queries for one month
+```
+
+**Use When**:
+- Users need continuous access
+- Usage is predictable
+- You want recurring revenue
+
+### Dynamic Plans
+
+Variable pricing - charge different amounts based on request complexity.
+
+**Example Configuration**:
+```
+Name: Pay As You Go
+Price: 20 USDC (for 100 credits)
+Min Credits per Request: 1
+Max Credits per Request: 10
+
+→ Simple queries: 1 credit
+→ Complex queries: up to 10 credits
+```
+
+**Use When**:
+- Requests have varying costs (e.g., LLM token count)
+- You want fair usage-based pricing
+- Processing time varies significantly
+
+## Multiple Plans Per Agent
+
+Create tiers to serve different customer segments:
+
+```
+Agent: Legal Document Analyzer
+
+Plans:
+1. Free Trial (0 USDC, 5 credits)
+2. Starter ($5, 25 credits)
+3. Pro ($15, 100 credits)
+4. Enterprise ($99, 1000 credits)
+```
+
+<Note>
+Subscribers can purchase multiple plans or repurchase to add more credits.
+</Note>
+
+## Editing Plans
+
+From the Plans tab or agent detail page:
+
+1. Click on the plan you want to edit
+2. Modify settings (name, description, pricing)
+3. Click **Save Changes**
+
+<Warning>
+Changing plan pricing affects new purchases only. Existing subscribers keep their original terms.
+</Warning>
+
+## Plan Analytics
+
+Track each plan's performance:
+
+| Metric | Description |
+|--------|-------------|
+| **Purchases** | Total times the plan was ordered |
+| **Revenue** | Total earnings from this plan |
+| **Active Subscribers** | Users with remaining credits/time |
+| **Usage Rate** | Average credits used per subscriber |
+
+## Free Trial Plans
+
+Attract new users with free trials:
+
+1. Create a new plan with **Price: 0**
+2. Set limited credits (e.g., 5 queries)
+3. Name it clearly (e.g., "Free Trial - 5 Queries")
+
+Users can claim the trial once per account, then must purchase a paid plan.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Offer Multiple Tiers" icon="layer-group">
+    Create at least 3 tiers (e.g., Starter, Pro, Enterprise) to capture different customer segments and budgets.
+  </Accordion>
+
+  <Accordion title="Include a Free Trial" icon="gift">
+    Let users try before they buy. A small free trial (5-10 credits) can significantly increase conversions.
+  </Accordion>
+
+  <Accordion title="Price for Value" icon="dollar-sign">
+    Consider the value your agent provides, not just your costs. Premium AI services can command premium prices.
+  </Accordion>
+
+  <Accordion title="Clear Descriptions" icon="align-left">
+    Explain exactly what subscribers get. Include credits, duration, and any limitations.
+  </Accordion>
+</AccordionGroup>
+
+## Managing Subscribers
+
+View who has purchased each plan:
+
+1. Go to the plan detail page
+2. Click **Subscribers** tab
+3. See purchase date, credits remaining, and usage history
+
+You can also:
+- Export subscriber data
+- View individual usage patterns
+- Contact subscribers (if they've opted in)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Validate Requests" icon="shield-check" href="/docs/integrate/patterns/validate-requests">
+    Implement access control in your agent
+  </Card>
+
+  <Card title="SDK Integration" icon="code" href="/docs/products/payment-libraries/overview">
+    Manage plans programmatically
+  </Card>
+</CardGroup>

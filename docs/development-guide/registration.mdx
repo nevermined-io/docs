@@ -4,11 +4,11 @@ description: "Learn how AI Builders can register Payment Plans and AI Agents"
 icon: "user-plus"
 ---
 
-You can create Payment Plans and register AI Agents manually or programatically:
+You can create Payment Plans and register AI Agents manually or programmatically:
 
 <CardGroup cols={2}>
   <Card title="Nevermined App" icon="calculator">
-    Go to the [Nevermined App](https://nevermined.app) and click on "My agents" or "My pricing plans" to crete Payment Plans and register your AI Agents.
+    Go to the [Nevermined App](https://nevermined.app) and click on "My agents" or "My pricing plans" to create Payment Plans and register your AI Agents.
   </Card>
   <Card title="Payments Libraries" icon="calendar">
     Use the Payments Libraries to programmatically create Payment Plans and register AI Agents.
@@ -29,7 +29,7 @@ Nevermined Payment Plans enable time-based or request-based gating of an AI Agen
 
 ## Creating Credit-Based Plans
 
-Provides user access with per-request pricing. Builders can manage the cost per request to access their AI service. This is done by setting the price to purchase a bundle of credits and the number of credits redeemed for each request (call onfigured during Plan creation). Each time a request is made, user credits are validated and redeemed. If the user does not have enough credits, they will be prompted to purchase more and denied access until they do so.
+Provides user access with per-request pricing. Builders can manage the cost per request to access their AI service. This is done by setting the price to purchase a bundle of credits and the number of credits redeemed for each request (as configured during Plan creation). Each time a request is made, user credits are validated and redeemed. If the user does not have enough credits, they will be prompted to purchase more and denied access until they do so.
 
 <Tabs>
   <Tab title="TypeScript">
@@ -43,9 +43,9 @@ Provides user access with per-request pricing. Builders can manage the cost per 
     }
     
     // The price is 20 USDC (20_000_000) in the sandbox network
-    const priceConfig = getERC20PriceConfig(20_000_000n, USDC_ERC20_TESTING, builderAddress)
+    const priceConfig = payments.plans.getERC20PriceConfig(20_000_000n, USDC_ERC20_TESTING, builderAddress)
     // The subscriber receives 100 credits upon purchasing the plan
-    const creditsConfig = getFixedCreditsConfig(100n)
+    const creditsConfig = payments.plans.getFixedCreditsConfig(100n)
     // Register the plan
     const { planId } = await payments.plans.registerCreditsPlan(
       planMetadata, 
@@ -89,9 +89,9 @@ Provides user access on a time-gating basis. Builders can set the time period th
   <Tab title="TypeScript">
     ```typescript
     // The price is 5 USDC (5_000_000) in the sandbox network
-    const priceConfig = getERC20PriceConfig(5_000_000n, ERC20_ADDRESS, builderAddress)
+    const priceConfig = payments.plans.getERC20PriceConfig(5_000_000n, ERC20_ADDRESS, builderAddress)
     // The plan is valid for 1 day
-    const oneDayPlanConfig = getExpirableDurationConfig(ONE_DAY_DURATION)
+    const oneDayPlanConfig = payments.plans.getExpirableDurationConfig(ONE_DAY_DURATION)
     // Register the plan
     const { planId } = await payments.plans.registerTimePlan(
       planMetadata, 
@@ -121,26 +121,88 @@ Provides user access on a time-gating basis. Builders can set the time period th
 
 A Trial Plan is a special type of Payment Plan that allows users to try out an AI Agent for a limited time (typically for free). A Trial Plan can only be obtained once by each user.
 
+There are two types of trial plans:
+
+### Credits-Based Trial Plan
+
+Perfect for giving users a fixed number of free credits to test your service:
+
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    const trialPlanMetadata: PlanMetadata = {
-      name: 'Try it for one day before you buy it',
+    // Helper functions are accessed via payments.plans
+
+    const trialPlanMetadata = {
+      name: 'Free Trial - 10 Credits'
     }
+    
+    // The price is free
+    const freeConfig = getFreePriceConfig()
+    // Give 10 credits for free
+    const trialCreditsConfig = getFixedCreditsConfig(10n)
+    
+    // Register the credits-based trial plan
+    const { planId } = await payments.plans.registerCreditsTrialPlan(
+      trialPlanMetadata,
+      freeConfig,
+      trialCreditsConfig
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.plans import get_free_price_config, get_fixed_credits_config
+    
+    trial_plan_metadata = PlanMetadata(
+        name="Free Trial - 10 Credits"
+    )
+    
+    # The price is free
+    free_config = get_free_price_config()
+    # Give 10 credits for free
+    trial_credits_config = get_fixed_credits_config(10)
+    
+    # Register the credits-based trial plan
+    response = payments_builder.plans.register_credits_trial_plan(
+        trial_plan_metadata,
+        free_config,
+        trial_credits_config
+    )
+    plan_id = response.get("planId")
+    ```
+  </Tab>
+</Tabs>
+
+### Time-Based Trial Plan
+
+Perfect for giving users free access for a limited time period:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { getFreePriceConfig, getExpirableDurationConfig, ONE_DAY_DURATION } from '@nevermined-io/payments'
+
+    const trialPlanMetadata = {
+      name: 'Try it for one day before you buy it'
+    }
+    
     // The price is free
     const freeConfig = getFreePriceConfig()
     // The plan is valid for 1 day
-    const oneDayPlanConfig = getExpirableDurationConfig(ONE_DAY_DURATION)
-    // Register the trial plan
+    const oneDayPlanConfig = payments.plans.getExpirableDurationConfig(ONE_DAY_DURATION)
+    
+    // Register the time-based trial plan
     const { planId } = await payments.plans.registerTimeTrialPlan(
-      trialPlanMetadata, 
-      freeConfig, 
+      trialPlanMetadata,
+      freeConfig,
       oneDayPlanConfig
     )
     ```
   </Tab>
   <Tab title="Python">
     ```python
+    from payments_py.plans import get_free_price_config, get_expirable_duration_config, ONE_DAY_DURATION
+    
     # Plan metadata for the trial plan
     trial_plan_metadata = PlanMetadata(
         name="Try it for one day before you buy it"
@@ -150,7 +212,8 @@ A Trial Plan is a special type of Payment Plan that allows users to try out an A
     free_config = get_free_price_config()
     # The plan is valid for 1 day
     one_day_plan_config = get_expirable_duration_config(ONE_DAY_DURATION)
-    # Register the trial plan
+    
+    # Register the time-based trial plan
     response = payments_builder.plans.register_time_trial_plan(
         trial_plan_metadata,
         free_config,
@@ -160,6 +223,89 @@ A Trial Plan is a special type of Payment Plan that allows users to try out an A
     ```
   </Tab>
 </Tabs>
+
+## Creating a Pay As You Go Plan
+
+Pay As You Go plan is a type of payment plan that allows users to pay for each request they make to an AI Agent without having to purchase a bundle of credits upfront.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import {
+      Payments,
+      getPayAsYouGoCreditsConfig,
+    } from '@nevermined-io/payments'
+
+    // USDC on the sandbox network
+    const USDC_ERC20_TESTING = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'sandbox',
+    })
+
+    const planMetadata = {
+      name: 'My PAYG Plan',
+      description: 'Pay per request',
+    }
+
+    // The SDK fetches the PAYG template address from the API info endpoint
+    const priceConfig = await payments.plans.getPayAsYouGoPriceConfig(
+      100n,                 // amount per request (token minor units)
+      '0x9dDD02D4E111ab5cE47511987B2500fcB56252c6', // receiver
+      USDC_ERC20_TESTING,   // ERC20 token
+    )
+
+    // Credits config is required for validation but not used to mint credits
+    const creditsConfig = getPayAsYouGoCreditsConfig()
+
+    const { planId } = await payments.plans.registerPlan(
+      planMetadata,
+      priceConfig,
+      creditsConfig,
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py import Payments
+    from payments_py.common.types import PaymentOptions, PlanMetadata
+    from payments_py.plans import get_pay_as_you_go_credits_config
+
+    USDC_ERC20_TESTING = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+
+    payments = Payments(
+        PaymentOptions(
+            nvm_api_key="YOUR_NVM_API_KEY",
+            environment="sandbox",
+        )
+    )
+
+    plan_metadata = PlanMetadata(
+        name="My PAYG Plan",
+        description="Pay per request",
+    )
+
+    # SDK fetches PAYG template address from the API info endpoint
+    price_config = payments.plans.get_pay_as_you_go_price_config(
+        amount=100,
+        receiver="0x9dDD02D4E111ab5cE47511987B2500fcB56252c6",
+        token_address=USDC_ERC20_TESTING,
+    )
+
+    # Credits config is required for validation but credits are not minted upfront
+    credits_config = get_pay_as_you_go_credits_config()
+
+    response = payments.plans.register_credits_plan(
+        plan_metadata,
+        price_config,
+        credits_config,
+    )
+    plan_id = response.get("planId")
+    ```
+  </Tab>
+</Tabs>
+
 
 ## Registering an AI Agent
 
@@ -190,7 +336,8 @@ When you register an Agent, you need to provide the API endpoints for accessing 
         { 'POST': 'https://example.com/api/v1/agents/:agentId/tasks' },
         { 'GET': 'https://example.com/api/v1/agents/:agentId/tasks/invoke' }
       ],
-      openEndpoints: ['https://example.com/api/v1/rest/docs-json']
+      openEndpoints: ['https://example.com/api/v1/rest/docs-json'],
+      agentDefinitionUrl: 'https://example.com/api/v1/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
     }
     const paymentPlans = [creditsPlanId, expirablePlanId]
     
@@ -223,7 +370,8 @@ When you register an Agent, you need to provide the API endpoints for accessing 
             {"POST": "https://example.com/api/v1/agents/:agentId/tasks"},
             {"GET": "https://example.com/api/v1/agents/:agentId/tasks/invoke"}
         ],
-        "openEndpoints": ["https://example.com/api/v1/rest/docs-json"]
+        "openEndpoints": ["https://example.com/api/v1/rest/docs-json"],
+        "agentDefinitionUrl": "https://example.com/api/v1/openapi.json"  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
     }
     payment_plans = [credits_plan_id, expirable_plan_id]
     
@@ -243,6 +391,12 @@ When you register an Agent, you need to provide the API endpoints for accessing 
   This method allows you to create the plan and attach the agent to it in one step.
 </Note>
 
+**Note:** The `accessLimit` parameter is optional. If not specified, it is automatically inferred based on `creditsConfig.durationSecs`:
+- `"credits"` if `durationSecs === 0n` (non-expirable plans)
+- `"time"` if `durationSecs > 0n` (expirable plans)
+
+You can explicitly set it if needed:
+
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
@@ -251,7 +405,10 @@ When you register an Agent, you need to provide the API endpoints for accessing 
       tags: ['test2'], 
       description: 'Description for my AI Payments Agent' 
     }
-    const agentApi = { endpoints: [{ 'POST': 'http://example.com/test/:agentId/tasks' }] }
+    const agentApi = { 
+      endpoints: [{ 'POST': 'http://example.com/test/:agentId/tasks' }],
+      agentDefinitionUrl: 'http://example.com/test/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
+    }
     
     const cryptoPriceConfig = getNativeTokenPriceConfig(500n, builderAddress)
     // Non expirable payment plan
@@ -263,6 +420,7 @@ When you register an Agent, you need to provide the API endpoints for accessing 
       planMetadata,
       cryptoPriceConfig,
       nonExpirableConfig,
+      'credits' // Optional: accessLimit ('credits' or 'time'). Auto-inferred if not specified
     )
     ```
   </Tab>
@@ -277,7 +435,8 @@ When you register an Agent, you need to provide the API endpoints for accessing 
     agent_api = {
         "endpoints": [
             {"POST": "http://example.com/test/:agentId/tasks"}
-        ]
+        ],
+        "agentDefinitionUrl": "http://example.com/test/openapi.json"  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
     }
     
     # The price is 500 native tokens
@@ -290,12 +449,13 @@ When you register an Agent, you need to provide the API endpoints for accessing 
         agent_api,
         plan_metadata,
         crypto_price_config,
-        non_expirable_config
+        non_expirable_config,
+        'credits'  # Optional: access_limit ('credits' or 'time'). Auto-inferred if not specified
     )
-    agent_id = response.get("agentId")
-    plan_id = response.get("planId")
-    print('Plan created', response.planDID)
-    print('Agent attached', response.agentDID)
+    agent_id = response['agentId']
+    plan_id = response['planId']
+    print('Plan created', response['planId'])
+    print('Agent attached', response['agentId'])
     ```
   </Tab>
 </Tabs>
@@ -343,6 +503,9 @@ Captures `agentId` and `taskId` as named parameters.
   </Card>
   <Card title="Trial Plans" icon="gift">
     Free access for limited time or credits to let users test your service.
+  </Card>
+  <Card title="Pay As You Go" icon="dollar-sign">
+    Pay for each request they make to an AI Agent without having to purchase a bundle of credits upfront.
   </Card>
 </CardGroup>
 

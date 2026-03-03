@@ -1,0 +1,599 @@
+---
+title: "FastAPI Integration"
+description: "Add Nevermined x402 payments to your FastAPI application with one line of code"
+icon: "python"
+frameworks: ["fastapi", "python", "async"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
+</Note>
+
+Add payment protection to your FastAPI application using the [x402 protocol](https://github.com/coinbase/x402). The `PaymentMiddleware` handles verification and settlement automatically.
+
+## x402 Payment Flow
+
+```
+┌─────────┐                              ┌─────────┐
+│  Client │                              │  Agent  │
+└────┬────┘                              └────┬────┘
+     │                                        │
+     │  1. POST /ask (no token)               │
+     │───────────────────────────────────────>│
+     │                                        │
+     │  2. 402 Payment Required               │
+     │     Header: payment-required (base64)  │
+     │<───────────────────────────────────────│
+     │                                        │
+     │  3. Generate x402 token via SDK        │
+     │                                        │
+     │  4. POST /ask                          │
+     │     Header: payment-signature (token)  │
+     │───────────────────────────────────────>│
+     │                                        │
+     │     - Verify permissions               │
+     │     - Execute request                  │
+     │     - Settle (burn credits)            │
+     │                                        │
+     │  5. 200 OK + AI response               │
+     │     Header: payment-response (base64)  │
+     │<───────────────────────────────────────│
+     │                                        │
+```
+
+## Installation
+
+```bash
+pip install payments-py[fastapi] fastapi uvicorn
+```
+
+<Note>
+  The `[fastapi]` extra installs FastAPI and Starlette dependencies required for the middleware.
+</Note>
+
+## Quick Start: One-Line Payment Protection
+
+The `PaymentMiddleware` from `payments_py.x402.fastapi` handles the entire x402 flow:
+
+```python filename="src/agent.py"
+import os
+from fastapi import FastAPI, Request
+from payments_py import Payments, PaymentOptions
+from payments_py.x402.fastapi import PaymentMiddleware
+
+app = FastAPI()
+
+# Initialize Payments
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ["NVM_API_KEY"],
+        environment="live" if os.environ.get("ENV") == "production" else "sandbox"
+    )
+)
+
+# Protect routes with one line
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /ask": {"plan_id": os.environ["NVM_PLAN_ID"], "credits": 1}
+    }
+)
+
+# Route handler - no payment logic needed!
+@app.post("/ask")
+async def ask(request: Request):
+    body = await request.json()
+    response = await generate_ai_response(body.get("query"))
+    return {"response": response}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=3000)
+```
+
+That's it! The middleware automatically:
+- Returns `402` with `payment-required` header when no token is provided
+- Verifies the x402 token via the Nevermined facilitator
+- Burns credits after request completion
+- Returns `payment-response` header with settlement receipt
+
+## x402 Headers
+
+The middleware follows the [x402 HTTP transport spec](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md):
+
+| Header              | Direction             | Description                         |
+| ------------------- | --------------------- | ----------------------------------- |
+| `payment-signature` | Client → Server       | Base64-encoded x402 access token    |
+| `payment-required`  | Server → Client (402) | Base64-encoded payment requirements |
+| `payment-response`  | Server → Client (200) | Base64-encoded settlement receipt   |
+
+## Route Configuration
+
+### Fixed Credits
+
+```python
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /ask": {"plan_id": PLAN_ID, "credits": 1},
+        "POST /generate": {"plan_id": PLAN_ID, "credits": 5}
+    }
+)
+```
+
+### Path Parameters
+
+```python
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "GET /users/:id": {"plan_id": PLAN_ID, "credits": 1},
+        "POST /agents/:agentId/task": {"plan_id": PLAN_ID, "credits": 2}
+    }
+)
+```
+
+### With Agent ID
+
+```python
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /task": {
+            "plan_id": PLAN_ID,
+            "agent_id": AGENT_ID,  # Required for plans with multiple agents
+            "credits": 5
+        }
+    }
+)
+```
+
+### Using RouteConfig
+
+For more explicit configuration, use `RouteConfig`:
+
+```python
+from payments_py.x402.fastapi import PaymentMiddleware, RouteConfig
+
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /ask": RouteConfig(
+            plan_id=PLAN_ID,
+            credits=1,
+            agent_id=AGENT_ID,
+            network="eip155:84532",  # Base Sepolia
+            scheme="nvm:erc4337"     # Optional: auto-detected from plan metadata
+        )
+    }
+)
+```
+
+<Note>
+When `scheme` is omitted, the middleware calls `resolve_scheme()` to auto-detect the correct scheme from plan metadata. Plans with fiat pricing (`isCrypto: false`) automatically use `nvm:card-delegation` (Stripe).
+</Note>
+
+### Dynamic Credits
+
+Calculate credits based on request data:
+
+```python
+async def calculate_credits(request: Request) -> int:
+    """Charge based on requested token count."""
+    body = await request.json()
+    max_tokens = body.get("max_tokens", 100)
+    return max(1, max_tokens // 100)  # 1 credit per 100 tokens
+
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /generate": {
+            "plan_id": PLAN_ID,
+            "credits": calculate_credits  # Pass function instead of int
+        }
+    }
+)
+```
+
+Sync functions also work:
+
+```python
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /analyze": {
+            "plan_id": PLAN_ID,
+            # Simple lambda for sync calculation
+            "credits": lambda req: 5 if req.headers.get("priority") == "high" else 1
+        }
+    }
+)
+```
+
+### Payment Scheme (Crypto vs. Fiat)
+
+The middleware auto-detects the payment scheme from plan metadata. Plans with fiat pricing (`isCrypto: false`) automatically use `nvm:card-delegation` (Stripe), while crypto plans use `nvm:erc4337`.
+
+You can explicitly override the scheme in the route configuration:
+
+```python
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /ask": {
+            "plan_id": PLAN_ID,
+            "credits": 1,
+            "scheme": "nvm:card-delegation"  # Force fiat/Stripe scheme
+        }
+    }
+)
+```
+
+<Note>
+The middleware automatically detects the payment scheme from plan metadata.
+Plans with fiat pricing (`isCrypto: false`) use `nvm:card-delegation` (Stripe).
+**No code changes are needed on the agent side.** You can explicitly override with
+the `scheme` parameter.
+</Note>
+
+For the full card-delegation specification, see the [Card Delegation Spec](/docs/specs/x402-card-delegation).
+
+## Middleware Options
+
+```python
+from payments_py.x402.fastapi import PaymentMiddleware, PaymentMiddlewareOptions
+
+async def before_verify(request, payment_required):
+    print(f"Verifying payment for {request.url.path}")
+
+async def after_verify(request, verification):
+    # Access agentRequest for observability
+    if verification.agent_request:
+        print(f"Agent: {verification.agent_request.agent_name}")
+
+async def after_settle(request, credits_used, settlement):
+    print(f"Settled {credits_used} credits")
+
+async def payment_error(error, request):
+    # Return custom response or None to use default
+    return None
+
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={"POST /ask": {"plan_id": PLAN_ID, "credits": 1}},
+    options=PaymentMiddlewareOptions(
+        # Custom token header(s) - default: 'payment-signature' (x402 v2)
+        token_header=["payment-signature"],
+        # Hook before verification
+        on_before_verify=before_verify,
+        # Hook after verification (for observability setup)
+        on_after_verify=after_verify,
+        # Hook after settlement
+        on_after_settle=after_settle,
+        # Custom error handler
+        on_payment_error=payment_error
+    )
+)
+```
+
+## Accessing Payment Context
+
+After verification, the payment context is available in `request.state.payment_context`:
+
+```python
+from payments_py.x402.fastapi import PaymentContext
+
+@app.post("/ask")
+async def ask(request: Request):
+    # Access payment context for observability or logging
+    payment_context: PaymentContext = request.state.payment_context
+
+    print(f"Token: {payment_context.token}")
+    print(f"Credits to settle: {payment_context.credits_to_settle}")
+    print(f"Agent request ID: {payment_context.agent_request_id}")
+
+    # Use agent_request for observability integration
+    if payment_context.agent_request:
+        print(f"Agent: {payment_context.agent_request.agent_name}")
+        print(f"Balance: {payment_context.agent_request.balance}")
+
+    body = await request.json()
+    response = await generate_ai_response(body.get("query"))
+    return {"response": response}
+```
+
+## Complete Example
+
+See the complete working example in the [http-simple-agent-py tutorial](https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent-py) on GitHub.
+
+```python filename="src/agent.py"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Load env vars BEFORE importing payments_py
+
+from fastapi import FastAPI, Request
+from openai import OpenAI
+from payments_py import Payments, PaymentOptions
+from payments_py.x402.fastapi import PaymentMiddleware, PaymentMiddlewareOptions
+
+app = FastAPI(title="AI Agent with Nevermined Payments")
+
+# Initialize services
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ["NVM_API_KEY"],
+        environment=os.environ.get("NVM_ENVIRONMENT", "sandbox")
+    )
+)
+openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+PLAN_ID = os.environ["NVM_PLAN_ID"]
+
+# Payment protection with logging
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={
+        "POST /ask": {"plan_id": PLAN_ID, "credits": 1}
+    },
+    options=PaymentMiddlewareOptions(
+        on_before_verify=lambda req, pr: print(f"[Payment] Verifying request to {req.url.path}"),
+        on_after_settle=lambda req, credits, settlement: print(f"[Payment] Settled {credits} credits")
+    )
+)
+
+# Protected endpoint
+@app.post("/ask")
+async def ask(request: Request):
+    body = await request.json()
+    query = body.get("query", "")
+
+    completion = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": query}]
+    )
+
+    return {"response": completion.choices[0].message.content}
+
+# Public endpoint (not in route config)
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
+```
+
+## With Observability
+
+For full observability integration with Helicone:
+
+```python filename="src/agent_observability.py"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # MUST be before payments_py import
+
+from fastapi import FastAPI, Request
+from openai import OpenAI
+from payments_py import Payments, PaymentOptions
+from payments_py.x402.fastapi import PaymentMiddleware, PaymentContext
+
+app = FastAPI()
+
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ["NVM_API_KEY"],
+        environment=os.environ.get("NVM_ENVIRONMENT", "sandbox")
+    )
+)
+
+PLAN_ID = os.environ["NVM_PLAN_ID"]
+
+app.add_middleware(
+    PaymentMiddleware,
+    payments=payments,
+    routes={"POST /ask": {"plan_id": PLAN_ID, "credits": 1}}
+)
+
+@app.post("/ask")
+async def ask(request: Request):
+    body = await request.json()
+    query = body.get("query", "")
+
+    # Get payment context for observability
+    payment_context: PaymentContext = request.state.payment_context
+    agent_request = payment_context.agent_request
+
+    # Configure OpenAI client with observability headers
+    openai_client = payments.observability.with_openai(
+        OpenAI(api_key=os.environ["OPENAI_API_KEY"]),
+        agent_request
+    )
+
+    completion = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": query}]
+    )
+
+    return {
+        "response": completion.choices[0].message.content,
+        "observability": {
+            "agent_request_id": payment_context.agent_request_id,
+            "agent_name": agent_request.agent_name if agent_request else None
+        }
+    }
+```
+
+## Client Implementation
+
+<Note>
+For fiat plans, clients can use `resolve_scheme()` to auto-detect the payment scheme before generating tokens. See the [x402 developer guide](/docs/development-guide/nevermined-x402) for details on scheme resolution and `X402TokenOptions`.
+</Note>
+
+Here's how clients interact with your payment-protected API:
+
+```python filename="src/client.py"
+import os
+import base64
+import json
+import httpx
+from payments_py import Payments, PaymentOptions
+
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ["NVM_API_KEY"],
+        environment=os.environ.get("NVM_ENVIRONMENT", "sandbox")
+    )
+)
+
+def call_protected_api():
+    SERVER_URL = "http://localhost:3000"
+
+    with httpx.Client(timeout=60.0) as client:  # Longer timeout for settlement
+        # Step 1: Request without token → 402
+        response1 = client.post(
+            f"{SERVER_URL}/ask",
+            json={"query": "What is 2+2?"}
+        )
+
+        if response1.status_code == 402:
+            # Step 2: Decode payment requirements
+            payment_required = json.loads(
+                base64.b64decode(
+                    response1.headers.get("payment-required")
+                ).decode()
+            )
+
+            plan_id = payment_required["accepts"][0]["planId"]
+            agent_id = payment_required["accepts"][0].get("extra", {}).get("agentId")
+
+            # Step 3: Generate x402 token
+            token_result = payments.x402.get_x402_access_token(plan_id, agent_id)
+            access_token = token_result["accessToken"]
+
+            # Step 4: Request with token → 200
+            response2 = client.post(
+                f"{SERVER_URL}/ask",
+                headers={"payment-signature": access_token},
+                json={"query": "What is 2+2?"}
+            )
+
+            data = response2.json()
+            print(f"Response: {data['response']}")
+
+            # Step 5: Decode settlement receipt
+            settlement = json.loads(
+                base64.b64decode(
+                    response2.headers.get("payment-response")
+                ).decode()
+            )
+            print(f"Credits used: {settlement.get('creditsRedeemed')}")
+
+if __name__ == "__main__":
+    call_protected_api()
+```
+
+## Environment Variables
+
+```bash filename=".env"
+# Nevermined (required)
+NVM_API_KEY=sandbox:your-api-key
+NVM_ENVIRONMENT=sandbox
+NVM_PLAN_ID=your-plan-id
+
+# Agent
+OPENAI_API_KEY=sk-your-openai-api-key
+PORT=3000
+```
+
+## Alternative: Manual Dependency Injection
+
+For more control or complex scenarios, you can use FastAPI's dependency injection instead of middleware:
+
+<Accordion title="Manual Dependency Injection Pattern">
+```python filename="src/dependencies/payment.py"
+from fastapi import Request, HTTPException, Depends
+from payments_py import Payments, PaymentOptions
+
+payments = Payments.get_instance(
+    PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
+)
+
+async def get_payment_proof(request: Request) -> str:
+    """Extract x402 payment proof from payment-signature header."""
+    payment_proof = request.headers.get('payment-signature')
+
+    if not payment_proof:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                'error': 'Payment Required',
+                'code': 'PAYMENT_REQUIRED',
+                'plans': [{'planId': os.environ['PLAN_ID']}]
+            }
+        )
+    return payment_proof
+
+async def validate_payment(
+    request: Request,
+    payment_proof: str = Depends(get_payment_proof)
+):
+    """Validate x402 payment proof."""
+    verification = payments.facilitator.verify_permissions(
+        x402_access_token=payment_proof,
+        max_amount="1"
+    )
+
+    if not verification.is_valid:
+        raise HTTPException(
+            status_code=402,
+            detail={'error': 'Payment verification failed'}
+        )
+    return verification
+```
+
+```python filename="src/routes/query.py"
+from fastapi import APIRouter, Depends
+from src.dependencies.payment import validate_payment
+
+router = APIRouter()
+
+@router.post("/query")
+async def query(request: dict, payment = Depends(validate_payment)):
+    # Your logic here - payment already verified
+    return {"result": "..."}
+```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Patterns" icon="code" href="/docs/integrate/patterns/charge-credits">
+    Advanced credit charging patterns
+  </Card>
+
+  <Card title="x402 Protocol" icon="link" href="/docs/development-guide/nevermined-x402">
+    Deep dive into x402 payment flows
+  </Card>
+
+  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
+    Configure credits, subscriptions, and dynamic pricing
+  </Card>
+
+  <Card title="http-simple-agent-py Tutorial" icon="github" href="https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent-py">
+    Complete working example on GitHub
+  </Card>
+</CardGroup>
