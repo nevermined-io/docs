@@ -14,32 +14,21 @@ Add payment protection to your Express.js API using the [x402 protocol](https://
 
 ## x402 Payment Flow
 
-```
-┌─────────┐                              ┌─────────┐
-│  Client │                              │  Agent  │
-└────┬────┘                              └────┬────┘
-     │                                        │
-     │  1. POST /ask (no token)               │
-     │───────────────────────────────────────>│
-     │                                        │
-     │  2. 402 Payment Required               │
-     │     Header: payment-required (base64)  │
-     │<───────────────────────────────────────│
-     │                                        │
-     │  3. Generate x402 token via SDK        │
-     │                                        │
-     │  4. POST /ask                          │
-     │     Header: payment-signature (token)  │
-     │───────────────────────────────────────>│
-     │                                        │
-     │     - Verify permissions               │
-     │     - Execute request                  │
-     │     - Settle (burn credits)            │
-     │                                        │
-     │  5. 200 OK + AI response               │
-     │     Header: payment-response (base64)  │
-     │<───────────────────────────────────────│
-     │                                        │
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Agent
+
+    Client->>Agent: 1. POST /ask (no token)
+    Agent-->>Client: 2. 402 Payment Required<br/>Header: payment-required (base64)
+
+    Note over Client: 3. Generate x402 token via SDK
+
+    Client->>Agent: 4. POST /ask<br/>Header: payment-signature (token)
+
+    Note over Agent: Verify permissions<br/>Execute request<br/>Settle (burn credits)
+
+    Agent-->>Client: 5. 200 OK + AI response<br/>Header: payment-response (base64)
 ```
 
 ## Installation
