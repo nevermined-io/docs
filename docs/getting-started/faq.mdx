@@ -84,6 +84,10 @@ Nevermined uses [Stripe Connect](https://stripe.com/connect) to route fiat payme
 
 <Accordion title="Can I use Stripe Connect in the sandbox environment?">
   Yes. You can connect a Stripe account in the sandbox environment to test the full fiat payment flow. Sandbox transactions use [Stripe test cards](https://stripe.com/docs/testing#international-cards), so no real money is charged.
+
+  <Note>
+    When testing in sandbox, Stripe validates your inputs even in test mode. Use the test values provided by Stripe to pass all validations — for example, the personal ID or SSN must be `000000000`. See the [full list of Stripe test values](https://docs.stripe.com/connect/testing?accounts-namespace=v2).
+  </Note>
 </Accordion>
 
 <Accordion title="Can I disconnect or change my Stripe account?">
