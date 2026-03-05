@@ -821,26 +821,25 @@ Plans with fiat pricing (`isCrypto: false`) use `nvm:card-delegation` (Stripe).
 
 ## Complete Examples
 
-Working examples with server, client, and decorator demos:
+Working seller/buyer agents with LangGraph — includes both Python and TypeScript variants:
 
 <Tabs>
   <Tab title="TypeScript">
-    - [langchain-agent-ts](https://github.com/nevermined-io/hackathons/tree/main/agents/langchain-agent-ts) — LangChain + `bindTools()` tool-call loop
-    - [langgraph-agent-ts](https://github.com/nevermined-io/hackathons/tree/main/agents/langgraph-agent-ts) — LangGraph `createReactAgent`
+    - [seller-simple-agent/ts](https://github.com/nevermined-io/hackathons/tree/main/agents/seller-simple-agent/ts) — Seller with `paymentMiddleware` + `requiresPayment` demo
+    - [buyer-simple-agent/ts](https://github.com/nevermined-io/hackathons/tree/main/agents/buyer-simple-agent/ts) — Buyer CLI agent with x402 token generation
 
     Each includes:
-    - `src/demo.ts` — Wrapper-based demo (direct tool invocation)
-    - `src/server.ts` — Express server with `paymentMiddleware`
+    - `src/server.ts` / `src/agent.ts` — LangGraph `createReactAgent` with payment-protected tools
+    - `src/demo.ts` — `requiresPayment` wrapper demo (seller only)
     - `src/client.ts` — HTTP client with full x402 payment flow
   </Tab>
   <Tab title="Python">
-    - [langchain-agent](https://github.com/nevermined-io/hackathons/tree/main/agents/langchain-agent) — LangChain + `bind_tools()` tool-call loop
-    - [langgraph-agent](https://github.com/nevermined-io/hackathons/tree/main/agents/langgraph-agent) — LangGraph `create_react_agent`
+    - [seller-simple-agent](https://github.com/nevermined-io/hackathons/tree/main/agents/seller-simple-agent) — `src/langgraph_agent.py` with `@requires_payment` decorator
+    - [buyer-simple-agent](https://github.com/nevermined-io/hackathons/tree/main/agents/buyer-simple-agent) — `src/langgraph_agent.py` with buyer tools
 
     Each includes:
-    - `src/demo.py` — Decorator-based demo (direct tool invocation)
-    - `src/server.py` — FastAPI server with `PaymentMiddleware`
-    - `src/client.py` — HTTP client with full x402 payment flow
+    - `src/langgraph_agent.py` — LangGraph `create_react_agent` with payment-protected tools
+    - `src/agent_langgraph.py` — Interactive CLI entry point
   </Tab>
 </Tabs>
 
