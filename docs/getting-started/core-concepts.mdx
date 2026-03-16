@@ -55,7 +55,7 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
 
 <CardGroup cols={2}>
   <Card title="Payment Method" icon="credit-card">
-    Choose whether customers pay in [**Fiat**](/docs/integrate/patterns/fiat-payments) (via Stripe) or [**Crypto**](/docs/integrate/patterns/stablecoin-payments) (stablecoins like USDC).
+    Choose whether customers pay in [**Fiat**](/docs/integrate/patterns/fiat-payments) (USD or EUR via Stripe) or [**Crypto**](/docs/integrate/patterns/stablecoin-payments) (stablecoins like USDC or EURC).
   </Card>
   <Card title="Pricing & Receivers" icon="sack-dollar">
     Define price, payout currency, and how revenue is distributed across one or more receivers.
@@ -84,7 +84,7 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
   <Accordion title="Pay-as-you-go (PAYG)">
     Ideal when you want to avoid pre-purchased credits and settle usage as it occurs:
 
-    - **Per-request settlement**: settle in USDC as each request happens
+    - **Per-request settlement**: settle in USDC or EURC as each request happens
     - **No credit balance**: customers pay on demand rather than topping up credits
   </Accordion>
   <Accordion title="Time-Based Plans">
@@ -140,6 +140,6 @@ Nevermined supports two payment methods, each optimized for different audiences:
   </Card>
 
   <Card title="Stablecoin Payments" icon="coins" href="/docs/integrate/patterns/stablecoin-payments">
-    Accept USDC, USDT, or any ERC-20 token on-chain. Lowest fees and full transparency for crypto-native users and agent-to-agent commerce.
+    Accept USDC, EURC, USDT, or any ERC-20 token on-chain. Lowest fees and full transparency for crypto-native users and agent-to-agent commerce.
   </Card>
 </CardGroup>
