@@ -118,7 +118,7 @@ You can also create plans priced in EUR (fiat) or EURC (Euro stablecoin):
 
     # EUR fiat plan (priced in euro cents)
     eur_price_config = get_fiat_price_config(2900, builder_address, Currency.EUR)
-    eur_plan = payments.plans.register_credits_plan(
+    eur_plan = payments_builder.plans.register_credits_plan(
         PlanMetadata(name="EUR Credits Plan"),
         eur_price_config,
         get_fixed_credits_config(100)
@@ -130,7 +130,7 @@ You can also create plans priced in EUR (fiat) or EURC (Euro stablecoin):
         builder_address,
         EURC_TOKEN_ADDRESS_TESTNET     # Testnet address for sandbox
     )
-    eurc_plan = payments.plans.register_credits_plan(
+    eurc_plan = payments_builder.plans.register_credits_plan(
         PlanMetadata(name="EURC Credits Plan"),
         eurc_price_config,
         get_fixed_credits_config(100)
