@@ -237,7 +237,7 @@ The `nvm` claims are namespaced under a single `nvm` object within the JWT paylo
 
 ### 4.1 Overview
 
-The protocol flow extends standard x402 with a card enrollment phase and replaces on-chain settlement with Stripe PaymentIntents:
+The protocol flow extends standard x402 with a card enrollment phase and replaces on-chain settlement with an external Payments Service Provider (PSP). Initially we are using Stripe PaymentIntents but the design allows for other providers (i.e Paypal Braintree) to be added in the future:
 
 ```mermaid
 ---
@@ -250,25 +250,26 @@ sequenceDiagram
   actor client as Client
   participant facilitator as Facilitator (Nevermined API)
   participant vgs as VGS Proxy
-  participant stripe as Stripe
+  participant psp as PSP (Stripe, Braintree, ..)
   participant server as Server (AI Agent)
 
   %% PHASE 0: CARD ENROLLMENT
   rect rgb(240, 248, 255)
-    note over client,stripe: Phase 0: Card Enrollment
+    note over client,psp: Phase 0: Card Enrollment
     client->>facilitator: POST /payments/card/setup
-    facilitator->>stripe: Create SetupIntent
-    stripe-->>facilitator: SetupIntent (client_secret)
+    facilitator->>psp: Create SetupIntent
+    psp-->>facilitator: SetupIntent (client_secret)
     facilitator-->>client: SetupIntent client_secret
 
-    client->>vgs: Submit card details (via VGS proxy)
-    vgs->>stripe: Confirm SetupIntent with tokenized card
-    stripe-->>vgs: SetupIntent confirmed (PaymentMethod)
+    note over vgs: PI captured by VGS Collect directly (PCI Compliant)
+    client->>vgs: Submit card details (using VGS Collect)
+    vgs->>psp: Confirm SetupIntent with tokenized card
+    psp-->>vgs: SetupIntent confirmed (PaymentMethod)
     vgs-->>client: Confirmation
 
     client->>facilitator: POST /payments/card/enroll (SetupIntent ID)
-    facilitator->>stripe: Retrieve PaymentMethod
-    stripe-->>facilitator: PaymentMethod details
+    facilitator->>psp: Retrieve PaymentMethod
+    psp-->>facilitator: PaymentMethod details
     facilitator->>facilitator: Store customer + payment method mapping
     facilitator-->>client: Enrollment confirmed
   end
@@ -306,7 +307,7 @@ sequenceDiagram
 
   %% PHASE 3: SETTLEMENT
   rect rgb(255, 240, 255)
-    note over server,stripe: Phase 3: Settlement (Credit-Based)
+    note over server,psp: Phase 3: Settlement (Credit-Based)
     server->>server: Execute work (AI task, etc.)
     server->>facilitator: /settle (paymentRequired + paymentPayload + maxAmount)
 
@@ -315,13 +316,13 @@ sequenceDiagram
     facilitator->>facilitator: Check on-chain credit balance
 
     alt Insufficient credits
-      facilitator->>stripe: Create PaymentIntent (plan price)
-      alt Stripe failure
-        stripe-->>facilitator: Payment failed
+      facilitator->>psp: Create PaymentIntent (plan price)
+      alt PSP failure
+        psp-->>facilitator: Payment failed
         facilitator-->>server: Settlement failed
         server-->>client: HTTP 402 + PAYMENT-REQUIRED header
-      else Stripe success
-        stripe-->>facilitator: PaymentIntent succeeded
+      else PSP success
+        psp-->>facilitator: PaymentIntent succeeded
         facilitator->>facilitator: Mint credits on-chain
       end
     end
@@ -353,13 +354,13 @@ Host: facilitator.example.com
 Authorization: Bearer <user-auth-token>
 ```
 
-**Step 2.** Facilitator creates a Stripe SetupIntent and returns the `client_secret` to the client.
+**Step 2.** Facilitator creates a SetupIntent and returns the `client_secret` to the client.
 
 **Step 3.** Client submits card details through a VGS (Very Good Security) proxy. The VGS proxy tokenizes the card data before it reaches any Nevermined infrastructure, ensuring PCI compliance.
 
-**Step 4.** VGS forwards the tokenized card data to Stripe to confirm the SetupIntent.
+**Step 4.** VGS forwards the tokenized card data to the PSP to confirm the SetupIntent.
 
-**Step 5.** Stripe confirms the SetupIntent and attaches the PaymentMethod.
+**Step 5.** PSP confirms the SetupIntent and attaches the PaymentMethod.
 
 **Step 6.** Client notifies the facilitator that enrollment is complete.
 
@@ -374,7 +375,7 @@ Content-Type: application/json
 }
 ```
 
-**Step 7.** Facilitator retrieves the confirmed PaymentMethod from Stripe and stores the customer-to-payment-method mapping.
+**Step 7.** Facilitator retrieves the confirmed PaymentMethod from the PSP and stores the customer-to-payment-method mapping.
 
 **Step 8.** Facilitator confirms enrollment to the client.
 
@@ -546,9 +547,9 @@ The `maxAmount` specifies the number of **credits** to burn for this request (no
 **Step 27.** IF balance is insufficient for the requested `maxAmount`:
   - Calculate plan price in cents from `plan.price.amounts`
   - Atomically increment the delegation's spend counter (card charge ceiling)
-  - Create an off-session Stripe PaymentIntent to charge the card for the plan price
-  - On Stripe failure: roll back spend counter, return settlement failure
-  - On Stripe success: mint credits to the subscriber's blockchain address
+  - Create an off-session PSP PaymentIntent to charge the card for the plan price
+  - On PSP failure: roll back spend counter, return settlement failure
+  - On PSP success: mint credits to the subscriber's blockchain address
   - Wait for the credit balance to update on-chain
 
 **Step 28.** Facilitator burns the requested credits on-chain using the burn session key from the token's `authorization.sessionKeys`.
@@ -657,8 +658,8 @@ When executing settlement, the facilitator MUST:
 5. If balance is insufficient for `maxAmount`:
    a. Calculate plan price: `sum(plan.price.amounts)` (in cents)
    b. Atomically increment delegation spend counter
-   c. Create off-session Stripe PaymentIntent for the plan price
-   d. On Stripe failure: roll back spend counter, return error
+   c. Create off-session PSP PaymentIntent for the plan price
+   d. On PSP failure: roll back spend counter, return error
    e. Mint credits to subscriber using the node account
    f. Wait for balance update on-chain
 6. Burn credits on-chain using the burn session key
@@ -667,7 +668,7 @@ When executing settlement, the facilitator MUST:
 ### 6.2 Atomicity
 
 <Warning>
-The spend counter MUST be incremented atomically BEFORE the Stripe PaymentIntent is created. If the Stripe charge fails, the spend counter MUST be rolled back. This prevents race conditions where concurrent requests could exceed spending limits.
+The spend counter MUST be incremented atomically BEFORE the PSP PaymentIntent is created. If the PSP charge fails, the spend counter MUST be rolled back. This prevents race conditions where concurrent requests could exceed spending limits.
 </Warning>
 
 ### 6.3 Delegation Lifecycle
@@ -685,7 +686,7 @@ The facilitator MUST update the delegation status to `Exhausted` when:
 - `spentCents >= nvm.spendingLimitCents`
 - Transaction count reaches `nvm.maxTransactions` (if set)
 
-### 6.4 Stripe Connect Routing
+### 6.4 PSP Connect Routing
 
 When `nvm.merchantAccountId` is present, the facilitator MUST route funds to the merchant's Stripe Connected Account using Stripe Connect's `transfer_data` parameter. The facilitator MAY apply platform fees via the `application_fee_amount` parameter.
 
@@ -704,7 +705,7 @@ Additional settlement details MAY be included in the response body:
 |-------|------|-------------|
 | `creditsRedeemed` | `string` | Number of credits burned on-chain. |
 | `remainingBalance` | `string` | Subscriber's remaining credit balance. |
-| `orderTx` | `string` | Stripe PaymentIntent ID if auto top-up occurred (only present when card was charged). |
+| `orderTx` | `string` | PSP PaymentIntent ID if auto top-up occurred (only present when card was charged). |
 | `transaction` | `string` | Blockchain transaction hash of the credit burn. |
 
 ## 7. Error Handling
@@ -723,10 +724,10 @@ Additional settlement details MAY be included in the response body:
 | `MINT_FAILED` | Mint Failed | Credit minting failed after successful card charge |
 | `BURN_FAILED` | Burn Failed | On-chain credit burn failed |
 | `TRANSACTION_LIMIT_REACHED` | Transaction Limit Reached | The maximum number of transactions has been reached |
-| `PAYMENT_FAILED` | Payment Failed | Stripe PaymentIntent creation or confirmation failed |
+| `PAYMENT_FAILED` | Payment Failed | PSP PaymentIntent creation or confirmation failed |
 | `CARD_DECLINED` | Card Declined | The card was declined by the issuing bank |
 | `CURRENCY_MISMATCH` | Currency Mismatch | The request currency does not match the delegation currency |
-| `MERCHANT_ACCOUNT_INVALID` | Merchant Account Invalid | The specified Stripe Connected Account is invalid or inactive |
+| `MERCHANT_ACCOUNT_INVALID` | Merchant Account Invalid | The specified PSP Connected Account is invalid or inactive |
 
 ### 7.2 Error Response Format
 
@@ -762,22 +763,22 @@ Additional settlement details MAY be included in the response body:
 
 ### 8.3 Atomic Operations
 
-- The spend counter increment and Stripe PaymentIntent creation MUST be treated as a logical unit
-- If the Stripe charge fails after the counter is incremented, the counter MUST be rolled back
+- The spend counter increment and PSP PaymentIntent creation MUST be treated as a logical unit
+- If the PSP charge fails after the counter is incremented, the counter MUST be rolled back
 - Concurrent settlement requests for the same delegation MUST be serialized or use optimistic concurrency control
 
 ### 8.4 PCI Compliance
 
 - Raw card numbers (PAN), CVV, and expiry dates MUST NEVER be transmitted to or stored by the facilitator
 - Card enrollment MUST use a PCI-compliant proxy (VGS) that tokenizes card data before it reaches Nevermined infrastructure
-- Only Stripe-issued tokens (Customer IDs, PaymentMethod IDs) are stored by the facilitator
+- Only PSP-issued tokens (Customer IDs, PaymentMethod IDs) are stored by the facilitator
 - The facilitator MUST maintain PCI DSS compliance for the handling of any cardholder data references
 
 ### 8.5 Delegation Revocation
 
 - Clients MUST be able to revoke delegations at any time
 - Revoked delegations MUST immediately fail verification
-- In-flight settlements at the time of revocation MAY complete if the Stripe PaymentIntent has already been confirmed
+- In-flight settlements at the time of revocation MAY complete if the PSP PaymentIntent has already been confirmed
 
 ### 8.6 Session Key Security
 

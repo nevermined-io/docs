@@ -242,8 +242,11 @@ The CLI provides helper commands to build price configuration objects:
 # Free (no payment required)
 nvm plans get-free-price-config
 
-# Fiat price
+# Fiat price (USD, default)
 nvm plans get-fiat-price-config --amount 1000 --receiver "0x123..."
+
+# Fiat price (EUR)
+nvm plans get-fiat-price-config --amount 2900 --receiver "0x123..." --currency EUR
 
 # Crypto price
 nvm plans get-crypto-price-config --amount 1000 --receiver "0x123..."
