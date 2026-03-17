@@ -247,7 +247,7 @@ The plan can be priced in three ways: `"fiat"` sets the price in USD or EUR cent
 | `priceAmount` | string | **Yes** | Price in cents for fiat (e.g. "100" = $1.00), in token smallest unit for crypto |
 | `receiver` | string | **Yes** | Receiver wallet address (0x...) |
 | `creditsAmount` | number | **Yes** | Number of credits in the plan |
-| `pricingType` | string | No | `"fiat"` for Stripe/USD, `"erc20"` for ERC20 tokens, `"crypto"` for native token (default) |
+| `pricingType` | string | No | `"fiat"` for Stripe (USD or EUR), `"erc20"` for ERC20 tokens, `"crypto"` for native token (default) |
 | `accessLimit` | string | No | `"credits"` (default) or `"time"` |
 | `tokenAddress` | string | No | ERC20 token contract address. Required when pricingType is "erc20". |
 
