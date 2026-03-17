@@ -79,7 +79,7 @@ Most users will not need to call this tool directly — `nevermined_queryAgent` 
 | `agentId` | string | No | Config `agentId` | The agent ID |
 | `paymentType` | string | No | Config `paymentType` or `"crypto"` | `"crypto"` (nvm:erc4337 scheme) or `"fiat"` (nvm:card-delegation scheme) |
 | `paymentMethodId` | string | No | Auto-selects first enrolled card | Stripe payment method ID (`pm_...`). Only used for fiat. |
-| `spendingLimitCents` | number | No | Config `defaultSpendingLimitCents` or `1000` | Max spend in cents (USD or EUR cents). Only used for fiat. |
+| `spendingLimitCents` | number | No | Config `defaultSpendingLimitCents` or `1000` | Max fiat spend in cents; currency matches your enrolled card (e.g., USD or EUR cents). Only used for fiat. |
 | `delegationDurationSecs` | number | No | Config `defaultDelegationDurationSecs` or `3600` | Delegation duration in seconds. Only used for fiat. |
 
 **Example prompt:**
