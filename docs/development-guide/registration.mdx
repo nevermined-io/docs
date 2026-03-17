@@ -114,7 +114,7 @@ You can also create plans priced in EUR (fiat) or EURC (Euro stablecoin):
   <Tab title="Python">
     ```python
     from payments_py.common.types import Currency, EURC_TOKEN_ADDRESS_TESTNET
-    from payments_py.plans import get_fiat_price_config, get_eurc_price_config, get_fixed_credits_config
+    from payments_py.plans import PlanMetadata, get_fiat_price_config, get_eurc_price_config, get_fixed_credits_config
 
     # EUR fiat plan (priced in euro cents)
     eur_price_config = get_fiat_price_config(2900, builder_address, Currency.EUR)
