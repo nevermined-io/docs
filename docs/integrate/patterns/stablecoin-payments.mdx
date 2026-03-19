@@ -37,8 +37,8 @@ Accept USDC, EURC, or any ERC-20 token directly on-chain. Stablecoin payments ar
     The subscriber funds their Nevermined smart account with ERC-20 tokens (USDC, EURC, or another supported token). This account is an ERC-4337 smart account that supports programmable permissions.
   </Step>
 
-  <Step title="Create session keys">
-    The subscriber generates scoped session keys that grant the facilitator permission to execute specific actions (order plans, burn credits, redeem access) on their behalf. Each key follows the principle of least privilege.
+  <Step title="Create a delegation">
+    The subscriber creates a delegation that grants the facilitator permission to execute specific actions (order plans, burn credits, redeem access) on their behalf. Each delegation is scoped by spending limits and duration, following the principle of least privilege.
   </Step>
 
   <Step title="Payment settles on-chain">
@@ -46,7 +46,7 @@ Accept USDC, EURC, or any ERC-20 token directly on-chain. Stablecoin payments ar
   </Step>
 
   <Step title="Credits consumed per request">
-    Each API call or agent query burns credits according to the plan configuration. If the subscriber's balance runs low, the system can auto-order more credits (if the wallet has sufficient balance and the session key permits it).
+    Each API call or agent query burns credits according to the plan configuration. If the subscriber's balance runs low, the system can auto-order more credits (if the wallet has sufficient balance and the delegation permits it).
   </Step>
 </Steps>
 
@@ -65,20 +65,30 @@ Nevermined supports any ERC-20 token on Base. If you need to accept a custom tok
 
 ## Permission Model
 
-Session keys are the core of the stablecoin permission model. Instead of giving the facilitator full control over a wallet, subscribers create scoped keys that limit exactly what can be done.
+Delegations are the core of the stablecoin permission model. Instead of giving the facilitator full control over a wallet, subscribers create scoped delegations that limit exactly what can be done. The delegation model is shared between crypto (`erc4337`) and fiat (`stripe`) payment providers.
 
-Each session key enforces the **principle of least privilege** through three limits:
+Each delegation enforces the **principle of least privilege** through two limits:
 
 | Limit | Description |
 |-------|-------------|
-| `orderLimit` | Maximum token amount the key can spend on plan purchases |
-| `redemptionLimit` | Maximum number of credit burn or redeem operations the key can perform |
-| `expiresAt` | Expiration date after which the key becomes invalid |
+| `spendingLimitCents` | Maximum total amount (in cents) that can be spent across all transactions |
+| `durationSecs` | Duration in seconds after which the delegation expires |
 
-When any limit is reached, the session key stops working. The subscriber must generate a new one with fresh limits to continue.
+When the spending limit is exhausted or the delegation expires, it stops working. The subscriber must create a new delegation with fresh limits to continue.
+
+Delegations are created via the SDK before generating an x402 access token:
+
+```typescript
+// Create a delegation for crypto payments
+const delegation = await payments.delegation.createDelegation({
+  provider: 'erc4337',
+  spendingLimitCents: 10000,
+  durationSecs: 604800  // 7 days
+})
+```
 
 <Note>
-Session keys are revocable at any time by the smart account owner. You always retain full control over your wallet.
+Delegations are revocable at any time by the smart account owner. You always retain full control over your wallet. Under the hood, delegations create the appropriate session keys for the chosen provider.
 </Note>
 
 ## Fees and Settlement
@@ -124,13 +134,13 @@ Because there's no payment processor in the middle, stablecoin payments carry no
 When a subscriber's credit balance runs low, the system can automatically purchase more credits on their behalf. This happens seamlessly if:
 
 - The subscriber's wallet has sufficient token balance
-- The active session key has remaining `orderLimit` capacity
+- The active delegation has remaining spending capacity (`spendingLimitCents` not exhausted)
 - The plan supports re-ordering
 
 This keeps agent-to-agent workflows running without interruption.
 
 <Warning>
-If the session key's `orderLimit` or `redemptionLimit` is exhausted, auto-ordering stops. The subscriber must create a new session key with fresh limits to resume.
+If the delegation's `spendingLimitCents` is exhausted or the delegation has expired, auto-ordering stops. The subscriber must create a new delegation with fresh limits to resume.
 </Warning>
 
 ## Next Steps

@@ -1,16 +1,21 @@
 ---
-title: "x402 Card Delegation Extension"
-description: "Specification for extending x402 with credit card delegation via Stripe for fiat-based payment settlement"
-icon: "credit-card"
+title: "x402 Delegation Extension"
+description: "Specification for extending x402 with delegated payment permissions for both crypto (ERC-4337) and fiat (Stripe) settlement"
+icon: "key"
 ---
 
 ## Abstract
 
-This specification defines a **card-delegation extension** to the [x402 protocol](https://x402.org/) that enables payment settlement through on-chain credit burns, with automatic card-funded credit top-ups when the subscriber's balance is insufficient. While standard x402 settles payments via EIP-3009 ERC-20 token transfers and the smart accounts extension uses ERC-4337 UserOperations with crypto-funded ordering, this extension allows the ordering step to be funded via Stripe PaymentIntents backed by pre-authorized card delegations.
+This specification defines a **delegation extension** to the [x402 protocol](https://x402.org/) that enables payment settlement through on-chain credit burns with delegated spending permissions. The delegation model is shared between crypto and fiat payment providers:
 
-The scheme identifier is: `nvm:card-delegation`
+- **Crypto delegations** (`provider: 'erc4337'`): Use ERC-4337 smart accounts and session keys for on-chain settlement, with crypto-funded ordering when the subscriber's balance is insufficient.
+- **Fiat delegations** (`provider: 'stripe'`): Use Stripe PaymentIntents backed by pre-authorized card delegations for automatic card-funded credit top-ups when the subscriber's balance is insufficient.
 
-The extension is designed to be **fully compatible** with existing x402 clients and servers, requiring only the addition of the `nvm:card-delegation` extension payload.
+Both providers use the same `DelegationConfig` interface with `spendingLimitCents` and `durationSecs` to control delegation scope.
+
+The fiat scheme identifier is: `nvm:card-delegation`
+
+The extension is designed to be **fully compatible** with existing x402 clients and servers, requiring only the addition of the delegation extension payload.
 
 ```
 Version: 0.1
@@ -42,7 +47,7 @@ Many real-world payment scenarios involve users and organizations that prefer or
 - **Budgetary controls** --- organizations need spending limits, approval workflows, and reconciliation against traditional accounting systems
 - **Instant onboarding** --- new users can start consuming services immediately with an existing payment card, without acquiring tokens
 
-This extension enables these use cases by funding on-chain credit purchases via Stripe PaymentIntents, authorized through pre-established card delegations managed by the facilitator. Settlement itself uses the same on-chain credit burn mechanism as the smart accounts extension.
+This extension enables these use cases by funding on-chain credit purchases via Stripe PaymentIntents, authorized through pre-established delegations managed by the facilitator. Settlement itself uses the same on-chain credit burn mechanism as the smart accounts extension. The delegation model (`DelegationConfig`) is shared across both crypto and fiat providers, providing a unified interface for creating and managing payment permissions.
 
 ### 1.3 Design Goals
 
@@ -73,7 +78,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 | Term | Definition |
 |------|------------|
-| **Delegation** | A pre-authorized permission granting the facilitator the ability to charge a client's card within defined spending limits and time constraints. |
+| **Delegation** | A pre-authorized permission granting the facilitator the ability to execute payment operations on behalf of a client, within defined spending limits and time constraints. Delegations use the unified `DelegationConfig` interface for both crypto (`erc4337`) and fiat (`stripe`) providers. |
 | **SetupIntent** | A Stripe object used to collect and confirm a customer's payment method for future off-session charges, without immediately charging the card. |
 | **PaymentIntent** | A Stripe object representing the intent to collect a payment. Used during settlement to charge the delegated card. |
 | **Off-session payment** | A Stripe payment executed without the cardholder being actively present, using a previously saved payment method. |
@@ -220,7 +225,7 @@ The `token` field contains a signed JWT with the following claims:
 | `iat` | `number` | Yes | Issued-at timestamp (Unix epoch seconds). |
 | `exp` | `number` | Yes | Expiration timestamp (Unix epoch seconds). |
 | `nvm.delegationId` | `string` | Yes | Unique delegation identifier (UUID). MUST match the `jti` claim. |
-| `nvm.provider` | `string` | Yes | Payment provider identifier. MUST be `"stripe"`. |
+| `nvm.provider` | `string` | Yes | Payment provider identifier. MUST be `"stripe"` or `"erc4337"`. |
 | `nvm.providerCustomerId` | `string` | Yes | Stripe Customer ID (e.g., `"cus_PaBcDeFgHiJk"`). |
 | `nvm.providerPaymentMethodId` | `string` | Yes | Stripe PaymentMethod ID for the enrolled card (e.g., `"pm_1AbCdEfGhIjKlM"`). |
 | `nvm.spendingLimitCents` | `number` | Yes | Maximum amount in cents that can be charged over the delegation lifetime. |
@@ -387,7 +392,30 @@ Card enrollment only needs to happen once per payment method. A single enrolled 
 
 #### Phase 1: Delegation Creation (Steps 9-12)
 
-**Step 9.** Client requests a delegation from the facilitator, specifying the scheme, spending limits, and optional constraints. The request body follows the `GenerateX402TokenDto` structure, where `accepted` identifies the payment scheme and `delegationConfig` contains card-delegation-specific options.
+**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'stripe'` or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across both providers.
+
+Alternatively, the client can use `getX402AccessToken` with an inline `delegationConfig` to auto-create a delegation during token generation.
+
+**Using the `createDelegation` API directly:**
+
+```http
+POST /api/v1/payments/delegation HTTP/1.1
+Host: facilitator.example.com
+Authorization: Bearer <user-auth-token>
+Content-Type: application/json
+
+{
+  "provider": "stripe",
+  "spendingLimitCents": 10000,
+  "durationSecs": 2592000,
+  "providerPaymentMethodId": "pm_1AbCdEfGhIjKlM",
+  "currency": "usd",
+  "maxTransactions": 100,
+  "merchantAccountId": "acct_1AbCdEfGhIjKlM"
+}
+```
+
+**Using `getX402AccessToken` with inline delegation (combines Steps 9-12):**
 
 ```http
 POST /x402/permissions HTTP/1.1
@@ -410,12 +438,7 @@ Content-Type: application/json
     }
   },
   "delegationConfig": {
-    "providerPaymentMethodId": "pm_1AbCdEfGhIjKlM",
-    "spendingLimitCents": 10000,
-    "durationSecs": 2592000,
-    "currency": "usd",
-    "maxTransactions": 100,
-    "merchantAccountId": "acct_1AbCdEfGhIjKlM"
+    "delegationId": "deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6"
   }
 }
 ```

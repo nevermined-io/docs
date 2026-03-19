@@ -154,7 +154,9 @@ After each paywall-protected call, the SDK injects a `_meta` field into the resp
 ### Get Access Token
 
 ```typescript
-const { accessToken } = await paymentsClient.x402.getX402AccessToken(planId, agentId)
+const { accessToken } = await paymentsClient.x402.getX402AccessToken(planId, agentId, {
+  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+})
 ```
 
 ### Connect with MCP Client

@@ -107,13 +107,13 @@ Card delegation is what enables fiat-based agent-to-agent payments. An agent own
 
 ## Permission Model
 
-Card delegations enforce strict spending limits to protect the cardholder. Each delegation has three controls:
+Delegations enforce strict spending limits to protect the cardholder. The delegation model (`DelegationConfig`) is shared between crypto and fiat payment providers. Each delegation has the following controls:
 
 | Limit | Description |
 |-------|-------------|
 | `spendingLimitCents` | Maximum total amount (in cents) that can be charged across all transactions |
-| `maxTransactions` | Maximum number of individual charges allowed |
-| `expiresAt` | Expiration date after which the delegation becomes invalid |
+| `durationSecs` | Duration in seconds after which the delegation expires |
+| `maxTransactions` | (Optional) Maximum number of individual charges allowed |
 
 A delegation moves through a simple lifecycle:
 
@@ -181,8 +181,8 @@ Fiat payments carry higher fees than stablecoin payments (2% + Stripe fees vs. 1
     Accept crypto payments with the lowest fees and on-chain transparency
   </Card>
 
-  <Card title="x402 Card Delegation Spec" icon="file-lines" href="/docs/specs/x402-card-delegation">
-    Full technical specification for the card delegation extension
+  <Card title="x402 Delegation Spec" icon="file-lines" href="/docs/specs/x402-card-delegation">
+    Full technical specification for the delegation extension (crypto and fiat)
   </Card>
 
   <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">

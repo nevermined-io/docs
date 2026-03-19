@@ -126,7 +126,7 @@ Every Nevermined payment integration follows this 5-step pattern:
 
 1. **Client sends request** without a payment token
 2. **Server returns 402** with `payment-required` header (base64-encoded JSON with plan info)
-3. **Client acquires x402 token** via `payments.x402.getX402AccessToken(planId, agentId)`
+3. **Client acquires x402 token** via `payments.x402.getX402AccessToken(planId, agentId, { delegationConfig })` — requires a delegation (either an existing `delegationId` or `spendingLimitCents` + `durationSecs` to auto-create one)
 4. **Client retries** with `payment-signature` header containing the token
 5. **Server verifies → executes → settles** (burns credits), returns response with `payment-response` header
 
@@ -142,7 +142,7 @@ Choose the integration that matches your stack:
 | **MCP Server** | TypeScript | `references/mcp-paywall.md` | `payments.mcp.start()` / `payments.mcp.registerTool()` |
 | **Google A2A** | TS / Python | `references/a2a-integration.md` | `payments.a2a.start()` / `payments.a2a.buildPaymentAgentCard()` |
 | **Any HTTP** | Any | `references/x402-protocol.md` | Manual verify/settle via facilitator API |
-| **Client-side** | TS / Python | `references/client-integration.md` | `payments.x402.getX402AccessToken()` |
+| **Client-side** | TS / Python | `references/client-integration.md` | `payments.x402.getX402AccessToken()` with `delegationConfig` |
 
 ## SDK Quick Reference
 
@@ -160,7 +160,9 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
 // Subscriber: order plan and get token
 await payments.plans.orderPlan(planId)
 const balance = await payments.plans.getPlanBalance(planId)
-const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+})
 
 // Server: verify and settle
 const verification = await payments.facilitator.verifyPermissions({
@@ -189,6 +191,8 @@ await client.sendMessage("Hello", accessToken)
 ### Python (`payments-py`)
 
 ```python
+from payments_py.x402 import DelegationConfig, X402TokenOptions
+
 # Initialize
 payments = Payments.get_instance(PaymentOptions(nvm_api_key=key, environment="sandbox"))
 
@@ -200,7 +204,12 @@ result = payments.agents.register_agent_and_plan(
 # Subscriber: order plan and get token
 payments.plans.order_plan(plan_id)
 balance = payments.plans.get_plan_balance(plan_id)
-token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+token_res = payments.x402.get_x402_access_token(
+    plan_id, agent_id,
+    token_options=X402TokenOptions(
+        delegation_config=DelegationConfig(spending_limit_cents=10000, duration_secs=604800)
+    )
+)
 
 # Server: verify and settle
 verification = payments.facilitator.verify_permissions(
@@ -400,7 +409,9 @@ const client = payments.a2a.getClient({
   planId: PLAN_ID,
 })
 
-const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID)
+const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
+  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+})
 const response = await client.sendMessage("Analyze this data", accessToken)
 ```
 
@@ -508,7 +519,7 @@ curl -X POST http://localhost:3000/chat \
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| HTTP 402 returned | No `payment-signature` header or invalid/expired token | Generate a fresh token via `getX402AccessToken` |
+| HTTP 402 returned | No `payment-signature` header or invalid/expired token | Generate a fresh token via `getX402AccessToken` with `delegationConfig` |
 | MCP error `-32003` | Payment Required — no token, invalid token, or insufficient credits | Check subscriber has purchased plan and has credits remaining |
 | MCP error `-32002` | Server misconfiguration | Verify `NVM_API_KEY`, `NVM_PLAN_ID`, and `NVM_AGENT_ID` are set correctly |
 | `verification.isValid` is false | Token expired, wrong plan, or insufficient credits | Re-order the plan or generate a new token |
