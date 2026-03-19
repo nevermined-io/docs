@@ -79,7 +79,7 @@ Most users will not need to call this tool directly — `nevermined_queryAgent` 
 | `agentId` | string | No | Config `agentId` | The agent ID |
 | `paymentType` | string | No | Config `paymentType` or `"crypto"` | `"crypto"` (nvm:erc4337 scheme) or `"fiat"` (nvm:card-delegation scheme) |
 | `paymentMethodId` | string | No | Auto-selects first enrolled card | Stripe payment method ID (`pm_...`). Only used for fiat. |
-| `spendingLimitCents` | number | No | Config `defaultSpendingLimitCents` or `1000` | Max fiat spend in cents; currency matches your enrolled card (e.g., USD or EUR cents). Only used for fiat. |
+| `spendingLimitCents` | number | No | Config `defaultSpendingLimitCents` or `1000` | Max spend in cents. Only used for fiat. |
 | `delegationDurationSecs` | number | No | Config `defaultDelegationDurationSecs` or `3600` | Delegation duration in seconds. Only used for fiat. |
 
 **Example prompt:**
@@ -115,7 +115,7 @@ Use this for plans priced in native tokens (ETH, MATIC) or ERC-20 tokens (USDC).
 
 ### Purchase a Fiat Plan — `nevermined_orderFiatPlan`
 
-Purchase a payment plan using fiat currency (USD or EUR). Instead of executing an on-chain transaction, this tool returns a Stripe checkout URL where you complete the payment in a browser. Once the payment is confirmed, credits are added to your account.
+Purchase a payment plan using fiat currency (USD). Instead of executing an on-chain transaction, this tool returns a Stripe checkout URL where you complete the payment in a browser. Once the payment is confirmed, credits are added to your account.
 
 Use this for plans that have been created with `pricingType: fiat`. For crypto-priced plans, use `nevermined_orderPlan` instead.
 
@@ -238,7 +238,7 @@ After registration, the returned `agentId` and `planId` should be saved in your 
 
 Create a standalone payment plan without associating it with an agent. This is useful when you want to manage plans separately from agents, or when a single plan should grant access to multiple agents.
 
-The plan can be priced in three ways: `"fiat"` sets the price in USD or EUR cents (e.g. `"100"` = $1.00 or €1.00) and subscribers pay via Stripe, `"erc20"` sets the price in an ERC-20 token's smallest unit (e.g. `"1000000"` = 1 USDC or 1 EURC) and requires a `tokenAddress`, and `"crypto"` (the default) sets the price in the blockchain's native token.
+The plan can be priced in three ways: `"fiat"` sets the price in USD cents (e.g. `"100"` = $1.00) and subscribers pay via Stripe, `"erc20"` sets the price in an ERC-20 token's smallest unit (e.g. `"1000000"` = 1 USDC) and requires a `tokenAddress`, and `"crypto"` (the default) sets the price in the blockchain's native token.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -247,7 +247,7 @@ The plan can be priced in three ways: `"fiat"` sets the price in USD or EUR cent
 | `priceAmount` | string | **Yes** | Price in cents for fiat (e.g. "100" = $1.00), in token smallest unit for crypto |
 | `receiver` | string | **Yes** | Receiver wallet address (0x...) |
 | `creditsAmount` | number | **Yes** | Number of credits in the plan |
-| `pricingType` | string | No | `"fiat"` for Stripe (USD or EUR), `"erc20"` for ERC20 tokens, `"crypto"` for native token (default) |
+| `pricingType` | string | No | `"fiat"` for Stripe/USD, `"erc20"` for ERC20 tokens, `"crypto"` for native token (default) |
 | `accessLimit` | string | No | `"credits"` (default) or `"time"` |
 | `tokenAddress` | string | No | ERC20 token contract address. Required when pricingType is "erc20". |
 
