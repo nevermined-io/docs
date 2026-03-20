@@ -124,7 +124,7 @@ When calling a protected endpoint, the server returns a `402 Payment Required` r
 
 ### Step 2: Generate x402 access token
 
-Use the Nevermined SDK to generate an x402 access token with the required session keys:
+Use the Nevermined SDK to generate an x402 access token. Token generation requires a `delegationConfig` that controls spending limits and duration. You can either auto-create a delegation inline or reuse an existing one.
 
 <Tabs>
   <Tab title="TypeScript">
@@ -136,8 +136,20 @@ Use the Nevermined SDK to generate an x402 access token with the required sessio
       environment: 'sandbox'
     })
 
-    // Generate the x402 access token
-    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+    // Pattern A: Auto-create a delegation inline
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+    })
+
+    // Pattern B: Create a delegation explicitly, then reuse its ID
+    const delegation = await payments.delegation.createDelegation({
+      provider: 'erc4337',
+      spendingLimitCents: 10000,
+      durationSecs: 604800
+    })
+    const { accessToken: token } = await payments.x402.getX402AccessToken(planId, agentId, {
+      delegationConfig: { delegationId: delegation.delegationId }
+    })
     ```
   </Tab>
   <Tab title="Python">
@@ -149,8 +161,21 @@ Use the Nevermined SDK to generate an x402 access token with the required sessio
         PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
     )
 
-    # Generate the x402 access token
-    token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+    # Pattern A: Auto-create a delegation inline
+    token_res = payments.x402.get_x402_access_token(plan_id, agent_id, {
+        'delegationConfig': { 'spendingLimitCents': 10000, 'durationSecs': 604800 }
+    })
+    access_token = token_res['accessToken']
+
+    # Pattern B: Create a delegation explicitly, then reuse its ID
+    delegation = payments.delegation.create_delegation({
+        'provider': 'erc4337',
+        'spendingLimitCents': 10000,
+        'durationSecs': 604800
+    })
+    token_res = payments.x402.get_x402_access_token(plan_id, agent_id, {
+        'delegationConfig': { 'delegationId': delegation['delegationId'] }
+    })
     access_token = token_res['accessToken']
     ```
   </Tab>
@@ -389,7 +414,7 @@ sequenceDiagram
     Client->>Agent: GET /resource (no payment)
     Agent->>Client: 402 + payment-required header
 
-    Client->>Client: Generate x402 token via SDK
+    Client->>Client: Create delegation + generate x402 token via SDK
     Client->>Agent: POST /resource + payment-signature header
 
     Agent->>Facilitator: POST /verify
