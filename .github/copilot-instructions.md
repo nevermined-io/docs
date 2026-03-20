@@ -5,7 +5,7 @@ This repository contains documentation for Nevermined, an AI payment infrastruct
 ## SDK Packages
 
 - **TypeScript**: `@nevermined-io/payments` on npm
-- **Python**: `payments-py` on PyPI (with extras: `payments-py[fastapi]`, `payments-py[strands]`)
+- **Python**: `payments-py` on PyPI (with extras: `payments-py[mcp]`, `payments-py[fastapi]`, `payments-py[strands]`)
 
 ## Required Environment Variables
 
