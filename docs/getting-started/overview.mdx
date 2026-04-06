@@ -1,0 +1,115 @@
+---
+title: "Overview"
+description: "Nevermined is building the financial rails for AI. Monetize agents, charge for MCP tools, and enable autonomous agent-to-agent payments with real cards."
+icon: "rocket"
+---
+
+Nevermined makes it simple to monetize AI agents, MCP tools, and protected resources. You handle the AI, we handle access control, payment processing, metering, and settlement.
+
+<CardGroup cols={2}>
+  <Card title="Get started" icon="bolt" href="/docs/integrate/quickstart/5-minute-setup">
+    Launch an integration in 5 minutes
+  </Card>
+  <Card title="API Reference" icon="code" href="/docs/api-reference/introduction">
+    Explore the REST API and SDKs
+  </Card>
+</CardGroup>
+
+## The Payment Flow
+
+![Nevermined Payment Flow](/images/payment-flow.png)
+
+## Three Steps to Monetization
+
+<Steps>
+  <Step title="Register what you're charging for">
+    Define the service you want to monetize: an API endpoint, an MCP tool, or a protected asset.
+  </Step>
+
+  <Step title="Create a payment plan">
+    Set a price and define how each request is charged:
+
+    - **Plan** - Set a price for a bundle of API calls, with a fixed or dynamic cost per request
+    - **Pay-as-you-go** - Charge the subscriber's payment method on each request
+    - Accept fiat (Stripe), crypto (stablecoins), or card delegation ([NVM Pay](/docs/products/nvm-pay/overview))
+  </Step>
+
+  <Step title="Validate, deliver, and settle">
+    Check entitlement before delivering. If entitled: deliver and settle the payment. If not: return **HTTP 402 Payment Required**.
+  </Step>
+</Steps>
+
+## Who Pays and How
+
+Nevermined supports both sides of the transaction:
+
+- **Builders** register agents, set pricing, and receive payouts. Add payment validation to your endpoints and Nevermined handles the rest.
+- **Subscribers** pay for access. They can purchase a plan via Stripe checkout or stablecoins, or enroll a card via [Nevermined Pay](/docs/products/nvm-pay/overview) for autonomous agent-to-agent payments.
+
+Card delegation via NVM Pay is what makes agent-to-agent fiat payments possible. Instead of a human clicking through checkout each time, the subscriber enrolls a Visa or Stripe card, sets spending limits, and the agent charges it directly within those bounds.
+
+## Payment Settlement Options
+
+<CardGroup cols={2}>
+  <Card title="x402 Protocol" icon="shield-check" href="/docs/products/x402-facilitator/overview">
+    **HTTP 402 Payment Required**
+
+    The x402 standard for payment-required requests. The facilitator handles verification and settlement.
+  </Card>
+
+  <Card title="Card Delegation (NVM Pay)" icon="credit-card" href="/docs/products/nvm-pay/overview">
+    **Direct card charging**
+
+    Subscribers enroll a Visa or Stripe card and set spending mandates. Agents charge the card directly via x402 with per-transaction ceilings and usage limits.
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Agent-to-Agent Monetization" icon="link" href="/docs/solutions/agent-to-agent-monetization">
+    Meter and settle value between autonomous agents.
+  </Card>
+  <Card title="MCP Monetization" icon="plug" href="/docs/solutions/mcp-point-of-sales">
+    Charge for MCP tools and servers with request-level billing.
+  </Card>
+  <Card title="Agent Fiat Payments" icon="credit-card" href="/docs/products/nvm-pay/overview">
+    Let agents pay with real cards via card delegation.
+  </Card>
+  <Card title="Static Asset Monetization" icon="lock" href="/docs/solutions/access-control-monetization-static-resources">
+    Protect paid files, datasets, and downloadable resources.
+  </Card>
+</CardGroup>
+
+## Integration Options
+
+- **SDKs**: TypeScript and Python libraries for full programmatic control
+- **REST API**: HTTP endpoints for any language
+- **CLI**: Command-line tool for registration, plan management, and testing
+
+<Card title="Payment Libraries" icon="code" href="/docs/products/payment-libraries/overview">
+  Explore the SDKs and REST API
+</Card>
+
+## What Nevermined Handles
+
+| Concern            | Nevermined Handles                               |
+| ------------------ | ------------------------------------------------ |
+| Payment processing | Crypto (stablecoins), fiat (Stripe), and card delegation ([NVM Pay](/docs/products/nvm-pay/overview)) |
+| Access control     | Entitlement validation (plans/x402)              |
+| Usage metering     | Per-request tracking and settlement              |
+| Settlement         | Payouts to providers                             |
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Core Concepts" icon="book" href="/docs/getting-started/core-concepts">
+    Learn the platform terminology
+  </Card>
+  <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
+    Integrate quickly
+  </Card>
+  <Card title="NVM Pay" icon="credit-card" href="/docs/products/nvm-pay/overview">
+    Set up agent fiat payments
+  </Card>
+</CardGroup>

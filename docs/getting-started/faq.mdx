@@ -1,6 +1,6 @@
 ---
 title: "FAQ"
-description: "Frequently asked questions about getting started with Nevermined, including Stripe Connect onboarding."
+description: "Frequently asked questions about getting started with Nevermined, including Stripe Connect onboarding and NVM Pay card delegation."
 icon: "question"
 ---
 
@@ -92,4 +92,35 @@ Nevermined uses [Stripe Connect](https://stripe.com/connect) to route fiat payme
 
 <Accordion title="Can I disconnect or change my Stripe account?">
   Yes. Go to **Settings > Stripe Connect** in the Nevermined App. You can disconnect your current account and connect a different one. Any pending payouts will still be routed to the previously connected account.
+</Accordion>
+
+## NVM Pay (Card Delegation)
+
+[NVM Pay](/docs/products/nvm-pay/overview) lets subscribers enroll a Visa or Stripe card and create spending mandates that agents can charge directly, without redirecting to a checkout page.
+
+<Accordion title="What's the difference between Stripe Connect and NVM Pay?">
+  **Stripe Connect** is for *builders* receiving fiat payments. You connect your Stripe account so Nevermined can route credit card payments to you when subscribers buy your plans via Stripe checkout.
+
+  **NVM Pay** is for *subscribers* who want agents to charge their card directly. The subscriber enrolls a card, creates a spending mandate with amount limits and expiration, and agents charge against that mandate via x402. There's no checkout redirect, the agent handles payment autonomously within the mandate's constraints.
+
+  They serve different sides of the transaction: Stripe Connect handles payouts to builders, NVM Pay handles card-based payments from subscribers.
+</Accordion>
+
+<Accordion title="Can agents charge my card without my approval?">
+  Only within the limits you set. When you create a mandate, you define:
+
+  - **Amount ceiling** per transaction
+  - **Maximum number of transactions**
+  - **Expiration date**
+  - **Per-card spending ceiling** across all active mandates
+
+  The agent can only charge within these bounds. You can cancel a mandate at any time, and creating or updating mandates requires passkey (FIDO2) authentication.
+</Accordion>
+
+<Accordion title="Do I need a crypto wallet to use NVM Pay?">
+  No. NVM Pay works with regular Visa and Stripe cards. The subscriber enrolls a card through the NVM Pay dashboard, and all payments are settled via Stripe. No wallet or stablecoins required.
+</Accordion>
+
+<Accordion title="How do I control which mandate an agent uses?">
+  NVM Pay has a three-tier selection system. If you have a single mandate, the agent uses it automatically. If you have multiple mandates, you can link each one to a specific API key so the right mandate is selected based on which key the agent uses. You can also pass a specific mandate ID in each request for full control. See [Mandate Selection](/docs/products/nvm-pay/mandate-selection) for details.
 </Accordion>

@@ -22,7 +22,7 @@ Regardless of the form factor, a monetizable service/resource typically has:
 - A **public interface** (HTTP endpoint, MCP tool, or download URL)
 - A **pricing + access policy** (a payment plan)
 - A **verification step** (validate entitlement before delivering)
-- **Usage tracking** (meter and redeem credits per request or per access)
+- **Usage tracking** (meter each request or access)
 
 ### Service Components
 
@@ -37,7 +37,7 @@ Regardless of the form factor, a monetizable service/resource typically has:
     One or more plans that define pricing and access terms.
   </Card>
   <Card title="Access Control & Metering" icon="shield">
-    Validate entitlement and automatically meter usage and redeem credits.
+    Validate entitlement and automatically track usage per request.
   </Card>
 </CardGroup>
 
@@ -61,52 +61,53 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     Define price, payout currency, and how revenue is distributed across one or more receivers.
   </Card>
   <Card title="Plan Types" icon="calendar-days">
-    - **Time-based**: limited by duration (e.g., 30 days, 1 year)
-    - **Credits-based**: limited by usage (e.g., 100 requests)
+    - **Plan**: set a price for a bundle of API calls, with a fixed or dynamic cost per request
+    - **Pay-as-you-go**: charge the subscriber's payment method on each request
+    - **Time-based**: access limited by duration (e.g., 30 days)
     - **Trial**: free limited access for testing
   </Card>
-  <Card title="Consumption & Settlement" icon="coins">
-    Choose how usage is paid for:
+  <Card title="Settlement" icon="coins">
+    Choose how payments settle:
 
-    - **Credits**: prepaid balance redeemed per request/access
-    - **Pay-as-you-go (PAYG)**: settle in USDC or EURC as it happens
+    - **Fiat**: via Stripe or card delegation ([NVM Pay](/docs/products/nvm-pay/overview))
+    - **Crypto**: stablecoins (USDC, EURC) on-chain
   </Card>
 </CardGroup>
 
 <AccordionGroup>
-  <Accordion title="Credits-Based Plans">
-    Perfect for usage-based pricing models:
+  <Accordion title="Plans (prepaid bundles)">
+    The most common model. Set a price for a bundle of API calls and define the cost per request:
 
-    - **Fixed Credits**: set amount of credits (e.g., 100 credits)
-    - **Credits per Request**: set how many credits each request consumes
-    - **Flexible Redemption**: redeem different amounts based on usage
+    - **Fixed pricing**: every request costs the same (e.g., $10 for 100 requests at $0.10 each)
+    - **Dynamic pricing**: set a range and charge different amounts per request based on complexity or resource usage
   </Accordion>
-  <Accordion title="Pay-as-you-go (PAYG)">
-    Ideal when you want to avoid pre-purchased credits and settle usage as it occurs:
+  <Accordion title="Pay-as-you-go">
+    Charge the subscriber's payment method on each request, no upfront purchase:
 
-    - **Per-request settlement**: settle in USDC or EURC as each request happens
-    - **No credit balance**: customers pay on demand rather than topping up credits
+    - **Per-request settlement**: charge as each request happens
+    - **Card delegation**: subscribers enroll a card via [NVM Pay](/docs/products/nvm-pay/overview) and agents charge it directly
+    - **Stablecoins**: settle in USDC or EURC on-chain
   </Accordion>
-  <Accordion title="Time-Based Plans">
+  <Accordion title="Time-based plans">
     Ideal for subscription models:
 
     - **Duration**: set expiration time (days, months, years)
-    - **Unlimited Usage**: within the time period
+    - **Unlimited usage**: within the time period
     - **Auto-expiry**: plan expires after duration
   </Accordion>
-  <Accordion title="Hybrid Plans">
-    Combine time and credits:
+  <Accordion title="Hybrid plans">
+    Combine time limits with usage limits:
 
-    - **Credits with Expiry**: e.g., 1000 credits valid for 30 days
-    - **Rate Limiting**: control usage within time periods
+    - **Usage with expiry**: e.g., 1,000 requests valid for 30 days
+    - **Rate limiting**: control usage within time periods
   </Accordion>
 </AccordionGroup>
 
 ### Example Payment Plans
 
-- **Customer Support MCP Tool**: $49/month for unlimited usage, or $10 for 1,000 calls.
+- **Customer Support MCP Tool**: $49/month for unlimited usage, or $10 for 1,000 API calls.
 - **Dataset Access**: $99 for 30-day access to a protected resource.
-- **Agent API**: $10 for 100 credits, with each request consuming 1 credit.
+- **Agent API**: $10 for 100 requests at $0.10 per call, or pay-as-you-go at $0.15 per call.
 
 ## How It All Works Together
 
@@ -115,16 +116,16 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     Define your service interface (API, MCP tool, or protected asset) and metadata.
   </Step>
   <Step title="Create plans">
-    Create one or more payment plans: pricing, credits, duration, and consumption rules.
+    Create one or more payment plans: set pricing, cost per request, and duration.
   </Step>
   <Step title="Customers purchase access">
-    Users buy plans using fiat or crypto and receive entitlements.
+    Subscribers buy a plan (fiat or crypto) or enroll a card for pay-as-you-go via [NVM Pay](/docs/products/nvm-pay/overview).
   </Step>
   <Step title="Validate before delivery">
-    Validate entitlement (tokens / headers / proxy validation) before serving requests or granting access.
+    Validate entitlement before serving requests or granting access.
   </Step>
-  <Step title="Meter usage">
-    Automatically redeem credits per request/access and track consumption.
+  <Step title="Track and settle">
+    Automatically track usage per request and settle payments.
   </Step>
 </Steps>
 
@@ -132,14 +133,18 @@ By combining services/resources with flexible payment plans, Nevermined supports
 
 ## Payment Methods
 
-Nevermined supports two payment methods, each optimized for different audiences:
+Nevermined supports three payment methods, each optimized for different audiences:
 
-<CardGroup cols={2}>
+<CardGroup cols={3}>
   <Card title="Fiat Payments" icon="credit-card" href="/docs/integrate/patterns/fiat-payments">
-    Accept credit cards via Stripe. No crypto wallet needed -- the fastest path for mainstream and enterprise adoption.
+    Accept credit cards via Stripe checkout. No crypto wallet needed, the fastest path for mainstream and enterprise adoption.
   </Card>
 
   <Card title="Stablecoin Payments" icon="coins" href="/docs/integrate/patterns/stablecoin-payments">
     Accept USDC, EURC, USDT, or any ERC-20 token on-chain. Lowest fees and full transparency for crypto-native users and agent-to-agent commerce.
+  </Card>
+
+  <Card title="Card Delegation (NVM Pay)" icon="id-card" href="/docs/products/nvm-pay/overview">
+    Subscribers enroll a Visa or Stripe card and create spending mandates. Agents charge directly against these mandates via x402, with per-transaction ceilings, usage limits, and expiration controls.
   </Card>
 </CardGroup>
