@@ -49,27 +49,27 @@ If you're integrating with x402-compatible clients/servers, see the [x402 integr
 
 ## What is a Payment Plan?
 
-A Payment Plan is a set of rules and conditions that define how subscribers pay to access your service/resource. Plans are defined by two main components: their **price** and the **consumption** model.
+A Payment Plan is a set of rules and conditions that define how users pay to access your service/resource. Plans are defined by two main components: their **price** and the **consumption** model.
 
 ### Key Attributes of a Payment Plan
 
 <CardGroup cols={2}>
   <Card title="Payment Method" icon="credit-card">
-    Choose whether customers pay in [**Fiat**](/docs/integrate/patterns/fiat-payments) (USD or EUR via Stripe) or [**Crypto**](/docs/integrate/patterns/stablecoin-payments) (stablecoins like USDC or EURC).
+    Choose whether customers pay in [**Fiat**](/docs/integrate/patterns/fiat-payments) (card delegation via [NVM Pay](/docs/products/nvm-pay/overview)) or [**Crypto**](/docs/integrate/patterns/stablecoin-payments) (stablecoins like USDC or EURC).
   </Card>
   <Card title="Pricing & Receivers" icon="sack-dollar">
     Define price, payout currency, and how revenue is distributed across one or more receivers.
   </Card>
   <Card title="Plan Types" icon="calendar-days">
     - **Plan**: set a price for a bundle of API calls, with a fixed or dynamic cost per request
-    - **Pay-as-you-go**: charge the subscriber's payment method on each request
+    - **Pay-as-you-go**: charge the user's payment method on each request
     - **Time-based**: access limited by duration (e.g., 30 days)
     - **Trial**: free limited access for testing
   </Card>
   <Card title="Settlement" icon="coins">
     Choose how payments settle:
 
-    - **Fiat**: via Stripe or card delegation ([NVM Pay](/docs/products/nvm-pay/overview))
+    - **Fiat**: via card delegation ([NVM Pay](/docs/products/nvm-pay/overview))
     - **Crypto**: stablecoins (USDC, EURC) on-chain
   </Card>
 </CardGroup>
@@ -82,10 +82,10 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     - **Dynamic pricing**: set a range and charge different amounts per request based on complexity or resource usage
   </Accordion>
   <Accordion title="Pay-as-you-go">
-    Charge the subscriber's payment method on each request, no upfront purchase:
+    Charge the user's payment method on each request, no upfront purchase:
 
     - **Per-request settlement**: charge as each request happens
-    - **Card delegation**: subscribers enroll a card via [NVM Pay](/docs/products/nvm-pay/overview) and agents charge it directly
+    - **Card delegation**: users enroll a card via [NVM Pay](/docs/products/nvm-pay/overview) and agents charge it directly
     - **Stablecoins**: settle in USDC or EURC on-chain
   </Accordion>
   <Accordion title="Time-based plans">
@@ -103,11 +103,25 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
   </Accordion>
 </AccordionGroup>
 
+### Pricing Models
+
+Beyond plan types, you can choose how pricing maps to the value you deliver:
+
+<CardGroup cols={2}>
+  <Card title="Cost + Margin" icon="calculator">
+    Bill per API call or per session with full cost observability. Set your margin on top of compute costs. Best for predictable, high-volume workloads.
+  </Card>
+  <Card title="Outcome-Based" icon="bullseye">
+    Charge on success: meetings booked, leads qualified, issues resolved. Only bill when your agent delivers a defined outcome or milestone.
+  </Card>
+</CardGroup>
+
 ### Example Payment Plans
 
 - **Customer Support MCP Tool**: $49/month for unlimited usage, or $10 for 1,000 API calls.
 - **Dataset Access**: $99 for 30-day access to a protected resource.
 - **Agent API**: $10 for 100 requests at $0.10 per call, or pay-as-you-go at $0.15 per call.
+- **Sales Agent**: $5 per qualified lead (outcome-based).
 
 ## How It All Works Together
 
@@ -119,7 +133,7 @@ A Payment Plan is a set of rules and conditions that define how subscribers pay 
     Create one or more payment plans: set pricing, cost per request, and duration.
   </Step>
   <Step title="Customers purchase access">
-    Subscribers buy a plan (fiat or crypto) or enroll a card for pay-as-you-go via [NVM Pay](/docs/products/nvm-pay/overview).
+    Users buy a plan (fiat or crypto) or enroll a card for pay-as-you-go via [NVM Pay](/docs/products/nvm-pay/overview).
   </Step>
   <Step title="Validate before delivery">
     Validate entitlement before serving requests or granting access.
@@ -137,7 +151,7 @@ Nevermined supports three payment methods, each optimized for different audience
 
 <CardGroup cols={3}>
   <Card title="Fiat Payments" icon="credit-card" href="/docs/integrate/patterns/fiat-payments">
-    Accept credit cards via Stripe checkout. No crypto wallet needed, the fastest path for mainstream and enterprise adoption.
+    Pay with real cards via [NVM Pay](/docs/products/nvm-pay/overview) card delegation. No crypto wallet needed, the fastest path for mainstream and enterprise adoption.
   </Card>
 
   <Card title="Stablecoin Payments" icon="coins" href="/docs/integrate/patterns/stablecoin-payments">
@@ -145,6 +159,24 @@ Nevermined supports three payment methods, each optimized for different audience
   </Card>
 
   <Card title="Card Delegation (NVM Pay)" icon="id-card" href="/docs/products/nvm-pay/overview">
-    Subscribers enroll a Visa or Stripe card and create spending mandates. Agents charge directly against these mandates via x402, with per-transaction ceilings, usage limits, and expiration controls.
+    Users enroll a Visa or Stripe card and create spending mandates. Agents charge directly against these mandates via x402, with per-transaction ceilings, usage limits, and expiration controls.
+  </Card>
+</CardGroup>
+
+### Merchant Onboarding
+
+Fiat settlement is merchant-centric. To receive payouts, create a [Stripe Connect](https://stripe.com/connect) account and link it to Nevermined. This is the only setup required on the builder side. Stablecoin payouts settle directly to your wallet. Additional PSPs are on the roadmap.
+
+## Security & Compliance
+
+<CardGroup cols={2}>
+  <Card title="Certifications" icon="shield-check">
+    - ISO 27001 certified
+    - SOC 2 Type II audited
+    - PCI SAQ-D compliant
+    - GDPR compliant
+  </Card>
+  <Card title="Card Data Protection" icon="lock">
+    Card data is captured via PCI Level 1 infrastructure (VGS). Nevermined never stores raw card numbers. All data encrypted at rest (AES-256) and in transit (TLS 1.3).
   </Card>
 </CardGroup>
