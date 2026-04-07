@@ -139,13 +139,13 @@ a.nav-tabs-item:focus-visible {
   outline-offset: 2px !important;
 }
 
-/* Active/Selected tab - solid prominent green pill */
+/* Active/Selected tab - subtle pill */
 a.nav-tabs-item:has(> div.bg-primary),
 a.nav-tabs-item:has(> div[class*="bg-primary"]) {
-  background-color: #9ac022 !important;
-  color: #ffffff !important;
-  font-weight: 600 !important;
-  box-shadow: 0 2px 8px rgba(154, 192, 34, 0.25) !important;
+  background-color: rgba(154, 192, 34, 0.32) !important;
+  color: #334209 !important;
+  font-weight: 550 !important;
+  box-shadow: none !important;
   border-radius: 9999px !important;
   padding: 6px 24px !important;
   text-decoration: none !important;
@@ -156,6 +156,28 @@ a.nav-tabs-item:has(> div[class*="bg-primary"]) {
 a.nav-tabs-item:has(> div.bg-primary) > div,
 a.nav-tabs-item:has(> div[class*="bg-primary"]) > div {
   display: none !important;
+}
+
+/* Dark mode - tab items */
+.dark a.nav-tabs-item,
+[data-theme="dark"] a.nav-tabs-item {
+  color: #d1d5db !important;
+}
+
+/* Dark mode - hover */
+.dark a.nav-tabs-item:hover:not(.font-semibold):not([aria-current="page"]),
+[data-theme="dark"] a.nav-tabs-item:hover:not(.font-semibold):not([aria-current="page"]) {
+  color: #f3f4f6 !important;
+  background-color: rgba(188, 220, 74, 0.1) !important;
+}
+
+/* Dark mode - active tab */
+.dark a.nav-tabs-item:has(> div.bg-primary),
+.dark a.nav-tabs-item:has(> div[class*="bg-primary"]),
+[data-theme="dark"] a.nav-tabs-item:has(> div.bg-primary),
+[data-theme="dark"] a.nav-tabs-item:has(> div[class*="bg-primary"]) {
+  background-color: rgba(154, 192, 34, 0.28) !important;
+  color: #c8e45a !important;
 }
 
 /* Responsive adjustments for mobile */
