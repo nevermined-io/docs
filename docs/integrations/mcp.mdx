@@ -131,7 +131,7 @@ Here's how to create a complete, production-ready MCP server with OAuth authenti
     payments = Payments.get_instance(
         PaymentOptions(
             nvm_api_key=os.environ["NVM_API_KEY"],
-            environment=os.environ.get("NVM_ENV", "sandbox")
+            environment=os.environ.get("NVM_ENVIRONMENT", "sandbox")
         )
     )
 
