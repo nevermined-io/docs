@@ -15,21 +15,7 @@ It supports both:
 For the complete technical specification, see the [x402 Smart Accounts Extension Spec](/docs/specs/x402-smart-accounts).
 </Note>
 
-## What is x402?
-
-x402 standardizes a payment-enforced HTTP flow:
-
-1. Client calls an endpoint normally
-2. Server responds with **HTTP 402 Payment Required** and `payment-required` header
-3. Client builds a payment authorization (locally signed)
-4. Client retries the request including the x402 token in the `payment-signature` header
-5. Server delegates verification and settlement to the **Facilitator**
-6. Server returns response with `payment-response` header (settlement receipt)
-
-For more background and examples:
-
-- [Making x402 programmable](https://nevermined.ai/blog/making-x402-programmable)
-- [Building Agentic Payments with Nevermined, x402, A2A, and AP2](https://nevermined.ai/blog/building-agentic-payments-with-nevermined-x402-a2a-and-ap2)
+The Facilitator sits in the [x402 payment flow](/docs/development-guide/nevermined-x402) — when a server receives a payment token, it delegates verification and settlement to the Facilitator rather than handling it directly.
 
 ## Why use a Facilitator?
 
@@ -140,7 +126,7 @@ After the server completes its work, the facilitator can execute the settlement 
     End-to-end flow (client + server) with x402 headers and facilitator calls
   </Card>
 
-  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
+  <Card title="Payment Models" icon="calculator" href="/docs/integrate/patterns/payment-models">
     Credits, subscriptions, and dynamic pricing using programmable settlement
   </Card>
 

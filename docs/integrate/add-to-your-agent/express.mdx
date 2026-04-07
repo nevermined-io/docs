@@ -1,5 +1,5 @@
 ---
-title: "Express.js Integration"
+title: "Express.js"
 description: "Add Nevermined x402 payments to your Express.js application with one line of code"
 icon: "node-js"
 frameworks: ["express", "node", "javascript"]
@@ -10,26 +10,7 @@ frameworks: ["express", "node", "javascript"]
   [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
 </Note>
 
-Add payment protection to your Express.js API using the [x402 protocol](https://github.com/coinbase/x402). The `paymentMiddleware` handles verification and settlement automatically.
-
-## x402 Payment Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Agent
-
-    Client->>Agent: 1. POST /ask (no token)
-    Agent-->>Client: 2. 402 Payment Required<br/>Header: payment-required (base64)
-
-    Note over Client: 3. Generate x402 token via SDK
-
-    Client->>Agent: 4. POST /ask<br/>Header: payment-signature (token)
-
-    Note over Agent: Verify permissions<br/>Execute request<br/>Settle (burn credits)
-
-    Agent-->>Client: 5. 200 OK + AI response<br/>Header: payment-response (base64)
-```
+Add [x402](/docs/development-guide/nevermined-x402) payment protection to your Express.js API. The `paymentMiddleware` handles verification and settlement automatically.
 
 ## Installation
 
@@ -350,7 +331,7 @@ PORT=3000
     Deep dive into x402 payment flows
   </Card>
 
-  <Card title="Payment Models" icon="calculator" href="/docs/products/x402-facilitator/payment-models">
+  <Card title="Payment Models" icon="calculator" href="/docs/integrate/patterns/payment-models">
     Configure credits, subscriptions, and dynamic pricing
   </Card>
 

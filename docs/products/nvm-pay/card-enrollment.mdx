@@ -1,0 +1,173 @@
+---
+title: "Card Enrollment"
+description: "Enroll Visa or Stripe payment cards into NVM Pay with PCI-compliant tokenization and secure authentication."
+icon: "id-card"
+---
+
+## Overview
+
+Before an agent can charge a payment card, the card must be enrolled in NVM Pay. Enrollment tokenizes the card data (NVM Pay never stores raw card numbers), verifies the cardholder's identity, and registers the card with the payment provider.
+
+NVM Pay supports two enrollment providers, each available as a separate tab in the [Nevermined Pay dashboard](https://pay.nevermined.app).
+
+## Enrollment Paths
+
+<Tabs>
+  <Tab title="Visa">
+    ### Visa Enrollment
+
+    Visa cards are tokenized via Visa Token Service (VTS) and enrolled in Visa Intelligent Commerce (VIC). This path requires passkey (FIDO2) authentication.
+
+    <Steps>
+      <Step title="Capture card data">
+        Enter your card details through the enrollment form. Card data is captured in a PCI-compliant VGS Collect iframe and tokenized in the browser before submission.
+      </Step>
+      <Step title="Tokenize with Visa">
+        NVM Pay registers the card with Visa Token Service (VTS), producing a **provisioned token ID** that replaces the real card number.
+      </Step>
+      <Step title="Enroll in Visa Intelligent Commerce">
+        The tokenized card is enrolled in VIC, which enables mandate-based charging.
+      </Step>
+      <Step title="Authenticate with passkey">
+        Complete passkey authentication (FIDO2/WebAuthn) to prove you authorized the enrollment. If passkeys aren't available, a one-time password (OTP) is sent to your email instead.
+      </Step>
+      <Step title="Create a mandate">
+        After enrollment, create a [spending mandate](/docs/products/nvm-pay/mandates) to define how agents can charge this card.
+      </Step>
+    </Steps>
+
+    #### Visa Card Lifecycle
+
+    ```
+    Enrollment started
+      |
+      |-> PAN enrolled (VTS tokenization)
+      |
+      |-> Token provisioned (provisioned token ID created)
+      |
+      |-> VIC enrolled (payment network registration)
+      |
+      |-> Authentication (passkey or OTP)
+      |
+      |-> Active -> Mandates can be created
+            |
+            |-> Inactive (card deactivated or removed)
+    ```
+
+    You can track enrollment progress in the dashboard. Each step is recorded, and if enrollment fails at any point, the specific step and error are captured.
+  </Tab>
+  <Tab title="Stripe">
+    ### Stripe Enrollment
+
+    Stripe cards are captured via Stripe Elements and tokenized through Stripe SetupIntents. This is a simpler flow with no passkey requirement.
+
+    <Steps>
+      <Step title="Enter card details">
+        Enter your card number, expiry, and CVC through the Stripe Elements form. Card data goes directly to Stripe and never touches the NVM Pay backend.
+      </Step>
+      <Step title="Confirm with Stripe">
+        Stripe creates a SetupIntent and confirms the card. This validates the card and saves it as a reusable payment method.
+      </Step>
+      <Step title="Finalize enrollment">
+        NVM Pay finalizes the enrollment by linking the Stripe payment method to your account. The card appears in your dashboard immediately.
+      </Step>
+      <Step title="Create a delegation">
+        After enrollment, create a [spending delegation](/docs/products/nvm-pay/mandates) to define how agents can charge this card.
+      </Step>
+    </Steps>
+
+    #### Stripe Card Lifecycle
+
+    ```
+    SetupIntent created
+      |
+      |-> Card confirmed (Stripe tokenization)
+      |
+      |-> Enrollment finalized (linked to NVM Pay account)
+      |
+      |-> Active -> Delegations can be created
+            |
+            |-> Removed (card and all delegations revoked)
+    ```
+  </Tab>
+</Tabs>
+
+## Card Properties
+
+Both Visa and Stripe cards share these core properties:
+
+| Property | Description |
+|---|---|
+| `id` | Unique card identifier |
+| `userId` | Owner of the card |
+| `last4` | Last 4 digits of the card number (for display) |
+| `alias` | User-friendly name (e.g., "Work Visa", "Dev Card") |
+| `status` | `active` or `inactive` |
+| `spendingCeiling` | Maximum total amount that can be allocated across all active mandates or delegations on this card (default: $10.00) |
+
+## Spending Ceiling
+
+Every card has a **spending ceiling**, a cumulative limit on the total amount allocated to active authorizations. This prevents over-allocation and provides a safety net. Both Visa and Stripe cards enforce the same ceiling.
+
+For example, if your card has a $10.00 ceiling:
+- Authorization A: $5.00
+- Authorization B: $3.00
+- Remaining capacity: $2.00
+
+<Note>
+The default spending ceiling is $10.00 during the pilot phase. Contact the Nevermined team if you need a higher limit.
+</Note>
+
+When you create or update a mandate/delegation, NVM Pay validates that the total allocated amount across all active authorizations on the card doesn't exceed the ceiling. If it would, the request is rejected with a clear error showing the remaining capacity.
+
+## Managing Cards
+
+### Via the Nevermined Pay Dashboard
+
+The [Nevermined Pay dashboard](https://pay.nevermined.app) provides a visual interface for managing your enrolled cards. Visa and Stripe cards appear in separate tabs:
+
+- View all enrolled cards with their status and spending ceiling
+- See active mandates/delegations per card with remaining capacity
+- View transaction history for each card
+- Deactivate or remove cards
+
+### Via the API
+
+<Tabs>
+  <Tab title="Visa">
+    | Endpoint | Method | Description |
+    |---|---|---|
+    | `/cards` | `GET` | List enrolled Visa cards (filter by `userId`) |
+    | `/cards/{id}` | `GET` | Get card details including mandates |
+    | `/cards/{id}` | `PUT` | Update card properties |
+    | `/cards/{id}` | `DELETE` | Remove a card and its mandates |
+    | `/cards/{cardId}/transactions` | `GET` | Get transaction history (paginated) |
+  </Tab>
+  <Tab title="Stripe">
+    | Endpoint | Method | Description |
+    |---|---|---|
+    | `/api/v1/payment-methods` | `GET` | List enrolled Stripe cards |
+    | `/api/v1/payment-methods/{id}` | `PATCH` | Update card alias or allowed API keys |
+    | `/api/v1/payment-methods/{id}` | `DELETE` | Remove card and revoke all delegations |
+    | `/api/v1/delegation/{id}/transactions` | `GET` | Get transaction history per delegation |
+  </Tab>
+</Tabs>
+
+## Choosing a Provider
+
+| | Visa | Stripe |
+|---|---|---|
+| **Enrollment complexity** | Multi-step with passkey auth | Simple card form |
+| **Authentication** | Passkeys (FIDO2) or OTP | Stripe handles verification |
+| **Best for** | High-security use cases, production deployments | Quick setup, developer testing, broader card support |
+| **Settlement** | Visa credentials charged via Stripe | Stripe PaymentIntents directly |
+
+Both providers support the same spending controls (ceilings, usage limits, expiration) and API key linking.
+
+## What's Next?
+
+Once your card is enrolled, create a spending authorization to control how agents can charge it.
+
+<Card title="Create a Mandate or Delegation" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+  Define spending limits, usage caps, and expiration for agent payments
+</Card>

@@ -139,13 +139,13 @@ a.nav-tabs-item:focus-visible {
   outline-offset: 2px !important;
 }
 
-/* Active/Selected tab - solid prominent green pill */
+/* Active/Selected tab - subtle pill */
 a.nav-tabs-item:has(> div.bg-primary),
 a.nav-tabs-item:has(> div[class*="bg-primary"]) {
-  background-color: #9ac022 !important;
-  color: #ffffff !important;
-  font-weight: 600 !important;
-  box-shadow: 0 2px 8px rgba(154, 192, 34, 0.25) !important;
+  background-color: rgba(154, 192, 34, 0.32) !important;
+  color: #334209 !important;
+  font-weight: 550 !important;
+  box-shadow: none !important;
   border-radius: 9999px !important;
   padding: 6px 24px !important;
   text-decoration: none !important;
@@ -156,6 +156,28 @@ a.nav-tabs-item:has(> div[class*="bg-primary"]) {
 a.nav-tabs-item:has(> div.bg-primary) > div,
 a.nav-tabs-item:has(> div[class*="bg-primary"]) > div {
   display: none !important;
+}
+
+/* Dark mode - tab items */
+.dark a.nav-tabs-item,
+[data-theme="dark"] a.nav-tabs-item {
+  color: #d1d5db !important;
+}
+
+/* Dark mode - hover */
+.dark a.nav-tabs-item:hover:not(.font-semibold):not([aria-current="page"]),
+[data-theme="dark"] a.nav-tabs-item:hover:not(.font-semibold):not([aria-current="page"]) {
+  color: #f3f4f6 !important;
+  background-color: rgba(188, 220, 74, 0.1) !important;
+}
+
+/* Dark mode - active tab */
+.dark a.nav-tabs-item:has(> div.bg-primary),
+.dark a.nav-tabs-item:has(> div[class*="bg-primary"]),
+[data-theme="dark"] a.nav-tabs-item:has(> div.bg-primary),
+[data-theme="dark"] a.nav-tabs-item:has(> div[class*="bg-primary"]) {
+  background-color: rgba(154, 192, 34, 0.28) !important;
+  color: #c8e45a !important;
 }
 
 /* Responsive adjustments for mobile */
@@ -311,4 +333,68 @@ a.nav-tabs-item:has(> div[class*="bg-primary"]) > div {
   .nvm-hero-description {
     font-size: 14px;
   }
+}
+
+/* =====================================================
+   Content Typography - tighter text sizing
+   ===================================================== */
+
+/* Body / paragraph text */
+.prose,
+.prose p,
+.prose li,
+article p,
+article li {
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+}
+
+/* Headings */
+.prose h1, article h1 { font-size: 27px !important; }
+.prose h2, article h2 { font-size: 21px !important; }
+.prose h3, article h3 { font-size: 17px !important; }
+.prose h4, article h4 { font-size: 15px !important; }
+
+/* =====================================================
+   Sidebar Navigation - tighter spacing
+   ===================================================== */
+
+/* Sidebar nav link padding */
+#sidebar a.group {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+/* Sidebar nav items */
+#sidebar li {
+  margin: 1px 0 !important;
+}
+
+/* Sidebar group headers */
+.sidebar-group-header {
+  gap: 6px !important;
+  margin-bottom: 4px !important;
+  padding-left: 12px !important;
+}
+
+/* Reduce spacing between sidebar groups */
+#sidebar .mt-6,
+#sidebar .lg\:mt-8 {
+  margin-top: 20px !important;
+}
+
+/* Sidebar group lists */
+ul.sidebar-group {
+  gap: 0 !important;
+}
+
+/* Sidebar container - tighter vertical padding */
+#sidebar-content {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+/* Navigation items container */
+#navigation-items {
+  font-size: 13px !important;
 }

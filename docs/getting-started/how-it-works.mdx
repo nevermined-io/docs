@@ -48,7 +48,7 @@ Nevermined enables paid access to **services and resources** — agent APIs, MCP
 
   </Card>
 
-  <Card title="Code: SDKs + REST API" icon="code" href="/docs/products/payment-libraries/overview">
+  <Card title="Code: SDKs + REST API" icon="code" href="/docs/api-reference/introduction">
     Integrate in TypeScript/Python or call the REST API for full control.
 
     **Best for**: Production systems, automation, custom request flows
@@ -56,14 +56,28 @@ Nevermined enables paid access to **services and resources** — agent APIs, MCP
   </Card>
 </CardGroup>
 
+## Who Pays and How
+
+Nevermined supports both sides of the transaction:
+
+- **Builders** register agents, set pricing, and receive payouts. They add payment validation to their endpoints and Nevermined handles the rest.
+- **Subscribers** pay for access. They can purchase a plan via Stripe checkout or stablecoins, or enroll a card via [Nevermined Pay](/docs/products/nvm-pay/overview) for autonomous agent-to-agent payments.
+
+Card delegation via NVM Pay is what makes agent-to-agent fiat payments possible. Instead of a human clicking through checkout each time, the subscriber enrolls a Visa or Stripe card, sets spending limits, and the agent charges it directly within those bounds.
+
 ## Payment Settlement Options
 
-<CardGroup cols={1}>
+<CardGroup cols={2}>
   <Card title="x402 Protocol" icon="shield-check" href="/docs/products/x402-facilitator/overview">
     **HTTP 402 Payment Required**
 
-    Use the x402 standard for payment-required requests. The facilitator can handle verification and settlement.
+    Use the x402 standard for payment-required requests. The facilitator handles verification and settlement using credits or stablecoins.
+  </Card>
 
+  <Card title="Card Delegation (NVM Pay)" icon="credit-card" href="/docs/products/nvm-pay/overview">
+    **Direct card charging**
+
+    Subscribers enroll a Visa or Stripe card and set spending mandates. Agents charge the card directly via x402 with per-transaction ceilings and usage limits.
   </Card>
 </CardGroup>
 
@@ -71,7 +85,7 @@ Nevermined enables paid access to **services and resources** — agent APIs, MCP
 
 | Concern            | Nevermined Handles                               |
 | ------------------ | ------------------------------------------------ |
-| Payment processing | Crypto (including stablecoins) and fiat (Stripe) |
+| Payment processing | Crypto (stablecoins), fiat (Stripe), and card delegation ([NVM Pay](/docs/products/nvm-pay/overview)) |
 | Access control     | Entitlement validation (plans/tokens/x402)       |
 | Usage metering     | Credits redemption or per-request settlement     |
 | Settlement         | Payouts to providers                             |

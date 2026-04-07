@@ -1,0 +1,275 @@
+---
+title: "Mandates & Delegations"
+description: "Create scoped spending authorizations that control how much agents can charge, how many transactions they can make, and when the authorization expires."
+icon: "shield-check"
+---
+
+## What Are Mandates and Delegations?
+
+A mandate (Visa) or delegation (Stripe) is a **scoped spending authorization** tied to an enrolled payment card. It defines the boundaries of what an agent can charge: the maximum amount per transaction, how many transactions are allowed, and when the authorization expires.
+
+Think of it as a controlled allowance: you're giving an agent permission to spend within strict limits, rather than handing over your card.
+
+<Note>
+**Mandates** and **delegations** are the same concept for different providers. Visa calls them mandates, Stripe calls them delegations. The spending controls, API key linking, and selection logic work identically for both.
+</Note>
+
+## Authorization Properties
+
+Both mandates and delegations support the same core controls, though the field names differ slightly:
+
+| Control | Visa (Mandate) | Stripe (Delegation) | Description |
+|---|---|---|---|
+| **Spending limit** | `amount` | `spendingLimitCents` | Maximum amount per transaction |
+| **Max transactions** | `maxUsage` | `maxTransactions` | Total transactions allowed |
+| **Expiration** | `expiresAt` (ISO date) | `durationSecs` (seconds from creation) | When the authorization expires |
+| **Currency** | `currency` (default: USD) | `currency` (default: usd) | Payment currency |
+| **API key link** | `apiKeyId` | `apiKeyId` | Link to a specific NVM API key for [automatic selection](/docs/products/nvm-pay/mandate-selection) |
+
+## Creating an Authorization
+
+### Via the Nevermined Pay Dashboard
+
+After enrolling a card, create a mandate or delegation from the [Nevermined Pay dashboard](https://pay.nevermined.app):
+
+<Tabs>
+  <Tab title="Visa Mandate">
+    1. Navigate to your enrolled Visa card
+    2. Click **Create Mandate**
+    3. Set the spending ceiling (amount per transaction)
+    4. Set the maximum number of transactions
+    5. Set an expiration date
+    6. Optionally link an NVM API key (recommended if you have multiple mandates)
+    7. Complete passkey authentication to authorize
+
+    <Warning>
+    Creating a Visa mandate requires passkey (FIDO2) authentication. This ensures only the cardholder can authorize agent spending.
+    </Warning>
+  </Tab>
+  <Tab title="Stripe Delegation">
+    1. Navigate to your enrolled Stripe card
+    2. Click **Create Delegation**
+    3. Set the spending limit in cents (e.g., 1000 = $10.00)
+    4. Set the duration in seconds (e.g., 86400 = 24 hours)
+    5. Optionally set a max transactions limit
+    6. Optionally link an NVM API key
+    7. Confirm to create
+  </Tab>
+</Tabs>
+
+### Via the API
+
+<Tabs>
+  <Tab title="Visa Mandate">
+    ```bash
+    POST /payment-mandate
+    ```
+
+    ```json
+    {
+      "cardId": "your-card-id",
+      "vProvisionedTokenID": "token-from-enrollment",
+      "amount": 5.00,
+      "currency": "USD",
+      "maxUsage": 100,
+      "expiresAt": "2026-12-31T23:59:59Z",
+      "apiKeyId": "sk_...",
+      "fidoBlob": "passkey-assertion-data",
+      "identifier": "device-attestation-id",
+      "dfpSessionId": "device-fingerprint-session",
+      "verificationResults": "01",
+      "verificationMethod": "23",
+      "userId": "your-user-id"
+    }
+    ```
+
+    The response includes an `instructionId`, the Visa instruction that enables agent charging.
+  </Tab>
+  <Tab title="Stripe Delegation">
+    ```bash
+    POST /api/v1/delegation/create
+    ```
+
+    ```json
+    {
+      "provider": "stripe",
+      "providerPaymentMethodId": "pm_...",
+      "spendingLimitCents": 1000,
+      "durationSecs": 86400,
+      "maxTransactions": 100,
+      "apiKeyId": "sk_...",
+      "currency": "usd"
+    }
+    ```
+
+    The response includes a `delegationId` and `delegationToken` for the new authorization.
+  </Tab>
+</Tabs>
+
+## Spending Controls
+
+Both mandates and delegations enforce multiple layers of spending control:
+
+### Per-Transaction Amount
+
+The spending limit sets the maximum a single transaction can charge. If an agent requests more than this amount, the payment is rejected.
+
+### Usage Limits
+
+The max transactions cap limits the total number of transactions. NVM Pay tracks usage against this limit. Once the limit is reached, the authorization is exhausted and can't be used for further payments.
+
+### Time-Based Expiration
+
+After the expiration time, the authorization can't be used regardless of remaining usage. Visa mandates use an explicit `expiresAt` date. Stripe delegations calculate expiration from `durationSecs` added to the creation timestamp.
+
+### Card Spending Ceiling
+
+Each card has a cumulative spending ceiling (default $10.00). The sum of all active authorization amounts on a card can't exceed this ceiling. This applies to both Visa and Stripe cards.
+
+**Example:**
+
+| Card Ceiling | Authorization A | Authorization B | Remaining |
+|---|---|---|---|
+| $10.00 | $5.00 | $3.00 | $2.00 |
+
+If you try to create a third authorization for $3.00, it will be rejected because only $2.00 of ceiling remains.
+
+## Updating an Authorization
+
+<Tabs>
+  <Tab title="Visa Mandate">
+    You can update a mandate's amount, usage limit, expiration, or API key link.
+
+    ```bash
+    PUT /payment-mandate
+    ```
+
+    The request targets an existing mandate's `instructionId`.
+
+    <Warning>
+    Updating a Visa mandate revokes the existing instruction and creates a new one. Any unspent budget from the previous mandate doesn't carry over.
+    </Warning>
+  </Tab>
+  <Tab title="Stripe Delegation">
+    Stripe delegations can't be updated in-place. To change a delegation, you revoke the existing one and create a new one.
+
+    ```bash
+    # 1. Revoke existing delegation
+    DELETE /api/v1/delegation/{delegationId}
+
+    # 2. Create new delegation with updated params
+    POST /api/v1/delegation/create
+    ```
+
+    <Warning>
+    Revoking and recreating a Stripe delegation means any unspent budget from the old delegation does not carry over to the new one.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Cancelling an Authorization
+
+<Tabs>
+  <Tab title="Visa Mandate">
+    Cancel a mandate to revoke the agent's spending authorization:
+
+    ```bash
+    POST /cancel-purchase-instruction
+    ```
+
+    ```json
+    {
+      "instructionId": "the-mandate-instruction-id",
+      "vProvisionedTokenID": "token-from-enrollment",
+      "fidoBlob": "passkey-assertion-data",
+      "identifier": "device-attestation-id",
+      "dfpSessionId": "device-fingerprint-session",
+      "verificationResults": "01",
+      "verificationMethod": "23"
+    }
+    ```
+
+    Cancellation requires passkey authentication, just like creation.
+  </Tab>
+  <Tab title="Stripe Delegation">
+    Revoke a delegation to remove the agent's spending authorization:
+
+    ```bash
+    DELETE /api/v1/delegation/{delegationId}
+    ```
+
+    No additional authentication is required beyond your API credentials.
+  </Tab>
+</Tabs>
+
+## Status Lifecycle
+
+Both mandate and delegation statuses follow the same pattern:
+
+```
+Active -> Exhausted (usage limit reached)
+  |
+  |-> Expired (past expiration time)
+  |
+  |-> Revoked / Cancelled (manually removed)
+```
+
+Only `active` authorizations can be used for payments. NVM Pay checks status, usage, and expiration on every verify and settle request.
+
+<Note>
+Stripe delegations track additional status detail: `remainingBudgetCents` (spending limit minus amount already spent) and `transactionCount` (current usage).
+</Note>
+
+## API Key Linking
+
+You can optionally link a mandate or delegation to a specific NVM API key. This tells NVM Pay "when this API key is used, charge this authorization."
+
+This is especially useful when you have multiple active authorizations and want deterministic routing. Instead of the agent guessing which one to use, the API key determines it automatically. Both Visa mandates and Stripe delegations support API key linking.
+
+See [Mandate Selection](/docs/products/nvm-pay/mandate-selection) for the full resolution algorithm.
+
+## Transaction History
+
+Every payment processed through a mandate or delegation is recorded as a transaction:
+
+| Field | Description |
+|---|---|
+| `amount` | Transaction amount |
+| `currency` | Currency code |
+| `status` | `completed` or `failed` |
+| `providerTransactionId` | Stripe charge ID |
+| `failureReason` | Error details (if failed) |
+| `createdAt` | When the transaction occurred |
+
+<Tabs>
+  <Tab title="Visa">
+    ```bash
+    GET /cards/{cardId}/transactions?page=1&pageSize=20&status=completed
+    ```
+  </Tab>
+  <Tab title="Stripe">
+    ```bash
+    GET /api/v1/delegation/{delegationId}/transactions?offset=0
+    ```
+  </Tab>
+</Tabs>
+
+## Provider Comparison
+
+| | Visa Mandate | Stripe Delegation |
+|---|---|---|
+| **Create** | `POST /payment-mandate` | `POST /api/v1/delegation/create` |
+| **Update** | `PUT /payment-mandate` (revoke + recreate internally) | Revoke + create new (explicit two-step) |
+| **Cancel** | `POST /cancel-purchase-instruction` | `DELETE /api/v1/delegation/{id}` |
+| **Auth required** | Passkey (FIDO2) for create, update, cancel | API credentials only |
+| **Expiration format** | ISO date (`expiresAt`) | Duration in seconds (`durationSecs`) |
+| **Spending limit format** | USD amount (`amount: 5.00`) | Cents (`spendingLimitCents: 500`) |
+| **Budget tracking** | `usageCount` / `maxUsage` | `amountSpentCents` / `remainingBudgetCents` + `transactionCount` / `maxTransactions` |
+
+## What's Next?
+
+If you have multiple mandates or delegations, you'll want to understand how NVM Pay decides which one to use for a given payment request.
+
+<Card title="Mandate Selection" icon="route" href="/docs/products/nvm-pay/mandate-selection">
+  Learn the three-tier resolution algorithm for automatic mandate and delegation selection
+</Card>

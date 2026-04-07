@@ -1,30 +1,93 @@
 ---
 title: "FAQ"
-description: "Frequently asked questions about getting started with Nevermined, including Stripe Connect onboarding."
-icon: "question"
+description: "Frequently asked questions about Nevermined, NVM Pay, Stripe Connect, payments, and card delegation."
+icon: "comments"
 ---
 
-Find answers to the most common questions about getting started with Nevermined.
+## NVM Pay
+
+How agents pay with your real card, within limits you control.
+
+<Accordion title="What is NVM Pay?">
+  NVM Pay lets users enroll a Visa or Stripe card, set spending limits, and let agents charge it directly via x402. No checkout pages, no human in the loop. Manage everything at [pay.nevermined.app](https://pay.nevermined.app).
+</Accordion>
+
+<Accordion title="How is this different from a prepaid card or virtual wallet?">
+  NVM Pay uses your real credit or debit card, not a separate prepaid balance. At enrollment, the card number is tokenized by a PCI-compliant vault. Nevermined never sees or stores the raw card number. What the agent receives is a scoped credential that encodes identity, spending limits, and merchant restrictions. The charge appears on your normal statement.
+</Accordion>
+
+<Accordion title="Can agents charge my card without my approval?">
+  Only within the limits you set. When you create a mandate, you define an amount ceiling, maximum number of transactions, and expiration date. A per-card spending ceiling applies across all active mandates. The agent can only charge within these bounds, and you can cancel a mandate at any time.
+</Accordion>
+
+<Accordion title="What happens if an agent exceeds the mandate?">
+  The transaction is rejected instantly before it reaches the payment processor. Mandates are enforced server-side on every request. The agent receives a `402` error explaining which limit was hit (amount cap, transaction count, or time window).
+</Accordion>
+
+<Accordion title="How do I revoke an agent's ability to spend?">
+  One click in the [dashboard](https://pay.nevermined.app) or one API call. Revocation is immediate: no grace period, no cached tokens. The agent loses payment capability the instant you revoke.
+</Accordion>
+
+<Accordion title="Do I need a crypto wallet?">
+  No. NVM Pay works with regular Visa and Stripe cards. All payments are settled via card rails. No wallet or stablecoins required.
+</Accordion>
+
+<Accordion title="How does my agent know which mandate to use?">
+  Three ways, from simplest to most explicit:
+
+  1. **Automatic** — If you have exactly one active mandate, it's selected automatically.
+  2. **Key-linked** — Link a specific mandate to a specific API key. The system always routes that key to its linked mandate.
+  3. **Explicit ID** — Pass the mandate ID directly in the request for full control.
+
+  See [Mandate Selection](/docs/products/nvm-pay/mandate-selection) for details.
+</Accordion>
+
+<Accordion title="What are the current spending limits?">
+  During the pilot, each enrolled card has a $10.00 cumulative ceiling across all active mandates. Contact the Nevermined team to request increased limits.
+</Accordion>
+
+<Accordion title="What's the difference between the Stripe and Visa paths?">
+  From the agent's perspective, nothing changes — same x402 payment header either way. The difference is settlement:
+
+  - **Stripe** — Card tokenized by Stripe, payment settles through Stripe's network.
+  - **Visa** — Card tokenized by Visa Token Service (VTS), each payment generates a one-time VIC cryptogram that settles through standard Visa acquiring rails.
+</Accordion>
+
+<Accordion title="Which cards are eligible?">
+  Stripe supports most Visa, Mastercard, Amex, and Discover cards. For the Visa path, virtual cards can currently be issued for Visa cards from a limited number of US issuers (excluding Chase, Citi). Most corporate and prepaid cards are not eligible for the Visa path.
+</Accordion>
+
+<Accordion title="What security standards does NVM Pay meet?">
+  Card data is captured via a PCI-compliant vault (VGS) and tokenized before entering our system. Nevermined holds ISO 27001 and SOC 2 Type II certifications and operates at PCI SAQ-D level. Authentication uses FIDO2 passkeys or 3DS at enrollment. Every transaction is logged for full auditability.
+</Accordion>
 
 ## Stripe Connect
 
 Nevermined uses [Stripe Connect](https://stripe.com/connect) to route fiat payments directly to your Stripe account. You need to connect a Stripe account before you can receive credit card payments from your users.
 
-<Accordion title="How do I connect my Stripe account to Nevermined?">
+<Accordion title="What's the difference between Stripe Connect and NVM Pay?">
+  **Stripe Connect** is for *builders* receiving fiat payouts. You connect your Stripe account so Nevermined can route revenue to you.
+
+  **NVM Pay** is for *users* who want agents to pay with their card. The user enrolls a card, creates a spending mandate, and agents charge against it via x402.
+
+  They serve different sides of the transaction: Stripe Connect handles payouts to builders, NVM Pay handles card-based payments from users.
+</Accordion>
+
+<Accordion title="How do I connect my Stripe account?">
   <Steps>
     <Step title="Go to your User Profile">
-      Open the [Nevermined App](https://nevermined.app) and navigate to **Settings > User Profile**. Scroll down to the **Stripe** section. You'll see your current connection status.
+      Open the [Nevermined App](https://nevermined.app) and navigate to **Settings > User Profile**. Scroll down to the **Stripe** section.
     </Step>
     <Step title="Click Connect Stripe">
       Click the **Connect Stripe** button. This opens Stripe's onboarding flow where you'll set up or link your Stripe account.
     </Step>
     <Step title="Skip phone verification (sandbox)">
-      Stripe asks for an email and phone number. In the sandbox environment, you'll see a banner saying "You're using a test account with test data." Click **Use test phone number** to skip SMS verification and proceed.
+      In the sandbox environment, you'll see a banner saying "You're using a test account with test data." Click **Use test phone number** to skip SMS verification.
 
       ![Stripe Connect phone verification step](/images/faq/stripe-connect-phone-verification.png)
     </Step>
     <Step title="Skip SMS verification (sandbox)">
-      Stripe will show a verification code screen. Since you're in sandbox, click **Use test code** to auto-fill the test code `000000` and continue.
+      Click **Use test code** to auto-fill the test code `000000` and continue.
 
       ![Stripe Connect test code step](/images/faq/stripe-connect-test-code.png)
     </Step>
@@ -34,7 +97,7 @@ Nevermined uses [Stripe Connect](https://stripe.com/connect) to route fiat payme
       ![Stripe Connect business type step](/images/faq/stripe-connect-business-type.png)
     </Step>
     <Step title="Fill in personal details (sandbox)">
-      Stripe asks for your legal name, date of birth, address, and last 4 digits of your SSN. In the sandbox environment, you can use the following test values:
+      Use these test values:
 
       | Field | Test value |
       |-------|------------|
@@ -54,12 +117,12 @@ Nevermined uses [Stripe Connect](https://stripe.com/connect) to route fiat payme
       ![Stripe Connect personal details step](/images/faq/stripe-connect-personal-details.png)
     </Step>
     <Step title="Add bank details for payouts (sandbox)">
-      Stripe asks for a bank account to receive payouts. Click **Use test account** to auto-fill the test routing number (`110000000`) and account number (`000123456789`), then click **Continue**.
+      Click **Use test account** to auto-fill the test routing number (`110000000`) and account number (`000123456789`), then click **Continue**.
 
       ![Stripe Connect bank details step](/images/faq/stripe-connect-business-details.png)
     </Step>
     <Step title="Review and submit">
-      Stripe shows a summary of your public details, personal details, and payout information. Review everything and click **Agree and submit**. You'll be redirected back to the Nevermined App and see a "Stripe successfully connected 🎉" confirmation.
+      Review everything and click **Agree and submit**. You'll be redirected back to the Nevermined App and see a "Stripe successfully connected" confirmation.
 
       ![Stripe Connect review and submit step](/images/faq/stripe-connect-review-submit.png)
     </Step>
@@ -67,29 +130,59 @@ Nevermined uses [Stripe Connect](https://stripe.com/connect) to route fiat payme
 </Accordion>
 
 <Accordion title="Do I need a Stripe account before connecting?">
-  No. If you don't have one, Stripe's onboarding flow will create a new account for you. If you already have a Stripe account, you can link it during the same flow.
-</Accordion>
-
-<Accordion title="What happens if my Stripe onboarding is incomplete?">
-  Stripe may require additional information (identity documents, bank details) before your account is fully active. Until onboarding is complete, you won't be able to receive fiat payouts. You can return to **Settings > Stripe Connect** in the Nevermined App to resume the process.
+  No. If you don't have one, Stripe's onboarding flow will create a new account for you.
 </Accordion>
 
 <Accordion title="Is Stripe Connect required for all payment plans?">
-  No. Stripe Connect is only required if you want to accept **fiat (credit card) payments**. If your plans only accept stablecoin or crypto payments, you don't need a Stripe account.
+  No. Only if you want to accept fiat (credit card) payments. Plans that only accept stablecoin or crypto don't need a Stripe account.
 </Accordion>
 
-<Accordion title="How do payouts work after connecting Stripe?">
-  When a user pays for one of your plans with a credit card, Nevermined routes the payment to your connected Stripe account using Stripe Connect. Fees (Nevermined's 2% + Stripe's processing fees) are deducted automatically before the funds reach your account. Stripe handles the payout schedule to your bank.
+<Accordion title="How do payouts work?">
+  When a user pays with a credit card, Nevermined routes the payment to your connected Stripe account. Fees (Nevermined's 2% + Stripe's processing fees) are deducted automatically. Stripe handles the payout schedule to your bank.
 </Accordion>
 
-<Accordion title="Can I use Stripe Connect in the sandbox environment?">
-  Yes. You can connect a Stripe account in the sandbox environment to test the full fiat payment flow. Sandbox transactions use [Stripe test cards](https://stripe.com/docs/testing#international-cards), so no real money is charged.
-
-  <Note>
-    When testing in sandbox, Stripe validates your inputs even in test mode. Use the test values provided by Stripe to pass all validations — for example, the personal ID or SSN must be `000000000`. See the [full list of Stripe test values](https://docs.stripe.com/connect/testing?accounts-namespace=v2).
-  </Note>
+<Accordion title="Can I test in sandbox?">
+  Yes. Sandbox transactions use [Stripe test cards](https://stripe.com/docs/testing#international-cards), so no real money is charged. See the [full list of Stripe test values](https://docs.stripe.com/connect/testing?accounts-namespace=v2).
 </Accordion>
 
 <Accordion title="Can I disconnect or change my Stripe account?">
-  Yes. Go to **Settings > Stripe Connect** in the Nevermined App. You can disconnect your current account and connect a different one. Any pending payouts will still be routed to the previously connected account.
+  Yes. Go to **Settings > Stripe Connect** in the Nevermined App. Any pending payouts will still be routed to the previously connected account.
+</Accordion>
+
+## General
+
+<Accordion title="What is Nevermined?">
+  Nevermined adds a payment and entitlement layer to any agent API or MCP tool. Each inbound request is validated, metered, and settled in real time. You handle the AI, we handle payments.
+</Accordion>
+
+<Accordion title="What is x402?">
+  x402 is an open HTTP standard for agent payments. When an agent hits a paywall, the server responds with `402 Payment Required`. The agent attaches a payment credential in the next request header and the purchase completes in milliseconds. No checkout, no redirect.
+</Accordion>
+
+<Accordion title="What is agentic commerce?">
+  Agents autonomously buy, sell, or rent services from each other. Nevermined's identity, metering, and payment infrastructure makes those machine-to-machine transactions possible.
+</Accordion>
+
+<Accordion title="Why do AI payments need new infrastructure?">
+  AI agents fire thousands of micro-tasks and are OpEx heavy. You need per-request metering and real-time settlement. Seat-based pricing and traditional checkout flows can't keep up.
+</Accordion>
+
+<Accordion title="Can't I just use Stripe?">
+  Stripe handles checkout but doesn't track sub-cent API calls. Nevermined adds per-request metering and settlement on top, while still letting you settle via Stripe or USDC. Stripe was built for monthly subscriptions and shopping carts. We're built for millions of micro-transactions between autonomous agents.
+</Accordion>
+
+<Accordion title="Which agent frameworks are supported?">
+  Any framework that can make an HTTP request: OpenAI, Anthropic, LangChain, CrewAI, Strands, MCP tool servers, and custom agents. We provide TypeScript and Python SDKs, a CLI, and an MCP server.
+</Accordion>
+
+<Accordion title="Usage-based vs. outcome-based pricing — what's the difference?">
+  Usage-based bills per API call or compute cycle. Outcome-based charges only when your agent delivers a result (lead booked, bug fixed, etc.). Nevermined supports either model, or a hybrid, out of the box.
+</Accordion>
+
+<Accordion title="Do merchants need to integrate with Nevermined?">
+  No. Agents pay on real card rails (Visa, Mastercard). If a merchant accepts cards today, they already accept agent payments. No new SDK, no new settlement flow.
+</Accordion>
+
+<Accordion title="How do I onboard as a merchant?">
+  Contact the Nevermined team to schedule a merchant onboarding call. Once enrolled, your business can accept payments from AI agents via x402 with no changes to your existing payment infrastructure.
 </Accordion>
