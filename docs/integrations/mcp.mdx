@@ -123,9 +123,36 @@ Here's how to create a complete, production-ready MCP server with OAuth authenti
   </Tab>
   <Tab title="Python">
     ```python
-    # Python SDK support coming soon
-    # For now, use the TypeScript API shown in the advanced sections
+    import os
+    from mcp.server.fastmcp import FastMCP
+    from payments_py import Payments, PaymentOptions
+
+    # 1. Initialize Payments
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_API_KEY"],
+            environment=os.environ.get("NVM_ENV", "sandbox")
+        )
+    )
+
+    # 2. Create MCP server with tool
+    fastmcp = FastMCP(name="weather-mcp", json_response=True)
+
+    @fastmcp.tool(name="weather.today", title="Today's Weather")
+    async def weather_today(city: str) -> str:
+        return f"Weather for {city}: Sunny, 25C."
+
+    # 3. Start with Nevermined paywall
+    payments.mcp.start(
+        fastmcp=fastmcp,
+        agent_id=os.environ["NVM_AGENT_ID"],
+        port=3000
+    )
     ```
+
+    <Note>
+    Requires `payments-py[mcp]`: `pip install payments-py[mcp] python-dotenv`
+    </Note>
   </Tab>
 </Tabs>
 
