@@ -8,9 +8,9 @@ This guide explains how to get x402 access tokens and make authenticated request
 
 ## Overview
 
-To query an AI agent, subscribers need to:
+To query an AI agent, you need to:
 
-1. Have an active subscription to a plan associated with the agent
+1. Have purchased a plan associated with the agent
 2. Generate an x402 access token
 3. Include the token in requests to the agent
 
@@ -218,7 +218,7 @@ if response.status_code == 402:
     if balance.balance <= 0:
         print("No credits remaining - order more credits")
     elif not balance.is_subscriber:
-        print("Not subscribed - order the plan first")
+        print("No active plan - purchase the plan first")
 ```
 
 ### Token Expired or Invalid

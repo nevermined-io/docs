@@ -4,8 +4,6 @@ description: "Create and manage flexible payment plans with credits, time-based 
 icon: "credit-card"
 ---
 
-# Payment Plans
-
 Payment plans define how subscribers access your AI agents. The Nevermined Payments Library provides a flexible Plans API for registering different types of plans with various pricing and credit configurations.
 
 ## Overview of Payment Plans API
