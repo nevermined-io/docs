@@ -4,8 +4,6 @@ description: "Register and manage AI agents with payment plans, metadata, and AP
 icon: "robot"
 ---
 
-# Agents
-
 The Agents API allows AI builders to register their AI agents with the Nevermined protocol, making them discoverable and accessible through payment plans.
 
 ## Overview of Agents API

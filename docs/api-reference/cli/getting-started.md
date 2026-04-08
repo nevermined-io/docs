@@ -18,7 +18,7 @@ Before installing the CLI, ensure you have:
 
 ## Getting Your API Key
 
-To interact with the Nevermined API, you need an API key. Follow the [Get Your API Key](/docs/getting-started/get-your-api-key) guide to create one.
+To interact with the Nevermined API, you need an API key. Open [nevermined.app](https://nevermined.app), sign in, then go to **Settings > Global NVM API Keys** and click **+ New API Key**.
 
 ## Installation
 

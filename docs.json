@@ -1,6 +1,6 @@
 {
     "$schema": "https://mintlify.com/docs.json",
-    "theme": "maple",
+    "theme": "mint",
     "appearance": {
         "default": "light"
     },
@@ -34,7 +34,7 @@
     "navigation": {
         "tabs": [
             {
-                "tab": "Docs",
+                "tab": "Guides",
                 "groups": [
                     {
                         "group": "Learn",
@@ -46,7 +46,6 @@
                     {
                         "group": "Build",
                         "pages": [
-                            "docs/getting-started/get-your-api-key",
                             "docs/integrate/quickstart/5-minute-setup",
                             "docs/integrate/quickstart/typescript",
                             "docs/integrate/quickstart/python",
@@ -156,24 +155,73 @@
                 ]
             },
             {
-                "tab": "API Reference",
+                "tab": "API",
                 "groups": [
                     {
                         "group": "Overview",
                         "pages": [
-                            "docs/api-reference/introduction",
-                            "docs/development-guide/build-using-nvm-mcp"
+                            "docs/api-reference/introduction"
                         ]
                     },
                     {
-                        "group": "OpenClaw Plugin",
+                        "group": "Agents",
                         "pages": [
-                            "docs/api-reference/openclaw-plugin/getting-started",
-                            "docs/api-reference/openclaw-plugin/setup",
-                            "docs/api-reference/openclaw-plugin/commands",
-                            "docs/api-reference/openclaw-plugin/guide"
+                            "docs/api-reference/protocol/register-agent",
+                            "docs/api-reference/protocol/list-agents",
+                            "docs/api-reference/protocol/get-agent",
+                            "docs/api-reference/protocol/update-agent",
+                            "docs/api-reference/protocol/register-agent-and-plan",
+                            "docs/api-reference/protocol/toggle-agent-listing",
+                            "docs/api-reference/protocol/add-plan-to-agent",
+                            "docs/api-reference/protocol/remove-plan-from-agent",
+                            "docs/api-reference/protocol/get-agent-plans"
                         ]
                     },
+                    {
+                        "group": "Plans",
+                        "pages": [
+                            "docs/api-reference/protocol/register-plan",
+                            "docs/api-reference/protocol/list-plans",
+                            "docs/api-reference/protocol/get-plan",
+                            "docs/api-reference/protocol/update-plan",
+                            "docs/api-reference/protocol/toggle-plan-listing",
+                            "docs/api-reference/protocol/order-plan",
+                            "docs/api-reference/protocol/get-plan-balance",
+                            "docs/api-reference/protocol/get-plan-agents"
+                        ]
+                    },
+                    {
+                        "group": "Access",
+                        "pages": [
+                            "docs/api-reference/protocol/get-access-token",
+                            "docs/api-reference/protocol/initialize-agent-request",
+                            "docs/api-reference/protocol/track-agent-sub-task"
+                        ]
+                    },
+                    {
+                        "group": "x402",
+                        "pages": [
+                            "docs/api-reference/x402/verify-permission",
+                            "docs/api-reference/x402/settle-permission",
+                            "docs/api-reference/x402/create-permission",
+                            "docs/api-reference/x402/list-permissions",
+                            "docs/api-reference/x402/get-permission",
+                            "docs/api-reference/x402/revoke-permission"
+                        ]
+                    },
+                    {
+                        "group": "Credits",
+                        "pages": [
+                            "docs/api-reference/protocol/mint-credits",
+                            "docs/api-reference/protocol/mint-expirable-credits",
+                            "docs/api-reference/protocol/redeem-credits"
+                        ]
+                    }
+                ]
+            },
+            {
+                "tab": "SDK",
+                "groups": [
                     {
                         "group": "TypeScript SDK",
                         "pages": [
@@ -207,65 +255,6 @@
                         ]
                     },
                     {
-                        "group": "REST API",
-                        "pages": [
-                            {
-                                "group": "Protocol - Agents",
-                                "pages": [
-                                    "docs/api-reference/protocol/register-agent",
-                                    "docs/api-reference/protocol/list-agents",
-                                    "docs/api-reference/protocol/get-agent",
-                                    "docs/api-reference/protocol/update-agent",
-                                    "docs/api-reference/protocol/register-agent-and-plan",
-                                    "docs/api-reference/protocol/toggle-agent-listing",
-                                    "docs/api-reference/protocol/add-plan-to-agent",
-                                    "docs/api-reference/protocol/remove-plan-from-agent",
-                                    "docs/api-reference/protocol/get-agent-plans"
-                                ]
-                            },
-                            {
-                                "group": "Protocol - Plans",
-                                "pages": [
-                                    "docs/api-reference/protocol/register-plan",
-                                    "docs/api-reference/protocol/list-plans",
-                                    "docs/api-reference/protocol/get-plan",
-                                    "docs/api-reference/protocol/update-plan",
-                                    "docs/api-reference/protocol/toggle-plan-listing",
-                                    "docs/api-reference/protocol/order-plan",
-                                    "docs/api-reference/protocol/get-plan-balance",
-                                    "docs/api-reference/protocol/get-plan-agents"
-                                ]
-                            },
-                            {
-                                "group": "Protocol - Access",
-                                "pages": [
-                                    "docs/api-reference/protocol/get-access-token",
-                                    "docs/api-reference/protocol/initialize-agent-request",
-                                    "docs/api-reference/protocol/track-agent-sub-task"
-                                ]
-                            },
-                            {
-                                "group": "Protocol - Credits",
-                                "pages": [
-                                    "docs/api-reference/protocol/mint-credits",
-                                    "docs/api-reference/protocol/mint-expirable-credits",
-                                    "docs/api-reference/protocol/redeem-credits"
-                                ]
-                            },
-                            {
-                                "group": "x402",
-                                "pages": [
-                                    "docs/api-reference/x402/verify-permission",
-                                    "docs/api-reference/x402/settle-permission",
-                                    "docs/api-reference/x402/create-permission",
-                                    "docs/api-reference/x402/list-permissions",
-                                    "docs/api-reference/x402/get-permission",
-                                    "docs/api-reference/x402/revoke-permission"
-                                ]
-                            }
-                        ]
-                    },
-                    {
                         "group": "CLI",
                         "pages": [
                             "docs/api-reference/cli/getting-started",
@@ -274,6 +263,15 @@
                             "docs/api-reference/cli/purchases",
                             "docs/api-reference/cli/querying",
                             "docs/api-reference/cli/other-commands"
+                        ]
+                    },
+                    {
+                        "group": "OpenClaw Plugin",
+                        "pages": [
+                            "docs/api-reference/openclaw-plugin/getting-started",
+                            "docs/api-reference/openclaw-plugin/setup",
+                            "docs/api-reference/openclaw-plugin/commands",
+                            "docs/api-reference/openclaw-plugin/guide"
                         ]
                     }
                 ]
@@ -287,7 +285,13 @@
         "light": "/logo/light.svg",
         "dark": "/logo/dark.svg"
     },
-    "navbar": {},
+    "navbar": {
+        "primary": {
+            "type": "button",
+            "label": "Get API Key",
+            "href": "https://nevermined.app"
+        }
+    },
     "footer": {
         "socials": {
             "x": "https://x.com/nevermined_ai",

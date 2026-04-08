@@ -4,16 +4,14 @@ description: "Purchase payment plans and manage credit balances for accessing AI
 icon: "wallet"
 ---
 
-# Payments and Balance
-
-This guide explains how subscribers purchase payment plans and check their credit balances. These operations are typically performed by users who want to access AI agents.
+This guide explains how to purchase payment plans and check credit balances. These operations are typically performed by users who want to access AI agents.
 
 ## Overview
 
 The payment flow consists of:
 1. **Discovering Plans**: Browse available payment plans for agents
 2. **Ordering Plans**: Purchase a plan to receive credits
-3. **Checking Balance**: Monitor available credits and subscription status
+3. **Checking Balance**: Monitor available credits and access status
 
 ## Get Plan Balance
 
@@ -44,7 +42,7 @@ The balance response contains:
 interface PlanBalance {
   balance: string        // Available credits as string
   isOwner: boolean      // True if you're the plan creator
-  isSubscriber: boolean // True if you have an active subscription
+  isSubscriber: boolean // True if you have purchased this plan
 }
 ```
 
@@ -216,11 +214,11 @@ console.log(`Description: ${plan.description}`)
 console.log(`Price: ${plan.price}`)
 console.log(`Credits: ${plan.credits}`)
 
-// Check if already subscribed
+// Check if already purchased
 const balance = await subscriberPayments.plans.getPlanBalance(planId)
 
 if (balance.isSubscriber && BigInt(balance.balance) > 0n) {
-  console.log('Already subscribed with available credits')
+  console.log('Already purchased with available credits')
 } else {
   console.log('Need to order plan')
 }
