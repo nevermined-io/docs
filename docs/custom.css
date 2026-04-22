@@ -1,200 +1,59 @@
 /* Nevermined Custom Styles */
 
 /* =====================================================
-   Top Header / Safe Area spacing
-   Prevent the top nav (tabs) pill from touching the top of the viewport
+   Logo - smaller sizing
    ===================================================== */
 
-/* Add a little breathing room inside the sticky header (Mintlify layout differences)
-   We target a few common wrappers defensively. */
-header,
-[data-testid="site-header"],
-.navbar,
-.mintlify-navbar {
-  padding-top: max(10px, env(safe-area-inset-top)) !important;
-}
-
-/* Ensure the tabs pill itself has some top margin so it doesn't look stuck
-   to the header edge on certain themes/breakpoints. */
-.nav-tabs {
-  margin-top: 24px !important;
+img.nav-logo {
+  max-height: 20px !important;
+  height: 20px !important;
+  width: auto !important;
 }
 
 /* =====================================================
-   Navigation Tabs - Pill Style
-   Matches the Nevermined website TabButtons component
+   Navigation Tabs - Clean underline style (DripPay-inspired)
    ===================================================== */
 
-/* Remove border from tabs header container */
-.nav-tabs-container,
-div:has(> .nav-tabs) {
-  border: none !important;
-  border-bottom: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-/* Remove any borders from nav-tabs and all children */
-.nav-tabs,
-.nav-tabs *,
-.nav-tabs::before,
-.nav-tabs::after,
-.nav-tabs *::before,
-.nav-tabs *::after {
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-/* Kill the active tab indicator/underline completely */
-[data-active-tab-indicator],
-.nav-tabs-indicator,
-.tab-indicator,
-.active-indicator,
-.nav-tabs > div:not(.nav-tabs-item):not(a),
-.nav-tabs > span,
-.nav-tabs [class*="indicator"],
-.nav-tabs [class*="underline"],
-.nav-tabs [class*="border"],
-.nav-tabs [class*="active"]:not(a),
-.nav-tabs [style*="bottom"],
-.nav-tabs [style*="translate"] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  width: 0 !important;
-  background: transparent !important;
-  transform: none !important;
-}
-
-/* Force hide any absolute/fixed positioned indicator inside tabs */
-.nav-tabs [style*="position: absolute"],
-.nav-tabs [style*="position:absolute"],
-.nav-tabs div[class]:not([class*="item"]) {
-  display: none !important;
-  background: transparent !important;
-}
-
-/* Tabs container - transparent, no visible container */
+/* Tabs container — tight, left-aligned */
 .nav-tabs {
-  display: inline-flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 4px !important;
+  gap: 0 !important;
   padding: 0 !important;
-  background-color: transparent !important;
-  background: transparent !important;
-  border-radius: 0 !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  position: relative !important;
-  height: auto !important;
 }
 
-/* Individual tab items */
+/* Individual tab items — compact text links */
 a.nav-tabs-item {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 10px 32px !important;
-  border-radius: 9999px !important;
+  padding: 8px 16px !important;
   font-size: 14px !important;
-  font-weight: 400 !important;
+  font-weight: 500 !important;
+  min-width: auto !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* Hover */
+a.nav-tabs-item:hover {
   color: #111827 !important;
-  background-color: transparent !important;
-  transition: background-color 0.5s ease-in-out, color 0.15s ease !important;
-  cursor: pointer !important;
-  position: relative !important;
-  z-index: 1 !important;
-  text-decoration: none !important;
-  white-space: nowrap !important;
-  height: auto !important;
-  border: none !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
-  min-width: 140px !important;
+  background: transparent !important;
 }
 
-/* Remove any underline/border from tabs */
-a.nav-tabs-item::after,
-a.nav-tabs-item::before {
-  display: none !important;
-  content: none !important;
-  border: none !important;
-  box-shadow: none !important;
+/* Dark mode tabs */
+.dark a.nav-tabs-item,
+[data-theme="dark"] a.nav-tabs-item {
+  color: #d1d5db !important;
 }
 
-/* Hover state for non-active tabs */
-a.nav-tabs-item:hover:not(.font-semibold):not([aria-current="page"]) {
-  color: #111827 !important;
-  background-color: rgba(188, 220, 74, 0.15) !important;
+.dark a.nav-tabs-item:hover,
+[data-theme="dark"] a.nav-tabs-item:hover {
+  color: #f3f4f6 !important;
 }
 
-/* Keyboard focus */
-a.nav-tabs-item:focus-visible {
-  outline: 2px solid rgba(154, 192, 34, 0.55) !important;
-  outline-offset: 2px !important;
-}
-
-/* Active/Selected tab - solid prominent green pill */
-a.nav-tabs-item:has(> div.bg-primary),
-a.nav-tabs-item:has(> div[class*="bg-primary"]) {
-  background-color: #9ac022 !important;
-  color: #ffffff !important;
-  font-weight: 600 !important;
-  box-shadow: 0 2px 8px rgba(154, 192, 34, 0.25) !important;
-  border-radius: 9999px !important;
-  padding: 6px 24px !important;
-  text-decoration: none !important;
-  text-shadow: none !important;
-}
-
-/* Hide the bottom border indicator on active tab */
-a.nav-tabs-item:has(> div.bg-primary) > div,
-a.nav-tabs-item:has(> div[class*="bg-primary"]) > div {
-  display: none !important;
-}
-
-/* Responsive adjustments for mobile */
+/* Mobile */
 @media (max-width: 768px) {
-  .nav-tabs {
-    padding: 4px !important;
-    gap: 0 !important;
-    margin-top: 8px !important;
-  }
-
   a.nav-tabs-item {
-    padding: 8px 16px !important;
-    font-size: 12px !important;
-    min-width: 90px !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
   }
 }
-
-/* Large screens */
-@media (min-width: 1024px) {
-  a.nav-tabs-item {
-    padding: 10px 36px !important;
-    font-size: 15px !important;
-    min-width: 160px !important;
-  }
-}
-
-/* =====================================================
-   Tabs vertical alignment (logo baseline)
-   Keep header layout untouched; align tabs pill visually with logo
-   ===================================================== */
-
-/* (reverted) */
-
-/* =====================================================
-   Header alignment
-   Align tabs pill with the Nevermined logo in the top bar
-   ===================================================== */
-
-/* (reverted) */
 
 /* =====================================================
    Hero Banner Styles
@@ -311,4 +170,68 @@ a.nav-tabs-item:has(> div[class*="bg-primary"]) > div {
   .nvm-hero-description {
     font-size: 14px;
   }
+}
+
+/* =====================================================
+   Content Typography - tighter text sizing
+   ===================================================== */
+
+/* Body / paragraph text */
+.prose,
+.prose p,
+.prose li,
+article p,
+article li {
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+}
+
+/* Headings */
+.prose h1, article h1 { font-size: 27px !important; }
+.prose h2, article h2 { font-size: 21px !important; }
+.prose h3, article h3 { font-size: 17px !important; }
+.prose h4, article h4 { font-size: 15px !important; }
+
+/* =====================================================
+   Sidebar Navigation - tighter spacing
+   ===================================================== */
+
+/* Sidebar nav link padding */
+#sidebar a.group {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+/* Sidebar nav items */
+#sidebar li {
+  margin: 1px 0 !important;
+}
+
+/* Sidebar group headers */
+.sidebar-group-header {
+  gap: 6px !important;
+  margin-bottom: 4px !important;
+  padding-left: 12px !important;
+}
+
+/* Reduce spacing between sidebar groups */
+#sidebar .mt-6,
+#sidebar .lg\:mt-8 {
+  margin-top: 20px !important;
+}
+
+/* Sidebar group lists */
+ul.sidebar-group {
+  gap: 0 !important;
+}
+
+/* Sidebar container - tighter vertical padding */
+#sidebar-content {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+/* Navigation items container */
+#navigation-items {
+  font-size: 13px !important;
 }

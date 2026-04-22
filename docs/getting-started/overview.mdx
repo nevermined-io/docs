@@ -1,0 +1,129 @@
+---
+title: "Overview"
+description: "Nevermined is building the financial rails for AI. Monetize agents and enable autonomous agent-to-agent payments with real cards."
+icon: "rocket"
+---
+
+AI agents need to pay and get paid, but traditional payment infrastructure wasn't built for that. Three problems stand in the way:
+
+- **Agents can't spend autonomously** - no way to delegate a real payment method with controlled limits
+- **Merchants can't accept agentic payments** - no metering, no per-request settlement, no programmatic access control
+- **Everyone's locked to one provider** - rigid integrations that don't work across frameworks or payment processors
+
+Nevermined solves all three. Put a payment gate in front of any API, charge per request, and settle automatically. You handle the AI, we handle the rest.
+
+<CardGroup cols={2}>
+  <Card title="Get started" icon="bolt" href="/docs/integrate/quickstart/5-minute-setup">
+    Launch an integration in 5 minutes
+  </Card>
+  <Card title="API Reference" icon="code" href="/docs/api-reference/introduction">
+    Explore the REST API and SDKs
+  </Card>
+</CardGroup>
+
+## How It Works
+
+![Nevermined Payment Flow](/images/payment-flow.png)
+
+<Steps>
+  <Step title="Register your API">
+    Any HTTP endpoint your agent exposes. Nevermined gates access at the request level - if a caller isn't entitled, they get a 402 before your code even runs.
+  </Step>
+
+  <Step title="Create a payment plan">
+    - **Payment method** - Fiat (cards via [NVM Pay](/docs/products/nvm-pay/overview)) or crypto (USDC)
+    - **Pricing model** - Fixed per call, or dynamic (builder-defined or cost+margin)
+    - **Plan type** - Prepaid (users buy a plan upfront) or pay-as-you-go (charge per request)
+  </Step>
+
+  <Step title="Validate, deliver, settle">
+    Entitled? Deliver and settle. Not entitled? Return **402 Payment Required**.
+  </Step>
+</Steps>
+
+**Builders** register API endpoints, set pricing per call, and receive payouts. Add a few lines of validation to your server.
+
+**Users** purchase a plan (fiat or crypto) or go pay-as-you-go. No human in the loop.
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Agent Monetization" icon="link" href="/docs/solutions/agent-to-agent-monetization">
+    Meter and settle between autonomous agents
+  </Card>
+  <Card title="Tool Monetization" icon="plug" href="/docs/solutions/mcp-point-of-sales">
+    Charge for tools and APIs with per-request billing
+  </Card>
+  <Card title="Agent Card Payments" icon="credit-card" href="/docs/products/nvm-pay/overview">
+    Let agents pay with real cards via card delegation
+  </Card>
+  <Card title="Static Assets" icon="lock" href="/docs/solutions/access-control-monetization-static-resources">
+    Gate datasets, models, and downloadable resources
+  </Card>
+</CardGroup>
+
+## What You Can Monetize
+
+<AccordionGroup>
+  <Accordion title="Customer Support Agents" icon="headset">
+    Deploy AI customer service agents with per-ticket billing, resolution-based pricing, or monthly support packages.
+  </Accordion>
+  <Accordion title="Legal Assistants" icon="scale-balanced">
+    Monetize AI legal research and document analysis with per-query pricing or case-based packages.
+  </Accordion>
+  <Accordion title="Sales Automation Agents" icon="chart-line">
+    AI sales assistants that qualify leads and schedule meetings with performance-based pricing.
+  </Accordion>
+  <Accordion title="AI Chat Services" icon="message">
+    Conversational AI with per-message billing, token packages, or subscription tiers.
+  </Accordion>
+  <Accordion title="Code Analysis Tools" icon="magnifying-glass">
+    AI-powered code reviews, security scans, and optimization with per-repo or subscription pricing.
+  </Accordion>
+  <Accordion title="Computer Vision APIs" icon="image">
+    Vision services with dynamic pricing based on resolution, complexity, or analysis depth.
+  </Accordion>
+  <Accordion title="Translation Services" icon="language">
+    AI translation and localization with pricing based on word count or language complexity.
+  </Accordion>
+  <Accordion title="Data Analysis Agents" icon="chart-mixed">
+    Analytics services with pricing based on dataset size and analysis complexity.
+  </Accordion>
+</AccordionGroup>
+
+## What Nevermined Handles
+
+| Concern            | What you get                                     |
+| ------------------ | ------------------------------------------------ |
+| Payment processing | Fiat (card delegation via [NVM Pay](/docs/products/nvm-pay/overview)) and crypto (USDC on-chain) |
+| Access control     | Gate API access per request via plans and x402   |
+| Usage metering     | Per-request tracking and settlement              |
+| Settlement         | Automatic payouts to providers                   |
+
+## Integration Options
+
+Nevermined is framework-agnostic. It works with LangChain, CrewAI, Strands, OpenAI Agents, or plain HTTP.
+
+- **Code-first** - TypeScript and Python SDKs, REST API, and CLI for full programmatic control
+- **[Nevermined Pay](https://pay.nevermined.app)** - Card enrollment, spending mandates, and delegation management
+
+### Merchant Onboarding
+
+Use the [Nevermined App](https://nevermined.app) for reporting, analytics, and plan management. To receive fiat payouts, connect a Stripe Connect account there. Stablecoin payouts settle directly to your wallet.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book" href="/docs/getting-started/core-concepts">
+    Understand the platform terminology and building blocks
+  </Card>
+  <Card title="5-Minute Setup" icon="rocket" href="/docs/integrate/quickstart/5-minute-setup">
+    Build your first integration end to end
+  </Card>
+  <Card title="NVM Pay" icon="credit-card" href="/docs/products/nvm-pay/overview">
+    Set up agent card payments with Visa or Stripe
+  </Card>
+  <Card title="SDKs & API" icon="code" href="/docs/api-reference/introduction">
+    TypeScript, Python, and REST API reference
+  </Card>
+</CardGroup>

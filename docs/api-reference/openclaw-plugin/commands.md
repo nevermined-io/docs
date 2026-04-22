@@ -38,7 +38,7 @@ End your Nevermined session and remove the stored API key from memory. After log
 
 ## Subscriber Tools
 
-These tools are designed for users who consume paid AI agent services. They handle the full lifecycle of subscribing to a plan, paying for access, and querying agents.
+These tools are designed for users who consume paid AI agent services. They handle the full lifecycle of purchasing a plan, paying for access, and querying agents.
 
 ### Check Credit Balance — `nevermined_checkBalance`
 
@@ -124,7 +124,7 @@ Use this for plans that have been created with `pricingType: fiat`. For crypto-p
 | `planId` | string | No | Config `planId` | The plan ID to purchase |
 
 **Example prompt:**
-> I want to subscribe to the Premium Agent plan using my credit card.
+> I want to purchase the Premium Agent plan using my credit card.
 
 **Returns:**
 ```json
@@ -171,7 +171,7 @@ Send a prompt to a paid Nevermined AI agent and get the response. This is the ma
 2. Sends the prompt to the agent's URL with the `PAYMENT-SIGNATURE` header
 3. Returns the agent's response
 
-If the agent returns a 402 (Payment Required) response, the tool returns an error suggesting you purchase credits first. This typically means your plan has run out of credits or you haven't subscribed yet.
+If the agent returns a 402 (Payment Required) response, the tool returns an error suggesting you purchase credits first. This typically means your plan has run out of credits or you haven't purchased a plan yet.
 
 Like `nevermined_getAccessToken`, this tool supports both crypto and fiat payment types. When using fiat, it automatically resolves your enrolled card and builds the delegation config.
 

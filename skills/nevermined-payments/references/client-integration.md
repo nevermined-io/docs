@@ -30,8 +30,10 @@ await payments.plans.orderPlan(PLAN_ID)
 const balance = await payments.plans.getPlanBalance(PLAN_ID)
 console.log(`Credits remaining: ${balance}`)
 
-// Generate x402 access token
-const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID)
+// Generate x402 access token (requires delegationConfig)
+const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
+  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+})
 ```
 
 ### Python
@@ -39,6 +41,7 @@ const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID
 ```python
 import os
 from payments_py import Payments, PaymentOptions
+from payments_py.x402 import DelegationConfig, X402TokenOptions
 
 payments = Payments.get_instance(
     PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
@@ -51,8 +54,13 @@ payments.plans.order_plan(plan_id)
 balance = payments.plans.get_plan_balance(plan_id)
 print(f"Credits remaining: {balance}")
 
-# Generate x402 access token
-token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+# Generate x402 access token (requires delegationConfig)
+token_res = payments.x402.get_x402_access_token(
+    plan_id, agent_id,
+    token_options=X402TokenOptions(
+        delegation_config=DelegationConfig(spending_limit_cents=10000, duration_secs=604800)
+    )
+)
 access_token = token_res["accessToken"]
 ```
 
@@ -91,8 +99,10 @@ async function callProtectedAPI() {
     const { planId, extra } = paymentRequired.accepts[0]
     const agentId = extra?.agentId
 
-    // Step 3: Generate x402 token
-    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+    // Step 3: Generate x402 token (requires delegationConfig)
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+    })
 
     // Step 4: Request with token → 200
     const response2 = await fetch(`${SERVER_URL}/ask`, {
@@ -127,6 +137,7 @@ import base64
 import json
 import httpx
 from payments_py import Payments, PaymentOptions
+from payments_py.x402 import DelegationConfig, X402TokenOptions
 
 payments = Payments.get_instance(
     PaymentOptions(
@@ -156,8 +167,15 @@ def call_protected_api():
             plan_id = payment_required["accepts"][0]["planId"]
             agent_id = payment_required["accepts"][0].get("extra", {}).get("agentId")
 
-            # Step 3: Generate x402 token
-            token_result = payments.x402.get_x402_access_token(plan_id, agent_id)
+            # Step 3: Generate x402 token (requires delegationConfig)
+            token_result = payments.x402.get_x402_access_token(
+                plan_id, agent_id,
+                token_options=X402TokenOptions(
+                    delegation_config=DelegationConfig(
+                        spending_limit_cents=10000, duration_secs=604800
+                    )
+                )
+            )
             access_token = token_result["accessToken"]
 
             # Step 4: Request with token → 200
@@ -190,7 +208,9 @@ if __name__ == "__main__":
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
 
-const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+})
 
 const transport = new StreamableHTTPClientTransport(
   new URL("http://localhost:3000/mcp"),
@@ -215,6 +235,7 @@ const result = await client.callTool({
 ### Python
 
 ```python
+from payments_py.x402 import DelegationConfig, X402TokenOptions
 from payments_py.x402.strands import extract_payment_required
 from agent import agent, payments
 
@@ -229,8 +250,15 @@ if payment_required:
     plan_id = chosen_plan["planId"]
     agent_id = (chosen_plan.get("extra") or {}).get("agentId")
 
-    # Step 3: Get token
-    token_response = payments.x402.get_x402_access_token(plan_id, agent_id)
+    # Step 3: Get token (requires delegationConfig)
+    token_response = payments.x402.get_x402_access_token(
+        plan_id, agent_id,
+        token_options=X402TokenOptions(
+            delegation_config=DelegationConfig(
+                spending_limit_cents=10000, duration_secs=604800
+            )
+        )
+    )
     access_token = token_response["accessToken"]
 
     # Step 4: Retry with token

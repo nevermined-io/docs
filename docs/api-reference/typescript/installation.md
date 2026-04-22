@@ -4,8 +4,6 @@ description: "Install and configure the @nevermined-io/payments TypeScript SDK f
 icon: "download"
 ---
 
-# Installation
-
 The Nevermined Payments Library is a TypeScript SDK that enables AI builders and subscribers to monetize and access AI agents through the Nevermined protocol. The library supports flexible payment plans (credits and time-based), multiple payment methods (crypto and fiat), and seamless integration with AI agent frameworks.
 
 ## Overview

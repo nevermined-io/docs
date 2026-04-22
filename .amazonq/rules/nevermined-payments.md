@@ -7,7 +7,7 @@ Provide correct patterns for integrating Nevermined payment infrastructure into 
 ## Instructions
 
 - **TypeScript SDK**: `@nevermined-io/payments` on npm
-- **Python SDK**: `payments-py` on PyPI (with extras: `payments-py[fastapi]`, `payments-py[strands]`)
+- **Python SDK**: `payments-py` on PyPI (with extras: `payments-py[mcp]`, `payments-py[fastapi]`, `payments-py[strands]`)
 - Always use environment variables: `NVM_API_KEY`, `NVM_ENVIRONMENT`, `NVM_PLAN_ID`, `NVM_AGENT_ID`
 - Use `verifyPermissions` / `settlePermissions` for x402 (not the deprecated `isValidRequest`)
 - Use `buildPaymentRequired()` (TS) or `build_payment_required()` (Python) for 402 responses

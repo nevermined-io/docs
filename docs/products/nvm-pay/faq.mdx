@@ -1,0 +1,124 @@
+---
+title: "FAQ"
+description: "Frequently asked questions about NVM Pay, card delegation, mandate selection, Visa virtual cards, and Stripe settlement."
+icon: "question"
+---
+
+## Agent Payments
+
+How agents pay with your real card, within limits you control.
+
+<Accordion title="How is this different from issuing a prepaid card for my agent?">
+  Card Delegation uses your real credit or debit card, not a separate prepaid balance. At enrollment, the card number is tokenized by a PCI-compliant vault. Nevermined never sees or stores the raw PAN. What the agent receives is a scoped credential that encodes identity, spending limits, and merchant restrictions. The actual charge still runs on existing card rails, so it appears on your normal statement. No prefunding, no separate balance to manage.
+</Accordion>
+
+<Accordion title="What happens if an agent tries to exceed the spending mandate?">
+  The transaction is rejected instantly before it reaches the payment processor. Mandates are enforced server-side on every request, with no client-side honor system. The agent receives a clear 402 error explaining which limit was hit (amount cap, transaction count, or time window), so it can adapt its behavior or notify the user.
+</Accordion>
+
+<Accordion title="Can I use Card Delegation with any AI agent framework?">
+  Yes. Any software that can make an HTTP request can use x402 payments. That includes OpenAI Assistants, Anthropic Claude, LangChain, CrewAI, Strands, MCP tool servers, and custom agents. Nevermined also provides TypeScript and Python SDKs, a CLI, and an MCP server for convenience, but none are required.
+</Accordion>
+
+<Accordion title="How do I revoke an agent's ability to spend?">
+  One click in the [dashboard](https://pay.nevermined.app) or one API call. Revocation is immediate: no grace period, no cached tokens, and no pending window. The agent loses payment capability the instant you revoke, and any in-flight requests using that mandate will fail.
+</Accordion>
+
+<Accordion title="What's the difference between the Stripe and Visa settlement paths?">
+  From the agent's perspective, nothing changes. It sends the same x402 payment header either way. The difference is in how the payment settles under the hood:
+
+  - **Stripe path** - Your card is tokenized by Stripe, and the payment settles through Stripe's network. The merchant connects their Stripe account when they enroll with Nevermined.
+  - **Visa path** - Your card is tokenized by Visa Token Service (VTS), and each payment generates a one-time VIC cryptogram that settles through standard Visa acquiring rails. The merchant doesn't need Stripe; they enroll with Nevermined and receive payments through their existing acquirer.
+
+  In both cases, merchants enroll with Nevermined to accept payments from AI agents. Nevermined handles the x402 protocol, agent authentication, and settlement on their behalf.
+</Accordion>
+
+<Accordion title="What security and compliance standards does Card Delegation meet?">
+  Card data is captured via a PCI-compliant vault (VGS) and tokenized before it enters the system. Nevermined holds ISO 27001 and SOC 2 Type II certifications and operates at PCI SAQ-D level. Strong Customer Authentication (3DS or FIDO2 passkeys) is enforced at enrollment. Every transaction is logged with agent ID, amount, merchant, and timestamp for full auditability.
+</Accordion>
+
+## Mandate Selection
+
+How agents pick which mandate or delegation to charge.
+
+<Accordion title="How does my agent know which mandate to use?">
+  There are three ways the system resolves which mandate to charge, from simplest to most explicit:
+
+  1. **Automatic** - If your API key has access to exactly one active mandate, it is selected automatically. Just pass your API key and go. If there are zero or multiple mandates, you get a clear error asking you to be more specific.
+  2. **Key-linked** - Link a specific mandate to a specific API key, either when you create the mandate or afterwards. The system always routes that key to its linked mandate, even if you have multiple mandates active. Only the linked key can use that mandate.
+  3. **Explicit mandate ID** - Pass the mandate ID directly in your API request for full control. Useful when one agent works with multiple cards or mandates and needs to pick per-request.
+
+  See [Mandate Selection](/docs/products/nvm-pay/mandate-selection) for the full resolution algorithm.
+</Accordion>
+
+<Accordion title="When should I link an API key to a mandate?">
+  If you have one mandate and one API key, you don't need to link them. Automatic selection handles it. Linking becomes useful when you have multiple mandates and want each agent (or API key) to use a specific one without passing a mandate ID on every request. It's the recommended approach for multi-agent setups.
+</Accordion>
+
+<Accordion title="What happens if I have multiple mandates and no key linked?">
+  The automatic selection will fail because the system can't determine which mandate to charge. Your agent receives a 402 error explaining that multiple mandates are available. You can resolve this by either linking your API key to a specific mandate, or passing the mandate ID explicitly in the request.
+</Accordion>
+
+<Accordion title="Can the same API key be used across Visa and Stripe?">
+  Yes. API keys are provider-agnostic. The same key works for both Visa mandates and Stripe delegations. However, key-to-mandate linking is per-provider. If you link a key to a Visa mandate, that linking does not affect Stripe delegations, and vice versa.
+</Accordion>
+
+<Accordion title="How do I change which mandate an API key is linked to?">
+  On the [enrollment page](https://pay.nevermined.app), click **Update** on the mandate and use the API Key dropdown to assign or reassign the key. You can also set it to "None" to unlink. For Stripe delegations, use the **Edit** button on the delegation card.
+</Accordion>
+
+## Stripe
+
+Settlement through Stripe's network.
+
+<Accordion title="How does the Stripe settlement path work?">
+  When you enroll a card via Stripe, Stripe tokenizes the card number into a platform token. When your agent makes a payment, Nevermined uses this token to create a charge through Stripe's network. The payment is wrapped in the x402 protocol, so the merchant (or a facilitator) triggers the flow by responding with a 402 status code.
+</Accordion>
+
+<Accordion title="What does a merchant need to accept Stripe-path payments?">
+  The merchant enrolls with Nevermined and connects their Stripe account. Once enrolled, they can receive payments from AI agents via the x402 protocol. The merchant needs an active Stripe account since the Stripe path settles through Stripe's network. Nevermined handles agent authentication, mandate enforcement, and the x402 flow on the merchant's behalf.
+</Accordion>
+
+<Accordion title="Which cards work with Stripe?">
+  Stripe supports most Visa, Mastercard, American Express, and Discover cards. Both credit and debit cards are eligible. The card is tokenized at enrollment and charges appear on your normal statement.
+</Accordion>
+
+## Visa Virtual Cards
+
+Settlement through production Visa infrastructure.
+
+<Accordion title="Is this a sandbox integration, or production Visa infrastructure?">
+  Production. Nevermined is live on Visa Token Service (VTS) and Visa Intelligent Commerce (VIC), the same infrastructure behind billions of real-world transactions. Your enrolled card is tokenized by Visa into a virtual card token (DPAN), and every agent payment generates a one-time virtual card credential that is settled through real acquiring banks.
+</Accordion>
+
+<Accordion title="How does Visa Token Service (VTS) protect my card?">
+  At enrollment, your real card number (PAN) is sent directly from a PCI-compliant form (VGS) to Visa. It never passes through or is stored by Nevermined. Visa replaces it with a virtual card token (DPAN) that is bound specifically to Nevermined as a token requestor. Even if the DPAN were compromised, it can't be used outside of the Nevermined ecosystem, and Visa can revoke it instantly.
+</Accordion>
+
+<Accordion title="What is VIC and why does it matter for AI agent payments?">
+  Visa Intelligent Commerce (VIC) is the programmable layer on top of tokenization. When your agent needs to pay, VIC generates a one-time payment credential that authorizes exactly one transaction, then it's gone. This means even if an agent is compromised, there's no reusable payment credential to steal. It's purpose-built for the kind of high-frequency, autonomous micropayments that AI agents make.
+</Accordion>
+
+<Accordion title="What does a merchant need to accept Visa-path payments?">
+  The merchant enrolls with Nevermined to start receiving agent payments. They don't need a Stripe account. The Visa path settles through standard Visa acquiring rails, so payments arrive through the merchant's existing acquirer as normal Visa transactions. Nevermined handles agent authentication, mandate enforcement, and the x402 flow on their behalf.
+</Accordion>
+
+<Accordion title="Which cards are eligible for Visa virtual cards?">
+  During the pilot, Visa virtual cards can be issued for Visa cards from a limited number of US issuers (excluding Chase, Citi). Most corporate and prepaid cards are not eligible.
+</Accordion>
+
+## Limits & Merchant Onboarding
+
+Pilot ceilings, increased limits, and accepting agent payments.
+
+<Accordion title="What are the current spending limits?">
+  During the pilot, each enrolled card has a $10.00 cumulative ceiling across all active mandates. This applies to both Stripe and Visa paths independently. Individual mandate amounts are validated against the remaining ceiling at creation and update time.
+</Accordion>
+
+<Accordion title="Can I get higher limits?">
+  Yes. The $10 ceiling is a pilot default. Contact the Nevermined team to request increased limits for your account.
+</Accordion>
+
+<Accordion title="How do I onboard as a merchant?">
+  Contact the Nevermined team to schedule a merchant onboarding call. Once enrolled, your business can accept payments from AI agents via the x402 protocol with no changes to your existing payment infrastructure. Nevermined handles agent authentication, mandate enforcement, and the settlement flow on your behalf.
+</Accordion>

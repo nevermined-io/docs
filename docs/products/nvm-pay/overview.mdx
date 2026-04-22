@@ -1,0 +1,95 @@
+---
+title: "Agent Cards"
+description: "Enroll a real card, set spending limits, and let your agents pay autonomously."
+icon: "credit-card"
+---
+
+Enroll a Visa or Stripe card. Set spending limits. Your agents charge it directly via x402, no checkout pages, no human in the loop.
+
+Manage everything at [pay.nevermined.app](https://pay.nevermined.app).
+
+<CardGroup cols={3}>
+  <Card title="Card Enrollment" icon="credit-card" href="/docs/products/nvm-pay/card-enrollment">
+    Enroll Visa or Stripe cards
+  </Card>
+  <Card title="Mandates & Delegations" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+    Set spending limits and expiration
+  </Card>
+  <Card title="Mandate Selection" icon="route" href="/docs/products/nvm-pay/mandate-selection">
+    Auto-resolve which card to charge
+  </Card>
+</CardGroup>
+
+## How It Works
+
+<Steps>
+  <Step title="Enroll a card">
+    Add a Visa or Stripe card at [pay.nevermined.app](https://pay.nevermined.app). Card data is tokenized by the provider. NVM Pay never stores raw card numbers.
+  </Step>
+  <Step title="Set spending limits">
+    Create a mandate (Visa) or delegation (Stripe): max amount, max transactions, expiration. Optionally link it to a specific API key.
+  </Step>
+  <Step title="Agents charge it">
+    Agents call the NVM Pay API with their API key. NVM Pay resolves the right authorization and generates an x402 token. The resource server verifies, executes, and settles.
+  </Step>
+</Steps>
+
+## Payment Flow
+
+```
+Agent (no token)
+  |
+  |-> Resource Server returns 402 + payment-required header
+  |
+  |-> Agent calls NVM Pay: POST /access-token/from-nvm-key
+  |     |-> Resolves mandate/delegation -> generates x402 token
+  |
+  |-> Agent retries with payment-signature header
+  |
+  |-> Resource Server:
+        |-> POST /verify -> validates token, authorization, usage
+        |-> Executes workload
+        |-> POST /settle -> charges card, returns payment-response
+```
+
+## Visa vs Stripe
+
+Both paths give you the same spending controls and API key linking.
+
+<CardGroup cols={2}>
+  <Card title="Visa" icon="cc-visa">
+    Tokenized via Visa Token Service (VTS). Passkey (FIDO2) authentication. Settlement through Visa credentials charged via Stripe.
+  </Card>
+  <Card title="Stripe" icon="stripe">
+    Captured via Stripe Elements. No passkeys required. Settlement via Stripe PaymentIntents directly.
+  </Card>
+</CardGroup>
+
+## Key Concepts
+
+| Concept | Description |
+|---|---|
+| **Mandate / Delegation** | A scoped spending authorization on a card. Defines amount ceiling, max transactions, and expiration. |
+| **Spending Ceiling** | Per-card cumulative limit across all active authorizations (default $10.00). |
+| **API Key Linking** | Link a mandate to a specific API key so agents automatically use the right one. |
+| **x402 Token** | Payment token used in the `payment-signature` HTTP header. |
+
+## Environments
+
+- **Sandbox** - Testing and development. Stripe test mode.
+- **Live** - Production. Real payments through Visa and Stripe.
+
+<Note>
+You need an [NVM API Key](/docs/getting-started/get-your-api-key). Set it as `NVM_API_KEY`.
+</Note>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Enroll a Card" icon="plus" href="/docs/products/nvm-pay/card-enrollment">
+    Set up your first payment card
+  </Card>
+  <Card title="Set Spending Limits" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+    Create a mandate or delegation
+  </Card>
+</CardGroup>

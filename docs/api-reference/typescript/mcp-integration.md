@@ -4,8 +4,6 @@ description: "Build payment-protected MCP servers with OAuth 2.1 authentication 
 icon: "plug"
 ---
 
-# MCP Integration
-
 The Model Context Protocol (MCP) integration provides a complete payment-protected MCP server with OAuth 2.1 support and automatic credit management. This is the simplest way to run a payment-protected AI agent.
 
 ## Overview of MCP Integration

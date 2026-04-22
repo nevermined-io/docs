@@ -4,8 +4,6 @@ description: "Enable agent-to-agent communication with payment-protected streami
 icon: "share-nodes"
 ---
 
-# A2A Integration
-
 The Agent-to-Agent (A2A) protocol integration enables AI agents to communicate with each other using payment-protected message streams. The Nevermined Payments Library provides complete A2A server functionality with automatic payment handling.
 
 ## Overview of A2A Integration

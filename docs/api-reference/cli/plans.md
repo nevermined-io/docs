@@ -137,7 +137,7 @@ nvm plans register-credits-plan \
 
 ### Time-Based Plan
 
-Create a subscription plan with time-limited access:
+Create a time-based plan with time-limited access:
 
 ```bash
 nvm plans register-time-plan \

@@ -1,0 +1,250 @@
+---
+title: "Mandate Selection"
+description: "How NVM Pay automatically resolves which mandate or delegation to charge when an agent makes a payment request. Three-tier priority with explicit, key-linked, and fallback modes."
+icon: "route"
+---
+
+## The Problem
+
+When a subscriber has multiple active mandates or delegations across their enrolled cards, the agent needs to know which one to use. Should it charge the $5 mandate on Card A or the $10 delegation on Card B?
+
+NVM Pay solves this with a **three-tier selection algorithm** that automatically resolves the right authorization based on priority rules.
+
+<Note>
+The three-tier selection is currently implemented for Visa mandates via the `POST /access-token/from-nvm-key` endpoint. Stripe delegations use the separate delegation API (`POST /api/v1/delegation/create`) with explicit delegation IDs. The same API key linking and selection concepts apply to both providers.
+</Note>
+
+## Three-Tier Resolution
+
+When an agent calls `POST /access-token/from-nvm-key`, NVM Pay resolves the mandate in this order:
+
+<Steps>
+  <Step title="Mode 1: Explicit Mandate ID">
+    If the agent passes a `mandateId` in the request body, NVM Pay uses that mandate directly. No ambiguity, the agent knows exactly which mandate it wants.
+
+    ```json
+    POST /access-token/from-nvm-key
+    Authorization: Bearer <NVM_API_KEY>
+
+    {
+      "amount": "1.00",
+      "mandateId": "your-specific-mandate-id"
+    }
+    ```
+
+    NVM Pay validates:
+    - The mandate exists and is `active`
+    - The mandate has remaining usage (`usageCount < maxUsage`)
+    - The mandate amount covers the requested amount
+    - If the mandate is linked to an API key, it must match the calling key
+    - The associated card is active and belongs to the authenticated user
+  </Step>
+  <Step title="Mode 2: Key-Linked Mandate">
+    If no `mandateId` is passed, NVM Pay checks if any mandate is **linked to the calling API key**. If exactly one key-linked mandate matches, it's selected automatically.
+
+    This is the recommended approach for production setups with multiple mandates. Link each API key to a specific mandate and the routing is deterministic.
+
+    ```json
+    POST /access-token/from-nvm-key
+    Authorization: Bearer <NVM_API_KEY>
+
+    {
+      "amount": "1.00"
+    }
+    ```
+
+    NVM Pay collects all mandates where `mandate.apiKeyId === calling_key.skId`, then filters for active, valid, and unused mandates.
+
+    Key-linked mandates **always take priority** over unlinked ones.
+  </Step>
+  <Step title="Mode 3: Unlinked Fallback">
+    If no key-linked mandates exist, NVM Pay falls back to **unlinked mandates** (mandates with no `apiKeyId` set). If exactly one unlinked mandate matches, it's selected.
+
+    This mode is convenient when you only have one mandate. You don't need to link anything.
+  </Step>
+</Steps>
+
+## Decision Flowchart
+
+```
+Agent calls POST /access-token/from-nvm-key
+  |
+  |- mandateId in body?
+  |   |- YES -> Use that mandate (validate ownership, status, amount, usage)
+  |   |- NO  -> Continue to auto-resolution
+  |
+  |- Collect all user's mandates across all cards
+  |   |- Key-linked: mandate.apiKeyId === current key's skId
+  |   |- Unlinked: mandate.apiKeyId is null
+  |
+  |- Filter each group: active, has instructionId, amount >= requested, usage not exhausted
+  |
+  |- Key-linked mandates found?
+  |   |- Exactly 1 -> Use it
+  |   |- Multiple  -> Error: "Multiple active mandates found"
+  |   |- None      -> Fall through to unlinked
+  |
+  |- Unlinked mandates found?
+      |- Exactly 1 -> Use it
+      |- Multiple  -> Error: "Multiple active mandates found"
+      |- None      -> Error: "No active mandate found"
+```
+
+## When to Use Each Mode
+
+<CardGroup cols={3}>
+  <Card title="Explicit ID" icon="crosshairs">
+    Multiple mandates, full control. Pass `mandateId` per request.
+  </Card>
+  <Card title="Key-Linked" icon="link">
+    One mandate per API key. Set it once, forget it.
+  </Card>
+  <Card title="Unlinked" icon="wand-magic-sparkles">
+    Single mandate, zero config. Just create and go.
+  </Card>
+</CardGroup>
+
+## Linking an API Key
+
+API key linking works the same way for both Visa mandates and Stripe delegations.
+
+### When Creating
+
+In the [Nevermined Pay dashboard](https://pay.nevermined.app), open the Create Mandate or Create Delegation dialog and select an API key from the dropdown. Only active, non-browser API keys that aren't already linked to another authorization are shown.
+
+### When Updating
+
+Use the Update dialog in the dashboard to change or remove the linked API key. You can:
+- Link to a different API key
+- Unlink (set to "none") to make the authorization available as a fallback
+
+<Note>
+Linking an API key is optional but recommended when you have two or more active mandates or delegations. Without it, NVM Pay can't automatically determine which one to use and will return an error.
+</Note>
+
+## Error Handling
+
+### Multiple Mandates Found
+
+```
+"Multiple active mandates found (a1b2c3d4, e5f6g7h8).
+ Pass a mandateId to select one, or link a mandate to your API key."
+```
+
+**Fix:** Either pass `mandateId` explicitly, or link one of the mandates to your API key in the dashboard.
+
+### No Active Mandate Found
+
+```
+"No active mandate found (check mandate amount, usage, status, and key restrictions)"
+```
+
+**Possible causes:**
+- All mandates are exhausted (usage limit reached)
+- All mandates have expired
+- Mandate amount is less than the requested amount
+- Mandates are linked to a different API key
+
+### Mandate Linked to Different Key
+
+```
+"This mandate is linked to a different API key"
+```
+
+**HTTP 403.** The explicit `mandateId` you passed is linked to a different API key than the one you're authenticating with. Use the correct API key, or update the mandate's key link.
+
+### Amount Insufficient
+
+```
+"Mandate amount ($5.00) is less than requested ($10.00)"
+```
+
+The mandate's spending ceiling is lower than the transaction amount. Create a new mandate with a higher amount, or reduce the transaction amount.
+
+## API Reference
+
+### Generate Token from NVM Key (Visa)
+
+```
+POST /access-token/from-nvm-key
+Authorization: Bearer <NVM_API_KEY>
+Content-Type: application/json
+```
+
+**Request:**
+
+```json
+{
+  "amount": "1.00",
+  "mandateId": "optional-mandate-id",
+  "resource": "https://your-api.com/endpoint",
+  "payTo": "merchant-identifier"
+}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `amount` | Yes | Payment amount in USD |
+| `mandateId` | No | Explicit mandate ID (Mode 1). If omitted, auto-resolution is used. |
+| `resource` | No | Resource URL for the x402 payload |
+| `payTo` | No | Merchant/payee identifier |
+
+**Response (success):**
+
+```json
+{
+  "success": true,
+  "payload": {
+    "x402Version": 2,
+    "resource": { "url": "https://your-api.com/endpoint" },
+    "accepted": { "scheme": "visa", "network": "visa:vts", "amount": "1.00", "asset": "USD" },
+    "payload": {
+      "vProvisionedTokenID": "...",
+      "instructionId": "...",
+      "validAfter": 1700000000,
+      "validBefore": 1700003600,
+      "nonce": "unique-nonce"
+    }
+  },
+  "payloadEncoded": "base64-encoded-payload-for-http-transport"
+}
+```
+
+The `payloadEncoded` value goes in the `payment-signature` HTTP header when calling a protected resource.
+
+**Error responses:**
+
+| Status | Reason |
+|---|---|
+| 400 | Multiple mandates, mandate exhausted, amount insufficient, invalid request |
+| 403 | Mandate linked to a different API key, mandate doesn't belong to user |
+| 404 | No active mandate found, mandate ID not found |
+
+### Stripe Delegation Flow
+
+For Stripe, the delegation is selected explicitly when creating it. Use the delegation API:
+
+```bash
+# Create a delegation (returns delegationId + delegationToken)
+POST /api/v1/delegation/create
+
+# List delegations to find the right one
+GET /api/v1/delegation
+
+# Revoke a delegation
+DELETE /api/v1/delegation/{delegationId}
+```
+
+API key linking on Stripe delegations enables the same selection behavior when routing through the NVM Pay platform.
+
+## Best Practices
+
+1. **Start simple.** If you have one mandate or delegation, you don't need to link API keys or pass explicit IDs. Just create the authorization and call the API.
+
+2. **Link keys for production.** When you add a second authorization, link each API key to a specific mandate or delegation. This gives you deterministic routing without code changes.
+
+3. **Use explicit IDs for complex setups.** If an agent works with multiple mandates dynamically (e.g., different mandates for different pricing tiers), pass the `mandateId` in each request.
+
+4. **Monitor usage.** Check usage counts against limits to know when authorizations are close to exhaustion. Create new ones before the old ones run out.
+
+5. **Set reasonable expiration times.** Don't create authorizations that last indefinitely. Set expiration aligned with your billing cycles.

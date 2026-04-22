@@ -19,14 +19,14 @@ This section explains:
 - The x402 HTTP 402 handshake and `PAYMENT-SIGNATURE` retry pattern
 - How Nevermined extends x402 with Smart Account-based settlement
 - How subscribers generate and sign x402 payment proofs
-- How permissions, session keys, and delegated execution work
+- How delegations, session keys, and delegated execution work
 - How the facilitator verifies and settles requests
 - How to use the Python and TypeScript x402 client libraries
 - Advanced integration with Google A2A/AP2
 
 For pricing and plan configuration (credits, time-based access, dynamic pricing), see:
 
-- [Payment Models](/docs/products/x402-facilitator/payment-models)
+- [Payment Models](/docs/integrate/patterns/payment-models)
 
 Nevermined's x402 implementation is compatible with the standard protocol while adding programmable settlement layers powered by Nevermined smart contracts.
 
@@ -92,7 +92,7 @@ Nevermined introduces two x402 schemes for different payment rails:
 | `nvm:erc4337` | `eip155:84532` | Crypto payments | ERC-4337 UserOps + session keys |
 | `nvm:card-delegation` | `stripe` | Fiat/credit card | Stripe PaymentIntent + credit burn |
 
-For the complete card-delegation specification, see the [Card Delegation Spec](/docs/specs/x402-card-delegation).
+For the complete delegation specification, see the [Delegation Spec](/docs/specs/x402-card-delegation).
 
 ### `nvm:erc4337` — Smart Account Extension
 
@@ -281,7 +281,7 @@ When the server returns 402 Payment Required, it includes the `payment-required`
 
 ### Step 2 — Build a payment payload
 
-Using Nevermined Payments libraries (Python or TS), you generate an x402 access token:
+Using Nevermined Payments libraries (Python or TS), you generate an x402 access token. Token generation requires a `delegationConfig` that controls spending limits and duration. You can either auto-create a delegation inline (Pattern A) or create one explicitly and reuse its ID (Pattern B).
 
 <Tabs>
   <Tab title="TypeScript">
@@ -306,8 +306,20 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
       // Extract planId and agentId from accepts array
       const { planId, agentId } = paymentRequired.accepts[0]
 
-      // Generate the x402 access token
-      const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+      // Pattern A: Auto-create a delegation inline
+      const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+        delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+      })
+
+      // Pattern B: Create a delegation explicitly, then reuse its ID
+      const delegation = await payments.delegation.createDelegation({
+        provider: 'erc4337',
+        spendingLimitCents: 10000,
+        durationSecs: 604800
+      })
+      const { accessToken: token } = await payments.x402.getX402AccessToken(planId, agentId, {
+        delegationConfig: { delegationId: delegation.delegationId }
+      })
     }
     ```
   </Tab>
@@ -335,15 +347,28 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
         plan_id = payment_required["accepts"][0]["planId"]
         agent_id = payment_required["accepts"][0].get("extra", {}).get("agentId")
 
-        # Generate the x402 access token
-        token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+        # Pattern A: Auto-create a delegation inline
+        token_res = payments.x402.get_x402_access_token(plan_id, agent_id, {
+            'delegationConfig': { 'spendingLimitCents': 10000, 'durationSecs': 604800 }
+        })
+        access_token = token_res["accessToken"]
+
+        # Pattern B: Create a delegation explicitly, then reuse its ID
+        delegation = payments.delegation.create_delegation({
+            'provider': 'erc4337',
+            'spendingLimitCents': 10000,
+            'durationSecs': 604800
+        })
+        token_res = payments.x402.get_x402_access_token(plan_id, agent_id, {
+            'delegationConfig': { 'delegationId': delegation['delegationId'] }
+        })
         access_token = token_res["accessToken"]
     ```
   </Tab>
 </Tabs>
 
 <Note>
-The SDK auto-detects the payment scheme from plan metadata. For fiat plans (`isCrypto: false`), use `resolveScheme()` (TypeScript) or `resolve_scheme()` (Python) to determine the correct scheme. Middleware handles this automatically — see the [Express.js](/docs/integrate/add-to-your-agent/express) and [FastAPI](/docs/integrate/add-to-your-agent/fastapi) integration guides.
+The SDK auto-detects the payment scheme from plan metadata. For fiat plans (`isCrypto: false`), use `resolveScheme()` (TypeScript) or `resolve_scheme()` (Python) to determine the correct scheme. For fiat plans, use `provider: 'stripe'` in the delegation; for crypto plans, use `provider: 'erc4337'`. Middleware handles this automatically — see the [Express.js](/docs/integrate/add-to-your-agent/express) and [FastAPI](/docs/integrate/add-to-your-agent/fastapi) integration guides.
 </Note>
 
 ### Step 3 — Submit with HTTP header
@@ -556,8 +581,8 @@ This section provides a comprehensive guide for developers integrating Nevermine
 
 - **x402** gives a universal payment-required protocol
 - **Nevermined** enriches it with Smart Accounts, UserOps, and advanced billing models using the `nvm:erc4337` and `nvm:card-delegation` schemes
-- **Card delegation** enables fiat/credit card payments via `nvm:card-delegation`, with auto-detection from plan metadata
-- **Subscribers** delegate controlled permissions using session keys
+- **Delegations** provide a unified permission model for both crypto (`nvm:erc4337`) and fiat (`nvm:card-delegation`) schemes, with auto-detection from plan metadata
+- **Subscribers** delegate controlled permissions using `DelegationConfig` (spending limits and duration)
 - **Servers** use `payment-signature` headers and verify/settle via the facilitator
 - **Facilitators** verify and settle on-chain
 - **Python & TypeScript libraries** provide turnkey developer tooling

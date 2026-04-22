@@ -81,6 +81,64 @@ Provides user access with per-request pricing. Builders can manage the cost per 
   </Tab>
 </Tabs>
 
+### Creating a Credits Plan in EUR/EURC
+
+You can also create plans priced in EUR (fiat) or EURC (Euro stablecoin):
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Currency, EURC_TOKEN_ADDRESS_TESTNET } from '@nevermined-io/payments'
+
+    // EUR fiat plan (priced in euro cents)
+    const eurPriceConfig = payments.plans.getFiatPriceConfig(2900n, builderAddress, Currency.EUR)
+    const { planId: eurPlanId } = await payments.plans.registerCreditsPlan(
+      { name: 'EUR Credits Plan' },
+      eurPriceConfig,
+      payments.plans.getFixedCreditsConfig(100n)
+    )
+
+    // EURC crypto plan (Euro stablecoin)
+    const eurcPriceConfig = payments.plans.getEURCPriceConfig(
+      20_000_000n,                  // 20 EURC (6 decimals)
+      builderAddress,
+      EURC_TOKEN_ADDRESS_TESTNET    // Testnet address for sandbox
+    )
+    const { planId: eurcPlanId } = await payments.plans.registerCreditsPlan(
+      { name: 'EURC Credits Plan' },
+      eurcPriceConfig,
+      payments.plans.getFixedCreditsConfig(100n)
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.common.types import Currency, EURC_TOKEN_ADDRESS_TESTNET
+    from payments_py.plans import PlanMetadata, get_fiat_price_config, get_eurc_price_config, get_fixed_credits_config
+
+    # EUR fiat plan (priced in euro cents)
+    eur_price_config = get_fiat_price_config(2900, builder_address, Currency.EUR)
+    eur_plan = payments_builder.plans.register_credits_plan(
+        PlanMetadata(name="EUR Credits Plan"),
+        eur_price_config,
+        get_fixed_credits_config(100)
+    )
+
+    # EURC crypto plan (Euro stablecoin)
+    eurc_price_config = get_eurc_price_config(
+        20_000_000,                    # 20 EURC (6 decimals)
+        builder_address,
+        EURC_TOKEN_ADDRESS_TESTNET     # Testnet address for sandbox
+    )
+    eurc_plan = payments_builder.plans.register_credits_plan(
+        PlanMetadata(name="EURC Credits Plan"),
+        eurc_price_config,
+        get_fixed_credits_config(100)
+    )
+    ```
+  </Tab>
+</Tabs>
+
 ## Creating a Time-Based Plan
 
 Provides user access on a time-gating basis. Builders can set the time period that a user is allowed access to the AI (e.g. 1 year, 1 month, 1 hour, etc.). When a user makes their first request, the corresponding access credit is redeemed, granting access for the designated period. Once the time period has elapsed, the user will no longer have access and will need to redeem another credit for continued access.
