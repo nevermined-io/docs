@@ -129,19 +129,13 @@ Because there's no payment processor in the middle, stablecoin payments carry no
   </Card>
 </CardGroup>
 
-## Auto-Ordering
+## Auto-Order (Pay-As-You-Go)
 
-When a subscriber's credit balance runs low, the system can automatically purchase more credits on their behalf. This happens seamlessly if:
+When a subscriber's credit balance runs low, the x402 facilitator can automatically purchase more credits on their behalf — no manual balance checks required. This keeps agent-to-agent pipelines running without interruption.
 
-- The subscriber's wallet has sufficient token balance
-- The active delegation has remaining spending capacity (`spendingLimitCents` not exhausted)
-- The plan supports re-ordering
+Configure a delegation with `spendingLimitCents` when generating the access token and the facilitator handles the rest. Total spending is always bounded by that limit, enforced on-chain.
 
-This keeps agent-to-agent workflows running without interruption.
-
-<Warning>
-If the delegation's `spendingLimitCents` is exhausted or the delegation has expired, auto-ordering stops. The subscriber must create a new delegation with fresh limits to resume.
-</Warning>
+See the [Auto-Order guide](/docs/integrate/patterns/auto-order) for enabling this, safety controls, failure handling, and full A2A examples.
 
 ## Next Steps
 
