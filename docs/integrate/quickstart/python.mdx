@@ -232,7 +232,7 @@ def purchase_and_query():
     plan_id = os.environ['PLAN_ID']
     agent_id = os.environ['AGENT_ID']
 
-    # 1. Order the plan
+    # 1. Order the plan (purchases credits upfront)
     print('Purchasing plan...')
     order_result = payments.plans.order_plan(plan_id)
 
@@ -258,6 +258,10 @@ def purchase_and_query():
 if __name__ == '__main__':
     purchase_and_query()
 ```
+
+<Tip>
+For autonomous agents that run continuously, set up a delegation when generating the access token — the facilitator tops up credits automatically when balance runs out, with no manual `order_plan()` loop needed. See the [Auto-Order guide](/docs/integrate/patterns/auto-order).
+</Tip>
 
 ## Flask Alternative
 

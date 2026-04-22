@@ -23,14 +23,11 @@ const payments = Payments.getInstance({
   environment: 'sandbox'
 })
 
-// Order the plan
+// Order the plan (first purchase only)
 await payments.plans.orderPlan(PLAN_ID)
 
-// Check balance
-const balance = await payments.plans.getPlanBalance(PLAN_ID)
-console.log(`Credits remaining: ${balance}`)
-
-// Generate x402 access token (requires delegationConfig)
+// Generate x402 access token with a delegation
+// The facilitator will auto-order credits if balance runs out at settlement
 const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
   delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
 })
@@ -47,22 +44,30 @@ payments = Payments.get_instance(
     PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
 )
 
-# Order the plan
+# Order the plan (first purchase only)
 payments.plans.order_plan(plan_id)
 
-# Check balance
-balance = payments.plans.get_plan_balance(plan_id)
-print(f"Credits remaining: {balance}")
-
-# Generate x402 access token (requires delegationConfig)
+# Generate x402 access token with a delegation
+# The facilitator will auto-order credits if balance runs out at settlement
 token_res = payments.x402.get_x402_access_token(
-    plan_id, agent_id,
+    plan_id,
+    agent_id,
     token_options=X402TokenOptions(
         delegation_config=DelegationConfig(spending_limit_cents=10000, duration_secs=604800)
     )
 )
 access_token = token_res["accessToken"]
 ```
+
+## Auto-Order
+
+When a delegation is configured, the facilitator can automatically purchase more credits at settlement time if the subscriber's balance is insufficient — no manual balance-check loop needed.
+
+- **Crypto plans (`nvm:erc4337`)**: pass `delegationConfig` with `spendingLimitCents` and `durationSecs`
+- **Fiat plans (`nvm:card-delegation`)**: auto-order is built into the card delegation — no extra parameter needed
+- **Spending cap**: always controlled by `spendingLimitCents` in the delegation, enforced on-chain
+- **When it stops**: delegation exhausted, expired, or wallet has insufficient token balance → request returns 402
+- Handle 402 responses in A2A pipelines explicitly — surface a clear payment error rather than retrying indefinitely
 
 ## Call a Protected HTTP API
 

@@ -1,0 +1,143 @@
+---
+title: "Auto-Order"
+description: "When a subscriber has no credits, calling get_x402_access_token with a delegation automatically purchases credits for the plan — no manual order_plan step needed."
+icon: "arrows-rotate"
+---
+
+By default, subscribers purchase a plan first and then generate an access token. Auto-order removes the manual purchase step: when you call `getX402AccessToken` / `get_x402_access_token` with a delegation and the subscriber has no credits, the system purchases credits for the plan automatically before returning the token.
+
+## Manual flow vs. auto-order
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Manual flow — check balance, order if needed, wait for settlement
+    const balance = await payments.plans.getPlanBalance(planId)
+    if (Number(balance.balance) <= 0) {
+      await payments.plans.orderPlan(planId)
+      await new Promise(resolve => setTimeout(resolve, 5000)) // wait for on-chain confirmation
+    }
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+    })
+
+    // Auto-order — one step: if no credits, the system purchases them automatically
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import time
+    from payments_py.x402 import X402TokenOptions, DelegationConfig
+
+    # Manual flow — check balance, order if needed, wait for settlement
+    balance = payments.plans.get_plan_balance(plan_id)
+    if balance.get('balance', 0) <= 0:
+        payments.plans.order_plan(plan_id)
+        time.sleep(5)  # wait for on-chain confirmation
+    token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+
+    # Auto-order — one step: if no credits, the system purchases them automatically
+    token_res = payments.x402.get_x402_access_token(
+        plan_id, agent_id,
+        token_options=X402TokenOptions(
+            delegation_config=DelegationConfig(spending_limit_cents=10000, duration_secs=604800)
+        )
+    )
+    access_token = token_res['accessToken']
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The code is identical — the difference is that with a delegation in place you can skip the explicit `order_plan` / `orderPlan` call. If the subscriber already has credits the token is returned immediately; if not, the purchase happens first.
+</Note>
+
+## Setting up the delegation
+
+The delegation authorizes the system to spend on the subscriber's behalf. The two required fields when creating a new delegation are:
+
+| Field | Description |
+|---|---|
+| `spendingLimitCents` | Total spending cap for this delegation's lifetime, in cents. `10000` = $100. |
+| `durationSecs` | How long the delegation is valid in seconds. `604800` = 7 days. |
+
+For long-running agents, create the delegation once and reuse its ID across requests:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Create once
+    const delegation = await payments.delegation.createDelegation({
+      provider: 'erc4337',
+      spendingLimitCents: 50000, // $500 total budget
+      durationSecs: 2592000       // 30 days
+    })
+
+    // Reuse across all requests — spending tracked cumulatively
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      delegationConfig: { delegationId: delegation.delegationId }
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
+
+    # Create once
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider='erc4337',
+            spending_limit_cents=50000,  # $500 total budget
+            duration_secs=2592000         # 30 days
+        )
+    )
+
+    # Reuse across all requests — spending tracked cumulatively
+    token_res = payments.x402.get_x402_access_token(
+        plan_id, agent_id,
+        token_options=X402TokenOptions(
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+        )
+    )
+    access_token = token_res['accessToken']
+    ```
+  </Tab>
+</Tabs>
+
+## Fiat plans (`nvm:card-delegation`)
+
+Auto-order works the same way for card-delegation plans. If the subscriber has no credits, the system creates a Stripe charge automatically when `get_x402_access_token` is called. The `spendingLimitCents` in the delegation controls the total charge ceiling.
+
+See [Fiat Payments](/docs/integrate/patterns/fiat-payments) and [Nevermined Pay](/docs/products/nvm-pay/overview) for how to enroll a card.
+
+## When auto-order stops
+
+| Condition | What happens |
+|---|---|
+| Delegation `spendingLimitCents` exhausted | Purchase is rejected. Token generation fails with a payment error. |
+| Delegation expired (`durationSecs` elapsed) | Delegation is invalid. Token generation fails. |
+| Subscriber wallet has insufficient token balance (crypto) | On-chain purchase fails. Token generation fails. |
+
+<Warning>
+In A2A pipelines, handle token generation failures explicitly. When a delegation is exhausted or expired, surface a clear payment error to the orchestrator rather than retrying indefinitely.
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Stablecoin Payments" icon="coins" href="/docs/integrate/patterns/stablecoin-payments">
+    Understand the crypto payment model and how delegations work on-chain
+  </Card>
+  <Card title="Fiat Payments" icon="credit-card" href="/docs/integrate/patterns/fiat-payments">
+    Accept cards via Stripe or Visa with per-request auto-charging
+  </Card>
+  <Card title="Nevermined x402" icon="handshake" href="/docs/development-guide/nevermined-x402">
+    Deep dive into the x402 protocol, session keys, and settlement flow
+  </Card>
+  <Card title="A2A Monetization" icon="robot" href="/docs/solutions/agent-to-agent-monetization">
+    Build autonomous agent pipelines with built-in payment rails
+  </Card>
+</CardGroup>

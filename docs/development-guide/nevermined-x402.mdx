@@ -348,9 +348,17 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
         agent_id = payment_required["accepts"][0].get("extra", {}).get("agentId")
 
         # Pattern A: Auto-create a delegation inline
-        token_res = payments.x402.get_x402_access_token(plan_id, agent_id, {
-            'delegationConfig': { 'spendingLimitCents': 10000, 'durationSecs': 604800 }
-        })
+        from payments_py.x402 import X402TokenOptions, DelegationConfig
+        token_res = payments.x402.get_x402_access_token(
+            plan_id,
+            agent_id,
+            token_options=X402TokenOptions(
+                delegation_config=DelegationConfig(
+                    spending_limit_cents=10000,
+                    duration_secs=604800
+                )
+            )
+        )
         access_token = token_res["accessToken"]
 
         # Pattern B: Create a delegation explicitly, then reuse its ID
@@ -370,6 +378,10 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
 <Note>
 The SDK auto-detects the payment scheme from plan metadata. For fiat plans (`isCrypto: false`), use `resolveScheme()` (TypeScript) or `resolve_scheme()` (Python) to determine the correct scheme. For fiat plans, use `provider: 'stripe'` in the delegation; for crypto plans, use `provider: 'erc4337'`. Middleware handles this automatically — see the [Express.js](/docs/integrate/add-to-your-agent/express) and [FastAPI](/docs/integrate/add-to-your-agent/fastapi) integration guides.
 </Note>
+
+<Tip>
+When a delegation is in place, the facilitator can auto-purchase credits if the balance runs out at settlement — no manual `order_plan()` calls needed. See the [Auto-Order guide](/docs/integrate/patterns/auto-order) for details, spending controls, and A2A examples.
+</Tip>
 
 ### Step 3 — Submit with HTTP header
 
