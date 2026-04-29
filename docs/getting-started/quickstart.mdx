@@ -67,7 +67,7 @@ For developers who need to automate and integrate directly, our SDKs are the per
     </Tabs>
   </Step>
   <Step title="3. Register Your AI Agent">
-    Define your agent's metadata, API endpoints, and payment plan. Then register it with a single call.
+    Define your agent's metadata, authentication config, and payment plan. Then register it with a single call. The endpoint allowlist and OpenAPI/agent-definition URL are optional — see the [registration guide](/docs/development-guide/registration) for the opt-in *Additional Security* pattern.
 
     <Tabs>
       <Tab title="TypeScript">
@@ -118,6 +118,11 @@ For developers who need to automate and integrate directly, our SDKs are the per
       </Tab>
       <Tab title="Python">
         ```python
+        import os
+        
+        from payments_py.common.types import AgentAPIAttributes, AuthType
+        from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+        
         # Define agent metadata
         agent_metadata = {
             'name': 'My AI Assistant',
@@ -139,8 +144,6 @@ For developers who need to automate and integrate directly, our SDKs are the per
             'description': '100 queries per month',
             'dateCreated': '2023-10-27T10:00:00Z',
         }
-        
-        from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
         
         # Configure pricing (e.g., 10 USDC)
         price_config = get_erc20_price_config(

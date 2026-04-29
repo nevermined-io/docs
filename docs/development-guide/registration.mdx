@@ -411,6 +411,8 @@ To register an AI Agent you only need a name, a description, and at least one Pa
         description="Description for the E2E Payments Agent",
     )
     
+    import os
+    
     # Minimal API config — your Payments library middleware handles
     # per-route gating. See "Additional Security" below to opt into a
     # platform-enforced route allowlist.
@@ -432,7 +434,7 @@ To register an AI Agent you only need a name, a description, and at least one Pa
 
 ### Additional Security: Endpoint Allowlist (opt-in)
 
-If you want the Nevermined platform to enforce a route-level allowlist on top of your library middleware, provide `endpoints` (and optionally `openEndpoints` for public routes). When set, only requests matching one of the entries are accepted by x402 verify; mismatches reject with `BCK.PROTOCOL.0031`. You can also publish a discoverable agent definition by setting `agentDefinitionUrl`.
+If you want the Nevermined platform to enforce a route-level allowlist on top of your library middleware, provide `endpoints` (TypeScript and Python) and, for public routes, `openEndpoints` (TypeScript) or `open_endpoints` (Python). When set, only requests matching one of the configured entries are accepted during x402 verification; non-matching requests are rejected. You can also publish a discoverable agent definition by setting `agentDefinitionUrl` (TypeScript) or `agent_definition_url` (Python).
 
 <Tabs>
   <Tab title="TypeScript">
@@ -453,6 +455,8 @@ If you want the Nevermined platform to enforce a route-level allowlist on top of
   </Tab>
   <Tab title="Python">
     ```python
+    import os
+    
     from payments_py.common.types import (
         AgentAPIAttributes,
         AuthType,
@@ -519,6 +523,10 @@ You can explicitly set it if needed:
   </Tab>
   <Tab title="Python">
     ```python
+    import os
+    
+    from payments_py.common.types import AgentAPIAttributes, AuthType
+    
     # Agent metadata and API definition
     agent_metadata = {
         "name": "My AI Payments Agent",
@@ -554,13 +562,13 @@ You can explicitly set it if needed:
 
 ## Key Concepts
 
-### Endpoint Protection
+### Endpoint Protection (opt-in)
 
-When registering an AI Agent, you specify:
+The fields below are part of the optional **Additional Security** allowlist described above — they only apply when you explicitly populate `endpoints` and/or `openEndpoints` (TypeScript) / `open_endpoints` (Python). For most builders integrating via the Payments library middleware, route-level gating is handled by your application code and these fields can be omitted entirely.
 
-- **Protected Endpoints**: Require payment/subscription to access
-- **Open Endpoints**: Free to access (e.g., documentation, health checks)
-- **URL Patterns**: Support wildcards for dynamic routing
+- **Protected Endpoints** (`endpoints`): URLs that require a valid Payment Plan subscription. When present, x402 verify accepts only requests matching one of these entries.
+- **Open Endpoints** (`openEndpoints` / `open_endpoints`): URLs that are publicly accessible (e.g., documentation, health checks).
+- **URL Patterns**: Support wildcards for dynamic routing — see below.
 
 ### URL Patterns (path-to-regexp)
 
