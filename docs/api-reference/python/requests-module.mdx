@@ -8,9 +8,9 @@ This guide explains how to get x402 access tokens and make authenticated request
 
 ## Overview
 
-To query an AI agent, you need to:
+To query an AI agent, subscribers need to:
 
-1. Have purchased a plan associated with the agent
+1. Have an active subscription to a plan associated with the agent
 2. Generate an x402 access token
 3. Include the token in requests to the agent
 
@@ -166,10 +166,10 @@ plan_id = plan_result['planId']
 
 agent_result = builder.agents.register_agent(
     agent_metadata=AgentMetadata(name="Demo Agent"),
-    agent_api=AgentAPIAttributes(
-        endpoints=[{"POST": "https://api.example.com/tasks"}],
-        agent_definition_url="https://api.example.com/openapi.json"
-    ),
+    # AgentAPIAttributes() with no args registers a minimal agent — your
+    # Payments library middleware handles per-route gating. See
+    # docs/api/04-agents.md for opt-in Additional Security.
+    agent_api=AgentAPIAttributes(),
     payment_plans=[plan_id]
 )
 agent_id = agent_result['agentId']
@@ -218,7 +218,7 @@ if response.status_code == 402:
     if balance.balance <= 0:
         print("No credits remaining - order more credits")
     elif not balance.is_subscriber:
-        print("No active plan - purchase the plan first")
+        print("Not subscribed - order the plan first")
 ```
 
 ### Token Expired or Invalid
