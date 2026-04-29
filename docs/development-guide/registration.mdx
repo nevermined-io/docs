@@ -367,7 +367,7 @@ Pay As You Go plan is a type of payment plan that allows users to pay for each r
 
 ## Registering an AI Agent
 
-When you register an Agent, you need to provide the API endpoints for accessing the AI Agent, including all relevant HTTP(s) methods, URL patterns and wildcards.
+To register an AI Agent you only need a name, a description, and at least one Payment Plan to associate with it. The API attributes that describe how requests authenticate are configured in `agentApi` — most builders only need `authType` plus a credential.
 
 <Note>
   Before registering an AI Agent, you need to have a Payment Plan created.
@@ -376,11 +376,6 @@ When you register an Agent, you need to provide the API endpoints for accessing 
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    // When you register an agent, you need to provide the endpoints that the agent exposes and are protected by the Payment Plan
-    // You must specify the HTTP method and the URL pattern that the agent exposes
-    // You can use wildcards (like :agentId in the example) to match any string
-    // See more information about the wildcards supported here: https://github.com/pillarjs/path-to-regexp
-    
     const agentMetadata: AgentMetadata = {
       name: 'E2E Payments Agent',
       tags: ['test'],
@@ -388,14 +383,12 @@ When you register an Agent, you need to provide the API endpoints for accessing 
       description: 'Description for the E2E Payments Agent'
     }
     
-    // You can use wildcards (like :agentId in the example) to match any string in your endpoints
+    // Minimal API config — your Payments library middleware handles
+    // per-route gating. See "Additional Security" below to opt into a
+    // platform-enforced route allowlist.
     const agentApi = {
-      endpoints: [
-        { 'POST': 'https://example.com/api/v1/agents/:agentId/tasks' },
-        { 'GET': 'https://example.com/api/v1/agents/:agentId/tasks/invoke' }
-      ],
-      openEndpoints: ['https://example.com/api/v1/rest/docs-json'],
-      agentDefinitionUrl: 'https://example.com/api/v1/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
+      authType: 'bearer',
+      token: process.env.AGENT_BEARER_TOKEN,
     }
     const paymentPlans = [creditsPlanId, expirablePlanId]
     
@@ -408,29 +401,23 @@ When you register an Agent, you need to provide the API endpoints for accessing 
   </Tab>
   <Tab title="Python">
     ```python
-    # When you register an agent, you need to provide the endpoints that the agent exposes and are protected by the Payment Plan
-    # You must specify the HTTP method and the URL pattern that the agent exposes
-    # You can use wildcards (like :agentId in the example) to match any string
-    # See more information about the wildcards supported here: https://github.com/pillarjs/path-to-regexp
-    
     from datetime import datetime
+    from payments_py.common.types import AgentMetadata, AgentAPIAttributes, AuthType
     
-    agent_metadata = {
-        "name": "E2E Payments Agent",
-        "tags": ["test"],
-        "dateCreated": datetime.now().isoformat(),
-        "description": "Description for the E2E Payments Agent"
-    }
+    agent_metadata = AgentMetadata(
+        name="E2E Payments Agent",
+        tags=["test"],
+        date_created=datetime.now().isoformat(),
+        description="Description for the E2E Payments Agent",
+    )
     
-    # You can use wildcards (like :agentId in the example) to match any string in your endpoints
-    agent_api = {
-        "endpoints": [
-            {"POST": "https://example.com/api/v1/agents/:agentId/tasks"},
-            {"GET": "https://example.com/api/v1/agents/:agentId/tasks/invoke"}
-        ],
-        "openEndpoints": ["https://example.com/api/v1/rest/docs-json"],
-        "agentDefinitionUrl": "https://example.com/api/v1/openapi.json"  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
-    }
+    # Minimal API config — your Payments library middleware handles
+    # per-route gating. See "Additional Security" below to opt into a
+    # platform-enforced route allowlist.
+    agent_api = AgentAPIAttributes(
+        auth_type=AuthType.BEARER,
+        token=os.environ["AGENT_BEARER_TOKEN"],
+    )
     payment_plans = [credits_plan_id, expirable_plan_id]
     
     response = payments_builder.agents.register_agent(
@@ -442,6 +429,53 @@ When you register an Agent, you need to provide the API endpoints for accessing 
     ```
   </Tab>
 </Tabs>
+
+### Additional Security: Endpoint Allowlist (opt-in)
+
+If you want the Nevermined platform to enforce a route-level allowlist on top of your library middleware, provide `endpoints` (and optionally `openEndpoints` for public routes). When set, only requests matching one of the entries are accepted by x402 verify; mismatches reject with `BCK.PROTOCOL.0031`. You can also publish a discoverable agent definition by setting `agentDefinitionUrl`.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // You can use wildcards (like :agentId) to match any string in the URL.
+    // See https://github.com/pillarjs/path-to-regexp for supported syntax.
+    const agentApi = {
+      authType: 'bearer',
+      token: process.env.AGENT_BEARER_TOKEN,
+      endpoints: [
+        { POST: 'https://example.com/api/v1/agents/:agentId/tasks' },
+        { GET: 'https://example.com/api/v1/agents/:agentId/tasks/invoke' },
+      ],
+      openEndpoints: ['https://example.com/api/v1/rest/docs-json'],
+      agentDefinitionUrl: 'https://example.com/api/v1/openapi.json',
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.common.types import (
+        AgentAPIAttributes,
+        AuthType,
+        Endpoint,
+    )
+    
+    agent_api = AgentAPIAttributes(
+        auth_type=AuthType.BEARER,
+        token=os.environ["AGENT_BEARER_TOKEN"],
+        endpoints=[
+            Endpoint(verb="POST", url="https://example.com/api/v1/agents/:agentId/tasks"),
+            Endpoint(verb="GET", url="https://example.com/api/v1/agents/:agentId/tasks/invoke"),
+        ],
+        open_endpoints=["https://example.com/api/v1/rest/docs-json"],
+        agent_definition_url="https://example.com/api/v1/openapi.json",
+    )
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+  Existing agents registered before April 2026 still have these fields populated and continue to enforce the allowlist as before. No migration is needed.
+</Info>
 
 ## Register an AI Agent and Payment Plan in One Step
 
@@ -463,9 +497,10 @@ You can explicitly set it if needed:
       tags: ['test2'], 
       description: 'Description for my AI Payments Agent' 
     }
-    const agentApi = { 
-      endpoints: [{ 'POST': 'http://example.com/test/:agentId/tasks' }],
-      agentDefinitionUrl: 'http://example.com/test/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
+    // Minimal config; opt into Additional Security as shown above.
+    const agentApi = {
+      authType: 'bearer',
+      token: process.env.AGENT_BEARER_TOKEN,
     }
     
     const cryptoPriceConfig = getNativeTokenPriceConfig(500n, builderAddress)
@@ -490,12 +525,11 @@ You can explicitly set it if needed:
         "tags": ["test2"],
         "description": "Description for my AI Payments Agent"
     }
-    agent_api = {
-        "endpoints": [
-            {"POST": "http://example.com/test/:agentId/tasks"}
-        ],
-        "agentDefinitionUrl": "http://example.com/test/openapi.json"  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
-    }
+    # Minimal config; opt into Additional Security as shown above.
+    agent_api = AgentAPIAttributes(
+        auth_type=AuthType.BEARER,
+        token=os.environ["AGENT_BEARER_TOKEN"],
+    )
     
     # The price is 500 native tokens
     crypto_price_config = get_native_token_price_config(500, builder_address)

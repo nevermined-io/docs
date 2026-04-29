@@ -79,10 +79,12 @@ For developers who need to automate and integrate directly, our SDKs are the per
           dateCreated: new Date(),
         };
 
-        // Define API endpoints
+        // Define API authentication. agentDefinitionUrl and the endpoint
+        // allowlist are optional ("Additional Security") — see the
+        // registration guide for the opt-in pattern.
         const agentApi = {
-          endpoints: [{ POST: 'https://api.myservice.com/query' }],
-          agentDefinitionUrl: 'https://api.myservice.com/openapi.json' // URL to OpenAPI spec, MCP Manifest, or A2A agent card
+          authType: 'bearer',
+          token: process.env.AGENT_BEARER_TOKEN,
         };
 
         // Define plan metadata
@@ -123,11 +125,13 @@ For developers who need to automate and integrate directly, our SDKs are the per
             'dateCreated': '2023-10-27T10:00:00Z',
         }
         
-        # Define API endpoints
-        agent_api = {
-            'endpoints': [{'POST': 'https://api.myservice.com/query'}],
-            'agentDefinitionUrl': 'https://api.myservice.com/openapi.json'  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
-        }
+        # Define API authentication. agent_definition_url and the endpoint
+        # allowlist are optional ("Additional Security") — see the
+        # registration guide for the opt-in pattern.
+        agent_api = AgentAPIAttributes(
+            auth_type=AuthType.BEARER,
+            token=os.environ['AGENT_BEARER_TOKEN'],
+        )
         
         # Define plan metadata
         plan_metadata = {
