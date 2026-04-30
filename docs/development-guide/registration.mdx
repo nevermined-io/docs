@@ -425,8 +425,8 @@ When you register an Agent, you need to provide the API endpoints for accessing 
     # You can use wildcards (like :agentId in the example) to match any string in your endpoints
     agent_api = {
         "endpoints": [
-            {"POST": "https://example.com/api/v1/agents/:agentId/tasks"},
-            {"GET": "https://example.com/api/v1/agents/:agentId/tasks/invoke"}
+            {"verb": "POST", "url": "https://example.com/api/v1/agents/:agentId/tasks"},
+            {"verb": "GET", "url": "https://example.com/api/v1/agents/:agentId/tasks/invoke"}
         ],
         "openEndpoints": ["https://example.com/api/v1/rest/docs-json"],
         "agentDefinitionUrl": "https://example.com/api/v1/openapi.json"  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
@@ -492,7 +492,7 @@ You can explicitly set it if needed:
     }
     agent_api = {
         "endpoints": [
-            {"POST": "http://example.com/test/:agentId/tasks"}
+            {"verb": "POST", "url": "http://example.com/test/:agentId/tasks"}
         ],
         "agentDefinitionUrl": "http://example.com/test/openapi.json"  # URL to OpenAPI spec, MCP Manifest, or A2A agent card
     }
