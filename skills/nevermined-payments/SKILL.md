@@ -1,7 +1,7 @@
 ---
 name: nevermined-payments
-version: "0.2"
-lastUpdated: "2026-02-18"
+version: "0.3"
+lastUpdated: "2026-04-30"
 description: >
   Integrates Nevermined payment infrastructure into AI agents, MCP servers,
   Google A2A agents, and REST APIs. Handles x402 protocol, credit billing,
@@ -11,7 +11,9 @@ description: >
 
 # Nevermined Payments Integration
 
-> **Skill version**: 0.2 | **Last updated**: 2026-02-18
+> **Skill version**: 0.3 | **Last updated**: 2026-04-30
+>
+> Verified against `@nevermined-io/payments@1.3.3` and `payments-py@1.5.0`.
 
 ## Overview
 
@@ -152,6 +154,18 @@ Choose the integration that matches your stack:
 // Initialize
 const payments = Payments.getInstance({ nvmApiKey, environment })
 
+// Build price + credits configs (pick one helper per axis)
+const priceConfig =
+  payments.plans.getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
+  // or getEURCPriceConfig / getNativeTokenPriceConfig / getFreePriceConfig
+  // or getFiatPriceConfig(amount, builderAddress, 'USD') for Stripe/Braintree
+  // or await getPayAsYouGoPriceConfig(amount, builderAddress, tokenAddress?)
+
+const creditsConfig =
+  payments.plans.getFixedCreditsConfig(100n, 1n)
+  // or getDynamicCreditsConfig / getExpirableDurationConfig
+  // or getPayAsYouGoCreditsConfig() for PAYG plans
+
 // Register agent + plan
 const { agentId, planId } = await payments.agents.registerAgentAndPlan(
   agentMetadata, agentApi, planMetadata, priceConfig, creditsConfig
@@ -159,7 +173,9 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
 
 // Subscriber: order plan and get token
 await payments.plans.orderPlan(planId)
-const balance = await payments.plans.getPlanBalance(planId)
+const planBalance = await payments.plans.getPlanBalance(planId)
+console.log(`Credits remaining: ${planBalance.balance}`)  // PlanBalance.balance is bigint
+
 const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
   delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
 })
@@ -196,6 +212,13 @@ from payments_py.x402 import DelegationConfig, X402TokenOptions
 # Initialize
 payments = Payments.get_instance(PaymentOptions(nvm_api_key=key, environment="sandbox"))
 
+# Build price + credits configs (helpers exist on payments.plans and as module funcs)
+price_config = payments.plans.get_erc20_price_config(10_000_000, USDC_ADDRESS, builder_address)
+# or get_eurc_price_config / get_native_token_price_config / get_free_price_config
+# or get_fiat_price_config(amount, builder_address, "USD") for Stripe/Braintree
+# or payments.plans.get_pay_as_you_go_price_config(...)  (sync; uses cached contract address)
+credits_config = payments.plans.get_fixed_credits_config(100, 1)
+
 # Register agent + plan
 result = payments.agents.register_agent_and_plan(
     agent_metadata, agent_api, plan_metadata, price_config, credits_config
@@ -203,7 +226,8 @@ result = payments.agents.register_agent_and_plan(
 
 # Subscriber: order plan and get token
 payments.plans.order_plan(plan_id)
-balance = payments.plans.get_plan_balance(plan_id)
+plan_balance = payments.plans.get_plan_balance(plan_id)
+print(f"Credits remaining: {plan_balance.balance}")  # PlanBalance.balance is int
 token_res = payments.x402.get_x402_access_token(
     plan_id, agent_id,
     token_options=X402TokenOptions(
@@ -256,15 +280,26 @@ The `payment-required` payload structure:
 }
 ```
 
+### Supported x402 schemes
+
+| Scheme | Network field | Settlement |
+|---|---|---|
+| `nvm:erc4337` | CAIP-2 chain ID (e.g. `eip155:84532` Base Sepolia, `eip155:8453` Base Mainnet) | Crypto stablecoins (USDC / EURC) via account-abstraction delegation |
+| `nvm:card-delegation` | Fiat provider (`stripe` or `braintree`) | Card-on-file via Stripe or Braintree delegation |
+
+The SDK auto-resolves the scheme from the plan's `priceConfig` metadata. You only need to pass `scheme` explicitly if you want to override it.
+
 ## Payment Plan Types
 
 Nevermined supports several plan types:
 
-- **Credits-based**: prepaid balance, deducted per request (most common for APIs)
-- **Time-based**: access for a fixed duration (e.g., 30 days unlimited)
-- **Pay-as-you-go (PAYG)**: settle in USDC per request, no credit balance
-- **Trial**: free limited access, one-time claim per user
-- **Hybrid**: combine credits with time expiry
+- **Credits-based**: prepaid balance, deducted per request (most common for APIs). Use `getFixedCreditsConfig` or `getDynamicCreditsConfig`.
+- **Time-based**: access for a fixed duration (e.g., 30 days unlimited). Use `getExpirableDurationConfig`.
+- **Pay-as-you-go (PAYG)**: one credit granted and burned per purchase — clients re-purchase before each call. Use `getPayAsYouGoPriceConfig` + `getPayAsYouGoCreditsConfig`.
+- **Trial**: free limited access, one-time claim per user. Use `getFreePriceConfig`.
+- **Hybrid**: combine fixed credits with a time expiry by passing `accessLimit: 'time'` and an expirable duration config.
+
+Each plan can be priced in **crypto** (`getERC20PriceConfig`, `getEURCPriceConfig`, `getNativeTokenPriceConfig`) or **fiat** (`getFiatPriceConfig` — Stripe/Braintree). The selected price helper determines the x402 scheme used at runtime.
 
 See `references/payment-plans.md` for plan registration code.
 
@@ -458,6 +493,9 @@ Register your agent and plan programmatically — see `references/payment-plans.
 // TypeScript
 const { agentId, planId } = await payments.agents.registerAgentAndPlan(
   { name: 'My Agent', description: 'AI service', tags: ['ai'], dateCreated: new Date() },
+  // endpoints + agentDefinitionUrl are both optional in AgentAPIAttributes.
+  // Provide endpoints only when you want the Nevermined platform to enforce
+  // route-level Additional Security on top of your library middleware.
   { endpoints: [{ POST: 'https://your-api.com/query' }] },
   { name: 'Starter Plan', description: '100 requests for $10', dateCreated: new Date() },
   payments.plans.getERC20PriceConfig(10_000_000n, USDC_ADDRESS, process.env.BUILDER_ADDRESS!),
@@ -467,8 +505,14 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
 
 ```python
 # Python
+from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
+# (or use the methods on payments.plans.* — both are equivalent)
+
 result = payments.agents.register_agent_and_plan(
     agent_metadata={'name': 'My Agent', 'description': 'AI service', 'tags': ['ai']},
+    # agent_api is required, but its `endpoints` and `agent_definition_url`
+    # fields are both optional. Omit them for an open agent (no platform-side
+    # route enforcement); include `endpoints` for Additional Security.
     agent_api={'endpoints': [{'POST': 'https://your-api.com/query'}]},
     plan_metadata={'name': 'Starter Plan', 'description': '100 requests for $10'},
     price_config=get_erc20_price_config(10_000_000, USDC_ADDRESS, os.environ['BUILDER_ADDRESS']),
@@ -493,20 +537,37 @@ npm install -g @nevermined-io/cli
 # 2. Configure (use sandbox for testing)
 nvm config init --api-key "$NVM_API_KEY" --environment sandbox
 
-# 3. Register agent and plan together
+# 3. Build the helper-shaped configs and register
+#    The --price-config / --credits-config flags expect the JSON shape
+#    produced by Plans.getERC20PriceConfig and Plans.getFixedCreditsConfig —
+#    the helper subcommands below emit exactly that shape with --format json.
+PRICE=$(nvm plans get-erc20-price-config \
+  --amount 10000000 \
+  --token-address 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
+  --receiver $BUILDER_ADDRESS \
+  --format json)
+CREDITS=$(nvm plans get-fixed-credits-config \
+  --credits-granted 100 \
+  --credits-per-request 1 \
+  --format json)
+
 nvm agents register-agent-and-plan \
   --agent-metadata '{"name":"My Agent","description":"AI service"}' \
   --agent-api '{"endpoints":[{"POST":"https://your-api.com/query"}]}' \
   --plan-metadata '{"name":"Starter Plan","description":"100 requests"}' \
-  --price-config '{"tokenAddress":"0x036CbD53842c5426634e7929541eC2318f3dCF7e","price":10000000,"amountOfCredits":100}' \
-  --credits-config '{"minCreditsRequired":1,"minCreditsToCharge":1,"maxCreditsToCharge":10}'
+  --price-config "$PRICE" \
+  --credits-config "$CREDITS"
 
 # 4. List your plans
 nvm plans get-plans
 
 # 5. As a subscriber: order a plan and get an x402 token
+#    For fiat plans, pass --payment-type fiat (defaults to crypto).
 nvm plans order-plan $PLAN_ID
-nvm x402token get-x402-access-token $PLAN_ID --agent-id $AGENT_ID
+nvm x402token get-x402-access-token $PLAN_ID \
+  --agent-id $AGENT_ID \
+  --spending-limit-cents 10000 \
+  --delegation-duration-secs 604800
 
 # 6. Test against your running server
 curl -X POST http://localhost:3000/chat \

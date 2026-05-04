@@ -133,7 +133,10 @@ payments.plans.getFixedCreditsConfig(
 ```
 
 ```python
-# Python
+# Python — both call sites work
+payments.plans.get_fixed_credits_config(100, 1)
+# or:
+from payments_py.plans import get_fixed_credits_config
 get_fixed_credits_config(
     100,  # Total credits in the plan
     1     # Credits consumed per request
@@ -157,6 +160,73 @@ payments.plans.getERC20PriceConfig(
   USDC_ADDRESS,          // Token contract address
   process.env.BUILDER_ADDRESS!  // Recipient wallet
 )
+
+// EURC stablecoin (defaults to Base Mainnet EURC if address omitted)
+payments.plans.getEURCPriceConfig(10_000_000n, BUILDER_ADDRESS)
+
+// Native token (e.g. ETH on Base)
+payments.plans.getNativeTokenPriceConfig(10_000_000n, BUILDER_ADDRESS)
+
+// Free plan (used for trials)
+payments.plans.getFreePriceConfig()
+```
+
+## Fiat Plans (Stripe / Braintree)
+
+Fiat plans use the `nvm:card-delegation` x402 scheme — subscribers enroll a card via Stripe or Braintree, and per-request charges are settled by the configured provider.
+
+```typescript
+// TypeScript — $10.00 fiat, paid into the builder's wallet/account
+const fiatPriceConfig = payments.plans.getFiatPriceConfig(
+  1000n,              // amount in minor units (cents) → $10.00
+  process.env.BUILDER_ADDRESS!,
+  'USD'               // any ISO 4217 code Stripe accepts (USD, EUR, ...)
+)
+
+const { planId } = await payments.plans.registerPlan(
+  { name: 'Fiat Starter', description: '100 requests for $10', dateCreated: new Date() },
+  fiatPriceConfig,
+  payments.plans.getFixedCreditsConfig(100n, 1n),
+)
+```
+
+```python
+# Python
+fiat_price_config = payments.plans.get_fiat_price_config(
+    1000,  # cents → $10.00
+    os.environ["BUILDER_ADDRESS"],
+    "USD",
+)
+```
+
+When subscribers fetch an x402 token for a fiat plan, they pass `--payment-type fiat` (CLI) or `delegationConfig.providerPaymentMethodId = 'pm_...'` (SDK). The SDK auto-resolves `nvm:card-delegation` from the plan's `priceConfig`.
+
+## Pay-As-You-Go Plans
+
+PAYG plans grant exactly **one credit per purchase** — every call requires the subscriber to re-order the plan. Use the dedicated helpers:
+
+```typescript
+// TypeScript
+const paygPriceConfig = await payments.plans.getPayAsYouGoPriceConfig(
+  1_000_000n,                    // amount per call (1 USDC, 6 decimals)
+  process.env.BUILDER_ADDRESS!,
+  USDC_ADDRESS,                  // optional — defaults to native token
+)
+const paygCreditsConfig = payments.plans.getPayAsYouGoCreditsConfig()
+
+const { planId } = await payments.plans.registerPlan(
+  { name: 'PAYG', description: '$1 per call', dateCreated: new Date() },
+  paygPriceConfig,
+  paygCreditsConfig,
+)
+```
+
+```python
+# Python
+payg_price_config = payments.plans.get_pay_as_you_go_price_config(
+    1_000_000, os.environ["BUILDER_ADDRESS"], USDC_ADDRESS
+)
+payg_credits_config = payments.plans.get_pay_as_you_go_credits_config()
 ```
 
 ## Example Plans
@@ -167,3 +237,5 @@ payments.plans.getERC20PriceConfig(
 | Pro | $49 USDC | 1000 | 30 days | Production usage |
 | Unlimited | $99 USDC | Unlimited | 30 days | High-volume access |
 | Trial | Free | 10 | 7 days | Try before you buy |
+| Fiat Starter | $10.00 (Stripe) | 100 | None | Card-paying subscribers |
+| PAYG | $1 USDC / call | 1 per purchase | None | Pay-per-call without prepaid balance |
