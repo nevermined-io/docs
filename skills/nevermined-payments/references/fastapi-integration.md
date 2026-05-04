@@ -155,6 +155,8 @@ app.add_middleware(
 
 ## Middleware Options
 
+All hooks are awaited internally — they MUST be `async def` (or any callable returning an `Awaitable`). Sync functions / lambdas will raise a `TypeError: object NoneType can't be used in 'await' expression` at request time.
+
 ```python
 from payments_py.x402.fastapi import PaymentMiddleware, PaymentMiddlewareOptions
 
@@ -234,6 +236,13 @@ openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 PLAN_ID = os.environ["NVM_PLAN_ID"]
 
+# Hooks must be async — see Middleware Options above
+async def log_before_verify(req, pr):
+    print(f"[Payment] Verifying request to {req.url.path}")
+
+async def log_after_settle(req, credits, settlement):
+    print(f"[Payment] Settled {credits} credits")
+
 app.add_middleware(
     PaymentMiddleware,
     payments=payments,
@@ -241,8 +250,8 @@ app.add_middleware(
         "POST /ask": {"plan_id": PLAN_ID, "credits": 1}
     },
     options=PaymentMiddlewareOptions(
-        on_before_verify=lambda req, pr: print(f"[Payment] Verifying request to {req.url.path}"),
-        on_after_settle=lambda req, credits, settlement: print(f"[Payment] Settled {credits} credits")
+        on_before_verify=log_before_verify,
+        on_after_settle=log_after_settle,
     )
 )
 

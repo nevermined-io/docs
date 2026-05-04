@@ -26,9 +26,10 @@ const payments = Payments.getInstance({
 // Order the plan
 await payments.plans.orderPlan(PLAN_ID)
 
-// Check balance
-const balance = await payments.plans.getPlanBalance(PLAN_ID)
-console.log(`Credits remaining: ${balance}`)
+// Check balance — getPlanBalance returns a PlanBalance object
+const planBalance = await payments.plans.getPlanBalance(PLAN_ID)
+console.log(`Credits remaining: ${planBalance.balance}`)        // bigint
+console.log(`Subscriber: ${planBalance.isSubscriber}`)
 
 // Generate x402 access token (requires delegationConfig)
 const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
@@ -50,9 +51,10 @@ payments = Payments.get_instance(
 # Order the plan
 payments.plans.order_plan(plan_id)
 
-# Check balance
-balance = payments.plans.get_plan_balance(plan_id)
-print(f"Credits remaining: {balance}")
+# Check balance — get_plan_balance returns a PlanBalance object
+plan_balance = payments.plans.get_plan_balance(plan_id)
+print(f"Credits remaining: {plan_balance.balance}")
+print(f"Subscriber: {plan_balance.is_subscriber}")
 
 # Generate x402 access token (requires delegationConfig)
 token_res = payments.x402.get_x402_access_token(
