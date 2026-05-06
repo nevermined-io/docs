@@ -93,7 +93,7 @@ if (orderResult.success) {
 
 ### Fiat Payment (Stripe)
 
-For plans priced in fiat currency, use `orderFiatPlan` to get a Stripe checkout URL:
+For plans priced in fiat currency and routed to Stripe, use `orderFiatPlan` to get a Stripe checkout URL:
 
 ```typescript
 const fiatResult = await subscriberPayments.plans.orderFiatPlan(planId)
@@ -103,6 +103,10 @@ if (fiatResult.checkoutUrl) {
   // Redirect the user to the Stripe checkout page
 }
 ```
+
+<Note>
+`orderFiatPlan` is the SDK entry point for **Stripe-priced** plans only. Plans with `fiatPaymentProvider: 'braintree'` use a Braintree Drop-in checkout that runs inside the [Nevermined App](https://nevermined.app); the SDK does not currently expose a programmatic order method for Braintree. See [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) for details.
+</Note>
 
 #### CLI
 

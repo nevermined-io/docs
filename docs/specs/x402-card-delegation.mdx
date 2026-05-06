@@ -1,6 +1,6 @@
 ---
 title: "x402 Delegation Extension"
-description: "Specification for extending x402 with delegated payment permissions for both crypto (ERC-4337) and fiat (Stripe) settlement"
+description: "Specification for extending x402 with delegated payment permissions for crypto (ERC-4337) and fiat (Stripe, Braintree) settlement"
 icon: "key"
 ---
 
@@ -9,9 +9,9 @@ icon: "key"
 This specification defines a **delegation extension** to the [x402 protocol](https://x402.org/) that enables payment settlement through on-chain credit burns with delegated spending permissions. The delegation model is shared between crypto and fiat payment providers:
 
 - **Crypto delegations** (`provider: 'erc4337'`): Use ERC-4337 smart accounts and session keys for on-chain settlement, with crypto-funded ordering when the subscriber's balance is insufficient.
-- **Fiat delegations** (`provider: 'stripe'`): Use Stripe PaymentIntents backed by pre-authorized card delegations for automatic card-funded credit top-ups when the subscriber's balance is insufficient.
+- **Fiat delegations** (`provider: 'stripe' | 'braintree'`): Use the configured Payment Service Provider (Stripe PaymentIntents or Braintree `transaction.sale`) backed by pre-authorized card delegations for automatic card-funded credit top-ups when the subscriber's balance is insufficient.
 
-Both providers use the same `DelegationConfig` interface with `spendingLimitCents` and `durationSecs` to control delegation scope.
+All providers use the same `DelegationConfig` interface with `spendingLimitCents` and `durationSecs` to control delegation scope. The PSP is selected per plan via the seller's `fiatPaymentProvider` metadata.
 
 The fiat scheme identifier is: `nvm:card-delegation`
 
@@ -47,7 +47,7 @@ Many real-world payment scenarios involve users and organizations that prefer or
 - **Budgetary controls** --- organizations need spending limits, approval workflows, and reconciliation against traditional accounting systems
 - **Instant onboarding** --- new users can start consuming services immediately with an existing payment card, without acquiring tokens
 
-This extension enables these use cases by funding on-chain credit purchases via Stripe PaymentIntents, authorized through pre-established delegations managed by the facilitator. Settlement itself uses the same on-chain credit burn mechanism as the smart accounts extension. The delegation model (`DelegationConfig`) is shared across both crypto and fiat providers, providing a unified interface for creating and managing payment permissions.
+This extension enables these use cases by funding on-chain credit purchases through a Payment Service Provider (PSP) — currently Stripe or Braintree — authorized through pre-established delegations managed by the facilitator. Settlement itself uses the same on-chain credit burn mechanism as the smart accounts extension. The delegation model (`DelegationConfig`) is shared across all providers, giving the SDK and middleware a single interface for creating and managing payment permissions regardless of which PSP settles the charge.
 
 ### 1.3 Design Goals
 
@@ -56,8 +56,8 @@ This extension:
 - **MUST** be compatible with the existing x402 HTTP handshake
 - **MUST** use the standard x402 payload structure with an extension field
 - **MUST** support spending limits and transaction caps per delegation
-- **SHOULD** leverage Stripe's off-session payment capabilities for seamless settlement
-- **SHOULD** support multi-party settlement via Stripe Connect for merchant routing
+- **SHOULD** leverage the PSP's off-session payment capabilities for seamless settlement
+- **SHOULD** support multi-party settlement so funds reach merchant-owned accounts (Stripe Connect, Braintree OAuth Connect)
 - **MUST** ensure PCI compliance by never exposing raw card data to the facilitator or server
 - **MUST** allow facilitators to verify and settle payments on behalf of clients
 
@@ -71,20 +71,22 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 |------|-------------|
 | **Client** | The entity requesting access to a protected resource. Authenticates via JWT tokens issued by the facilitator. |
 | **Server** | The entity providing the protected resource (API, agent, service). Coordinates with the facilitator. |
-| **Facilitator** | A third-party service that verifies delegations, manages spending limits, and executes Stripe PaymentIntents on behalf of clients. |
-| **Payment Provider** | The payment processor (Stripe) that handles card authorization, capture, and fund transfer. |
+| **Facilitator** | A third-party service that verifies delegations, manages spending limits, and executes PSP charges (Stripe PaymentIntents, Braintree `transaction.sale`) on behalf of clients. |
+| **Payment Provider** | The payment processor (Stripe or Braintree) that handles card authorization, capture, and fund transfer. The active provider for a given plan is selected via the plan's `fiatPaymentProvider` metadata. |
 
 ### 2.2 Definitions
 
 | Term | Definition |
 |------|------------|
-| **Delegation** | A pre-authorized permission granting the facilitator the ability to execute payment operations on behalf of a client, within defined spending limits and time constraints. Delegations use the unified `DelegationConfig` interface for both crypto (`erc4337`) and fiat (`stripe`) providers. |
+| **Delegation** | A pre-authorized permission granting the facilitator the ability to execute payment operations on behalf of a client, within defined spending limits and time constraints. Delegations use the unified `DelegationConfig` interface for crypto (`erc4337`) and fiat (`stripe`, `braintree`) providers. |
 | **SetupIntent** | A Stripe object used to collect and confirm a customer's payment method for future off-session charges, without immediately charging the card. |
 | **PaymentIntent** | A Stripe object representing the intent to collect a payment. Used during settlement to charge the delegated card. |
-| **Off-session payment** | A Stripe payment executed without the cardholder being actively present, using a previously saved payment method. |
-| **Connected Account** | A Stripe Connect account belonging to a merchant (server operator) that receives funds from settlements. |
+| **Payment Method Nonce** | A single-use Braintree token returned by the Braintree Drop-in / hosted fields once the buyer enters card details. The facilitator exchanges the nonce for a permanent `paymentMethodToken` by vaulting the card. |
+| **Payment Method Token** | A permanent Braintree handle that identifies a vaulted card. Used at settlement time as the equivalent of Stripe's `pm_...` ID. |
+| **Off-session payment** | A PSP-side payment executed without the cardholder being actively present, using a previously saved payment method. |
+| **Connected Account** | A merchant-owned PSP account (Stripe Connected Account or Braintree OAuth-connected merchant) that receives funds from settlements. |
 | **Spending Limit** | The maximum amount (in cents) that can be charged against a delegation over its lifetime. |
-| **VGS (Very Good Security)** | A PCI-compliant proxy service used to tokenize and vault sensitive card data before it reaches the facilitator. |
+| **VGS (Very Good Security)** | A PCI-compliant proxy service used to tokenize and vault sensitive card data before it reaches the facilitator. Used for the Stripe enrollment path; the Braintree path performs equivalent in-browser tokenization via the Braintree Drop-in / hosted fields. |
 
 ## 3. Extension Structure
 
@@ -109,7 +111,7 @@ When a server requires payment via card delegation, it returns:
   },
   "accepts": [{
     "scheme": "nvm:card-delegation",
-    "network": "stripe",
+    "network": "stripe", // or "braintree"
     "planId": "plan_abc123",
     "extra": {
       "version": "1",
@@ -135,7 +137,7 @@ The client responds with a PaymentPayload containing a JWT token that encodes th
   },
   "accepted": {
     "scheme": "nvm:card-delegation",
-    "network": "stripe",
+    "network": "stripe", // or "braintree"
     "planId": "plan_abc123",
     "extra": {
       "version": "1",
@@ -179,7 +181,7 @@ The client responds with a PaymentPayload containing a JWT token that encodes th
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `scheme` | `string` | Yes | Payment scheme. MUST be `"nvm:card-delegation"`. |
-| `network` | `string` | Yes | Payment network identifier. MUST be `"stripe"`. |
+| `network` | `string` | Yes | Payment network identifier. MUST be `"stripe"` or `"braintree"`, matching the plan's `fiatPaymentProvider` metadata. The SDK auto-resolves this from plan metadata; clients may also supply it explicitly. |
 | `planId` | `string` | No | Plan identifier associated with this delegation. |
 | `extra` | `object` | Yes | Additional scheme-specific fields. |
 
@@ -225,12 +227,12 @@ The `token` field contains a signed JWT with the following claims:
 | `iat` | `number` | Yes | Issued-at timestamp (Unix epoch seconds). |
 | `exp` | `number` | Yes | Expiration timestamp (Unix epoch seconds). |
 | `nvm.delegationId` | `string` | Yes | Unique delegation identifier (UUID). MUST match the `jti` claim. |
-| `nvm.provider` | `string` | Yes | Payment provider identifier. MUST be `"stripe"` or `"erc4337"`. |
-| `nvm.providerCustomerId` | `string` | Yes | Stripe Customer ID (e.g., `"cus_PaBcDeFgHiJk"`). |
-| `nvm.providerPaymentMethodId` | `string` | Yes | Stripe PaymentMethod ID for the enrolled card (e.g., `"pm_1AbCdEfGhIjKlM"`). |
+| `nvm.provider` | `string` | Yes | Payment provider identifier. MUST be `"stripe"`, `"braintree"`, or `"erc4337"`. |
+| `nvm.providerCustomerId` | `string` | Yes | PSP-side customer identifier. For Stripe, the Customer ID (e.g., `"cus_PaBcDeFgHiJk"`). For Braintree, the customer ID derived from the buyer's userId. |
+| `nvm.providerPaymentMethodId` | `string` | Yes | PSP-side payment method handle for the enrolled card. For Stripe, the PaymentMethod ID (e.g., `"pm_1AbCdEfGhIjKlM"`). For Braintree, the `paymentMethodToken` returned when the card was vaulted. |
 | `nvm.spendingLimitCents` | `number` | Yes | Maximum amount in cents that can be charged over the delegation lifetime. |
 | `nvm.currency` | `string` | Yes | ISO 4217 currency code (e.g., `"usd"`, `"eur"`). |
-| `nvm.merchantAccountId` | `string` | No | Stripe Connected Account ID for the merchant receiving funds (e.g., `"acct_1AbCdEfGhIjKlM"`). |
+| `nvm.merchantAccountId` | `string` | No | Merchant-side account identifier for routing settlement. For Stripe, the Connected Account ID (e.g., `"acct_1AbCdEfGhIjKlM"`). For Braintree, the seller's per-currency child `merchantAccountId` matching `nvm.currency`. |
 | `nvm.planId` | `string` | No | Plan identifier associated with this delegation. |
 | `nvm.maxTransactions` | `number` | No | Maximum number of individual transactions allowed under this delegation. |
 
@@ -242,7 +244,7 @@ The `nvm` claims are namespaced under a single `nvm` object within the JWT paylo
 
 ### 4.1 Overview
 
-The protocol flow extends standard x402 with a card enrollment phase and replaces on-chain settlement with an external Payments Service Provider (PSP). Initially we are using Stripe PaymentIntents but the design allows for other providers (i.e Paypal Braintree) to be added in the future:
+The protocol flow extends standard x402 with a card enrollment phase and replaces on-chain settlement with an external Payment Service Provider (PSP). Stripe and Braintree are both supported; the active PSP is selected per plan via the seller's `fiatPaymentProvider` metadata, and the design allows for additional providers to be added in the future:
 
 ```mermaid
 ---
@@ -392,7 +394,7 @@ Card enrollment only needs to happen once per payment method. A single enrolled 
 
 #### Phase 1: Delegation Creation (Steps 9-12)
 
-**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'stripe'` or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across both providers.
+**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'stripe'`, `'braintree'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers.
 
 Alternatively, the client can use `getX402AccessToken` with an inline `delegationConfig` to auto-create a delegation during token generation.
 
@@ -415,6 +417,20 @@ Content-Type: application/json
 }
 ```
 
+For Braintree-priced plans, the same payload uses `provider: "braintree"`, the `paymentMethodToken` returned at enrollment as `providerPaymentMethodId`, and the seller's per-currency Braintree `merchantAccountId`:
+
+```json
+{
+  "provider": "braintree",
+  "spendingLimitCents": 10000,
+  "durationSecs": 2592000,
+  "providerPaymentMethodId": "abc123token",
+  "currency": "usd",
+  "maxTransactions": 100,
+  "merchantAccountId": "seller-usd-merchant-account-id"
+}
+```
+
 **Using `getX402AccessToken` with inline delegation (combines Steps 9-12):**
 
 ```http
@@ -431,7 +447,7 @@ Content-Type: application/json
   },
   "accepted": {
     "scheme": "nvm:card-delegation",
-    "network": "stripe",
+    "network": "stripe", // or "braintree"
     "planId": "plan_abc123",
     "extra": {
       "version": "1"
@@ -457,7 +473,7 @@ Content-Type: application/json
   },
   "accepted": {
     "scheme": "nvm:card-delegation",
-    "network": "stripe",
+    "network": "stripe", // or "braintree"
     "planId": "plan_abc123",
     "extra": { "version": "1" }
   },
@@ -611,7 +627,7 @@ PAYMENT-RESPONSE: eyJzdWNjZXNzIjp0cnVlLCJwYXltZW50SW50ZW50SWQiOi4uLg==
 }
 ```
 
-The `PAYMENT-RESPONSE` header contains x402-standard settlement fields. Additional Nevermined-specific info (like `creditsRedeemed` and `remainingBalance`) can be included in the response body.
+The `PAYMENT-RESPONSE` header contains x402-standard settlement fields. The `network` echoes the value used at verification (`stripe` or `braintree`). For Braintree, `orderTx` is the Braintree merchant transaction ID. Additional Nevermined-specific info (like `creditsRedeemed` and `remainingBalance`) can be included in the response body.
 
 <Warning>
 Steps 27-28 represent a failure scenario where the server has already performed work but settlement failed. Implementations SHOULD have mechanisms to handle this edge case, such as retry logic or dispute resolution.
@@ -711,7 +727,12 @@ The facilitator MUST update the delegation status to `Exhausted` when:
 
 ### 6.4 PSP Connect Routing
 
-When `nvm.merchantAccountId` is present, the facilitator MUST route funds to the merchant's Stripe Connected Account using Stripe Connect's `transfer_data` parameter. The facilitator MAY apply platform fees via the `application_fee_amount` parameter.
+When `nvm.merchantAccountId` is present, the facilitator MUST route funds to the merchant's connected account on the PSP that backs the plan:
+
+- **Stripe**: route via Stripe Connect using the `transfer_data.destination` parameter on the PaymentIntent. The facilitator MAY apply platform fees via `application_fee_amount`.
+- **Braintree**: settlement is split across two `transaction.sale` calls. The facilitator first charges the platform fee on the platform's gateway against the platform's per-currency `merchantAccountId`, then charges the merchant share on the merchant's OAuth-connected gateway against `nvm.merchantAccountId`. If the merchant leg fails, the platform leg MUST be voided to avoid collecting a fee for a payment that never reached the merchant.
+
+In both cases the facilitator MUST select a `merchantAccountId` whose currency matches `nvm.currency`. For Braintree this is enforced both at plan creation (sellers must have a child merchant account in the chosen currency) and at settlement time; a mismatch fails the charge with `CURRENCY_MISMATCH`.
 
 ### 6.5 Receipt Format
 
@@ -720,7 +741,7 @@ The facilitator MUST return a receipt. The `PAYMENT-RESPONSE` header contains x4
 | Field | Type | Description |
 |-------|------|-------------|
 | `success` | `boolean` | Whether settlement succeeded. |
-| `network` | `string` | Payment network. MUST be `"stripe"`. |
+| `network` | `string` | Payment network. MUST be `"stripe"` or `"braintree"` (matching the `accepted.network` from verification). |
 
 Additional settlement details MAY be included in the response body:
 
@@ -815,7 +836,7 @@ Additional settlement details MAY be included in the response body:
 
 ### 9.1 Stripe Integration
 
-This extension requires the following Stripe features:
+For Stripe-backed plans, this extension uses:
 
 | Feature | Purpose |
 |---------|---------|
@@ -826,28 +847,39 @@ This extension requires the following Stripe features:
 
 Implementations MUST use Stripe API version `2023-10-16` or later.
 
-### 9.2 VGS Proxy for Card Enrollment
+### 9.2 Braintree Integration
 
-Card enrollment flows MUST route through a VGS (Very Good Security) forward proxy to ensure PCI compliance:
+For Braintree-backed plans, this extension uses:
 
-1. The client collects card details in a VGS-secured iframe or form
-2. VGS tokenizes the card data and forwards it to Stripe
-3. The facilitator only ever receives Stripe-issued tokens (SetupIntent IDs, PaymentMethod IDs)
+| Feature | Purpose |
+|---------|---------|
+| Drop-in / hosted fields | PCI-compliant in-browser card capture; returns a single-use payment-method nonce |
+| Vaulted payment methods | Exchange the nonce for a permanent `paymentMethodToken` via `paymentMethod.create` |
+| `transaction.sale` | Charge a vaulted payment method off-session at settlement time |
+| OAuth Connect (Braintree Auth) | Onboard merchants and discover their per-currency child merchant accounts |
+| Per-currency merchant accounts | Route each charge to a `merchantAccountId` whose `currencyIsoCode` matches the plan currency |
 
-This architecture ensures that raw card data never touches Nevermined servers.
+Sellers MUST have at least one child merchant account in the plan's currency on their Braintree account; the facilitator discovers the available currencies at OAuth time via `merchantAccount.all()` and persists the resulting `currency → merchantAccountId` map on the seller's profile. Plan creation in a currency the seller does not support is rejected up-front.
 
-### 9.3 Stripe Connect for Merchant Routing
+### 9.3 PCI-Compliant Card Capture
 
-When merchants (server operators) have Stripe Connected Accounts, the facilitator routes settlement funds using Stripe Connect:
+Card enrollment flows MUST tokenize card data in the browser before any data reaches Nevermined infrastructure:
 
-- **Direct charges** with `transfer_data.destination` send funds to the merchant
-- The facilitator MAY deduct a platform fee using `application_fee_amount`
-- Merchants MUST complete Stripe Connect onboarding before receiving funds
-- The `nvm.merchantAccountId` in the JWT identifies the destination account
+- **Stripe path**: card details are collected in a VGS (Very Good Security) forward-proxy iframe and tokenized by VGS before being forwarded to Stripe. The facilitator only ever sees Stripe-issued tokens (SetupIntent IDs, PaymentMethod IDs).
+- **Braintree path**: card details are collected by the Braintree Drop-in or hosted fields, which post directly to Braintree and return a single-use payment-method nonce. The facilitator exchanges the nonce for a permanent `paymentMethodToken` via the server-side Braintree SDK; raw card data never reaches Nevermined infrastructure.
 
-### 9.4 Idempotency
+Both paths satisfy the requirement that raw card numbers, CVVs, and expiry dates never transit the facilitator.
 
-Implementations SHOULD use Stripe's `idempotency_key` parameter when creating PaymentIntents to prevent duplicate charges in case of network failures or retries. The idempotency key SHOULD be derived from the delegation ID and a request-specific nonce.
+### 9.4 Connect / OAuth for Merchant Routing
+
+When merchants (server operators) have a connected PSP account, the facilitator routes settlement funds to that account:
+
+- **Stripe**: merchants complete Stripe Connect onboarding. Direct charges use `transfer_data.destination`; the facilitator MAY deduct a platform fee using `application_fee_amount`. The `nvm.merchantAccountId` in the JWT identifies the destination account.
+- **Braintree**: merchants complete OAuth Connect (Braintree Auth) authorization, granting the platform scoped access to their gateway. The facilitator builds a merchant-scoped `BraintreeGateway` per request and charges the merchant share on the merchant's connected account, using a child `merchantAccountId` whose currency matches the plan. The platform fee is charged separately on the platform's own gateway against a platform-side per-currency `merchantAccountId`.
+
+### 9.5 Idempotency
+
+Implementations SHOULD pass an idempotency key when creating Stripe PaymentIntents (`idempotency_key`) or Braintree transactions (transaction-level idempotency) to prevent duplicate charges in case of network failures or retries. The idempotency key SHOULD be derived from the delegation ID and a request-specific nonce.
 
 ## 10. References
 
@@ -856,6 +888,9 @@ Implementations SHOULD use Stripe's `idempotency_key` parameter when creating Pa
 - [Stripe SetupIntents API](https://docs.stripe.com/api/setup_intents)
 - [Stripe Connect](https://docs.stripe.com/connect)
 - [Stripe Off-session Payments](https://docs.stripe.com/payments/save-and-reuse)
+- [Braintree Drop-in UI](https://developer.paypal.com/braintree/docs/guides/drop-in/overview)
+- [Braintree Vault](https://developer.paypal.com/braintree/docs/guides/payment-methods)
+- [Braintree OAuth Connect (Braintree Auth)](https://developer.paypal.com/braintree/docs/guides/extend/oauth/overview)
 - [VGS (Very Good Security)](https://www.verygoodsecurity.com/)
 - [RFC 7519: JSON Web Token (JWT)](https://www.rfc-editor.org/rfc/rfc7519)
 - [RFC 2119: Key words for use in RFCs](https://www.rfc-editor.org/rfc/rfc2119)

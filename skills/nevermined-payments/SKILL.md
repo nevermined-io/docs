@@ -301,6 +301,8 @@ Nevermined supports several plan types:
 
 Each plan can be priced in **crypto** (`getERC20PriceConfig`, `getEURCPriceConfig`, `getNativeTokenPriceConfig`) or **fiat** (`getFiatPriceConfig` — Stripe/Braintree). The selected price helper determines the x402 scheme used at runtime.
 
+For fiat plans, the active provider is selected per plan via the `fiatPaymentProvider` metadata field (`'stripe'` or `'braintree'`). Sellers using Braintree must connect a Braintree merchant account with at least one child merchant account in the plan's currency — see [`braintree-onboarding`](/docs/products/nvm-pay/braintree-onboarding) for the seller-side setup and [`card-enrollment`](/docs/products/nvm-pay/card-enrollment) for the buyer-side flow.
+
 See `references/payment-plans.md` for plan registration code.
 
 ## Common Patterns

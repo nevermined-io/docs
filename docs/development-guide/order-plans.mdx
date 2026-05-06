@@ -6,7 +6,7 @@ icon: "credit-card"
 
 With the Payments Library it's easy for users and AI agents to buy Payment Plans. The user only needs to hold sufficient balance in the plan currency (set on plan creation). With Nevermined, Plan creators can set payments currency to any valid ERC-20 or native token.
 
-Payment Plans can also be purchased in fiat (via Stripe). The Stripe Checkout flow requires the use of credit cards and is fully integrated into the Nevermined Web App. Nevermined likes to recommend stablecoin payments. That way, the payment and fetching of credits associated with the Payment Plan can be done in a single step.
+Payment Plans can also be purchased in fiat (via Stripe or Braintree). The fiat checkout flow requires a credit card and is fully integrated into the Nevermined Web App. The active payment provider is selected per plan via the seller's `fiatPaymentProvider` metadata at registration time. Nevermined likes to recommend stablecoin payments — that way the payment and fetching of credits associated with the Payment Plan can be done in a single step.
 
 ## Buying a Plan
 
@@ -32,11 +32,11 @@ Payment Plans can also be purchased in fiat (via Stripe). The Stripe Checkout fl
   </Tab>
 </Tabs>
 
-## Buying Plans with Fiat via Stripe
+## Buying Plans with Fiat (Stripe or Braintree)
 
-When the Payment Plan requires a payment in fiat, the payment can be initiated with the libraries, but the final step needs to be done in the Nevermined App. The app will handle the payment in fiat (via Stripe Checkout) and will return the user to the application that initiated the purchase flow.
+When the Payment Plan requires a payment in fiat, the payment is finalised in the Nevermined App. The app handles the checkout flow for the seller's chosen provider (Stripe Checkout or Braintree Drop-in) and returns the user to the application that initiated the purchase flow.
 
-For fiat payments, the process involves redirecting users to a Stripe Checkout session:
+The SDK exposes a programmatic order method (`orderFiatPlan`) for **Stripe-priced** plans, which redirects the buyer to a Stripe Checkout session. **Braintree-priced** plans are checked out exclusively through the Nevermined App's Drop-in flow — there is no SDK-level order method for Braintree today; link buyers to the plan's purchase page on `nevermined.app` instead.
 
 <Tabs>
   <Tab title="TypeScript">
