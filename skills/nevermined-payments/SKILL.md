@@ -1,6 +1,6 @@
 ---
 name: nevermined-payments
-version: "0.3.2"
+version: "0.3.3"
 lastUpdated: "2026-05-06"
 description: >
   Integrates Nevermined payment infrastructure into AI agents, MCP servers,
@@ -24,7 +24,7 @@ metadata:
 
 # Nevermined Payments Integration
 
-> **Skill version**: 0.3.2 | **Last updated**: 2026-05-06
+> **Skill version**: 0.3.3 | **Last updated**: 2026-05-06
 >
 > Verified against `@nevermined-io/payments@1.3.3` and `payments-py@1.5.0`.
 
@@ -67,7 +67,7 @@ Full documentation: [Get Your API Key](https://nevermined.ai/docs/getting-starte
 ## Quick Start Checklist
 
 1. **Get an API key** — see [Nevermined API Key Prerequisite](#nevermined-api-key-prerequisite) above
-2. **Install the SDK** (`npm install @nevermined-io/payments@1.3.3` or `pip install payments-py==1.5.0`) — pin to the verified versions; check the latest releases on [npm](https://www.npmjs.com/package/@nevermined-io/payments) / [PyPI](https://pypi.org/project/payments-py/) before bumping
+2. **Install the SDK** (`npm install @nevermined-io/payments` or `pip install payments-py`)
 3. **Register your agent and plan** (via the App UI or programmatically — see `references/payment-plans.md`)
 4. **Add payment protection** to your routes/tools (see framework-specific references below)
 5. **Test** — call without token (expect 402), then with token (expect 200)
@@ -100,12 +100,12 @@ BUILDER_ADDRESS=0xYourWalletAddress
 ### Prerequisites
 
 - **TypeScript/Express.js**: Node.js 18+. Your `package.json` must include `"type": "module"` for the `@nevermined-io/payments/express` subpath import to work.
-- **Python/FastAPI**: Python 3.9+. Install with `pip install 'payments-py[fastapi]==1.5.0'` — the `[fastapi]` extra is required for the middleware.
+- **Python/FastAPI**: Python 3.9+. Install with `pip install payments-py[fastapi]` — the `[fastapi]` extra is required for the middleware.
 
 ### TypeScript
 
 ```bash
-npm install @nevermined-io/payments@1.3.3
+npm install @nevermined-io/payments
 ```
 
 ```typescript
@@ -120,7 +120,7 @@ const payments = Payments.getInstance({
 ### Python
 
 ```bash
-pip install payments-py==1.5.0
+pip install payments-py
 ```
 
 ```python

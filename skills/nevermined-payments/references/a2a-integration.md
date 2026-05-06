@@ -19,13 +19,13 @@ Integrate Nevermined payments with [Google A2A (Agent-to-Agent)](https://a2a-pro
 ### TypeScript
 
 ```bash
-npm install @nevermined-io/payments@1.3.3
+npm install @nevermined-io/payments
 ```
 
 ### Python
 
 ```bash
-pip install payments-py==1.5.0
+pip install payments-py
 ```
 
 ## A2A Server

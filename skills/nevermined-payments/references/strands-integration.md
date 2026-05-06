@@ -5,7 +5,7 @@ Add x402 payment protection to Strands AI agent tools using the `@requires_payme
 ## Installation
 
 ```bash
-pip install 'payments-py[strands]==1.5.0' strands-agents
+pip install payments-py[strands] strands-agents
 ```
 
 The `[strands]` extra installs the Strands SDK dependency required for the decorator.

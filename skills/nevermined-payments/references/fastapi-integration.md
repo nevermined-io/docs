@@ -5,7 +5,7 @@ Add x402 payment protection to FastAPI applications using `PaymentMiddleware` fr
 ## Installation
 
 ```bash
-pip install 'payments-py[fastapi]==1.5.0' fastapi uvicorn
+pip install payments-py[fastapi] fastapi uvicorn
 ```
 
 The `[fastapi]` extra installs FastAPI and Starlette dependencies required for the middleware.
