@@ -332,9 +332,9 @@ const usdtConfig = getERC20PriceConfig(
 )
 ```
 
-### Fiat (Stripe)
+### Fiat (Stripe or Braintree)
 
-Accept credit card payments via Stripe integration:
+Accept credit card payments via Stripe or Braintree. The active provider is selected per plan via the seller's `fiatPaymentProvider` metadata at registration time; both providers settle x402 charges through the same `nvm:card-delegation` scheme.
 
 ```typescript
 const fiatConfig = await payments.plans.getFiatPriceConfig({
@@ -342,10 +342,14 @@ const fiatConfig = await payments.plans.getFiatPriceConfig({
   currency: 'USD'
 })
 
-// Users purchase via Stripe checkout
+// One-time fiat purchase via the SDK (Stripe-priced plans only):
 const { url } = await payments.plans.orderFiatPlan(planId)
 // Redirect user to Stripe checkout URL
 ```
+
+<Note>
+`orderFiatPlan` returns a Stripe checkout URL and is only available for Stripe-priced plans. Braintree-priced plans are purchased through the Nevermined App's Braintree Drop-in checkout. Both Stripe and Braintree plans support per-request x402 settlement against credit-card delegations — see [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) for the seller-side requirements (per-currency merchant accounts).
+</Note>
 
 ## Choosing the Right Model
 

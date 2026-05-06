@@ -1,6 +1,6 @@
 ---
 title: "Card Enrollment"
-description: "Enroll Visa or Stripe payment cards into NVM Pay with PCI-compliant tokenization and secure authentication."
+description: "Enroll Visa, Stripe, or Braintree payment cards into NVM Pay with PCI-compliant tokenization and secure authentication."
 icon: "id-card"
 ---
 
@@ -8,7 +8,7 @@ icon: "id-card"
 
 Before an agent can charge a payment card, the card must be enrolled in NVM Pay. Enrollment tokenizes the card data (NVM Pay never stores raw card numbers), verifies the cardholder's identity, and registers the card with the payment provider.
 
-NVM Pay supports two enrollment providers, each available as a separate tab in the [Nevermined Pay dashboard](https://pay.nevermined.app).
+NVM Pay supports three enrollment providers, each available as a separate tab in the [Nevermined Pay dashboard](https://pay.nevermined.app). The right provider for a given plan is determined by the seller's `fiatPaymentProvider` metadata: Stripe-priced plans require a Stripe-vaulted card, and Braintree-priced plans require a Braintree-vaulted card.
 
 ## Enrollment Paths
 
@@ -90,11 +90,51 @@ NVM Pay supports two enrollment providers, each available as a separate tab in t
             |-> Removed (card and all delegations revoked)
     ```
   </Tab>
+  <Tab title="Braintree">
+    ### Braintree Enrollment
+
+    Braintree cards are captured via the Braintree Drop-in UI (or hosted fields) and exchanged for a vaulted payment-method token. The flow is similar to Stripe — no passkey is required — but uses Braintree's tokenization and vaulting primitives so the resulting token can be charged by the seller's OAuth-connected Braintree merchant at settlement time.
+
+    <Steps>
+      <Step title="Request a client token">
+        The Nevermined App requests a short-lived **Braintree client token** from the facilitator. The client token authorizes the in-browser Drop-in / hosted fields to talk directly to Braintree.
+      </Step>
+      <Step title="Enter card details">
+        Enter your card number, expiry, and CVC into the Braintree Drop-in. Card data goes directly to Braintree and never touches the Nevermined backend. Drop-in returns a single-use **payment-method nonce** to the browser.
+      </Step>
+      <Step title="Vault the card">
+        The browser submits the nonce to the facilitator. The facilitator looks up (or creates) your Braintree customer record and exchanges the nonce for a permanent **`paymentMethodToken`** by vaulting the card with `verifyCard: true`. From this point on, NVM Pay only ever stores the token — never raw card data.
+      </Step>
+      <Step title="Create a delegation">
+        After enrollment, create a [spending delegation](/docs/products/nvm-pay/mandates) backed by the vaulted Braintree token. The delegation can then settle x402 charges against any Braintree-priced plan in the supported currency.
+      </Step>
+    </Steps>
+
+    #### Braintree Card Lifecycle
+
+    ```
+    Client token requested
+      |
+      |-> Card details captured (Braintree Drop-in tokenization)
+      |
+      |-> Nonce returned to browser (single-use)
+      |
+      |-> Card vaulted (paymentMethodToken issued, verifyCard pass)
+      |
+      |-> Active -> Delegations can be created
+            |
+            |-> Removed (card and all delegations revoked)
+    ```
+
+    <Note>
+      A Braintree-vaulted card can only be charged for plans whose seller has a Braintree merchant account in the card's transaction currency. See [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) for the seller-side per-currency requirements.
+    </Note>
+  </Tab>
 </Tabs>
 
 ## Card Properties
 
-Both Visa and Stripe cards share these core properties:
+Visa, Stripe, and Braintree cards share these core properties:
 
 | Property | Description |
 |---|---|
@@ -124,7 +164,7 @@ When you create or update a mandate/delegation, NVM Pay validates that the total
 
 ### Via the Nevermined Pay Dashboard
 
-The [Nevermined Pay dashboard](https://pay.nevermined.app) provides a visual interface for managing your enrolled cards. Visa and Stripe cards appear in separate tabs:
+The [Nevermined Pay dashboard](https://pay.nevermined.app) provides a visual interface for managing your enrolled cards. Visa, Stripe, and Braintree cards appear in separate tabs:
 
 - View all enrolled cards with their status and spending ceiling
 - See active mandates/delegations per card with remaining capacity
@@ -155,14 +195,14 @@ The [Nevermined Pay dashboard](https://pay.nevermined.app) provides a visual int
 
 ## Choosing a Provider
 
-| | Visa | Stripe |
-|---|---|---|
-| **Enrollment complexity** | Multi-step with passkey auth | Simple card form |
-| **Authentication** | Passkeys (FIDO2) or OTP | Stripe handles verification |
-| **Best for** | High-security use cases, production deployments | Quick setup, developer testing, broader card support |
-| **Settlement** | Visa credentials charged via Stripe | Stripe PaymentIntents directly |
+| | Visa | Stripe | Braintree |
+|---|---|---|---|
+| **Enrollment complexity** | Multi-step with passkey auth | Simple card form | Simple card form (Braintree Drop-in) |
+| **Authentication** | Passkeys (FIDO2) or OTP | Stripe handles verification | Braintree `verifyCard` at vault time |
+| **Best for** | High-security use cases, production deployments | Quick setup, developer testing, broader card support | Plans whose seller settles on Braintree (per-currency merchant accounts, OAuth Connect) |
+| **Settlement** | Visa credentials charged via Stripe | Stripe PaymentIntents directly | Braintree `transaction.sale` against vaulted `paymentMethodToken` |
 
-Both providers support the same spending controls (ceilings, usage limits, expiration) and API key linking.
+All three providers support the same spending controls (ceilings, usage limits, expiration) and API key linking. The right enrollment provider for a given plan is determined by the plan's `fiatPaymentProvider` metadata: a Braintree-priced plan can only be paid by a Braintree-vaulted card.
 
 ## What's Next?
 

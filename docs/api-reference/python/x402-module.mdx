@@ -22,10 +22,10 @@ Nevermined supports two x402 payment schemes:
 
 | Scheme | Network | Use Case | Settlement |
 |--------|---------|----------|------------|
-| `nvm:erc4337` | `eip155:84532` | Crypto payments | ERC-4337 UserOps + session keys |
-| `nvm:card-delegation` | `stripe` | Fiat/credit card | Stripe PaymentIntent + credit burn |
+| `nvm:erc4337` | `eip155:84532` (or other CAIP-2 chain ID) | Crypto payments | ERC-4337 UserOps + session keys |
+| `nvm:card-delegation` | `stripe` or `braintree` | Fiat/credit card | Stripe PaymentIntent or Braintree `transaction.sale` + credit burn |
 
-The scheme is determined by the plan's pricing configuration. Plans with `isCrypto: false` use `nvm:card-delegation`; all others use `nvm:erc4337`. The SDK auto-detects the scheme via `resolve_scheme()`.
+The scheme is determined by the plan's pricing configuration. Plans with `isCrypto: false` use `nvm:card-delegation`; all others use `nvm:erc4337`. For card-delegation plans, the network is derived from the plan's `fiatPaymentProvider` metadata (`'stripe'` or `'braintree'`). The SDK auto-detects both via `resolve_scheme()` / `resolve_network()`.
 
 ## Generate Payment Permissions
 
@@ -313,7 +313,7 @@ payment_required_fiat = X402PaymentRequired(
     accepts=[
         X402Scheme(
             scheme="nvm:card-delegation",
-            network="stripe",
+            network="stripe",  # or "braintree" — must match the plan's fiatPaymentProvider
             plan_id="your-plan-id",
             extra=X402SchemeExtra(
                 http_verb="POST",
@@ -344,7 +344,7 @@ payment_required = build_payment_required(
     endpoint="https://api.example.com/tasks",
     agent_id="agent-123",
     http_verb="POST",
-    scheme="nvm:card-delegation"  # Force fiat/Stripe scheme
+    scheme="nvm:card-delegation"  # Force fiat scheme; network auto-resolved from plan metadata (stripe or braintree)
 )
 
 # Multiple plans — creates one entry per plan in accepts[]
@@ -356,7 +356,7 @@ payment_required = build_payment_required_for_plans(
 )
 ```
 
-For a single plan, `build_payment_required_for_plans` delegates to `build_payment_required` internally. When `scheme` is omitted, the network defaults to `eip155:84532` (Base Sepolia). When `scheme="nvm:card-delegation"`, the network is automatically set to `stripe`.
+For a single plan, `build_payment_required_for_plans` delegates to `build_payment_required` internally. When `scheme` is omitted, the network defaults to `eip155:84532` (Base Sepolia). When `scheme="nvm:card-delegation"`, the network is auto-resolved from the plan's `fiatPaymentProvider` metadata — either `"stripe"` or `"braintree"`.
 
 ## Complete Workflow Example
 
