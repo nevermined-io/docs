@@ -2,6 +2,8 @@
 
 How to purchase plans, generate x402 tokens, and call payment-protected APIs as a subscriber.
 
+> ⚠️ **Run examples in `sandbox` first.** `orderPlan` charges money in `live`, and `delegationConfig` grants the platform pre-authorized spending up to `spendingLimitCents` for `durationSecs` seconds. Examples below use a small sandbox-friendly budget (`100¢` over `1h`); raise per use-case after explicit review.
+
 ## Overview
 
 As a subscriber (consumer of a paid API/agent), you:
@@ -33,7 +35,7 @@ console.log(`Subscriber: ${planBalance.isSubscriber}`)
 
 // Generate x402 access token (requires delegationConfig)
 const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
-  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
 })
 ```
 
@@ -60,7 +62,7 @@ print(f"Subscriber: {plan_balance.is_subscriber}")
 token_res = payments.x402.get_x402_access_token(
     plan_id, agent_id,
     token_options=X402TokenOptions(
-        delegation_config=DelegationConfig(spending_limit_cents=10000, duration_secs=604800)
+        delegation_config=DelegationConfig(spending_limit_cents=100, duration_secs=3600)
     )
 )
 access_token = token_res["accessToken"]
@@ -103,7 +105,7 @@ async function callProtectedAPI() {
 
     // Step 3: Generate x402 token (requires delegationConfig)
     const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-      delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+      delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
     })
 
     // Step 4: Request with token → 200
@@ -174,7 +176,7 @@ def call_protected_api():
                 plan_id, agent_id,
                 token_options=X402TokenOptions(
                     delegation_config=DelegationConfig(
-                        spending_limit_cents=10000, duration_secs=604800
+                        spending_limit_cents=100, duration_secs=3600
                     )
                 )
             )
@@ -211,7 +213,7 @@ import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
 
 const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
 })
 
 const transport = new StreamableHTTPClientTransport(
@@ -257,7 +259,7 @@ if payment_required:
         plan_id, agent_id,
         token_options=X402TokenOptions(
             delegation_config=DelegationConfig(
-                spending_limit_cents=10000, duration_secs=604800
+                spending_limit_cents=100, duration_secs=3600
             )
         )
     )

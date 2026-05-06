@@ -5,7 +5,7 @@ Add x402 payment protection to Strands AI agent tools using the `@requires_payme
 ## Installation
 
 ```bash
-pip install payments-py[strands] strands-agents
+pip install 'payments-py[strands]==1.5.0' strands-agents
 ```
 
 The `[strands]` extra installs the Strands SDK dependency required for the decorator.
@@ -195,7 +195,7 @@ from payments_py.x402.strands import PaymentContext
 def my_tool(query: str, tool_context=None) -> dict:
     ctx = tool_context.invocation_state.get("payment_context")
     if ctx and isinstance(ctx, PaymentContext):
-        print(f"Token: {ctx.token}")
+        print(f"Token: {ctx.token[:8]}…{ctx.token[-4:]}")  # Never log full payment tokens — they are bearer credentials.
         print(f"Credits: {ctx.credits_to_settle}")
         print(f"Request ID: {ctx.agent_request_id}")
         print(f"Verified: {ctx.verified}")

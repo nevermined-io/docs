@@ -5,7 +5,7 @@ Add x402 payment protection to Express.js APIs using `paymentMiddleware` from `@
 ## Installation
 
 ```bash
-npm install @nevermined-io/payments express
+npm install @nevermined-io/payments@1.3.3 express
 ```
 
 ## Quick Start

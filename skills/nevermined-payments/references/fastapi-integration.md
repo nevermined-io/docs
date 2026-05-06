@@ -5,7 +5,7 @@ Add x402 payment protection to FastAPI applications using `PaymentMiddleware` fr
 ## Installation
 
 ```bash
-pip install payments-py[fastapi] fastapi uvicorn
+pip install 'payments-py[fastapi]==1.5.0' fastapi uvicorn
 ```
 
 The `[fastapi]` extra installs FastAPI and Starlette dependencies required for the middleware.
@@ -198,7 +198,8 @@ from payments_py.x402.fastapi import PaymentContext
 async def ask(request: Request):
     payment_context: PaymentContext = request.state.payment_context
 
-    print(f"Token: {payment_context.token}")
+    token = payment_context.token
+    print(f"Token: {token[:8]}…{token[-4:]}")  # Never log full payment tokens — they are bearer credentials.
     print(f"Credits to settle: {payment_context.credits_to_settle}")
     print(f"Agent request ID: {payment_context.agent_request_id}")
 

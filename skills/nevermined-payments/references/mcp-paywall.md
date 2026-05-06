@@ -5,7 +5,7 @@ Protect Model Context Protocol (MCP) servers with Nevermined payments. The libra
 ## Installation
 
 ```bash
-npm install @nevermined-io/payments zod
+npm install @nevermined-io/payments@1.3.3 zod
 ```
 
 ## Quick Start — Complete MCP Server

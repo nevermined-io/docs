@@ -2,6 +2,8 @@
 
 Integrate Nevermined payments with [Google A2A (Agent-to-Agent)](https://a2a-protocol.org/) to enable multi-agent systems to authorize and charge per request between agents.
 
+> 🔐 **Trust & transport.** A2A flows ship payment tokens (`payment-signature`) between agents — they are bearer credentials. Always: (1) serve agents over HTTPS, (2) validate the peer Agent Card and base URL before sending tokens, (3) restrict CORS to known agent origins, (4) issue short-lived, narrowly scoped tokens (set tight `spendingLimitCents` / `durationSecs` on `getX402AccessToken`), and (5) treat push-notification webhook URLs as untrusted until verified.
+
 ## Features
 
 - **Agent Card with payment extension**: publish at `/.well-known/agent.json`
@@ -17,13 +19,13 @@ Integrate Nevermined payments with [Google A2A (Agent-to-Agent)](https://a2a-pro
 ### TypeScript
 
 ```bash
-npm install @nevermined-io/payments
+npm install @nevermined-io/payments@1.3.3
 ```
 
 ### Python
 
 ```bash
-pip install payments-py
+pip install payments-py==1.5.0
 ```
 
 ## A2A Server
