@@ -88,7 +88,7 @@ if payment_required:
         agent_id=agent_id,
         token_options=X402TokenOptions(
             delegation_config=DelegationConfig(
-                spending_limit_cents=10000, duration_secs=604800
+                spending_limit_cents=100, duration_secs=3600
             )
         ),
     )
@@ -195,7 +195,7 @@ from payments_py.x402.strands import PaymentContext
 def my_tool(query: str, tool_context=None) -> dict:
     ctx = tool_context.invocation_state.get("payment_context")
     if ctx and isinstance(ctx, PaymentContext):
-        print(f"Token: {ctx.token}")
+        print(f"Token: {ctx.token[:8]}…{ctx.token[-4:]}")  # Never log full payment tokens — they are bearer credentials.
         print(f"Credits: {ctx.credits_to_settle}")
         print(f"Request ID: {ctx.agent_request_id}")
         print(f"Verified: {ctx.verified}")

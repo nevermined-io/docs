@@ -198,7 +198,8 @@ from payments_py.x402.fastapi import PaymentContext
 async def ask(request: Request):
     payment_context: PaymentContext = request.state.payment_context
 
-    print(f"Token: {payment_context.token}")
+    token = payment_context.token
+    print(f"Token: {token[:8]}…{token[-4:]}")  # Never log full payment tokens — they are bearer credentials.
     print(f"Credits to settle: {payment_context.credits_to_settle}")
     print(f"Agent request ID: {payment_context.agent_request_id}")
 
