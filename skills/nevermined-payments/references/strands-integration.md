@@ -88,7 +88,7 @@ if payment_required:
         agent_id=agent_id,
         token_options=X402TokenOptions(
             delegation_config=DelegationConfig(
-                spending_limit_cents=10000, duration_secs=604800
+                spending_limit_cents=100, duration_secs=3600
             )
         ),
     )

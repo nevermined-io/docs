@@ -155,7 +155,7 @@ After each paywall-protected call, the SDK injects a `_meta` field into the resp
 
 ```typescript
 const { accessToken } = await paymentsClient.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
 })
 ```
 

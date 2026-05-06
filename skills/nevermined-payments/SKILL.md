@@ -190,7 +190,7 @@ const planBalance = await payments.plans.getPlanBalance(planId)
 console.log(`Credits remaining: ${planBalance.balance}`)  // PlanBalance.balance is bigint
 
 const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
 })
 
 // Server: verify and settle
@@ -244,7 +244,7 @@ print(f"Credits remaining: {plan_balance.balance}")  # PlanBalance.balance is in
 token_res = payments.x402.get_x402_access_token(
     plan_id, agent_id,
     token_options=X402TokenOptions(
-        delegation_config=DelegationConfig(spending_limit_cents=10000, duration_secs=604800)
+        delegation_config=DelegationConfig(spending_limit_cents=100, duration_secs=3600)
     )
 )
 
@@ -460,7 +460,7 @@ const client = payments.a2a.getClient({
 })
 
 const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
-  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
 })
 const response = await client.sendMessage("Analyze this data", accessToken)
 ```

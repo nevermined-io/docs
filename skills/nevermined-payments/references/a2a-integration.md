@@ -226,7 +226,7 @@ await paymentsSubscriber.plans.orderPlan(planId)
 
 // Get the x402 access token (requires delegationConfig)
 const { accessToken } = await paymentsSubscriber.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
+  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
 })
 
 // Send an A2A message
