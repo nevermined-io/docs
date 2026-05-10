@@ -11,7 +11,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 - [`BCK.AGENT`](#bck-agent) — 11 codes
 - [`BCK.APIKEY`](#bck-apikey) — 12 codes
-- [`BCK.AUTH`](#bck-auth) — 4 codes
+- [`BCK.AUTH`](#bck-auth) — 9 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 9 codes
 - [`BCK.COMMON`](#bck-common) — 29 codes
 - [`BCK.CREDITS`](#bck-credits) — 5 codes
@@ -78,7 +78,12 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-auth-0001"></a>`BCK.AUTH.0001` | 500 | auth | — | Error registering API Key |  |
 | <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid |  |
 | <a id="bck-auth-0003"></a>`BCK.AUTH.0003` | 403 | auth | — | Forbidden: caller is not the owner of this resource and lacks an admin role |  |
-| <a id="bck-auth-0004"></a>`BCK.AUTH.0004` | 403 | auth | ❌ | Organisation admin privileges required | The caller is not an active admin of the target organisation. Verify membership, role, and that both the user and the org are active. |
+| <a id="bck-auth-0004"></a>`BCK.AUTH.0004` | 403 | auth | ❌ | Organisation admin privileges required | The caller is not an active admin of the target organisation. Prefer the more specific siblings (BCK.AUTH.0005-0009) at new throw sites; this code remains as a catch-all. |
+| <a id="bck-auth-0005"></a>`BCK.AUTH.0005` | 403 | auth | ✅ | Unable to verify organisation membership | The membership lookup itself failed (e.g. transient DB error). Check the cause field on the server log; retry once. |
+| <a id="bck-auth-0006"></a>`BCK.AUTH.0006` | 403 | auth | ❌ | Caller does not belong to any organisation | Add the user as a member of the target organisation before calling admin-scoped endpoints. |
+| <a id="bck-auth-0007"></a>`BCK.AUTH.0007` | 403 | auth | ❌ | Caller does not have administrator privileges | The caller is a member but not an admin. Promote the role via the organisation admin UI / API, or call from an admin account. |
+| <a id="bck-auth-0008"></a>`BCK.AUTH.0008` | 403 | auth | ❌ | Caller account is not active | The user is suspended/disabled. Reactivate via the admin UI before retrying. |
+| <a id="bck-auth-0009"></a>`BCK.AUTH.0009` | 403 | auth | ❌ | Target organisation is not active | The org has been deactivated (subscription lapsed, manual disable, etc.). Reactivate before performing admin operations. |
 
 ## `BCK.BRAINTREE` { #bck-braintree }
 
@@ -247,7 +252,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-point-0006"></a>`BCK.POINT.0006` | 404 | business | — | Points rule not found |  |
 | <a id="bck-point-0007"></a>`BCK.POINT.0007` | 403 | business | ❌ | Points rule recurrency exhausted for user | The rule allows only one (or N) accruals per user; the cap has been reached. |
 | <a id="bck-point-0008"></a>`BCK.POINT.0008` | 500 | internal | — | Points rule recurrency type not implemented |  |
-| <a id="bck-point-0009"></a>`BCK.POINT.0009` | 500 | internal | ❌ | No points rule matches the supplied price/role | The price/role tiers in points.rules.ts are exhaustive for valid inputs. Reaching this code typically means a negative or unexpected price was supplied. |
+| <a id="bck-point-0009"></a>`BCK.POINT.0009` | 500 | internal | ❌ | No points rule matches the supplied price/role | The price/role tiers in points.rules.ts are exhaustive for non-negative inputs; reaching this code typically means a negative or otherwise unexpected price was supplied. The status is 500 to preserve the original "throw new Error" behaviour from before #1538; a follow-up (tracked in the Wave-B issue) will demote this to 400 and add input validation at the API boundary. |
 | <a id="bck-point-0010"></a>`BCK.POINT.0010` | 403 | business | ❌ | Unsupported points cap recurrency type | The rule references a cap recurrency variant that the engine does not recognise. Update the rule to one of capday/capweek/capmonth. |
 
 ## `BCK.PROTOCOL` { #bck-protocol }
