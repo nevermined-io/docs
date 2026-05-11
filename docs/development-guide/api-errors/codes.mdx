@@ -14,18 +14,18 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.AUTH`](#bck-auth) — 9 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 9 codes
 - [`BCK.COMMON`](#bck-common) — 29 codes
-- [`BCK.CREDITS`](#bck-credits) — 5 codes
+- [`BCK.CREDITS`](#bck-credits) — 6 codes
 - [`BCK.DELEGATION`](#bck-delegation) — 2 codes
 - [`BCK.GUEST`](#bck-guest) — 2 codes
 - [`BCK.LEGAL_DOCS`](#bck-legal_docs) — 6 codes
 - [`BCK.METRIC`](#bck-metric) — 5 codes
 - [`BCK.NOTIF`](#bck-notif) — 9 codes
-- [`BCK.OAUTH`](#bck-oauth) — 2 codes
+- [`BCK.OAUTH`](#bck-oauth) — 6 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
-- [`BCK.ORGANIZATIONS`](#bck-organizations) — 14 codes
+- [`BCK.ORGANIZATIONS`](#bck-organizations) — 15 codes
 - [`BCK.PAYPAL`](#bck-paypal) — 1 code
 - [`BCK.PLANS`](#bck-plans) — 1 code
-- [`BCK.POINT`](#bck-point) — 10 codes
+- [`BCK.POINT`](#bck-point) — 19 codes
 - [`BCK.PROTOCOL`](#bck-protocol) — 47 codes
 - [`BCK.STRIPE`](#bck-stripe) — 32 codes
 - [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 5 codes
@@ -36,7 +36,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
 - [`BCK.WIDGET_SESSION`](#bck-widget_session) — 12 codes
-- [`BCK.X402`](#bck-x402) — 16 codes
+- [`BCK.X402`](#bck-x402) — 17 codes
 
 ## `BCK.AGENT` { #bck-agent }
 
@@ -142,6 +142,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-credits-0003"></a>`BCK.CREDITS.0003` | 402 | business | — | Insufficient credits for plan |  |
 | <a id="bck-credits-0004"></a>`BCK.CREDITS.0004` | 400 | business | — | Refund amount must be positive |  |
 | <a id="bck-credits-0005"></a>`BCK.CREDITS.0005` | 500 | business | — | Credit lots do not satisfy the burned amount — FIFO invariant violated |  |
+| <a id="bck-credits-0006"></a>`BCK.CREDITS.0006` | 500 | internal | ❌ | Cannot enqueue on-chain order mirror without a corresponding minted credit lot | enqueueFiatOrderMirror must be called after a successful creditsService.mint with the same sourceTx. This usually indicates an out-of-order call by a service, not a runtime data issue. |
 
 ## `BCK.DELEGATION` { #bck-delegation }
 
@@ -197,7 +198,11 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-oauth-0001"></a>`BCK.OAUTH.0001` | 404 | auth | ❌ | OAuth resource not found | Verify the agentId or client identifier in the OAuth request. |
-| <a id="bck-oauth-0002"></a>`BCK.OAUTH.0002` | 400 | auth | ❌ | Invalid OAuth request | Check the request parameters — typically the redirect_uri, scope, or grant_type does not match the registered client. |
+| <a id="bck-oauth-0002"></a>`BCK.OAUTH.0002` | 400 | auth | ❌ | Invalid OAuth request | Check the request parameters — typically the redirect_uri, scope, or grant_type does not match the registered client. Prefer the more specific BCK.OAUTH.0003-0006 siblings at new throw sites. |
+| <a id="bck-oauth-0003"></a>`BCK.OAUTH.0003` | 400 | business | ❌ | No payment plans available for agent | The target agent has no published plans the caller can purchase. Publish a plan first, or pass an explicit plan_id that the caller already owns. |
+| <a id="bck-oauth-0004"></a>`BCK.OAUTH.0004` | 400 | auth | ❌ | Invalid or expired authorization code | Authorization codes are single-use and short-lived. Restart the flow from /authorize to obtain a fresh code, and ensure the code_verifier matches the original PKCE code_challenge. |
+| <a id="bck-oauth-0005"></a>`BCK.OAUTH.0005` | 400 | auth | ❌ | Resource mismatch between token request and authorization code | The `resource` parameter on /token does not match the value bound to the authorization code. Resend with the same `resource` you used on /authorize. |
+| <a id="bck-oauth-0006"></a>`BCK.OAUTH.0006` | 400 | auth | ❌ | User profile not found for the authorization code | The user bound to the authorization code no longer exists in our DB (deleted profile, or environment mismatch). Restart the flow with a valid signed-in user. |
 
 ## `BCK.OBSERVABILITY` { #bck-observability }
 
@@ -227,6 +232,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-organizations-0012"></a>`BCK.ORGANIZATIONS.0012` | 500 | business | — | Failed to deactivate organization |  |
 | <a id="bck-organizations-0013"></a>`BCK.ORGANIZATIONS.0013` | 500 | business | — | Failed to retrieve updated organization |  |
 | <a id="bck-organizations-0014"></a>`BCK.ORGANIZATIONS.0014` | 403 | business | ❌ | User already belongs to another organization | A user can only belong to one organization at a time. Remove the user from the current organization before adding them to a new one. |
+| <a id="bck-organizations-0015"></a>`BCK.ORGANIZATIONS.0015` | 500 | integration | ✅ | Failed to look up organization (database error) | Repository.findOne returned a driver/connection error rather than null. Inspect the cause field on the server log; if the database is up, this is likely a query timeout or connection-pool exhaustion. Distinct from BCK.ORGANIZATIONS.0011, which signals a confirmed not-found result. |
 
 ## `BCK.PAYPAL` { #bck-paypal }
 
@@ -254,6 +260,15 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-point-0008"></a>`BCK.POINT.0008` | 500 | internal | — | Points rule recurrency type not implemented |  |
 | <a id="bck-point-0009"></a>`BCK.POINT.0009` | 500 | internal | ❌ | No points rule matches the supplied price/role | The price/role tiers in points.rules.ts are exhaustive for non-negative inputs; reaching this code typically means a negative or otherwise unexpected price was supplied. The status is 500 to preserve the original "throw new Error" behaviour from before #1538; a follow-up (tracked in the Wave-B issue) will demote this to 400 and add input validation at the API boundary. |
 | <a id="bck-point-0010"></a>`BCK.POINT.0010` | 403 | business | ❌ | Unsupported points cap recurrency type | The rule references a cap recurrency variant that the engine does not recognise. Update the rule to one of capday/capweek/capmonth. |
+| <a id="bck-point-0011"></a>`BCK.POINT.0011` | 403 | business | ❌ | Points rule (onlyonce) already accrued by this user | The rule allows exactly one accrual per user and the user already received their share. No retry will succeed. |
+| <a id="bck-point-0012"></a>`BCK.POINT.0012` | 403 | business | ❌ | Points rule (timeslimitted) per-user lifetime cap reached | The rule allows at most rule.cap accruals per (user, rule); the user has reached that ceiling and the cap does not reset. Note: the throw-site `details` line may mention an item reference for historical reasons — the check is per-user, not per-item. Per-item semantics live in BCK.POINT.0013 (onceperitem). |
+| <a id="bck-point-0013"></a>`BCK.POINT.0013` | 403 | business | ❌ | Points rule (onceperitem) already accrued for this item | The user already received points for this specific item/reference. Try a different item. |
+| <a id="bck-point-0014"></a>`BCK.POINT.0014` | 403 | business | ❌ | Points rule (capday/week/month) time-window cap exhausted | The user reached the cap for this rule within the current time window (day/week/month). Wait for the window to roll over. |
+| <a id="bck-point-0015"></a>`BCK.POINT.0015` | 500 | internal | ❌ | No subscription-price points rule for the supplied price | getRuleIdBySubscriptionPrice() saw a price the tier table does not cover — typically a negative value. Add input validation at the API boundary. |
+| <a id="bck-point-0016"></a>`BCK.POINT.0016` | 500 | internal | ❌ | No crypto-seller points rule for the supplied price | getRuleIdByCryptoSellerPrice() saw a price the tier table does not cover. |
+| <a id="bck-point-0017"></a>`BCK.POINT.0017` | 500 | internal | ❌ | No crypto-buyer points rule for the supplied price | getRuleIdByCryptoBuyerPrice() saw a price the tier table does not cover. |
+| <a id="bck-point-0018"></a>`BCK.POINT.0018` | 500 | internal | ❌ | No fiat-seller points rule for the supplied price | getRuleIdByFiatSellerPrice() saw a price the tier table does not cover. |
+| <a id="bck-point-0019"></a>`BCK.POINT.0019` | 500 | internal | ❌ | No fiat-buyer points rule for the supplied price | getRuleIdByFiatBuyerPrice() saw a price the tier table does not cover. |
 
 ## `BCK.PROTOCOL` { #bck-protocol }
 
@@ -454,4 +469,5 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-x402-0014"></a>`BCK.X402.0014` | 400 | business | — | Delegation restricted to a different plan |  |
 | <a id="bck-x402-0015"></a>`BCK.X402.0015` | 404 | business | ❌ | Permission not found | The permission record either has been revoked or never existed for this combination of (subscriber, plan, agent). |
 | <a id="bck-x402-0016"></a>`BCK.X402.0016` | 400 | business | ❌ | Permission is already revoked | The permission was already revoked. No further action required. |
+| <a id="bck-x402-0017"></a>`BCK.X402.0017` | 500 | internal | ❌ | Failed to issue credits after card charge | The card was charged successfully but the DB-side mint of credits failed. The charge is auto-refunded when the provider supports it; otherwise a `failed_post_charge_*` delegationTransactions row is left for manual reconciliation. |
 
