@@ -450,7 +450,7 @@ What the agent runs to mint a token and call your endpoint:
   <Card title="The Nevermined way" icon="check">
     - Drop in `verifyPermissions` and `settlePermissions`
     - Card acquisition via Stripe or Visa Intelligent Commerce, payouts via
-      Stripe Connect or PayPal Braintree
+      Stripe Connect today (PayPal Braintree coming soon)
     - PCI scope stays with Nevermined and the PSP
     - Standard x402 protocol, no proprietary buyer SDK
   </Card>
@@ -460,8 +460,9 @@ What the agent runs to mint a token and call your endpoint:
 
 <AccordionGroup>
   <Accordion title="When do I get paid out?">
-    Settled funds are paid out via your connected payout provider (Stripe
-    Connect or PayPal Braintree) on that provider's standard schedule.
+    Settled funds are paid out via your connected Stripe Connect account on
+    Stripe's standard schedule. PayPal Braintree as a second payout rail is
+    coming soon.
   </Accordion>
   <Accordion title="Do my existing customers see any change?">
     No. Your existing API and billing surface stay as-is. Agent-payable signup
@@ -491,23 +492,22 @@ What the agent runs to mint a token and call your endpoint:
     [Generic HTTP guide](/docs/integrate/add-to-your-agent/generic-http).
   </Accordion>
   <Accordion title="Do I need a Stripe account?">
-    You need a connected payout account: Stripe Connect or PayPal Braintree.
-    Nevermined handles card acquisition and PCI scope on the buyer side; you
-    just bring your payout destination. See
-    [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) if you
-    want to use PayPal Braintree.
+    Today, yes: you connect a Stripe Connect account as your payout
+    destination. PayPal Braintree as a second payout option is coming soon
+    (see [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding)
+    for the planned flow). Nevermined handles card acquisition and PCI scope
+    on the buyer side; you just bring your payout destination.
   </Accordion>
   <Accordion title="How are chargebacks and refunds handled?">
     On Stripe destination charges, Nevermined is the merchant of record:
     Stripe routes disputes and refunds through Nevermined, and we surface the
     chargeback or charge reference so you can match it to specific agent
-    transactions. PayPal Braintree refund flow is still being finalized; talk
-    to us.
+    transactions.
   </Accordion>
   <Accordion title="Multi-currency?">
-    Depends on the rail. Stripe Connect handles currency conversion to your
-    destination account, so non-USD payouts work. PayPal Braintree is USD only
-    today. VIC currently supports predominantly US-based issuers.
+    Stripe Connect handles currency conversion to your destination account,
+    so non-USD payouts work today. VIC currently supports predominantly
+    US-based issuers.
   </Accordion>
 </AccordionGroup>
 
