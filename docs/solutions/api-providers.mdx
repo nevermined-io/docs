@@ -36,16 +36,88 @@ Nevermined turns that failure mode into revenue with a small server-side integra
 
 ## Server-side handler
 
-Below is the minimum complete handler. Drop it next to your existing API and you're agent-payable.
+The Nevermined SDK ships a payment middleware for both Express and FastAPI. It's the recommended path: one config line gates your endpoint, your handler stays focused on business logic, and the middleware emits the spec-correct `payment-required` and `payment-response` headers for you.
+
+### Recommended: middleware
 
 <Tabs>
   <Tab title="TypeScript (Express)">
     ```typescript
     import express from 'express'
-    import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
+    import { Payments } from '@nevermined-io/payments'
+    import { paymentMiddleware } from '@nevermined-io/payments/express'
 
     const app = express()
     app.use(express.json())
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'live',
+    })
+
+    // credits: 1 maps to a PAYG plan with 1 credit per purchase, so one
+    // call to /purchase-key triggers one card charge for the plan price.
+    app.use(
+      paymentMiddleware(payments, {
+        'POST /purchase-key': {
+          planId: process.env.PLAN_ID!,
+          credits: 1,
+          scheme: 'nvm:card-delegation',
+        },
+      }),
+    )
+
+    app.post('/purchase-key', async (req, res) => {
+      const apiKey = await provisionOrTopUp(req)
+      res.json({ apiKey })
+    })
+    ```
+  </Tab>
+  <Tab title="Python (FastAPI)">
+    ```python
+    import os
+    from fastapi import FastAPI, Request
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402.fastapi import PaymentMiddleware
+
+    app = FastAPI()
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='live')
+    )
+
+    # credits=1 maps to a PAYG plan with 1 credit per purchase, so one
+    # call to /purchase-key triggers one card charge for the plan price.
+    app.add_middleware(
+        PaymentMiddleware,
+        payments=payments,
+        routes={
+            'POST /purchase-key': {
+                'plan_id': os.environ['PLAN_ID'],
+                'credits': 1,
+                'scheme': 'nvm:card-delegation',
+            },
+        },
+    )
+
+    @app.post('/purchase-key')
+    async def purchase_key(request: Request):
+        api_key = await provision_or_top_up(request)
+        return {'apiKey': api_key}
+    ```
+  </Tab>
+</Tabs>
+
+The middleware reads the `payment-signature` header, calls `verifyPermissions`, runs your handler, then calls `settlePermissions` and attaches the `payment-response` header before sending the response. See the [Express](/docs/integrate/add-to-your-agent/express) and [FastAPI](/docs/integrate/add-to-your-agent/fastapi) integration pages for middleware options (dynamic credits, hooks, custom error handlers).
+
+### Manual handler
+
+If you're on a framework without a middleware (Hono, Fastify, Flask, Django, ...) or want full control, call the facilitator API directly. Same wire behaviour — just more code.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
 
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
@@ -58,31 +130,18 @@ Below is the minimum complete handler. Drop it next to your existing API and you
       scheme: 'nvm:card-delegation',
     })
 
-    // x402-spec 402: PaymentRequired in the `payment-required` header (base64),
-    // with a JSON body for human inspection.
-    function send402(res: express.Response, message = 'Payment Required') {
-      res
-        .status(402)
-        .setHeader(
-          'payment-required',
-          Buffer.from(JSON.stringify(paymentRequired)).toString('base64'),
-        )
-        .json({ error: 'Payment Required', message })
-    }
-
     app.post('/purchase-key', async (req, res) => {
       const token = req.header('payment-signature')
-      if (!token) return send402(res, 'Missing payment-signature header')
+      if (!token) return res.status(402).json(paymentRequired)
 
-      // maxAmount is **credits to burn**, not cents. With a PAYG plan that
-      // grants 1 credit per purchase, burning 1n triggers one card charge
-      // for the full plan price.
+      // maxAmount = credits to burn (not cents). PAYG plan with 1 credit
+      // per purchase means burning 1n triggers one card charge.
       const verification = await payments.facilitator.verifyPermissions({
         paymentRequired,
         x402AccessToken: token,
         maxAmount: 1n,
       })
-      if (!verification.isValid) return send402(res, verification.invalidReason)
+      if (!verification.isValid) return res.status(402).json(paymentRequired)
 
       const apiKey = await provisionOrTopUp(req)
 
@@ -90,17 +149,14 @@ Below is the minimum complete handler. Drop it next to your existing API and you
         paymentRequired,
         x402AccessToken: token,
         maxAmount: 1n,
-        agentRequestId: verification.agentRequestId,
       })
 
       res.json({ apiKey })
     })
     ```
   </Tab>
-  <Tab title="Python (FastAPI)">
+  <Tab title="Python">
     ```python
-    import base64
-    import json
     import os
     from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
@@ -120,34 +176,27 @@ Below is the minimum complete handler. Drop it next to your existing API and you
         scheme='nvm:card-delegation',
     )
 
-    # x402-spec 402: PaymentRequired in the `payment-required` header (base64),
-    # with a JSON body for human inspection.
-    def send_402(message: str = 'Payment Required') -> JSONResponse:
-        header_value = base64.b64encode(
-            json.dumps(payment_required).encode()
-        ).decode()
-        return JSONResponse(
-            status_code=402,
-            content={'error': 'Payment Required', 'message': message},
-            headers={'payment-required': header_value},
-        )
-
     @app.post('/purchase-key')
     async def purchase_key(request: Request):
         token = request.headers.get('payment-signature')
         if not token:
-            return send_402('Missing payment-signature header')
+            return JSONResponse(
+                status_code=402,
+                content=payment_required.model_dump(by_alias=True),
+            )
 
-        # max_amount is **credits to burn**, not cents. With a PAYG plan that
-        # grants 1 credit per purchase, burning "1" triggers one card charge
-        # for the full plan price.
+        # max_amount = credits to burn (not cents). PAYG plan with 1 credit
+        # per purchase means burning "1" triggers one card charge.
         verification = payments.facilitator.verify_permissions(
             payment_required=payment_required,
             x402_access_token=token,
             max_amount='1',
         )
         if not verification.is_valid:
-            return send_402(getattr(verification, 'invalid_reason', 'Invalid token'))
+            return JSONResponse(
+                status_code=402,
+                content=payment_required.model_dump(by_alias=True),
+            )
 
         api_key = await provision_or_top_up(request)
 
@@ -155,7 +204,6 @@ Below is the minimum complete handler. Drop it next to your existing API and you
             payment_required=payment_required,
             x402_access_token=token,
             max_amount='1',
-            agent_request_id=getattr(verification, 'agent_request_id', None),
         )
 
         return {'apiKey': api_key}
@@ -164,10 +212,11 @@ Below is the minimum complete handler. Drop it next to your existing API and you
 </Tabs>
 
 <Note>
-  Prefer to drop in middleware instead of writing the handler manually? Use the
-  [Express middleware](/docs/integrate/add-to-your-agent/express) or
-  [FastAPI middleware](/docs/integrate/add-to-your-agent/fastapi) — they wrap
-  `verifyPermissions` and `settlePermissions` automatically.
+  The manual handler above omits the `payment-required` and `payment-response`
+  response headers for brevity. The middleware sets both per the
+  [card-delegation spec](/docs/specs/x402-card-delegation) §4.3. If you're
+  writing a manual handler, set the headers too — agents using the buyer-side
+  middleware read them.
 </Note>
 
 ### Two things to remember
