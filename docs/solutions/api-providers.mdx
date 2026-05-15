@@ -112,7 +112,7 @@ The middleware reads the `payment-signature` header, calls `verifyPermissions`, 
 
 ### Manual handler
 
-If you're on a framework without a middleware (Hono, Fastify, Flask, Django, ...) or want full control, call the facilitator API directly. Same wire behaviour — just more code.
+If you're on a framework without a middleware (Hono, Fastify, Flask, Django, ...) or building in another language, call the facilitator directly — either via the SDK or as raw HTTP. Same wire behaviour — just more code.
 
 <Tabs>
   <Tab title="TypeScript">
@@ -208,6 +208,81 @@ If you're on a framework without a middleware (Hono, Fastify, Flask, Django, ...
 
         return {'apiKey': api_key}
     ```
+  </Tab>
+  <Tab title="HTTP (any language)">
+    The facilitator API is plain HTTP — no SDK required. Pseudo-code below
+    shows the verify/settle calls your handler needs to make.
+
+    **Endpoints** (no `Authorization` header — auth is in the x402 access token):
+
+    ```
+    POST https://api.live.nevermined.app/api/v1/x402/verify
+    POST https://api.live.nevermined.app/api/v1/x402/settle
+    ```
+
+    Use `https://api.sandbox.nevermined.app/api/v1/...` for sandbox.
+
+    **Verify request body:**
+
+    ```json
+    {
+      "paymentRequired": {
+        "x402Version": 2,
+        "resource": { "url": "/purchase-key", "mimeType": "application/json" },
+        "accepts": [{
+          "scheme": "nvm:card-delegation",
+          "network": "stripe",
+          "planId": "<your-plan-id>",
+          "extra": { "version": "1", "httpVerb": "POST" }
+        }],
+        "extensions": {}
+      },
+      "x402AccessToken": "<token from the payment-signature header>",
+      "maxAmount": "1"
+    }
+    ```
+
+    Response: `{ "isValid": true, ... }` or `{ "isValid": false, "invalidReason": "..." }`.
+
+    **Settle** uses the same body shape posted to `/x402/settle`. Response
+    contains `creditsRedeemed`, `remainingBalance`, `transaction`, and
+    (when auto top-up fired) `orderTx`.
+
+    **Pseudo-handler** (curl-style):
+
+    ```bash
+    # 1. On request: read the payment-signature header
+    TOKEN="$(http_header payment-signature)"
+
+    # 2. Verify
+    curl -s -X POST https://api.live.nevermined.app/api/v1/x402/verify \
+      -H 'Content-Type: application/json' \
+      -d "$(jq -n --arg t "$TOKEN" '{
+            paymentRequired: $PAYMENT_REQUIRED,
+            x402AccessToken: $t,
+            maxAmount: "1"
+          }')"
+    # → exit 402 if isValid is false
+
+    # 3. Run business logic (provision/top-up the API key)
+
+    # 4. Settle
+    curl -s -X POST https://api.live.nevermined.app/api/v1/x402/settle \
+      -H 'Content-Type: application/json' \
+      -d "$(jq -n --arg t "$TOKEN" '{
+            paymentRequired: $PAYMENT_REQUIRED,
+            x402AccessToken: $t,
+            maxAmount: "1"
+          }')"
+
+    # 5. Return 200 with the credential
+    ```
+
+    See the [Verify](/docs/api-reference/x402/verify-permission) and
+    [Settle](/docs/api-reference/x402/settle-permission) API references for
+    full request/response schemas, and the
+    [card-delegation spec](/docs/specs/x402-card-delegation) §3.2 for the
+    PaymentRequired JSON shape.
   </Tab>
 </Tabs>
 
