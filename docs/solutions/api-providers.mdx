@@ -17,8 +17,8 @@ Nevermined turns that failure mode into revenue with a small server-side integra
 ## What you build, in five steps
 
 <Steps>
-  <Step title="Create a plan">
-    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (single price per purchase), set your price, and get a plan ID. Or do it programmatically with your NVM API key. See [Manage Plans](/docs/products/nevermined-app/manage-plans).
+  <Step title="Create a pay-as-you-go plan">
+    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (one charge per purchase), set your price (e.g. \$7), and grant **1 credit per purchase**. The 1-credit grant means each call to your purchase endpoint maps cleanly to one card charge of your plan price. See [Manage Plans](/docs/products/nevermined-app/manage-plans).
   </Step>
   <Step title="Expose one endpoint">
     Accept a `payment-signature` header on a new route or an existing one. Existing customers keep their flow unchanged.
@@ -52,30 +52,45 @@ Below is the minimum complete handler. Drop it next to your existing API and you
       environment: 'live',
     })
 
-    const paymentRequired = buildPaymentRequired({
-      planId: process.env.PLAN_ID!,
+    const paymentRequired = buildPaymentRequired(process.env.PLAN_ID!, {
       endpoint: '/purchase-key',
       httpVerb: 'POST',
       scheme: 'nvm:card-delegation',
     })
 
+    // x402-spec 402: PaymentRequired in the `payment-required` header (base64),
+    // with a JSON body for human inspection.
+    function send402(res: express.Response, message = 'Payment Required') {
+      res
+        .status(402)
+        .setHeader(
+          'payment-required',
+          Buffer.from(JSON.stringify(paymentRequired)).toString('base64'),
+        )
+        .json({ error: 'Payment Required', message })
+    }
+
     app.post('/purchase-key', async (req, res) => {
       const token = req.header('payment-signature')
-      if (!token) return res.status(402).json(paymentRequired)
+      if (!token) return send402(res, 'Missing payment-signature header')
 
+      // maxAmount is **credits to burn**, not cents. With a PAYG plan that
+      // grants 1 credit per purchase, burning 1n triggers one card charge
+      // for the full plan price.
       const verification = await payments.facilitator.verifyPermissions({
         paymentRequired,
         x402AccessToken: token,
-        maxAmount: BigInt(700),
+        maxAmount: 1n,
       })
-      if (!verification.isValid) return res.status(402).json(paymentRequired)
+      if (!verification.isValid) return send402(res, verification.invalidReason)
 
       const apiKey = await provisionOrTopUp(req)
 
       await payments.facilitator.settlePermissions({
         paymentRequired,
         x402AccessToken: token,
-        maxAmount: BigInt(700),
+        maxAmount: 1n,
+        agentRequestId: verification.agentRequestId,
       })
 
       res.json({ apiKey })
@@ -84,8 +99,11 @@ Below is the minimum complete handler. Drop it next to your existing API and you
   </Tab>
   <Tab title="Python (FastAPI)">
     ```python
+    import base64
+    import json
     import os
-    from fastapi import FastAPI, Request, Response
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
     from payments_py import Payments, PaymentOptions
     from payments_py.x402.helpers import build_payment_required
 
@@ -102,28 +120,42 @@ Below is the minimum complete handler. Drop it next to your existing API and you
         scheme='nvm:card-delegation',
     )
 
+    # x402-spec 402: PaymentRequired in the `payment-required` header (base64),
+    # with a JSON body for human inspection.
+    def send_402(message: str = 'Payment Required') -> JSONResponse:
+        header_value = base64.b64encode(
+            json.dumps(payment_required).encode()
+        ).decode()
+        return JSONResponse(
+            status_code=402,
+            content={'error': 'Payment Required', 'message': message},
+            headers={'payment-required': header_value},
+        )
+
     @app.post('/purchase-key')
-    async def purchase_key(request: Request, response: Response):
+    async def purchase_key(request: Request):
         token = request.headers.get('payment-signature')
         if not token:
-            response.status_code = 402
-            return payment_required
+            return send_402('Missing payment-signature header')
 
+        # max_amount is **credits to burn**, not cents. With a PAYG plan that
+        # grants 1 credit per purchase, burning "1" triggers one card charge
+        # for the full plan price.
         verification = payments.facilitator.verify_permissions(
             payment_required=payment_required,
             x402_access_token=token,
-            max_amount='700',
+            max_amount='1',
         )
         if not verification.is_valid:
-            response.status_code = 402
-            return payment_required
+            return send_402(getattr(verification, 'invalid_reason', 'Invalid token'))
 
         api_key = await provision_or_top_up(request)
 
         payments.facilitator.settle_permissions(
             payment_required=payment_required,
             x402_access_token=token,
-            max_amount='700',
+            max_amount='1',
+            agent_request_id=getattr(verification, 'agent_request_id', None),
         )
 
         return {'apiKey': api_key}
