@@ -1,0 +1,332 @@
+---
+title: "API Providers"
+description: "Let AI agents buy and top up your API autonomously. One server-side endpoint, settled on a delegated card via x402, no human in the loop."
+icon: "plug"
+---
+
+Agents are a new buyer of your API, and they don't onboard the way humans do. They don't sit at a browser, fill out a Stripe Checkout, or remember to top up a credit balance. Today they either stall at your paywall or hardcode a human's API key.
+
+Nevermined turns that failure mode into revenue with a small server-side integration. Agents holding a delegated card mint an [x402](/docs/development-guide/nevermined-x402) access token, send it to your endpoint, and you provision or top up access in response. You verify and settle through Nevermined's [x402 facilitator](/docs/products/x402-facilitator/overview); the buyer's card is charged on Stripe or Visa Intelligent Commerce rails, depending on how it was enrolled.
+
+## Featured provider
+
+[**Exa**](https://exa.ai) is the live reference. Agents pay Exa $7 via a Nevermined-delegated card and receive an Exa API key with $7 of credits. When the key runs out, the agent tops up through the same endpoint. Same key, more credits, no human touched it.
+
+- Exa integration mirror: [exa.ai/docs/integrations/nevermined.md](https://exa.ai/docs/integrations/nevermined.md)
+
+## What you build, in five steps
+
+<Steps>
+  <Step title="Create a plan">
+    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (single price per purchase), set your price, and get a plan ID. Or do it programmatically with your NVM API key. See [Manage Plans](/docs/products/nevermined-app/manage-plans).
+  </Step>
+  <Step title="Expose one endpoint">
+    Accept a `payment-signature` header on a new route or an existing one. Existing customers keep their flow unchanged.
+  </Step>
+  <Step title="Verify with the facilitator">
+    Call `payments.facilitator.verifyPermissions(...)`. Missing or invalid token returns `402 Payment Required` with the payment requirements body.
+  </Step>
+  <Step title="Run your business logic">
+    Provision an API key, top up credits, unlock a resource, whatever your product is.
+  </Step>
+  <Step title="Settle">
+    Call `payments.facilitator.settlePermissions(...)`. The card is charged, credits are minted and burned, you get paid.
+  </Step>
+</Steps>
+
+## Server-side handler
+
+Below is the minimum complete handler. Drop it next to your existing API and you're agent-payable.
+
+<Tabs>
+  <Tab title="TypeScript (Express)">
+    ```typescript
+    import express from 'express'
+    import { Payments, buildPaymentRequired } from '@nevermined-io/payments'
+
+    const app = express()
+    app.use(express.json())
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'live',
+    })
+
+    const paymentRequired = buildPaymentRequired({
+      planId: process.env.PLAN_ID!,
+      endpoint: '/purchase-key',
+      httpVerb: 'POST',
+      scheme: 'nvm:card-delegation',
+    })
+
+    app.post('/purchase-key', async (req, res) => {
+      const token = req.header('payment-signature')
+      if (!token) return res.status(402).json(paymentRequired)
+
+      const verification = await payments.facilitator.verifyPermissions({
+        paymentRequired,
+        x402AccessToken: token,
+        maxAmount: BigInt(700),
+      })
+      if (!verification.isValid) return res.status(402).json(paymentRequired)
+
+      const apiKey = await provisionOrTopUp(req)
+
+      await payments.facilitator.settlePermissions({
+        paymentRequired,
+        x402AccessToken: token,
+        maxAmount: BigInt(700),
+      })
+
+      res.json({ apiKey })
+    })
+    ```
+  </Tab>
+  <Tab title="Python (FastAPI)">
+    ```python
+    import os
+    from fastapi import FastAPI, Request, Response
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402.helpers import build_payment_required
+
+    app = FastAPI()
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='live')
+    )
+
+    payment_required = build_payment_required(
+        plan_id=os.environ['PLAN_ID'],
+        endpoint='/purchase-key',
+        http_verb='POST',
+        scheme='nvm:card-delegation',
+    )
+
+    @app.post('/purchase-key')
+    async def purchase_key(request: Request, response: Response):
+        token = request.headers.get('payment-signature')
+        if not token:
+            response.status_code = 402
+            return payment_required
+
+        verification = payments.facilitator.verify_permissions(
+            payment_required=payment_required,
+            x402_access_token=token,
+            max_amount='700',
+        )
+        if not verification.is_valid:
+            response.status_code = 402
+            return payment_required
+
+        api_key = await provision_or_top_up(request)
+
+        payments.facilitator.settle_permissions(
+            payment_required=payment_required,
+            x402_access_token=token,
+            max_amount='700',
+        )
+
+        return {'apiKey': api_key}
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  Prefer to drop in middleware instead of writing the handler manually? Use the
+  [Express middleware](/docs/integrate/add-to-your-agent/express) or
+  [FastAPI middleware](/docs/integrate/add-to-your-agent/fastapi) — they wrap
+  `verifyPermissions` and `settlePermissions` automatically.
+</Note>
+
+### Two things to remember
+
+<Warning>
+  **Idempotency.** Agents retry. Cache `token → result` so a replayed token
+  returns the same response without re-running your business logic or
+  re-charging the card.
+</Warning>
+
+<Note>
+  **402 on your regular endpoints.** When the agent's credits run dry, return
+  `402` with a top-up hint on the resource endpoints (not just the purchase
+  endpoint). The agent loops back, mints a fresh token, and pays again on the
+  same purchase route.
+</Note>
+
+## Vend-the-key vs full metering
+
+Two patterns are supported. Pick whichever matches how you already meter usage.
+
+<CardGroup cols={2}>
+  <Card title="Vend-the-key" icon="key">
+    A Nevermined purchase returns a credential (e.g. an API key with $X of
+    credits). You meter ongoing usage internally with your existing
+    infrastructure. Exa works this way. Best when you already have per-key
+    billing.
+  </Card>
+  <Card title="Full metering" icon="gauge">
+    Nevermined settles each underlying API call. Best when you don't have
+    internal billing infra or prefer per-request settlement. Use the
+    [validate-requests](/docs/integrate/patterns/validate-requests) and
+    [charge-credits](/docs/integrate/patterns/charge-credits) patterns directly
+    on your resource endpoints.
+  </Card>
+</CardGroup>
+
+## Make it agent-discoverable
+
+Agents don't read your HTML. They read your `llms.txt` and the `.md` mirrors next to your docs pages. Two small additions get you listed.
+
+### 1. Add a line to your `llms.txt`
+
+Drop an entry into your root `llms.txt` (under an `## Integrations` heading or similar):
+
+```
+- [Nevermined](/integrations/nevermined.md): Accept autonomous agent payments via x402 card delegation. Plan ID, endpoint, and SDK usage in the link.
+```
+
+### 2. Publish an integration `.md` mirror
+
+Put a markdown file at `/integrations/nevermined.md` (or wherever your integration docs live). Cover the plan ID, the purchase endpoint, the response shapes, and the agent-side snippet. A starter skeleton with placeholders is hosted here:
+
+- [api-provider-template.md](https://nevermined.ai/integrations/api-provider-template.md) — copy and fill in
+- Live example: [Exa's `/docs/integrations/nevermined.md`](https://exa.ai/docs/integrations/nevermined.md)
+
+Updating your human-facing HTML docs is optional and less agent-native.
+
+## Agent-side call (for context)
+
+What the agent runs to mint a token and call your endpoint:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    const { accessToken } = await payments.x402.getX402AccessToken(
+      YOUR_PLAN_ID,
+      undefined,
+      {
+        scheme: 'nvm:card-delegation',
+        delegationConfig: {
+          providerPaymentMethodId: 'pm_...',
+          spendingLimitCents: 700,
+          durationSecs: 3600,
+        },
+      },
+    )
+
+    const res = await fetch('https://your-api.com/purchase-key', {
+      method: 'POST',
+      headers: { 'payment-signature': accessToken },
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    token_res = payments.x402.get_x402_access_token(
+        YOUR_PLAN_ID,
+        None,
+        {
+            'scheme': 'nvm:card-delegation',
+            'delegationConfig': {
+                'providerPaymentMethodId': 'pm_...',
+                'spendingLimitCents': 700,
+                'durationSecs': 3600,
+            },
+        },
+    )
+    access_token = token_res['accessToken']
+
+    res = requests.post(
+        'https://your-api.com/purchase-key',
+        headers={'payment-signature': access_token},
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Why Nevermined vs DIY
+
+<CardGroup cols={2}>
+  <Card title="The DIY way" icon="x">
+    - Stripe Checkout needs a browser and a human, useless mid-task
+    - Roll your own x402 means months building card enrollment, delegation
+      lifecycle, KYC, dispute handling, and a buyer-side SDK
+    - You own PCI scope on the buyer side
+  </Card>
+  <Card title="The Nevermined way" icon="check">
+    - Drop in `verifyPermissions` and `settlePermissions`
+    - Card acquisition via Stripe or Visa Intelligent Commerce, payouts via
+      Stripe Connect or PayPal Braintree
+    - PCI scope stays with Nevermined and the PSP
+    - Standard x402 protocol, no proprietary buyer SDK
+  </Card>
+</CardGroup>
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="When do I get paid out?">
+    Settled funds are paid out via your connected payout provider (Stripe
+    Connect or PayPal Braintree) on that provider's standard schedule.
+  </Accordion>
+  <Accordion title="Do my existing customers see any change?">
+    No. Your existing API and billing surface stay as-is. Agent-payable signup
+    is a parallel path you opt into with a new endpoint.
+  </Accordion>
+  <Accordion title="Can I keep my current pricing model?">
+    Yes. Per-call, top-ups, and credit bundles map cleanly to Nevermined plans.
+    For subscriptions, talk to us — recurring billing is supported case-by-case.
+  </Accordion>
+  <Accordion title="What card rails are supported?">
+    [Stripe](/docs/products/nvm-pay/overview) (for direct card enrollment) and
+    Visa Intelligent Commerce (VIC). The x402 token your endpoint verifies is
+    the same regardless of rail; Nevermined handles the rail-specific details.
+    See the [card-delegation spec](/docs/specs/x402-card-delegation) for the
+    underlying flow.
+  </Accordion>
+  <Accordion title="Is there a sandbox?">
+    Yes, on the Stripe rail. Integrate, run end-to-end test transactions, and
+    validate your handler before flipping to live. VIC doesn't have a sandbox
+    today, so VIC delegations are tested with small amounts in live.
+  </Accordion>
+  <Accordion title="What languages and frameworks are supported?">
+    TypeScript and Python SDKs ship today, with framework helpers for
+    [Express.js](/docs/integrate/add-to-your-agent/express) and
+    [FastAPI](/docs/integrate/add-to-your-agent/fastapi). The facilitator API
+    is plain HTTP, so any language can call verify/settle directly — see the
+    [Generic HTTP guide](/docs/integrate/add-to-your-agent/generic-http).
+  </Accordion>
+  <Accordion title="Do I need a Stripe account?">
+    You need a connected payout account — Stripe Connect or PayPal Braintree.
+    Nevermined handles card acquisition and PCI scope on the buyer side; you
+    just bring your payout destination. See
+    [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) if you
+    want to use PayPal Braintree.
+  </Accordion>
+  <Accordion title="How are chargebacks and refunds handled?">
+    On Stripe destination charges, Nevermined is the merchant of record:
+    Stripe routes disputes and refunds through Nevermined, and we surface the
+    chargeback or charge reference so you can match it to specific agent
+    transactions. PayPal Braintree refund flow is still being finalized; talk
+    to us.
+  </Accordion>
+  <Accordion title="Multi-currency?">
+    Depends on the rail. Stripe Connect handles currency conversion to your
+    destination account, so non-USD payouts work. PayPal Braintree is USD only
+    today. VIC currently supports predominantly US-based issuers.
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+- [x402 Card Delegation Spec](/docs/specs/x402-card-delegation) — full
+  verify/settle protocol with JWT claims, error codes, and the four-phase flow
+- [x402 Facilitator: How it works](/docs/products/x402-facilitator/how-it-works)
+  — end-to-end walk-through of the facilitator API
+- [Validate Requests](/docs/integrate/patterns/validate-requests) and
+  [Charge Credits](/docs/integrate/patterns/charge-credits) — copy-paste
+  patterns for the verify and settle steps
+- [Manage Plans](/docs/products/nevermined-app/manage-plans) — set up a
+  pay-as-you-go plan
+- [Nevermined Pay overview](/docs/products/nvm-pay/overview) — how buyers
+  enroll cards and create delegations
