@@ -213,14 +213,17 @@ Your handler does three things: read the `payment-signature` header, verify the 
     **Pseudo-handler** (curl-style):
 
     ```bash
+    # 0. Pre-build the PaymentRequired JSON for your endpoint (see body shape above)
+    PAYMENT_REQUIRED='{"x402Version":2,"resource":{"url":"/purchase-key","mimeType":"application/json"},"accepts":[{"scheme":"nvm:card-delegation","network":"stripe","planId":"<your-plan-id>","extra":{"version":"1","httpVerb":"POST"}}],"extensions":{}}'
+
     # 1. On request: read the payment-signature header
     TOKEN="$(http_header payment-signature)"
 
     # 2. Verify
     curl -s -X POST https://api.live.nevermined.app/api/v1/x402/verify \
       -H 'Content-Type: application/json' \
-      -d "$(jq -n --arg t "$TOKEN" '{
-            paymentRequired: $PAYMENT_REQUIRED,
+      -d "$(jq -n --arg pr "$PAYMENT_REQUIRED" --arg t "$TOKEN" '{
+            paymentRequired: ($pr | fromjson),
             x402AccessToken: $t,
             maxAmount: "1"
           }')"
@@ -231,8 +234,8 @@ Your handler does three things: read the `payment-signature` header, verify the 
     # 4. Settle
     curl -s -X POST https://api.live.nevermined.app/api/v1/x402/settle \
       -H 'Content-Type: application/json' \
-      -d "$(jq -n --arg t "$TOKEN" '{
-            paymentRequired: $PAYMENT_REQUIRED,
+      -d "$(jq -n --arg pr "$PAYMENT_REQUIRED" --arg t "$TOKEN" '{
+            paymentRequired: ($pr | fromjson),
             x402AccessToken: $t,
             maxAmount: "1"
           }')"
