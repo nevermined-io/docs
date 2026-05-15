@@ -210,13 +210,15 @@ Your handler does three things: read the `payment-signature` header, verify the 
   </Tab>
 </Tabs>
 
-<Note>
-  The handler above omits the `payment-required` and `payment-response`
-  response headers for brevity. Per the
-  [card-delegation spec](/docs/specs/x402-card-delegation) §4.3, production
-  handlers should set both, agents using the buyer-side middleware read them.
-  The optional middleware below sets them automatically.
-</Note>
+<Warning>
+  **Production handlers must set both response headers.** The handler above
+  omits the `payment-required` (on 402) and `payment-response` (on 200)
+  headers for brevity. Per the
+  [card-delegation spec](/docs/specs/x402-card-delegation) §4.3, both are
+  required so agents using the buyer-side middleware can discover payment
+  requirements and confirm settlement. The optional middleware below sets
+  them for you, automatically.
+</Warning>
 
 ### Optional: middleware (recommended)
 
