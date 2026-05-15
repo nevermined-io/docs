@@ -134,10 +134,10 @@ Your handler does three things: read the `payment-signature` header, verify the 
     ```
   </Tab>
   <Tab title="HTTP (any language)">
-    The facilitator API is plain HTTP — no SDK required. Pseudo-code below
+    The facilitator API is plain HTTP, no SDK required. Pseudo-code below
     shows the verify/settle calls your handler needs to make.
 
-    **Endpoints** (no `Authorization` header — auth is in the x402 access token):
+    **Endpoints** (no `Authorization` header, auth is in the x402 access token):
 
     ```
     POST https://api.live.nevermined.app/api/v1/x402/verify
@@ -214,7 +214,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
   The handler above omits the `payment-required` and `payment-response`
   response headers for brevity. Per the
   [card-delegation spec](/docs/specs/x402-card-delegation) §4.3, production
-  handlers should set both — agents using the buyer-side middleware read them.
+  handlers should set both, agents using the buyer-side middleware read them.
   The optional middleware below sets them automatically.
 </Note>
 
@@ -343,7 +343,7 @@ Drop an entry into your root `llms.txt` (under an `## Integrations` heading or s
 
 Put a markdown file at `/integrations/nevermined.md` (or wherever your integration docs live). Cover the plan ID, the purchase endpoint, the response shapes, and the agent-side snippet. A starter skeleton with placeholders is hosted here:
 
-- [api-provider-template.md](https://nevermined.ai/integrations/api-provider-template.md) — copy and fill in
+- [api-provider-template.md](https://nevermined.ai/integrations/api-provider-template.md) - copy and fill in
 - Live example: [Exa's `/docs/integrations/nevermined.md`](https://exa.ai/docs/integrations/nevermined.md)
 
 Updating your human-facing HTML docs is optional and less agent-native.
@@ -429,7 +429,7 @@ What the agent runs to mint a token and call your endpoint:
   </Accordion>
   <Accordion title="Can I keep my current pricing model?">
     Yes. Per-call, top-ups, and credit bundles map cleanly to Nevermined plans.
-    For subscriptions, talk to us — recurring billing is supported case-by-case.
+    For subscriptions, talk to us, recurring billing is supported case-by-case.
   </Accordion>
   <Accordion title="What card rails are supported?">
     [Stripe](/docs/products/nvm-pay/overview) (for direct card enrollment) and
@@ -447,11 +447,11 @@ What the agent runs to mint a token and call your endpoint:
     TypeScript and Python SDKs ship today, with framework helpers for
     [Express.js](/docs/integrate/add-to-your-agent/express) and
     [FastAPI](/docs/integrate/add-to-your-agent/fastapi). The facilitator API
-    is plain HTTP, so any language can call verify/settle directly — see the
+    is plain HTTP, so any language can call verify/settle directly. See the
     [Generic HTTP guide](/docs/integrate/add-to-your-agent/generic-http).
   </Accordion>
   <Accordion title="Do I need a Stripe account?">
-    You need a connected payout account — Stripe Connect or PayPal Braintree.
+    You need a connected payout account: Stripe Connect or PayPal Braintree.
     Nevermined handles card acquisition and PCI scope on the buyer side; you
     just bring your payout destination. See
     [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) if you
@@ -473,14 +473,14 @@ What the agent runs to mint a token and call your endpoint:
 
 ## Related
 
-- [x402 Card Delegation Spec](/docs/specs/x402-card-delegation) — full
+- [x402 Card Delegation Spec](/docs/specs/x402-card-delegation) - full
   verify/settle protocol with JWT claims, error codes, and the four-phase flow
 - [x402 Facilitator: How it works](/docs/products/x402-facilitator/how-it-works)
-  — end-to-end walk-through of the facilitator API
+  - end-to-end walk-through of the facilitator API
 - [Validate Requests](/docs/integrate/patterns/validate-requests) and
-  [Charge Credits](/docs/integrate/patterns/charge-credits) — copy-paste
+  [Charge Credits](/docs/integrate/patterns/charge-credits) - copy-paste
   patterns for the verify and settle steps
-- [Manage Plans](/docs/products/nevermined-app/manage-plans) — set up a
+- [Manage Plans](/docs/products/nevermined-app/manage-plans) - set up a
   pay-as-you-go plan
-- [Nevermined Pay overview](/docs/products/nvm-pay/overview) — how buyers
+- [Nevermined Pay overview](/docs/products/nvm-pay/overview) - how buyers
   enroll cards and create delegations
