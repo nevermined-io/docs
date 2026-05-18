@@ -1,0 +1,182 @@
+---
+title: 'API error model'
+description: 'Understand the structure, codes, and remediation hints returned by the Nevermined API when a request fails.'
+icon: 'circle-exclamation'
+---
+
+Every error response from the Nevermined API follows a single, stable shape so your code can branch on `code`, surface a friendly message to the user, and link directly to the docs entry that explains the failure.
+
+<Note>
+Locked fields — `code`, `message`, and the HTTP status — are guaranteed for every error response. Additive fields (`hint`, `docsUrl`, `category`, `retryable`, `correlationId`) only appear when the catalogue or the throw site supplies them. Consumers that branch only on `code` and `message` ignore the rest transparently.
+</Note>
+
+## Response shape
+
+```jsonc
+{
+  // Locked — always present. SDKs read these.
+  "code": "BCK.X402.0008",
+  "message": "Failed to order crypto plan",
+
+  // Additive — present when the catalogue or the throw site supplies them.
+  "details": "Bundler returned execution-reverted",
+  "hint": "Verify the wallet has sufficient balance and that the plan is active. Inspect params.planId and the bundler RPC logs around the request correlationId.",
+  "docsUrl": "https://docs.nevermined.ai/docs/development-guide/api-errors/codes#bck-x402-0008",
+  "category": "integration",
+  "retryable": true,
+  "correlationId": "a3f6b1c4-7d2e-4a9b-8e0c-12f4d8e6c5b9",
+  "uuid": "e-550e8400-e29b-41d4-a716-446655440000",
+  "date": "2026-05-09T12:34:56.789Z",
+
+  // JSON-stringified contextual params from the throw site (parse with JSON.parse if needed).
+  "params": "{\"planId\":\"43298432984329\"}"
+
+  // Server stack — only emitted when NODE_ENV is "development" or "test".
+  // "stackTrace": "..."
+}
+```
+
+## Field reference
+
+<CardGroup cols={2}>
+  <Card title="code" icon="hashtag">
+    Stable identifier of the form `BCK.<NAMESPACE>.<NNNN>`. Branch on this in your error handlers — it never changes for a given failure mode.
+  </Card>
+  <Card title="message" icon="message">
+    Human-readable canonical reason. Safe to surface to end users; it never includes secrets.
+  </Card>
+  <Card title="hint" icon="lightbulb">
+    Actionable remediation. Tells you what to fix or where to look. Optional — present when the catalogue or throw site supplies one.
+  </Card>
+  <Card title="docsUrl" icon="link">
+    Permalink to the entry on this docs site. Surface as a "Learn more" link in your UI.
+  </Card>
+  <Card title="category" icon="tags">
+    One of `validation`, `auth`, `business`, `integration`, `internal`. Useful for client-side fallback strategies without parsing the message.
+  </Card>
+  <Card title="retryable" icon="rotate">
+    `true` when the same call is expected to succeed after a backoff. Absent when the catalogue does not assert either way.
+  </Card>
+  <Card title="correlationId" icon="fingerprint">
+    Request-scoped id stamped by the global filter and echoed in the `x-correlation-id` response header. Quote this when reporting issues.
+  </Card>
+  <Card title="params" icon="brackets-curly">
+    JSON-stringified contextual data from the throw site (IDs, state). Always a string in the wire format — parse with `JSON.parse` if you need structured access. Never includes credentials or PII.
+  </Card>
+  <Card title="details" icon="circle-info">
+    Free-form technical reason supplied at the throw site (e.g. `"Bundler returned execution-reverted"`). Supplements — never replaces — the canonical `message`. Optional.
+  </Card>
+  <Card title="uuid" icon="id-card">
+    Server-generated exception id of the form `e-<uuid>`. Distinct from `correlationId`; use it when correlating a specific failure event with server logs. Optional.
+  </Card>
+  <Card title="date" icon="clock">
+    ISO-8601 timestamp the API stamped when the exception was constructed. Always present.
+  </Card>
+  <Card title="stackTrace" icon="layer-group">
+    Server-side stack trace. Emitted **only** when `NODE_ENV` is `development` or `test` — never in `staging` or `production`. Do not depend on it from client code.
+  </Card>
+</CardGroup>
+
+## Reading errors from the SDK
+
+Both first-party SDKs surface the API's `code` and `message` directly, so you can branch on the code in your application.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments, PaymentsError } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'sandbox',
+    })
+
+    try {
+      await payments.plans.orderPlan(planId)
+    } catch (err) {
+      if (err instanceof PaymentsError) {
+        // err.code === 'BCK.X402.0008'
+        // err.message === 'Failed to order crypto plan. <backend message>'
+        if (err.code === 'BCK.X402.0008') {
+          showRetryableError(err.message)
+        } else {
+          throw err
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from payments_py import Payments, PaymentOptions
+    from payments_py.common.payments_error import PaymentsError
+
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_API_KEY"],
+            environment="sandbox",
+        )
+    )
+
+    try:
+        payments.plans.order_plan(plan_id)
+    except PaymentsError as err:
+        if err.code == "BCK.X402.0008":
+            # err.args[0] / str(err) is "Failed to order crypto plan. <backend message>"
+            show_retryable_error(str(err))
+        else:
+            raise
+    ```
+  </Tab>
+</Tabs>
+
+## Correlation ids
+
+Every request gets a unique `correlationId`:
+
+- If you send `x-correlation-id` (or `x-request-id`) on the request, the API honours it.
+- Otherwise the API generates a fresh UUID.
+- Either way, the id is echoed back in the `x-correlation-id` response header **and** stamped into the JSON body of any error response.
+
+When you open a support ticket or file a bug, quote the `correlationId` — it lets us pull the matching server logs without you sharing the request payload.
+
+## Categories at a glance
+
+<CardGroup cols={2}>
+  <Card title="validation" icon="circle-check">
+    Caller's request did not pass schema or shape validation. Fix the request and retry. **Not** retryable as-is.
+  </Card>
+  <Card title="auth" icon="shield-halved">
+    Caller is unauthenticated, the credentials are invalid, or the caller lacks the required role. Fix credentials or membership and retry.
+  </Card>
+  <Card title="business" icon="scale-balanced">
+    Caller's request is well-formed and authenticated, but a business rule blocks it (e.g. user already a member, plan already deactivated, points cap exhausted). Adjust the request semantics.
+  </Card>
+  <Card title="integration" icon="plug">
+    The API hit an upstream system that misbehaved (Stripe, Braintree, the blockchain RPC, the bundler). Often `retryable: true`. Backoff and retry.
+  </Card>
+  <Card title="internal" icon="bug">
+    A bug or invariant violation on our side. Quote the `correlationId` in a support ticket — these need engineering attention.
+  </Card>
+</CardGroup>
+
+## Full code catalogue
+
+The complete list of every code, its HTTP status, category, message, and remediation hint lives in the **API Errors → Codes** page under the **API** tab.
+
+<Card title="See every error code" icon="list" href="/docs/development-guide/api-errors/codes">
+  Browse all `BCK.*` codes — anchored by code so you can deep-link to a specific failure mode (`#bck-x402-0008`).
+</Card>
+
+<Note>
+A handful of catalogue entries return an HTTP 2xx status because they describe **informational no-op outcomes** rather than failures — for example `BCK.PROTOCOL.0018` ("agent already in the desired state") and `BCK.PROTOCOL.0019` ("plan already in the desired state") are emitted with `200 OK` when a toggle endpoint is called against state that already matches the request. The shape is identical to the error responses described above, so the same SDK handlers and `docsUrl` deep-links continue to work; consumers that branch on `code` can treat these as "already done, nothing to do".
+</Note>
+
+<Tip>
+This page is reachable from three places in the sidebar so you can find it from wherever you're working:
+
+- **API → API Errors** — the canonical home, alongside the endpoint reference.
+- **Guides → API Errors** — for readers exploring concepts.
+- **SDK → TypeScript SDK / Python SDK / CLI / OpenClaw Plugin** — at the bottom of each SDK group, since SDK consumers see these errors most often.
+</Tip>
