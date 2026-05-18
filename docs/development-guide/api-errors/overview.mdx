@@ -61,7 +61,19 @@ Locked fields — `code`, `message`, and the HTTP status — are guaranteed for 
     Request-scoped id stamped by the global filter and echoed in the `x-correlation-id` response header. Quote this when reporting issues.
   </Card>
   <Card title="params" icon="brackets-curly">
-    JSON-stringified contextual data from the throw site (IDs, state). Always a string in the wire format — parse with `JSON.parse` if you need structured access.
+    JSON-stringified contextual data from the throw site (IDs, state). Always a string in the wire format — parse with `JSON.parse` if you need structured access. Never includes credentials or PII.
+  </Card>
+  <Card title="details" icon="circle-info">
+    Free-form technical reason supplied at the throw site (e.g. `"Bundler returned execution-reverted"`). Supplements — never replaces — the canonical `message`. Optional.
+  </Card>
+  <Card title="uuid" icon="id-card">
+    Server-generated exception id of the form `e-<uuid>`. Distinct from `correlationId`; use it when correlating a specific failure event with server logs. Optional.
+  </Card>
+  <Card title="date" icon="clock">
+    ISO-8601 timestamp the API stamped when the exception was constructed. Always present.
+  </Card>
+  <Card title="stackTrace" icon="layer-group">
+    Server-side stack trace. Emitted **only** when `NODE_ENV` is `development` or `test` — never in `staging` or `production`. Do not depend on it from client code.
   </Card>
 </CardGroup>
 
@@ -80,14 +92,12 @@ Both first-party SDKs surface the API's `code` and `message` directly, so you ca
     })
 
     try {
-      await payments.plans.orderPlan({ planId })
+      await payments.plans.orderPlan(planId)
     } catch (err) {
       if (err instanceof PaymentsError) {
         // err.code === 'BCK.X402.0008'
-        // err.message === '<canonical>. Failed to order crypto plan'
+        // err.message === 'Failed to order crypto plan. <backend message>'
         if (err.code === 'BCK.X402.0008') {
-          // Surface the hint and docsUrl from the original response if present
-          // (the SDK keeps the raw response on err.cause when available).
           showRetryableError(err.message)
         } else {
           throw err
@@ -99,20 +109,22 @@ Both first-party SDKs surface the API's `code` and `message` directly, so you ca
   <Tab title="Python">
     ```python
     import os
-    from payments_py import Payments
+    from payments_py import Payments, PaymentOptions
     from payments_py.common.payments_error import PaymentsError
 
-    payments = Payments(
-      api_key=os.environ.get('NVM_API_KEY'),
-      environment='sandbox',
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_API_KEY"],
+            environment="sandbox",
+        )
     )
 
     try:
-        payments.plans.order_plan(plan_id=plan_id)
+        payments.plans.order_plan(plan_id)
     except PaymentsError as err:
-        if err.code == 'BCK.X402.0008':
-            # err.message contains the canonical message
-            show_retryable_error(err.message)
+        if err.code == "BCK.X402.0008":
+            # err.args[0] / str(err) is "Failed to order crypto plan. <backend message>"
+            show_retryable_error(str(err))
         else:
             raise
     ```
@@ -156,6 +168,10 @@ The complete list of every code, its HTTP status, category, message, and remedia
 <Card title="See every error code" icon="list" href="/docs/development-guide/api-errors/codes">
   Browse all `BCK.*` codes — anchored by code so you can deep-link to a specific failure mode (`#bck-x402-0008`).
 </Card>
+
+<Note>
+A handful of catalogue entries return an HTTP 2xx status because they describe **informational no-op outcomes** rather than failures — for example `BCK.PROTOCOL.0018` ("agent already in the desired state") and `BCK.PROTOCOL.0019` ("plan already in the desired state") are emitted with `200 OK` when a toggle endpoint is called against state that already matches the request. The shape is identical to the error responses described above, so the same SDK handlers and `docsUrl` deep-links continue to work; consumers that branch on `code` can treat these as "already done, nothing to do".
+</Note>
 
 <Tip>
 This page is reachable from three places in the sidebar so you can find it from wherever you're working:
