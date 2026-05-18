@@ -1,0 +1,291 @@
+---
+title: "Organizations & Workspaces"
+description: "List the organizations you belong to, target a specific workspace when publishing agents and plans, and read each org's activity feed from the Payments SDK."
+icon: "building"
+---
+
+## Overview
+
+Every Nevermined account can belong to one or more **organizations** — first-class workspaces with their own members, agents, plans, and billing. The Payments SDK exposes three building blocks for working with them from your code:
+
+- **List your memberships** — every organization you're an active member of, with your role in each.
+- **Publish into a specific workspace** — when you register an agent, plan, or API key, tell the SDK which workspace should own it.
+- **Read the activity feed** — paginated events for everything happening in an organization (member changes, customers, subscriptions, webhook deliveries).
+
+These map to a small, focused surface on `payments.organizations` and a single optional `organizationId` argument on the publish methods you already use.
+
+<Note>
+  Workspace selection is transported by the `X-Current-Org-Id` header. The backend resolves it in priority order: route path parameter → this header → the API key's organization tag → your most-recent active membership → personal account. Pinning a workspace via the SDK is the same control your webapp's workspace switcher uses.
+</Note>
+
+## List the organizations you belong to
+
+Use this to drive a workspace picker in your own tools, or to confirm where a publish will land before sending it.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'sandbox',
+    })
+
+    const memberships = await payments.organizations.getMyMemberships()
+
+    for (const m of memberships) {
+      console.log(`${m.organizationName} (${m.organizationType}) — ${m.role}`)
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from payments_py import Payments, PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_API_KEY"],
+            environment="sandbox",
+        )
+    )
+
+    memberships = payments.organizations.get_my_memberships()
+
+    for m in memberships:
+        print(f"{m.organization_name} ({m.organization_type.value}) — {m.role.value}")
+    ```
+  </Tab>
+</Tabs>
+
+A typical response (single Premium org plus an Enterprise one):
+
+```json
+[
+  {
+    "orgId": "org-3f9a...",
+    "organizationName": "Acme Robotics",
+    "organizationType": "Premium",
+    "role": "Admin",
+    "userIsActive": true,
+    "organizationIsActive": true
+  },
+  {
+    "orgId": "org-7d11...",
+    "organizationName": "Beta Labs",
+    "organizationType": "Enterprise",
+    "role": "Member",
+    "userIsActive": true,
+    "organizationIsActive": true
+  }
+]
+```
+
+If you have no active memberships the list is empty — you're operating as a personal account.
+
+## Publish into a specific organization
+
+Two ways to choose where a published agent, plan, or API key lands. Pick whichever fits the calling code.
+
+### Per-call override (recommended for one-off publishes)
+
+Pass `organizationId` (TypeScript) or `organization_id=` (Python) to the publish method. The SDK sends `X-Current-Org-Id` for that call only — your instance-level workspace is untouched.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Publish a single agent into Acme Robotics, without leaving Acme as your active workspace.
+    const { agentId } = await payments.agents.registerAgent(
+      { name: 'Legal Assistant', tags: ['legal', 'rag'] },
+      {
+        authType: 'bearer',
+        endpoints: [{ POST: 'https://api.example.com/legal/tasks' }],
+      },
+      [planId],
+      { organizationId: 'org-3f9a...' },
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Publish a single agent into Acme Robotics, without leaving Acme as your active workspace.
+    from payments_py import AgentAPIAttributes, AgentMetadata, AuthType, Endpoint
+
+    result = payments.agents.register_agent(
+        AgentMetadata(name="Legal Assistant", tags=["legal", "rag"]),
+        AgentAPIAttributes(
+            auth_type=AuthType.BEARER,
+            endpoints=[Endpoint(verb="POST", url="https://api.example.com/legal/tasks")],
+        ),
+        [plan_id],
+        organization_id="org-3f9a...",
+    )
+    ```
+  </Tab>
+</Tabs>
+
+The same `organizationId` / `organization_id` option works on `registerAgentAndPlan` / `register_agent_and_plan` and on the plan-registration helpers (`registerPlan`, `registerCreditsPlan`, `registerTimePlan` and their `register_*_plan` Python equivalents).
+
+### Pin a workspace for the whole session
+
+Set the organization once and every subsequent call from this `Payments` instance — including all sub-APIs (`agents`, `plans`, `requests`, …) — uses it.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    payments.setOrganizationId('org-3f9a...')
+
+    // All of these now land in Acme Robotics:
+    await payments.agents.registerAgent(metadata, api, [planId])
+    await payments.plans.registerCreditsPlan(planMetadata, price, credits)
+
+    // Clear the pin when you're done — falls back to personal / API-key default.
+    payments.setOrganizationId(null)
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    payments.set_organization_id("org-3f9a...")
+
+    # All of these now land in Acme Robotics:
+    payments.agents.register_agent(metadata, api, [plan_id])
+    payments.plans.register_credits_plan(plan_metadata, price_config, credits_config)
+
+    # Clear the pin when you're done — falls back to personal / API-key default.
+    payments.set_organization_id(None)
+    ```
+  </Tab>
+</Tabs>
+
+You can also pin from the constructor:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'sandbox',
+      organizationId: 'org-3f9a...',
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_API_KEY"],
+            environment="sandbox",
+            organization_id="org-3f9a...",
+        )
+    )
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Targeting an organization you're not a member of (or an inactive membership) is rejected by the backend with a 403. The SDK surfaces this as a `PaymentsError`.
+</Warning>
+
+## Read the organization activity feed
+
+Paginated events for member changes, customer additions, subscription transitions, and webhook deliveries. Only members of the organization can read it; the backend enforces a Premium+ entitlement.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { OrganizationActivityEventType } from '@nevermined-io/payments'
+
+    const page = await payments.organizations.getOrganizationActivity(
+      'org-3f9a...',
+      {
+        eventType: OrganizationActivityEventType.MemberInvited,
+        from: '2026-05-01T00:00:00Z',
+        to: '2026-05-31T23:59:59Z',
+        page: 1,
+        offset: 25,
+      },
+    )
+
+    console.log(`${page.total} matching events`)
+    for (const event of page.items) {
+      console.log(event.createdAt, event.eventType, event.metadata)
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py import OrganizationActivityEventType, OrganizationActivityFilters
+
+    page = payments.organizations.get_organization_activity(
+        "org-3f9a...",
+        OrganizationActivityFilters(
+            event_type=OrganizationActivityEventType.MEMBER_INVITED,
+            **{"from": "2026-05-01T00:00:00Z"},
+            to="2026-05-31T23:59:59Z",
+            page=1,
+            offset=25,
+        ),
+    )
+
+    print(f"{page.total} matching events")
+    for event in page.items:
+        print(event.created_at, event.event_type, event.metadata)
+    ```
+  </Tab>
+</Tabs>
+
+All filters are optional. The known event types you can filter on:
+
+| Event type | Emitted when |
+|---|---|
+| `MEMBER_INVITED` | An admin sends an invitation to join the org |
+| `MEMBER_ACCEPTED` | An invitee accepts and becomes an active member |
+| `MEMBER_ROLE_CHANGED` | A member's role flips between Admin and Member |
+| `MEMBER_DEACTIVATED` / `MEMBER_REACTIVATED` / `MEMBER_REMOVED` | Membership lifecycle transitions |
+| `CUSTOMER_ADDED` / `CUSTOMER_BLOCKED` | External customer lifecycle |
+| `SUBSCRIPTION_CREATED` / `SUBSCRIPTION_CANCELED` | Tier subscription transitions |
+| `WEBHOOK_DELIVERED` | A webhook subscription emitted a delivery (with status in `metadata`) |
+
+New event types are accepted without an SDK upgrade — the `eventType` field is a plain string in both SDKs.
+
+## How workspace context is resolved
+
+When the backend handles an authenticated request, it picks the active organization in this order — the first match wins:
+
+<Steps>
+  <Step title="Route path">
+    If the URL itself includes `:orgId` (for example `/organizations/{orgId}/activity`), that organization is used directly.
+  </Step>
+  <Step title="X-Current-Org-Id header">
+    Set by the SDK from your pin or per-call override. The backend validates that you're an active member of the requested org before honoring it.
+  </Step>
+  <Step title="API key tag">
+    If your NVM API key was minted scoped to a specific organization, that scope is applied.
+  </Step>
+  <Step title="Fallback membership">
+    Your most-recent active membership — preserves backwards compatibility for single-org callers that don't set anything explicitly.
+  </Step>
+  <Step title="Personal account">
+    No active membership → resources you publish are owned by your personal account.
+  </Step>
+</Steps>
+
+The SDK never picks a workspace silently — if you don't set one, the backend's fallback rules apply.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Organizations on Nevermined" icon="building" href="/docs/integrations/organizations">
+    Concepts, tiers, and the webapp surface for organization owners.
+  </Card>
+  <Card title="Quickstart — TypeScript" icon="code" href="/docs/integrate/quickstart/typescript">
+    Set up the SDK and publish your first agent.
+  </Card>
+  <Card title="Quickstart — Python" icon="python" href="/docs/integrate/quickstart/python">
+    Set up the Python SDK and publish your first agent.
+  </Card>
+  <Card title="Payment Models" icon="credit-card" href="/docs/integrate/patterns/payment-models">
+    Fixed, usage-based, and outcome-based pricing patterns.
+  </Card>
+</CardGroup>
