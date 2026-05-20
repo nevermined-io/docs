@@ -18,7 +18,7 @@ Nevermined turns that failure mode into revenue with a small server-side integra
 
 <Steps>
   <Step title="Create a pay-as-you-go plan">
-    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (one charge per purchase) and set your price (e.g. \$7). That's it: the App doesn't ask about credits on PAYG; one call to your purchase endpoint = one card charge of your plan price. See [Manage Plans](/docs/products/nevermined-app/manage-plans).
+    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (one charge per purchase) and set your price (e.g. \$7). That's it: the App doesn't ask about credits on PAYG. One call to your purchase endpoint = one card charge of your plan price, regardless of any `credits` value you see in the handler code below (PAYG settles ignore it). See [Manage Plans](/docs/products/nevermined-app/manage-plans).
   </Step>
   <Step title="Expose one endpoint">
     Accept a `payment-signature` header on a new route or an existing one. Existing customers keep their flow unchanged.
@@ -375,12 +375,14 @@ Agents don't read your HTML. They read your `llms.txt` and the `.md` mirrors nex
 
 <Tabs>
   <Tab title="Organization path">
-    A Premium org auto-generates both files for you, served live from Nevermined:
+    A Premium org auto-generates both files for you, served live from the Nevermined facilitator:
 
-    - `GET https://nevermined.app/api/v1/organizations/{orgId}/llms.txt`
-    - `GET https://nevermined.app/api/v1/organizations/{orgId}/agentic-instructions.md`
+    ```
+    GET https://api.live.nevermined.app/api/v1/organizations/{orgId}/llms.txt
+    GET https://api.live.nevermined.app/api/v1/organizations/{orgId}/agentic-instructions.md
+    ```
 
-    Copy the rendered output to your own domain (e.g. `your-api.com/llms.txt` and `your-api.com/integrations/nevermined.md`). The org endpoint gives you the canonical format; you control where agents discover it. Updates are picked up on next render (5-minute cache).
+    Swap `api.live` for `api.sandbox` for the sandbox environment. Copy the rendered output to your own domain (e.g. `your-api.com/llms.txt` and `your-api.com/integrations/nevermined.md`, or `your-api.com/docs/integrations/nevermined.md` if your docs live under a subpath). The org endpoint gives you the canonical format; you control where agents discover it. Updates are picked up on next render (5-minute cache).
   </Tab>
   <Tab title="DIY path">
     Publish two files on your own domain:
@@ -391,10 +393,10 @@ Agents don't read your HTML. They read your `llms.txt` and the `.md` mirrors nex
        - [Nevermined](/integrations/nevermined.md): Accept autonomous agent payments via x402 card delegation. Plan ID, endpoint, and SDK usage in the link.
        ```
 
-    2. **A `.md` mirror at `/integrations/nevermined.md`** describing your plan ID, endpoint, and response shape.
+    2. **A `.md` mirror** describing your plan ID, endpoint, and response shape. Common locations: `your-domain.com/integrations/nevermined.md` or `your-domain.com/docs/integrations/nevermined.md` (Exa uses the latter). Match whatever the `llms.txt` entry above points to.
 
        <Card title="Copy the mirror template" icon="file-lines" href="https://nevermined.ai/integrations/api-provider-template.md">
-         Plain-text markdown skeleton with placeholders. Drop it at `your-domain/integrations/nevermined.md` and fill in your plan ID, endpoint, and response shape.
+         Plain-text markdown skeleton with placeholders. Drop it wherever your docs live and fill in your plan ID, endpoint, and response shape.
        </Card>
 
        Live example: [Exa's `/docs/integrations/nevermined.md`](https://exa.ai/docs/integrations/nevermined.md).
@@ -514,12 +516,11 @@ A Premium Organization bundles the agent-discovery work above and adds tooling o
 
 ## Pricing
 
-Pricing is tier-based and tied to a Nevermined Organization subscription:
+Three Nevermined Organization plans, picked at sign-up:
 
-| Tier | Cost | What's included |
+| Plan | Cost | What's included |
 |---|---|---|
-| **Personal** | Free | Publish plans and agents on the personal account. No org features (no widgets, no auto-generated agent docs, no customer list). |
-| **Free Organization** | Free | Multi-seat workspace and org-scoped plans/agents. Premium features are gated. |
+| **Starter** | Free | Publish plans and agents on a single-seat account. No org features (no widgets, no auto-generated agent docs, no customer list). |
 | **Premium Organization** | **\$250 / month** | All Premium features: widget card capture, auto-generated `llms.txt` / `agentic-instructions.md`, customer list, webhooks, analytics, 5 invitable seats. |
 | **Enterprise Organization** | **\$500 / month** | Premium + unlimited agents and plans. |
 
@@ -528,8 +529,9 @@ Settlement fees on agent payments are documented in the [Nevermined Pay overview
 <Note>
   **Pilot / whitelist / fee waiver.** Talk to us before you ship if you're a launch
   partner, an early-stage API provider, or running a closed pilot. We can waive
-  or reduce subscription and settlement fees in select circumstances. Email
-  [hello@nevermined.io](mailto:hello@nevermined.io) or [contact us](https://nevermined.ai/contact-us/).
+  or reduce Organization plan fees and settlement fees in select circumstances.
+  Email [hello@nevermined.io](mailto:hello@nevermined.io) or
+  [contact us](https://nevermined.ai/contact-us/).
 </Note>
 
 ## Related
