@@ -30,7 +30,7 @@ Nevermined turns that failure mode into revenue with a small server-side integra
     Provision an API key, top up credits, unlock a resource, whatever your product is.
   </Step>
   <Step title="Settle">
-    Call `payments.facilitator.settlePermissions(...)`. The card is charged and you get paid. (On credits-bundle plans, credits are also minted and burned at this step; on PAYG, there's no credit movement.)
+    Call `payments.facilitator.settlePermissions(...)`. The card is charged and you get paid. (On credits-bundle plans, settle also burns credits from the buyer's balance; on PAYG, there's no credit movement.)
   </Step>
 </Steps>
 
@@ -48,7 +48,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
       environment: 'live',
     })
 
-    const paymentRequired = buildPaymentRequired(process.env.PLAN_ID!, {
+    const paymentRequired = buildPaymentRequired(process.env.NVM_PLAN_ID!, {
       endpoint: '/purchase-key',
       httpVerb: 'POST',
       scheme: 'nvm:card-delegation',
@@ -108,7 +108,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
     )
 
     payment_required = build_payment_required(
-        plan_id=os.environ['PLAN_ID'],
+        plan_id=os.environ['NVM_PLAN_ID'],
         endpoint='/purchase-key',
         http_verb='POST',
         scheme='nvm:card-delegation',
@@ -275,7 +275,7 @@ If you're on Express or FastAPI, the SDK ships a payment middleware that handles
     app.use(
       paymentMiddleware(payments, {
         'POST /purchase-key': {
-          planId: process.env.PLAN_ID!,
+          planId: process.env.NVM_PLAN_ID!,
           scheme: 'nvm:card-delegation',
         },
       }),
@@ -305,7 +305,7 @@ If you're on Express or FastAPI, the SDK ships a payment middleware that handles
         payments=payments,
         routes={
             'POST /purchase-key': {
-                'plan_id': os.environ['PLAN_ID'],
+                'plan_id': os.environ['NVM_PLAN_ID'],
                 'scheme': 'nvm:card-delegation',
             },
         },
@@ -369,7 +369,7 @@ Agents don't read your HTML. They read your `llms.txt` and the `.md` mirrors nex
     GET https://api.live.nevermined.app/api/v1/organizations/{orgId}/agentic-instructions.md
     ```
 
-    Swap `api.live` for `api.sandbox` for the sandbox environment. Copy the rendered output to your own domain (e.g. `your-api.com/llms.txt` and `your-api.com/integrations/nevermined.md`, or `your-api.com/docs/integrations/nevermined.md` if your docs live under a subpath). The org endpoint gives you the canonical format; you control where agents discover it. Updates are picked up on next render (5-minute cache).
+    Swap `api.live` for `api.sandbox` for the sandbox environment. Copy the rendered output to your own domain at whatever path your `llms.txt` references — `your-api.com/integrations/nevermined.md` is the common convention (Exa uses `/docs/integrations/nevermined.md` under their docs subpath). The org endpoint gives you the canonical content; you pick the publication URL and the filename agents discover, as long as the `llms.txt` entry on your side matches. Updates are picked up on next render (5-minute cache).
   </Tab>
   <Tab title="DIY path">
     Publish two files on your own domain:
@@ -527,7 +527,7 @@ Three Nevermined Organization plans, picked at sign-up:
 | Plan | Cost | What's included |
 |---|---|---|
 | **Starter** | Free | Publish plans and agents on a single-seat account. No org features (no widgets, no auto-generated agent docs, no customer list). |
-| **Premium Organization** | **\$250 / month** | All Premium features: widget card capture, auto-generated `llms.txt` / `agentic-instructions.md`, customer list, webhooks, analytics, 5 invitable seats. |
+| **Premium Organization** ⭐ **Recommended** | **\$250 / month** | All Premium features: widget card capture, auto-generated `llms.txt` / `agentic-instructions.md`, customer list, webhooks, analytics, 5 invitable seats. |
 | **Enterprise Organization** | **\$500 / month** | Premium + unlimited agents and plans. |
 
 Settlement fees on agent payments are documented in the [Nevermined Pay overview](/docs/products/nvm-pay/overview).
