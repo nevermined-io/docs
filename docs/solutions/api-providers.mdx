@@ -69,8 +69,10 @@ Your handler does three things: read the `payment-signature` header, verify the 
       const token = req.header('payment-signature')
       if (!token) return send402(res)
 
-      // maxAmount = credits to burn (not cents). PAYG plan with 1 credit
-      // per purchase means burning 1n triggers one card charge.
+      // On a PAYG plan, maxAmount is inert at settle: each call to
+      // /purchase-key triggers one card charge for the plan price
+      // regardless of the value. On a credits-bundle plan, maxAmount
+      // is the per-request burn amount (in credits, not cents).
       const verification = await payments.facilitator.verifyPermissions({
         paymentRequired,
         x402AccessToken: token,
@@ -136,8 +138,10 @@ Your handler does three things: read the `payment-signature` header, verify the 
         if not token:
             return send_402()
 
-        # max_amount = credits to burn (not cents). PAYG plan with 1 credit
-        # per purchase means burning "1" triggers one card charge.
+        # On a PAYG plan, max_amount is inert at settle: each call to
+        # /purchase-key triggers one card charge for the plan price
+        # regardless of the value. On a credits-bundle plan, max_amount
+        # is the per-request burn amount (in credits, not cents).
         verification = payments.facilitator.verify_permissions(
             payment_required=payment_required,
             x402_access_token=token,
