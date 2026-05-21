@@ -18,7 +18,7 @@ Nevermined turns that failure mode into revenue with a small server-side integra
 
 <Steps>
   <Step title="Create a pay-as-you-go plan">
-    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (one charge per purchase), set your price (e.g. \$7), and grant **1 credit per purchase**. The 1-credit grant means each call to your purchase endpoint maps cleanly to one card charge of your plan price. See [Manage Plans](/docs/products/nevermined-app/manage-plans).
+    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (one charge per purchase) and set your price (e.g. \$7). That's it: the App doesn't ask about credits on PAYG, and one call to your purchase endpoint = one card charge of your plan price. See [Manage Plans](/docs/products/nevermined-app/manage-plans).
   </Step>
   <Step title="Expose one endpoint">
     Accept a `payment-signature` header on a new route or an existing one. Existing customers keep their flow unchanged.
@@ -30,7 +30,7 @@ Nevermined turns that failure mode into revenue with a small server-side integra
     Provision an API key, top up credits, unlock a resource, whatever your product is.
   </Step>
   <Step title="Settle">
-    Call `payments.facilitator.settlePermissions(...)`. The card is charged, credits are minted and burned, you get paid.
+    Call `payments.facilitator.settlePermissions(...)`. The card is charged and you get paid. (On credits-bundle plans, settle also burns credits from the buyer's balance; on PAYG, there's no credit movement.)
   </Step>
 </Steps>
 
@@ -48,7 +48,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
       environment: 'live',
     })
 
-    const paymentRequired = buildPaymentRequired(process.env.PLAN_ID!, {
+    const paymentRequired = buildPaymentRequired(process.env.NVM_PLAN_ID!, {
       endpoint: '/purchase-key',
       httpVerb: 'POST',
       scheme: 'nvm:card-delegation',
@@ -69,12 +69,9 @@ Your handler does three things: read the `payment-signature` header, verify the 
       const token = req.header('payment-signature')
       if (!token) return send402(res)
 
-      // maxAmount = credits to burn (not cents). PAYG plan with 1 credit
-      // per purchase means burning 1n triggers one card charge.
       const verification = await payments.facilitator.verifyPermissions({
         paymentRequired,
         x402AccessToken: token,
-        maxAmount: 1n,
       })
       if (!verification.isValid) return send402(res)
 
@@ -83,7 +80,6 @@ Your handler does three things: read the `payment-signature` header, verify the 
       const settlement = await payments.facilitator.settlePermissions({
         paymentRequired,
         x402AccessToken: token,
-        maxAmount: 1n,
       })
 
       // Settlement receipt in the `payment-response` header (per x402 spec §4.3).
@@ -112,7 +108,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
     )
 
     payment_required = build_payment_required(
-        plan_id=os.environ['PLAN_ID'],
+        plan_id=os.environ['NVM_PLAN_ID'],
         endpoint='/purchase-key',
         http_verb='POST',
         scheme='nvm:card-delegation',
@@ -136,12 +132,9 @@ Your handler does three things: read the `payment-signature` header, verify the 
         if not token:
             return send_402()
 
-        # max_amount = credits to burn (not cents). PAYG plan with 1 credit
-        # per purchase means burning "1" triggers one card charge.
         verification = payments.facilitator.verify_permissions(
             payment_required=payment_required,
             x402_access_token=token,
-            max_amount='1',
         )
         if not verification.is_valid:
             return send_402()
@@ -151,7 +144,6 @@ Your handler does three things: read the `payment-signature` header, verify the 
         settlement = payments.facilitator.settle_permissions(
             payment_required=payment_required,
             x402_access_token=token,
-            max_amount='1',
         )
 
         # Settlement receipt in the `payment-response` header (per x402 spec §4.3).
@@ -192,8 +184,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
         }],
         "extensions": {}
       },
-      "x402AccessToken": "<token from the payment-signature header>",
-      "maxAmount": "1"
+      "x402AccessToken": "<token from the payment-signature header>"
     }
     ```
 
@@ -224,8 +215,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
       -H 'Content-Type: application/json' \
       -d "$(jq -n --arg pr "$PAYMENT_REQUIRED" --arg t "$TOKEN" '{
             paymentRequired: ($pr | fromjson),
-            x402AccessToken: $t,
-            maxAmount: "1"
+            x402AccessToken: $t
           }')"
     # → on isValid=false, return 402 with payment-required header set
 
@@ -236,8 +226,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
       -H 'Content-Type: application/json' \
       -d "$(jq -n --arg pr "$PAYMENT_REQUIRED" --arg t "$TOKEN" '{
             paymentRequired: ($pr | fromjson),
-            x402AccessToken: $t,
-            maxAmount: "1"
+            x402AccessToken: $t
           }')"
 
     # 5. Return 200 with the credential
@@ -262,6 +251,12 @@ Your handler does three things: read the `payment-signature` header, verify the 
 
 If you're on Express or FastAPI, the SDK ships a payment middleware that handles the verify/settle dance and the spec-correct response headers for you. One config line gates your endpoint, your handler stays focused on business logic.
 
+<Tip>
+  The route config also accepts an optional `credits` field (default `1`).
+  It's inert on PAYG plans and is the per-request burn amount on credits-bundle
+  plans. Omitted in the snippets below for the PAYG happy path.
+</Tip>
+
 <Tabs>
   <Tab title="TypeScript (Express)">
     ```typescript
@@ -277,13 +272,10 @@ If you're on Express or FastAPI, the SDK ships a payment middleware that handles
       environment: 'live',
     })
 
-    // credits: 1 maps to a PAYG plan with 1 credit per purchase, so one
-    // call to /purchase-key triggers one card charge for the plan price.
     app.use(
       paymentMiddleware(payments, {
         'POST /purchase-key': {
-          planId: process.env.PLAN_ID!,
-          credits: 1,
+          planId: process.env.NVM_PLAN_ID!,
           scheme: 'nvm:card-delegation',
         },
       }),
@@ -308,15 +300,12 @@ If you're on Express or FastAPI, the SDK ships a payment middleware that handles
         PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='live')
     )
 
-    # credits=1 maps to a PAYG plan with 1 credit per purchase, so one
-    # call to /purchase-key triggers one card charge for the plan price.
     app.add_middleware(
         PaymentMiddleware,
         payments=payments,
         routes={
             'POST /purchase-key': {
-                'plan_id': os.environ['PLAN_ID'],
-                'credits': 1,
+                'plan_id': os.environ['NVM_PLAN_ID'],
                 'scheme': 'nvm:card-delegation',
             },
         },
@@ -369,22 +358,37 @@ Two patterns are supported. Pick whichever matches how you already meter usage.
 
 ## Make it agent-discoverable
 
-Agents don't read your HTML. They read your `llms.txt` and the `.md` mirrors next to your docs pages. Two small additions get you listed.
+Agents don't read your HTML. They read your `llms.txt` and the `.md` mirrors next to your docs pages. Whichever path you took above, you still need these published on your own domain so crawlers find them under your brand.
 
-### 1. Add a line to your `llms.txt`
+<Tabs>
+  <Tab title="Organization path">
+    A Premium org auto-generates both files for you, served live from the Nevermined facilitator:
 
-Drop an entry into your root `llms.txt` (under an `## Integrations` heading or similar):
+    ```
+    GET https://api.live.nevermined.app/api/v1/organizations/{orgId}/llms.txt
+    GET https://api.live.nevermined.app/api/v1/organizations/{orgId}/agentic-instructions.md
+    ```
 
-```
-- [Nevermined](/integrations/nevermined.md): Accept autonomous agent payments via x402 card delegation. Plan ID, endpoint, and SDK usage in the link.
-```
+    Swap `api.live` for `api.sandbox` for the sandbox environment. Copy the rendered output to your own domain at whatever path your `llms.txt` references — `your-api.com/integrations/nevermined.md` is the common convention (Exa uses `/docs/integrations/nevermined.md` under their docs subpath). The org endpoint gives you the canonical content; you pick the publication URL and the filename agents discover, as long as the `llms.txt` entry on your side matches. Updates are picked up on next render (5-minute cache).
+  </Tab>
+  <Tab title="DIY path">
+    Publish two files on your own domain:
 
-### 2. Publish an integration `.md` mirror
+    1. **A line in your `llms.txt`** (under an `## Integrations` heading or similar):
 
-Put a markdown file at `/integrations/nevermined.md` (or wherever your integration docs live). Cover the plan ID, the purchase endpoint, the response shapes, and the agent-side snippet. A starter skeleton with placeholders is hosted here:
+       ```
+       - [Nevermined](/integrations/nevermined.md): Accept autonomous agent payments via x402 card delegation. Plan ID, endpoint, and SDK usage in the link.
+       ```
 
-- [api-provider-template.md](https://nevermined.ai/integrations/api-provider-template.md) - copy and fill in
-- Live example: [Exa's `/docs/integrations/nevermined.md`](https://exa.ai/docs/integrations/nevermined.md)
+    2. **A `.md` mirror** describing your plan ID, endpoint, and response shape. Common locations: `your-domain.com/integrations/nevermined.md` or `your-domain.com/docs/integrations/nevermined.md` (Exa uses the latter). Match whatever the `llms.txt` entry above points to.
+
+       <Card title="Copy the mirror template" icon="file-lines" href="https://nevermined.ai/integrations/api-provider-template.md">
+         Plain-text markdown skeleton with placeholders. Drop it wherever your docs live and fill in your plan ID, endpoint, and response shape.
+       </Card>
+
+       Live example: [Exa's `/docs/integrations/nevermined.md`](https://exa.ai/docs/integrations/nevermined.md).
+  </Tab>
+</Tabs>
 
 Updating your human-facing HTML docs is optional and less agent-native.
 
@@ -438,32 +442,14 @@ What the agent runs to mint a token and call your endpoint:
   </Tab>
 </Tabs>
 
-## Why Nevermined vs DIY
-
-<CardGroup cols={2}>
-  <Card title="The DIY way" icon="x">
-    - Stripe Checkout needs a browser and a human, useless mid-task
-    - Roll your own x402 means months building card enrollment, delegation
-      lifecycle, KYC, dispute handling, and a buyer-side SDK
-    - You own PCI scope on the buyer side
-  </Card>
-  <Card title="The Nevermined way" icon="check">
-    - Drop in `verifyPermissions` and `settlePermissions`
-    - Card acquisition via Stripe, Braintree, or the Visa Trusted Agent
-      Protocol; payouts via Stripe Connect (Stripe + Visa) and Braintree
-      OAuth-connected merchants
-    - PCI scope stays with Nevermined and the PSP
-    - Standard x402 protocol, no proprietary buyer SDK
-  </Card>
-</CardGroup>
-
 ## FAQ
 
 <AccordionGroup>
   <Accordion title="When do I get paid out?">
-    Settled funds are paid out via your connected Stripe Connect account on
-    Stripe's standard schedule. PayPal Braintree as a second payout rail is
-    coming soon.
+    Settled funds are paid out via your connected payout provider on the
+    provider's standard schedule: Stripe Connect for Stripe and Visa Trusted
+    Agent Protocol delegations (Visa settlement runs through Stripe Connect);
+    your Braintree OAuth merchant account for Braintree delegations.
   </Accordion>
   <Accordion title="Do my existing customers see any change?">
     No. Your existing API and billing surface stay as-is. Agent-payable signup
@@ -506,11 +492,13 @@ What the agent runs to mint a token and call your endpoint:
     [Generic HTTP guide](/docs/integrate/add-to-your-agent/generic-http).
   </Accordion>
   <Accordion title="Do I need a Stripe account?">
-    Today, yes: you connect a Stripe Connect account as your payout
-    destination. PayPal Braintree as a second payout option is coming soon
-    (see [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding)
-    for the planned flow). Nevermined handles card acquisition and PCI scope
-    on the buyer side; you just bring your payout destination.
+    A Stripe Connect account is required for Stripe and Visa Trusted Agent
+    Protocol delegations (Visa settlement runs through Stripe Connect). For
+    Braintree delegations, you connect a Braintree OAuth merchant account
+    instead (see
+    [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding)).
+    Nevermined handles card acquisition and PCI scope on the buyer side; you
+    just bring your payout destination.
   </Accordion>
   <Accordion title="How are chargebacks and refunds handled?">
     On Stripe destination charges, Nevermined is the merchant of record:
@@ -528,6 +516,30 @@ What the agent runs to mint a token and call your endpoint:
   </Accordion>
 </AccordionGroup>
 
+## Want a shortcut? Become a Nevermined Organization
+
+A Premium Organization bundles the agent-discovery work above and adds tooling on top: an embeddable PCI-compliant card-capture widget for your domain, auto-generated `llms.txt` and `agentic-instructions.md` rendered live from your plans, a customer list that auto-populates on agent purchases, webhooks, analytics, and multi-seat access. The DIY recipe above stays fully supported and is what powers Exa today; pick whichever fits your operational model. See [Platform Partners (Organizations)](/docs/integrations/organizations) for the org-specific guide.
+
+## Pricing
+
+Three Nevermined Organization plans, picked at sign-up:
+
+| Plan | Cost | What's included |
+|---|---|---|
+| **Starter** | Free | Publish plans and agents on a single-seat account. No org features (no widgets, no auto-generated agent docs, no customer list). |
+| **Premium Organization** ⭐ **Recommended** | **\$250 / month** | All Premium features: widget card capture, auto-generated `llms.txt` / `agentic-instructions.md`, customer list, webhooks, analytics, 5 invitable seats. |
+| **Enterprise Organization** | **\$500 / month** | Premium + unlimited agents and plans. |
+
+Settlement fees on agent payments are documented in the [Nevermined Pay overview](/docs/products/nvm-pay/overview).
+
+<Note>
+  **Pilot / whitelist / fee waiver.** Talk to us before you ship if you're a launch
+  partner, an early-stage API provider, or running a closed pilot. We can waive
+  or reduce Organization plan fees and settlement fees in select circumstances.
+  Email [hello@nevermined.io](mailto:hello@nevermined.io) or
+  [contact us](https://nevermined.ai/contact-us/).
+</Note>
+
 ## Related
 
 - [x402 Card Delegation Spec](/docs/specs/x402-card-delegation) - full
@@ -541,3 +553,7 @@ What the agent runs to mint a token and call your endpoint:
   pay-as-you-go plan
 - [Nevermined Pay overview](/docs/products/nvm-pay/overview) - how buyers
   enroll cards and create delegations
+- [API provider mirror template](https://nevermined.ai/integrations/api-provider-template.md)
+  - copy-paste skeleton for the `.md` you publish on your own domain
+- [Platform Partners (Organizations)](/docs/integrations/organizations) - the
+  recommended org path with widgets, customer list, and webhooks
