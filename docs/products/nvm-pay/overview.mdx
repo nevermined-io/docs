@@ -1,21 +1,21 @@
 ---
 title: "Agent Cards"
-description: "Enroll a real card, set spending limits, and let your agents pay autonomously."
+description: "Enroll a Visa, Stripe, or Braintree card, set spending limits, and let your agents pay autonomously."
 icon: "credit-card"
 ---
 
-Enroll a Visa or Stripe card. Set spending limits. Your agents charge it directly via x402, no checkout pages, no human in the loop.
+Enroll a Visa, Stripe, or Braintree card. Create a delegation that caps how much can be spent. Your agents charge it directly via x402 — no checkout pages, no human in the loop.
 
 Manage everything at [pay.nevermined.app](https://pay.nevermined.app).
 
 <CardGroup cols={3}>
   <Card title="Card Enrollment" icon="credit-card" href="/docs/products/nvm-pay/card-enrollment">
-    Enroll Visa or Stripe cards
+    Enroll Visa, Stripe, or Braintree cards
   </Card>
-  <Card title="Mandates & Delegations" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+  <Card title="Delegations" icon="shield-check" href="/docs/products/nvm-pay/mandates">
     Set spending limits and expiration
   </Card>
-  <Card title="Mandate Selection" icon="route" href="/docs/products/nvm-pay/mandate-selection">
+  <Card title="Delegation Selection" icon="route" href="/docs/products/nvm-pay/mandate-selection">
     Auto-resolve which card to charge
   </Card>
 </CardGroup>
@@ -24,13 +24,13 @@ Manage everything at [pay.nevermined.app](https://pay.nevermined.app).
 
 <Steps>
   <Step title="Enroll a card">
-    Add a Visa or Stripe card at [pay.nevermined.app](https://pay.nevermined.app). Card data is tokenized by the provider. NVM Pay never stores raw card numbers.
+    Add a Visa, Stripe, or Braintree card at [pay.nevermined.app](https://pay.nevermined.app). Card data is tokenized in the browser by the provider's PCI-compliant capture (VGS Collect for Visa and Stripe, Braintree Drop-in for Braintree). NVM Pay never stores raw card numbers.
   </Step>
-  <Step title="Set spending limits">
-    Create a mandate (Visa) or delegation (Stripe): max amount, max transactions, expiration. Optionally link it to a specific API key.
+  <Step title="Create a delegation">
+    Set the spending limit, duration, and (optionally) max transactions. Visa delegations also require a per-delegation passkey approval that binds the limits to your device. Optionally link the delegation to a specific API key for automatic routing.
   </Step>
   <Step title="Agents charge it">
-    Agents call the NVM Pay API with their API key. NVM Pay resolves the right authorization and generates an x402 token. The resource server verifies, executes, and settles.
+    Agents call the NVM Pay API with their API key. NVM Pay resolves the right delegation and generates an x402 token. The resource server verifies, executes, and settles.
   </Step>
 </Steps>
 
@@ -41,43 +41,101 @@ Agent (no token)
   |
   |-> Resource Server returns 402 + payment-required header
   |
-  |-> Agent calls NVM Pay: POST /access-token/from-nvm-key
-  |     |-> Resolves mandate/delegation -> generates x402 token
+  |-> Agent calls NVM Pay: POST /api/v1/x402/access-token
+  |     |-> Resolves delegation -> generates x402 token (scheme: nvm:card-delegation)
   |
   |-> Agent retries with payment-signature header
   |
   |-> Resource Server:
-        |-> POST /verify -> validates token, authorization, usage
+        |-> POST /verify -> validates token, delegation, usage
         |-> Executes workload
         |-> POST /settle -> charges card, returns payment-response
 ```
 
-## Visa vs Stripe
+## One delegation model, three networks
 
-Both paths give you the same spending controls and API key linking.
+All three providers share the same `nvm:card-delegation` x402 scheme and the same `POST /api/v1/delegation/create` endpoint. The `network` field on the delegation (`stripe`, `braintree`, or `visa`) is set by the card you choose and routes settlement to the right PSP.
 
-<CardGroup cols={2}>
+<CardGroup cols={3}>
   <Card title="Visa" icon="cc-visa">
-    Tokenized via Visa Token Service (VTS). Passkey (FIDO2) authentication. Settlement through Visa credentials charged via Stripe.
+    PAN tokenized by VGS Credential Management Platform (CMP) into a Visa Agentic Token. Each delegation requires a one-time WebAuthn/passkey device-binding ceremony enforced by Visa VTS. Settlement runs through Stripe Connect against the seller's connected account.
   </Card>
   <Card title="Stripe" icon="stripe">
-    Captured via Stripe Elements. No passkeys required. Settlement via Stripe PaymentIntents directly.
+    Card captured via VGS Collect and confirmed against a Stripe SetupIntent. No passkey. Settlement runs through Stripe PaymentIntents directly.
+  </Card>
+  <Card title="Braintree" icon="paypal">
+    Card captured via Braintree Drop-in, exchanged for a vaulted `paymentMethodToken`. Settlement runs through `transaction.sale` against the seller's per-currency OAuth-connected Braintree merchant account.
   </Card>
 </CardGroup>
+
+<Note>
+The Visa Agentic Tokens flow replaces the earlier VTS/VIC + mandate endpoints. There is no longer a separate "mandate" object — a Visa delegation is just a `nvm:card-delegation` record with `provider: 'visa'`.
+</Note>
 
 ## Key Concepts
 
 | Concept | Description |
 |---|---|
-| **Mandate / Delegation** | A scoped spending authorization on a card. Defines amount ceiling, max transactions, and expiration. |
-| **Spending Ceiling** | Per-card cumulative limit across all active authorizations (default $10.00). |
-| **API Key Linking** | Link a mandate to a specific API key so agents automatically use the right one. |
-| **x402 Token** | Payment token used in the `payment-signature` HTTP header. |
+| **Delegation** | A scoped spending authorization on an enrolled card. Defines the spending limit, max transactions, and expiration. Same concept across Visa, Stripe, and Braintree. |
+| **Visa Agentic Token** | The CMP-issued identifier (`vat_…`) that replaces the real PAN. Stored as the delegation's `providerPaymentMethodId` for Visa cards. |
+| **Device binding** | A per-delegation WebAuthn/passkey ceremony required by Visa VTS. Produces a single-use `assuranceData` blob bound to the spending limit, duration, and merchant context. Browser-only. |
+| **Spending Ceiling** | Per-card cumulative limit across all active delegations (default $10.00). |
+| **API Key Linking** | Link a delegation to a specific API key so agents automatically use the right one. |
+| **x402 Token** | Payment token used in the `payment-signature` HTTP header (`nvm:card-delegation` scheme). |
+
+## SDK consumption
+
+The TypeScript and Python SDKs treat all three networks identically. Pass the `delegationId` to `DelegationConfig` and the SDK auto-resolves the scheme + network from the plan and the delegation record:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY,
+      environment: 'sandbox',
+    })
+
+    // Works the same for Stripe, Braintree, and Visa delegations.
+    const token = await payments.x402.getX402AccessToken({
+      planId: 'plan_abc123',
+      delegationConfig: {
+        delegationId: 'deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6',
+      },
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from payments_py import Payments
+    from payments_py.x402 import DelegationConfig
+
+    payments = Payments(
+        api_key=os.environ.get("NVM_API_KEY"),
+        environment="sandbox",
+    )
+
+    # Works the same for Stripe, Braintree, and Visa delegations.
+    token = payments.x402.get_x402_access_token(
+        plan_id="plan_abc123",
+        delegation_config=DelegationConfig(
+            delegation_id="deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6",
+        ),
+    )
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+For Visa, `delegationId` reuse is the **only** SDK path. `createDelegation` with `provider='visa'` cannot run from a non-browser context — the backend rejects it without `consumerPrompt` + `assuranceData`, both of which require the WebAuthn ceremony embedded by Visa VTS in the webapp. The SDK rejection surfaces as `PaymentsError.code = 'BCK.VISA.0014'`.
+</Warning>
 
 ## Environments
 
-- **Sandbox** - Testing and development. Stripe test mode.
-- **Live** - Production. Real payments through Visa and Stripe.
+- **Sandbox** — Testing and development. Visa runs against VGS sandbox + VTS test PANs; Stripe in test mode; Braintree on sandbox merchants.
+- **Live** — Production. Real payments through Visa, Stripe, and Braintree.
 
 <Note>
 You need an [NVM API Key](/docs/getting-started/get-your-api-key). Set it as `NVM_API_KEY`.
@@ -89,7 +147,7 @@ You need an [NVM API Key](/docs/getting-started/get-your-api-key). Set it as `NV
   <Card title="Enroll a Card" icon="plus" href="/docs/products/nvm-pay/card-enrollment">
     Set up your first payment card
   </Card>
-  <Card title="Set Spending Limits" icon="shield-check" href="/docs/products/nvm-pay/mandates">
-    Create a mandate or delegation
+  <Card title="Create a Delegation" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+    Define spending limits, usage caps, and expiration
   </Card>
 </CardGroup>

@@ -32,7 +32,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.TRANSCODING`](#bck-transcoding) — 1 code
 - [`BCK.TXS`](#bck-txs) — 10 codes
 - [`BCK.USER_PROFILE`](#bck-user_profile) — 2 codes
-- [`BCK.VISA`](#bck-visa) — 13 codes
+- [`BCK.VISA`](#bck-visa) — 18 codes
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
 - [`BCK.WIDGET_SESSION`](#bck-widget_session) — 12 codes
@@ -414,6 +414,11 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-visa-0011"></a>`BCK.VISA.0011` | 400 | integration | — | VGS webhook payload malformed |  |
 | <a id="bck-visa-0012"></a>`BCK.VISA.0012` | 400 | integration | — | VGS webhook revoke event missing card identifier |  |
 | <a id="bck-visa-0013"></a>`BCK.VISA.0013` | 500 | integration | — | Unable to process VGS webhook |  |
+| <a id="bck-visa-0014"></a>`BCK.VISA.0014` | 400 | business | — | Visa delegation creation requires consumerPrompt and assuranceData | Provide both `consumerPrompt` and `assuranceData` when creating a Visa delegation. These are required by the Visa Trusted Agent Protocol and produced by the in-browser VGS Agentic Auth device-binding flow. |
+| <a id="bck-visa-0015"></a>`BCK.VISA.0015` | 400 | business | — | Visa delegation requires planId — mandate must bind to a single plan seller | Provide `planId` when creating a Visa delegation. Visa mandates must bind to a single plan seller for compliance with the Trusted Agent Protocol. |
+| <a id="bck-visa-0016"></a>`BCK.VISA.0016` | 400 | business | — | Plan seller has not completed Stripe Connect onboarding required for Visa delegations | The plan seller must complete Stripe Connect onboarding before accepting Visa delegations. Ask the seller to finish onboarding. |
+| <a id="bck-visa-0017"></a>`BCK.VISA.0017` | 502 | integration | — | Stripe Connect account lookup failed while resolving Visa merchant context | Inspect Stripe dashboard logs for the connected account id in params. Connect account lookup failed transiently — retry; if it persists, check the seller's Connect status. |
+| <a id="bck-visa-0018"></a>`BCK.VISA.0018` | 409 | business | — | This card is already enrolled to a different account | VGS Agentic Tokens are keyed on PAN globally — the same physical card resolves to the same tokenId regardless of which user enrols it. The card you tried to enrol is already on file under another account. Use a different card. |
 
 ## `BCK.WIDGET` { #bck-widget }
 
