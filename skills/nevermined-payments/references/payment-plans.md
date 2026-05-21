@@ -171,9 +171,9 @@ payments.plans.getNativeTokenPriceConfig(10_000_000n, BUILDER_ADDRESS)
 payments.plans.getFreePriceConfig()
 ```
 
-## Fiat Plans (Stripe / Braintree)
+## Fiat Plans (Stripe / Braintree / Visa)
 
-Fiat plans use the `nvm:card-delegation` x402 scheme — subscribers enroll a card via Stripe or Braintree, and per-request charges are settled by the configured provider.
+Fiat plans use the `nvm:card-delegation` x402 scheme — subscribers enroll a card via Stripe, Braintree, or the Visa Trusted Agent Protocol, and per-request charges are settled by the configured provider. The active provider per plan is set by the seller's `fiatPaymentProvider` metadata (`'stripe'` | `'braintree'` | `'visa'`).
 
 ```typescript
 // TypeScript — $10.00 fiat, paid into the builder's wallet/account
@@ -199,7 +199,18 @@ fiat_price_config = payments.plans.get_fiat_price_config(
 )
 ```
 
-When subscribers fetch an x402 token for a fiat plan, they pass `--payment-type fiat` (CLI) or `delegationConfig.providerPaymentMethodId = 'pm_...'` (SDK). The SDK auto-resolves `nvm:card-delegation` from the plan's `priceConfig`.
+When subscribers fetch an x402 token for a fiat plan, they pass `--payment-type fiat` (CLI) or one of two `delegationConfig` shapes (SDK):
+
+- **Reuse an existing delegation** (works for all networks, including Visa):
+  ```ts
+  delegationConfig: { delegationId: 'deleg-…' }
+  ```
+- **Auto-create a new delegation** (Stripe / Braintree only — Visa rejects with `BCK.VISA.0014`):
+  ```ts
+  delegationConfig: { providerPaymentMethodId: 'pm_…', spendingLimitCents: 1000, durationSecs: 86400 }
+  ```
+
+`providerPaymentMethodId` alone is not enough — the backend requires `spendingLimitCents` + `durationSecs` to mint the delegation. The SDK auto-resolves `nvm:card-delegation` from the plan's `priceConfig`. For **Visa** plans, only the first shape works — Visa delegations must be created in the Nevermined webapp (browser-only WebAuthn ceremony) and reused from the SDK by ID. Attempting `create_delegation(provider='visa', ...)` from the SDK is rejected with `BCK.VISA.0014` because the required `consumerPrompt` and `assuranceData` blobs can only be produced in-browser.
 
 ## Pay-As-You-Go Plans
 

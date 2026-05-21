@@ -6,7 +6,7 @@ icon: "plug"
 
 Agents are a new buyer of your API, and they don't onboard the way humans do. They don't sit at a browser, fill out a Stripe Checkout, or remember to top up a credit balance. Today they either stall at your paywall or hardcode a human's API key.
 
-Nevermined turns that failure mode into revenue with a small server-side integration. Agents holding a delegated card mint an [x402](/docs/development-guide/nevermined-x402) access token, send it to your endpoint, and you provision or top up access in response. You verify and settle through Nevermined's [x402 facilitator](/docs/products/x402-facilitator/overview); the buyer's card is charged on Stripe or Visa Intelligent Commerce rails, depending on how it was enrolled.
+Nevermined turns that failure mode into revenue with a small server-side integration. Agents holding a delegated card mint an [x402](/docs/development-guide/nevermined-x402) access token, send it to your endpoint, and you provision or top up access in response. You verify and settle through Nevermined's [x402 facilitator](/docs/products/x402-facilitator/overview); the buyer's card is charged through Stripe, Braintree, or the Visa Trusted Agent Protocol depending on how it was enrolled. All three settle x402 charges through the same `nvm:card-delegation` scheme — your endpoint code doesn't change.
 
 ## Featured provider
 
@@ -446,9 +446,10 @@ What the agent runs to mint a token and call your endpoint:
 
 <AccordionGroup>
   <Accordion title="When do I get paid out?">
-    Settled funds are paid out via your connected Stripe Connect account on
-    Stripe's standard schedule. PayPal Braintree as a second payout rail is
-    coming soon.
+    Settled funds are paid out via your connected payout provider on the
+    provider's standard schedule: Stripe Connect for Stripe and Visa Trusted
+    Agent Protocol delegations (Visa settlement runs through Stripe Connect);
+    your Braintree OAuth merchant account for Braintree delegations.
   </Accordion>
   <Accordion title="Do my existing customers see any change?">
     No. Your existing API and billing surface stay as-is. Agent-payable signup
@@ -459,16 +460,29 @@ What the agent runs to mint a token and call your endpoint:
     For subscriptions, talk to us, recurring billing is supported case-by-case.
   </Accordion>
   <Accordion title="What card rails are supported?">
-    [Stripe](/docs/products/nvm-pay/overview) (for direct card enrollment) and
-    Visa Intelligent Commerce (VIC). The x402 token your endpoint verifies is
-    the same regardless of rail; Nevermined handles the rail-specific details.
-    See the [card-delegation spec](/docs/specs/x402-card-delegation) for the
+    Three rails today, all consumed through the same `nvm:card-delegation`
+    x402 scheme:
+
+    - **[Stripe](/docs/products/nvm-pay/overview)** — direct card enrollment
+      and Stripe PaymentIntents settlement
+    - **[Braintree](/docs/products/nvm-pay/braintree-onboarding)** — Drop-in
+      enrollment and `transaction.sale` settlement against OAuth-connected
+      seller merchants
+    - **Visa Trusted Agent Protocol** — Visa Agentic Token enrollment via VGS
+      Credential Management Platform, per-delegation WebAuthn/passkey device
+      binding, settlement through Stripe Connect
+
+    The x402 token your endpoint verifies is the same regardless of rail;
+    Nevermined handles the rail-specific details. See the
+    [card-delegation spec](/docs/specs/x402-card-delegation) for the
     underlying flow.
   </Accordion>
   <Accordion title="Is there a sandbox?">
-    Yes, on the Stripe rail. Integrate, run end-to-end test transactions, and
-    validate your handler before flipping to live. VIC doesn't have a sandbox
-    today, so VIC delegations are tested with small amounts in live.
+    Yes, on the Stripe and Braintree rails. Integrate, run end-to-end test
+    transactions, and validate your handler before flipping to live. The Visa
+    Trusted Agent Protocol uses VGS sandbox with VTS-registered test PANs;
+    Visa delegations require a real device that can run a WebAuthn ceremony
+    (or fall back to the email OTP that VTS sends).
   </Accordion>
   <Accordion title="What languages and frameworks are supported?">
     TypeScript and Python SDKs ship today, with framework helpers for
@@ -478,11 +492,13 @@ What the agent runs to mint a token and call your endpoint:
     [Generic HTTP guide](/docs/integrate/add-to-your-agent/generic-http).
   </Accordion>
   <Accordion title="Do I need a Stripe account?">
-    Today, yes: you connect a Stripe Connect account as your payout
-    destination. PayPal Braintree as a second payout option is coming soon
-    (see [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding)
-    for the planned flow). Nevermined handles card acquisition and PCI scope
-    on the buyer side; you just bring your payout destination.
+    A Stripe Connect account is required for Stripe and Visa Trusted Agent
+    Protocol delegations (Visa settlement runs through Stripe Connect). For
+    Braintree delegations, you connect a Braintree OAuth merchant account
+    instead (see
+    [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding)).
+    Nevermined handles card acquisition and PCI scope on the buyer side; you
+    just bring your payout destination.
   </Accordion>
   <Accordion title="How are chargebacks and refunds handled?">
     On Stripe destination charges, Nevermined is the merchant of record:
@@ -492,8 +508,11 @@ What the agent runs to mint a token and call your endpoint:
   </Accordion>
   <Accordion title="Multi-currency?">
     Stripe Connect handles currency conversion to your destination account,
-    so non-USD payouts work today. VIC currently supports predominantly
-    US-based issuers.
+    so non-USD payouts work for Stripe and Visa delegations. Braintree
+    requires the seller to have a child merchant account per accepted
+    currency. The Visa Trusted Agent Protocol currently supports
+    predominantly US-based issuers, with the eligibility list expanding
+    through the pilot.
   </Accordion>
 </AccordionGroup>
 

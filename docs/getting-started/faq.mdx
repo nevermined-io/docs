@@ -9,56 +9,57 @@ icon: "comments"
 How agents pay with your real card, within limits you control.
 
 <Accordion title="What is NVM Pay?">
-  NVM Pay lets users enroll a Visa or Stripe card, set spending limits, and let agents charge it directly via x402. No checkout pages, no human in the loop. Manage everything at [pay.nevermined.app](https://pay.nevermined.app).
+  NVM Pay lets users enroll a Visa, Stripe, or Braintree card, set spending limits, and let agents charge it directly via x402. No checkout pages, no human in the loop. Manage everything at [pay.nevermined.app](https://pay.nevermined.app).
 </Accordion>
 
 <Accordion title="How is this different from a prepaid card or virtual wallet?">
-  NVM Pay uses your real credit or debit card, not a separate prepaid balance. At enrollment, the card number is tokenized by a PCI-compliant vault. Nevermined never sees or stores the raw card number. What the agent receives is a scoped credential that encodes identity, spending limits, and merchant restrictions. The charge appears on your normal statement.
+  NVM Pay uses your real credit or debit card, not a separate prepaid balance. At enrollment, the card number is tokenized by a PCI-compliant vault. Nevermined never sees or stores the raw card number. What the agent receives is a scoped delegation that encodes identity, spending limits, and (for Visa) the device that approved it. The charge appears on your normal statement.
 </Accordion>
 
 <Accordion title="Can agents charge my card without my approval?">
-  Only within the limits you set. When you create a mandate, you define an amount ceiling, maximum number of transactions, and expiration date. A per-card spending ceiling applies across all active mandates. The agent can only charge within these bounds, and you can cancel a mandate at any time.
+  Only within the limits you set. When you create a delegation, you define a lifetime spending limit, maximum number of transactions, and duration. A per-card spending ceiling applies across all active delegations. The agent can only charge within these bounds, and you can revoke a delegation at any time. Visa delegations additionally require a one-time WebAuthn/passkey approval bound to those exact limits.
 </Accordion>
 
-<Accordion title="What happens if an agent exceeds the mandate?">
-  The transaction is rejected instantly before it reaches the payment processor. Mandates are enforced server-side on every request. The agent receives a `402` error explaining which limit was hit (amount cap, transaction count, or time window).
+<Accordion title="What happens if an agent exceeds the delegation?">
+  The transaction is rejected instantly before it reaches the payment processor. Delegations are enforced server-side on every verify and settle call. The agent receives a `402` error explaining which limit was hit (spending limit, transaction count, or duration).
 </Accordion>
 
 <Accordion title="How do I revoke an agent's ability to spend?">
-  One click in the [dashboard](https://pay.nevermined.app) or one API call. Revocation is immediate: no grace period, no cached tokens. The agent loses payment capability the instant you revoke.
+  One click in the [dashboard](https://pay.nevermined.app) or `DELETE /api/v1/delegation/{delegationId}`. Revocation is immediate: no grace period, no cached tokens. The agent loses payment capability the instant you revoke.
 </Accordion>
 
 <Accordion title="Do I need a crypto wallet?">
-  No. NVM Pay works with regular Visa and Stripe cards. All payments are settled via card rails. No wallet or stablecoins required.
+  No. NVM Pay works with regular Visa, Mastercard, Amex, and Discover cards through Visa, Stripe, or Braintree. All payments are settled via card rails. No wallet or stablecoins required.
 </Accordion>
 
-<Accordion title="How does my agent know which mandate to use?">
+<Accordion title="How does my agent know which delegation to use?">
   Three ways, from simplest to most explicit:
 
-  1. **Automatic** — If you have exactly one active mandate, it's selected automatically.
-  2. **Key-linked** — Link a specific mandate to a specific API key. The system always routes that key to its linked mandate.
-  3. **Explicit ID** — Pass the mandate ID directly in the request for full control.
+  1. **Automatic** — If you have exactly one active delegation, it's selected automatically.
+  2. **Key-linked** — Link a specific delegation to a specific API key. The system always routes that key to its linked delegation.
+  3. **Explicit ID** — Pass `delegationId` in `delegationConfig` for full control. **Required for Visa.**
 
-  See [Mandate Selection](/docs/products/nvm-pay/mandate-selection) for details.
+  See [Delegation Selection](/docs/products/nvm-pay/mandate-selection) for details.
 </Accordion>
 
 <Accordion title="What are the current spending limits?">
-  During the pilot, each enrolled card has a $10.00 cumulative ceiling across all active mandates. Contact the Nevermined team to request increased limits.
+  During the pilot, each enrolled card has a $10.00 cumulative ceiling across all active delegations. Contact the Nevermined team to request increased limits.
 </Accordion>
 
-<Accordion title="What's the difference between the Stripe and Visa paths?">
+<Accordion title="What's the difference between the Visa, Stripe, and Braintree paths?">
   From the agent's perspective, nothing changes — same x402 payment header either way. The difference is settlement:
 
-  - **Stripe** — Card tokenized by Stripe, payment settles through Stripe's network.
-  - **Visa** — Card tokenized by Visa Token Service (VTS), each payment generates a one-time VIC cryptogram that settles through standard Visa acquiring rails.
+  - **Visa** — Card tokenized as a Visa Agentic Token via VGS Credential Management Platform. Each delegation requires a per-delegation WebAuthn/passkey ceremony enforced by Visa VTS. Settlement runs through Stripe Connect.
+  - **Stripe** — Card tokenized by Stripe, settlement runs through Stripe PaymentIntents.
+  - **Braintree** — Card vaulted as a Braintree `paymentMethodToken`, settlement runs through `transaction.sale` against the seller's OAuth-connected merchant account.
 </Accordion>
 
 <Accordion title="Which cards are eligible?">
-  Stripe supports most Visa, Mastercard, Amex, and Discover cards. For the Visa path, virtual cards can currently be issued for Visa cards from a limited number of US issuers (excluding Chase, Citi). Most corporate and prepaid cards are not eligible for the Visa path.
+  Stripe and Braintree support most Visa, Mastercard, Amex, and Discover cards. The Visa Agentic Tokens path requires a Visa card whose issuer participates in the Visa Trusted Agent Protocol; the issuer list is expanding through the pilot.
 </Accordion>
 
 <Accordion title="What security standards does NVM Pay meet?">
-  Card data is captured via a PCI-compliant vault (VGS) and tokenized before entering our system. Nevermined holds ISO 27001 and SOC 2 Type II certifications and operates at PCI SAQ-D level. Authentication uses FIDO2 passkeys or 3DS at enrollment. Every transaction is logged for full auditability.
+  Card data is captured via PCI-compliant vaults (VGS Collect for Visa / Stripe, Braintree Drop-in for Braintree) and tokenized before entering our system. Nevermined holds ISO 27001 and SOC 2 Type II certifications and operates at PCI SAQ-D level. For Visa, Strong Customer Authentication via WebAuthn/passkey (with email OTP fallback) is enforced **per delegation**. Every transaction is logged for full auditability.
 </Accordion>
 
 ## Stripe Connect
@@ -68,7 +69,7 @@ Nevermined uses [Stripe Connect](https://stripe.com/connect) to route fiat payme
 <Accordion title="What's the difference between Stripe Connect and NVM Pay?">
   **Stripe Connect** is for *builders* receiving fiat payouts. You connect your Stripe account so Nevermined can route revenue to you.
 
-  **NVM Pay** is for *users* who want agents to pay with their card. The user enrolls a card, creates a spending mandate, and agents charge against it via x402.
+  **NVM Pay** is for *users* who want agents to pay with their card. The user enrolls a card, creates a spending delegation, and agents charge against it via x402.
 
   They serve different sides of the transaction: Stripe Connect handles payouts to builders, NVM Pay handles card-based payments from users.
 </Accordion>
