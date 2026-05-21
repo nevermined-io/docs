@@ -298,7 +298,7 @@ The `payment-required` payload structure:
 | Scheme | Network field | Settlement |
 |---|---|---|
 | `nvm:erc4337` | CAIP-2 chain ID (e.g. `eip155:84532` Base Sepolia, `eip155:8453` Base Mainnet) | Crypto stablecoins (USDC / EURC) via account-abstraction delegation |
-| `nvm:card-delegation` | Fiat provider (`stripe` or `braintree`) | Card-on-file via Stripe or Braintree delegation |
+| `nvm:card-delegation` | Fiat provider (`stripe`, `braintree`, or `visa`) | Card-on-file via Stripe / Braintree / Visa Agentic Token delegation |
 
 The SDK auto-resolves the scheme from the plan's `priceConfig` metadata. You only need to pass `scheme` explicitly if you want to override it.
 
@@ -312,9 +312,11 @@ Nevermined supports several plan types:
 - **Trial**: free limited access, one-time claim per user. Use `getFreePriceConfig`.
 - **Hybrid**: combine fixed credits with a time expiry by passing `accessLimit: 'time'` and an expirable duration config.
 
-Each plan can be priced in **crypto** (`getERC20PriceConfig`, `getEURCPriceConfig`, `getNativeTokenPriceConfig`) or **fiat** (`getFiatPriceConfig` — Stripe/Braintree). The selected price helper determines the x402 scheme used at runtime.
+Each plan can be priced in **crypto** (`getERC20PriceConfig`, `getEURCPriceConfig`, `getNativeTokenPriceConfig`) or **fiat** (`getFiatPriceConfig` — Stripe / Braintree / Visa Trusted Agent). The selected price helper determines the x402 scheme used at runtime.
 
-For fiat plans, the active provider is selected per plan via the `fiatPaymentProvider` metadata field (`'stripe'` or `'braintree'`). Sellers using Braintree must connect a Braintree merchant account with at least one child merchant account in the plan's currency — see [`braintree-onboarding`](/docs/products/nvm-pay/braintree-onboarding) for the seller-side setup and [`card-enrollment`](/docs/products/nvm-pay/card-enrollment) for the buyer-side flow.
+For fiat plans, the active provider is selected per plan via the `fiatPaymentProvider` metadata field (`'stripe'`, `'braintree'`, or `'visa'`). Sellers using Braintree must connect a Braintree merchant account with at least one child merchant account in the plan's currency. Sellers offering Visa Trusted Agent plans must complete Stripe Connect onboarding (Visa delegations settle through Stripe Connect) — see [`braintree-onboarding`](/docs/products/nvm-pay/braintree-onboarding) for the Braintree seller setup and [`card-enrollment`](/docs/products/nvm-pay/card-enrollment) for the buyer-side flow.
+
+**Visa caveat for SDK builders.** Visa delegation creation is browser-only — it requires `consumerPrompt` + `assuranceData` produced by an in-browser WebAuthn ceremony embedded by Visa VTS. The SDK can **consume** an existing Visa delegation by passing its `delegationId` to `DelegationConfig`, but calling `createDelegation` / `create_delegation` with `provider: 'visa'` is rejected by the backend (`BCK.VISA.0014`). For any SDK code path that needs a Visa delegation, instruct the user to create it in the Nevermined webapp and pass the resulting ID back to the agent.
 
 See `references/payment-plans.md` for plan registration code.
 
