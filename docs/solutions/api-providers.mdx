@@ -18,7 +18,7 @@ Nevermined turns that failure mode into revenue with a small server-side integra
 
 <Steps>
   <Step title="Create a pay-as-you-go plan">
-    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (one charge per purchase) and set your price (e.g. \$7). That's it: the App doesn't ask about credits on PAYG. One call to your purchase endpoint = one card charge of your plan price, regardless of any `credits` value you see in the handler code below (PAYG settles ignore it). See [Manage Plans](/docs/products/nevermined-app/manage-plans).
+    On the [Nevermined App](https://nevermined.app/), choose **pay-as-you-go** pricing (one charge per purchase) and set your price (e.g. \$7). That's it: the App doesn't ask about credits on PAYG, and one call to your purchase endpoint = one card charge of your plan price. See [Manage Plans](/docs/products/nevermined-app/manage-plans).
   </Step>
   <Step title="Expose one endpoint">
     Accept a `payment-signature` header on a new route or an existing one. Existing customers keep their flow unchanged.
@@ -30,7 +30,7 @@ Nevermined turns that failure mode into revenue with a small server-side integra
     Provision an API key, top up credits, unlock a resource, whatever your product is.
   </Step>
   <Step title="Settle">
-    Call `payments.facilitator.settlePermissions(...)`. The card is charged, credits are minted and burned, you get paid.
+    Call `payments.facilitator.settlePermissions(...)`. The card is charged and you get paid. (On credits-bundle plans, credits are also minted and burned at this step; on PAYG, there's no credit movement.)
   </Step>
 </Steps>
 
@@ -251,6 +251,12 @@ Your handler does three things: read the `payment-signature` header, verify the 
 
 If you're on Express or FastAPI, the SDK ships a payment middleware that handles the verify/settle dance and the spec-correct response headers for you. One config line gates your endpoint, your handler stays focused on business logic.
 
+<Tip>
+  The route config also accepts an optional `credits` field (default `1`).
+  It's inert on PAYG plans and is the per-request burn amount on credits-bundle
+  plans. Omitted in the snippets below for the PAYG happy path.
+</Tip>
+
 <Tabs>
   <Tab title="TypeScript (Express)">
     ```typescript
@@ -266,14 +272,10 @@ If you're on Express or FastAPI, the SDK ships a payment middleware that handles
       environment: 'live',
     })
 
-    // On a PAYG plan, `credits` is inert at settle: each call to
-    // /purchase-key triggers one card charge for the plan price. On a
-    // credits-bundle plan, `credits` is the per-request burn amount.
     app.use(
       paymentMiddleware(payments, {
         'POST /purchase-key': {
           planId: process.env.PLAN_ID!,
-          credits: 1,
           scheme: 'nvm:card-delegation',
         },
       }),
@@ -298,16 +300,12 @@ If you're on Express or FastAPI, the SDK ships a payment middleware that handles
         PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='live')
     )
 
-    # On a PAYG plan, `credits` is inert at settle: each call to
-    # /purchase-key triggers one card charge for the plan price. On a
-    # credits-bundle plan, `credits` is the per-request burn amount.
     app.add_middleware(
         PaymentMiddleware,
         payments=payments,
         routes={
             'POST /purchase-key': {
                 'plan_id': os.environ['PLAN_ID'],
-                'credits': 1,
                 'scheme': 'nvm:card-delegation',
             },
         },
