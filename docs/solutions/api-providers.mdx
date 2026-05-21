@@ -69,14 +69,9 @@ Your handler does three things: read the `payment-signature` header, verify the 
       const token = req.header('payment-signature')
       if (!token) return send402(res)
 
-      // On a PAYG plan, maxAmount is inert at settle: each call to
-      // /purchase-key triggers one card charge for the plan price
-      // regardless of the value. On a credits-bundle plan, maxAmount
-      // is the per-request burn amount (in credits, not cents).
       const verification = await payments.facilitator.verifyPermissions({
         paymentRequired,
         x402AccessToken: token,
-        maxAmount: 1n,
       })
       if (!verification.isValid) return send402(res)
 
@@ -85,7 +80,6 @@ Your handler does three things: read the `payment-signature` header, verify the 
       const settlement = await payments.facilitator.settlePermissions({
         paymentRequired,
         x402AccessToken: token,
-        maxAmount: 1n,
       })
 
       // Settlement receipt in the `payment-response` header (per x402 spec §4.3).
@@ -138,14 +132,9 @@ Your handler does three things: read the `payment-signature` header, verify the 
         if not token:
             return send_402()
 
-        # On a PAYG plan, max_amount is inert at settle: each call to
-        # /purchase-key triggers one card charge for the plan price
-        # regardless of the value. On a credits-bundle plan, max_amount
-        # is the per-request burn amount (in credits, not cents).
         verification = payments.facilitator.verify_permissions(
             payment_required=payment_required,
             x402_access_token=token,
-            max_amount='1',
         )
         if not verification.is_valid:
             return send_402()
@@ -155,7 +144,6 @@ Your handler does three things: read the `payment-signature` header, verify the 
         settlement = payments.facilitator.settle_permissions(
             payment_required=payment_required,
             x402_access_token=token,
-            max_amount='1',
         )
 
         # Settlement receipt in the `payment-response` header (per x402 spec §4.3).
@@ -196,8 +184,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
         }],
         "extensions": {}
       },
-      "x402AccessToken": "<token from the payment-signature header>",
-      "maxAmount": "1"
+      "x402AccessToken": "<token from the payment-signature header>"
     }
     ```
 
@@ -228,8 +215,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
       -H 'Content-Type: application/json' \
       -d "$(jq -n --arg pr "$PAYMENT_REQUIRED" --arg t "$TOKEN" '{
             paymentRequired: ($pr | fromjson),
-            x402AccessToken: $t,
-            maxAmount: "1"
+            x402AccessToken: $t
           }')"
     # → on isValid=false, return 402 with payment-required header set
 
@@ -240,8 +226,7 @@ Your handler does three things: read the `payment-signature` header, verify the 
       -H 'Content-Type: application/json' \
       -d "$(jq -n --arg pr "$PAYMENT_REQUIRED" --arg t "$TOKEN" '{
             paymentRequired: ($pr | fromjson),
-            x402AccessToken: $t,
-            maxAmount: "1"
+            x402AccessToken: $t
           }')"
 
     # 5. Return 200 with the credential
