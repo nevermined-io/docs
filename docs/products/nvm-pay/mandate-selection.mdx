@@ -4,6 +4,15 @@ description: "How NVM Pay automatically resolves which delegation to charge when
 icon: "route"
 ---
 
+{/*
+  URL note: this file lives at `/docs/products/nvm-pay/mandate-selection`
+  despite the "Delegation Selection" title. The slug is kept stable to
+  preserve external links shared before the VGS Agentic Tokens rollout
+  retired the per-network "mandate" object (see PR #176). Rename to
+  `delegation-selection.mdx` only if you also add a `redirects` entry in
+  `docs.json` pointing the old slug here.
+*/}
+
 ## The Problem
 
 When a subscriber has multiple active delegations across their enrolled cards, the agent needs to know which one to use. Should it charge the $5 Visa delegation on Card A or the $10 Stripe delegation on Card B?
@@ -21,22 +30,27 @@ When the SDK or CLI requests an x402 access token, NVM Pay resolves the delegati
     <Tabs>
       <Tab title="TypeScript">
         ```typescript
-        const token = await payments.x402.getX402AccessToken({
-          planId: 'plan_abc123',
-          delegationConfig: {
-            delegationId: 'deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6',
+        const token = await payments.x402.getX402AccessToken(
+          'plan_abc123',
+          undefined, // agentId — pass when the plan has multiple agents
+          {
+            delegationConfig: {
+              delegationId: 'deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6',
+            },
           },
-        })
+        )
         ```
       </Tab>
       <Tab title="Python">
         ```python
-        from payments_py.x402 import DelegationConfig
+        from payments_py.x402 import DelegationConfig, X402TokenOptions
 
         token = payments.x402.get_x402_access_token(
             plan_id="plan_abc123",
-            delegation_config=DelegationConfig(
-                delegation_id="deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6",
+            token_options=X402TokenOptions(
+                delegation_config=DelegationConfig(
+                    delegation_id="deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6",
+                ),
             ),
         )
         ```

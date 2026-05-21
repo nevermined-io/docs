@@ -4,6 +4,15 @@ description: "Create scoped spending authorizations that control how much agents
 icon: "shield-check"
 ---
 
+{/*
+  URL note: this file lives at `/docs/products/nvm-pay/mandates` despite the
+  "Delegations" title. The slug is kept stable to avoid breaking external
+  links that were shared before the VGS Agentic Tokens rollout retired the
+  per-network "mandate" object in favour of the unified `nvm:card-delegation`
+  delegation model (see PR #176). Rename to `delegations.mdx` only if you
+  also add a `redirects` entry in `docs.json` pointing the old slug here.
+*/}
+
 ## What Are Delegations?
 
 A delegation is a **scoped spending authorization** tied to an enrolled payment card. It defines the boundaries of what an agent can charge: the maximum amount over the delegation's lifetime, how many transactions are allowed, and when the authorization expires.
@@ -24,7 +33,7 @@ All three networks share the same core fields:
 | `providerPaymentMethodId` | PSP-side token: Stripe `pm_…`, Braintree `paymentMethodToken`, or Visa Agentic Token `vat_…` |
 | `spendingLimitCents` | Maximum total amount the delegation can charge over its lifetime, in cents |
 | `durationSecs` | How long the delegation is valid for, in seconds from creation |
-| `maxTransactions` | Optional cap on the number of charges (null = unlimited) |
+| `maxTransactions` | Optional cap on the number of charges. Omit the field to allow unlimited transactions. |
 | `currency` | ISO 4217 lowercase (`usd`, `eur`, …) |
 | `planId` | Optional plan binding. Required for Visa (Trusted Agent Protocol). |
 | `merchantAccountId` | PSP-side merchant routing. Stripe Connected Account ID, Braintree per-currency `merchantAccountId`, or seller's Stripe Connect account for Visa settlement. |

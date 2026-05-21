@@ -800,6 +800,10 @@ Additional settlement details MAY be included in the response body:
 
 ### 7.1 Error Codes
 
+Errors come from two distinct response paths. **Scheme-level codes** are returned in the facilitator's `verify` / `settle` JSON body and can apply to any provider. **Nevermined API codes** appear in the `code` field of a structured `NVMException` response from `POST /api/v1/delegation/create` or `POST /api/v1/delegation/enroll-visa` — never on the x402 verify/settle path.
+
+#### Scheme-level (`verify` / `settle`)
+
 | Code | Name | Description |
 |------|------|-------------|
 | `INVALID_PAYLOAD` | Invalid Payload | The payment payload structure is invalid or missing required fields |
@@ -816,10 +820,17 @@ Additional settlement details MAY be included in the response body:
 | `CARD_DECLINED` | Card Declined | The card was declined by the issuing bank |
 | `CURRENCY_MISMATCH` | Currency Mismatch | The request currency does not match the delegation currency |
 | `MERCHANT_ACCOUNT_INVALID` | Merchant Account Invalid | The specified PSP Connected Account is invalid or inactive |
+
+#### Nevermined API — Visa-specific
+
+Returned by `POST /api/v1/delegation/create` (with `provider: 'visa'`) and `POST /api/v1/delegation/enroll-visa`. See [API error codes](/docs/development-guide/api-errors/codes) for the full catalogue.
+
+| Code | Name | Description |
+|------|------|-------------|
+| `BCK.VISA.0003` | Visa Mandate Provisioning Failed | VGS rejected `POST /intents` (typically a stale or replayed `assuranceData`) |
 | `BCK.VISA.0014` | Visa Device Binding Required | `provider: 'visa'` request missing `consumerPrompt` and/or `assuranceData` |
 | `BCK.VISA.0015` | Visa Plan Binding Required | `provider: 'visa'` request missing `planId` |
 | `BCK.VISA.0016` | Visa Seller Not Onboarded | The plan seller has not completed Stripe Connect onboarding |
-| `BCK.VISA.0003` | Visa Mandate Provisioning Failed | VGS rejected `POST /intents` (typically a stale or replayed `assuranceData`) |
 | `BCK.VISA.0018` | Visa Card Already Enrolled | The PAN being enrolled is already a Visa Agentic Token under another account |
 
 ### 7.2 Error Response Format

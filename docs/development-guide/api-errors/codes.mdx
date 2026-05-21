@@ -403,7 +403,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 |---|---|---|---|---|---|
 | <a id="bck-visa-0001"></a>`BCK.VISA.0001` | 503 | integration | — | Visa payment provider is not configured |  |
 | <a id="bck-visa-0002"></a>`BCK.VISA.0002` | 502 | integration | — | Visa card enrollment failed |  |
-| <a id="bck-visa-0003"></a>`BCK.VISA.0003` | 502 | integration | — | Visa mandate creation failed |  |
+| <a id="bck-visa-0003"></a>`BCK.VISA.0003` | 502 | integration | — | VGS mandate provisioning failed | VGS rejected `POST /intents` while provisioning the Visa mandate — typically because `assuranceData` is stale, replayed, or doesn't match the spending limit / duration / merchant context shown in the approval prompt. Restart the WebAuthn / passkey device-binding ceremony in the Nevermined webapp to mint a fresh `assuranceData` blob, then retry delegation creation. |
 | <a id="bck-visa-0004"></a>`BCK.VISA.0004` | 502 | integration | — | VGS cryptogram issuance failed |  |
 | <a id="bck-visa-0005"></a>`BCK.VISA.0005` | 400 | integration | — | Invalid VGS webhook signature |  |
 | <a id="bck-visa-0006"></a>`BCK.VISA.0006` | 502 | integration | — | VGS OAuth2 client_credentials request failed |  |

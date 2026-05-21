@@ -98,19 +98,22 @@ The TypeScript and Python SDKs treat all three networks identically. Pass the `d
     })
 
     // Works the same for Stripe, Braintree, and Visa delegations.
-    const token = await payments.x402.getX402AccessToken({
-      planId: 'plan_abc123',
-      delegationConfig: {
-        delegationId: 'deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6',
+    const token = await payments.x402.getX402AccessToken(
+      'plan_abc123',
+      undefined, // agentId — pass when the plan has multiple agents
+      {
+        delegationConfig: {
+          delegationId: 'deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6',
+        },
       },
-    })
+    )
     ```
   </Tab>
   <Tab title="Python">
     ```python
     import os
     from payments_py import Payments
-    from payments_py.x402 import DelegationConfig
+    from payments_py.x402 import DelegationConfig, X402TokenOptions
 
     payments = Payments(
         api_key=os.environ.get("NVM_API_KEY"),
@@ -120,8 +123,10 @@ The TypeScript and Python SDKs treat all three networks identically. Pass the `d
     # Works the same for Stripe, Braintree, and Visa delegations.
     token = payments.x402.get_x402_access_token(
         plan_id="plan_abc123",
-        delegation_config=DelegationConfig(
-            delegation_id="deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6",
+        token_options=X402TokenOptions(
+            delegation_config=DelegationConfig(
+                delegation_id="deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6",
+            ),
         ),
     )
     ```
