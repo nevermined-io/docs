@@ -8,6 +8,8 @@ icon: "shield-check"
 
 This guide explains how AI agents validate incoming requests and settle payments using the Nevermined Facilitator. Agent builders use these methods to verify subscriber access and burn credits.
 
+> 🔐 **Never log incoming tokens.** When you extract the `payment-signature` header, treat it as a bearer secret: do not echo it in error messages, debug output, or telemetry. Configure your log/trace exporters to redact `payment-signature`, `authorization`, and `cookie` headers by default.
+
 ## Overview
 
 The validation flow consists of:
@@ -20,7 +22,7 @@ The validation flow consists of:
 
 ## Receiving Requests
 
-Extract the X402 access token from request headers. The X402 v2 spec defines the `PAYMENT-SIGNATURE` header:
+Extract the X402 access token from request headers. The X402 v2 spec defines the `payment-signature` header:
 
 ```typescript
 import express from 'express'
@@ -29,7 +31,7 @@ const app = express()
 app.use(express.json())
 
 app.post('/api/v1/tasks', async (req, res) => {
-  // Extract token from PAYMENT-SIGNATURE header (X402 v2)
+  // Extract token from payment-signature header (X402 v2)
   const accessToken = req.headers['payment-signature'] as string
 
   // Alternative: Authorization header
@@ -186,7 +188,7 @@ function return402Response(res: express.Response, planId: string, agentId: strin
 
   res.end(JSON.stringify({
     error: 'Payment required',
-    message: 'Valid X402 access token required in PAYMENT-SIGNATURE header',
+    message: 'Valid X402 access token required in payment-signature header',
   }))
 }
 

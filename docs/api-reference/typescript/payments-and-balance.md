@@ -4,14 +4,16 @@ description: "Purchase payment plans and manage credit balances for accessing AI
 icon: "wallet"
 ---
 
-This guide explains how to purchase payment plans and check credit balances. These operations are typically performed by users who want to access AI agents.
+# Payments and Balance
+
+This guide explains how subscribers purchase payment plans and check their credit balances. These operations are typically performed by users who want to access AI agents.
 
 ## Overview
 
 The payment flow consists of:
 1. **Discovering Plans**: Browse available payment plans for agents
 2. **Ordering Plans**: Purchase a plan to receive credits
-3. **Checking Balance**: Monitor available credits and access status
+3. **Checking Balance**: Monitor available credits and subscription status
 
 ## Get Plan Balance
 
@@ -42,7 +44,7 @@ The balance response contains:
 interface PlanBalance {
   balance: string        // Available credits as string
   isOwner: boolean      // True if you're the plan creator
-  isSubscriber: boolean // True if you have purchased this plan
+  isSubscriber: boolean // True if you have an active subscription
 }
 ```
 
@@ -93,7 +95,7 @@ if (orderResult.success) {
 
 ### Fiat Payment (Stripe)
 
-For plans priced in fiat currency and routed to Stripe, use `orderFiatPlan` to get a Stripe checkout URL:
+For plans priced in fiat currency, use `orderFiatPlan` to get a Stripe checkout URL:
 
 ```typescript
 const fiatResult = await subscriberPayments.plans.orderFiatPlan(planId)
@@ -103,10 +105,6 @@ if (fiatResult.checkoutUrl) {
   // Redirect the user to the Stripe checkout page
 }
 ```
-
-<Note>
-`orderFiatPlan` is the SDK entry point for **Stripe-priced** plans only. Plans with `fiatPaymentProvider: 'braintree'` use a Braintree Drop-in checkout that runs inside the [Nevermined App](https://nevermined.app); the SDK does not currently expose a programmatic order method for Braintree. See [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) for details.
-</Note>
 
 #### CLI
 
@@ -218,11 +216,11 @@ console.log(`Description: ${plan.description}`)
 console.log(`Price: ${plan.price}`)
 console.log(`Credits: ${plan.credits}`)
 
-// Check if already purchased
+// Check if already subscribed
 const balance = await subscriberPayments.plans.getPlanBalance(planId)
 
 if (balance.isSubscriber && BigInt(balance.balance) > 0n) {
-  console.log('Already purchased with available credits')
+  console.log('Already subscribed with available credits')
 } else {
   console.log('Need to order plan')
 }
