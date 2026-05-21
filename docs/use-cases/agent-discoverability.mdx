@@ -1,0 +1,193 @@
+---
+title: "Agent discoverability"
+description: "Make your paid API findable by autonomous agents using the llms.txt convention and a Nevermined integration page. Copy-paste templates included."
+icon: "satellite-dish"
+---
+
+A paid API integration only works if agents can *find* it without a human pointing the way. Today the de facto convention is the [llms.txt](https://llmstxt.org) file: a static `llms.txt` at the root of your docs site that lists, in plain Markdown, the resources you want LLMs to know about.
+
+Exa proved this works in production. Their `llms.txt` has a single line under `## Integrations` pointing to `nevermined.md`, and that's it — every agent that reads their docs index now knows the Nevermined integration exists, what it costs, and how to invoke it. This page covers how to do the same for your service.
+
+## The two files you need
+
+<Steps>
+  <Step title="A line in your llms.txt">
+    Add an `## Integrations` section (if you don't have one) and a single line linking to your Nevermined integration page. That's the entry point — every LLM-aware crawler that reads your `llms.txt` will follow this link.
+  </Step>
+  <Step title="A nevermined.md page on your docs site">
+    A short Markdown page describing how an agent should pay for and use your service. Structure it the same way Exa does so agents that have already seen one integration page can navigate yours without surprises.
+  </Step>
+</Steps>
+
+## What goes in `nevermined.md`
+
+Six sections, in this order:
+
+| Section | Why it's there |
+| --- | --- |
+| Intro | One sentence: what your service does, what the integration enables. |
+| Buy a key | The endpoint URL + the `payment-signature` header. The "API surface" of the integration. |
+| What \$X buys | Pricing table mapping the plan price to concrete units in your product (e.g. "1000 searches", "10,000 documents"). |
+| Sample request | A complete, copy-pasteable TypeScript snippet. The reference for any agent that needs to generate code. |
+| Parameters you get from Nevermined | Plan ID, scheme (`nvm:card-delegation`), spending limit, network — the concrete values an agent needs to substitute in. |
+| When the key runs out | The HTTP 402 response shape (status code, error tag, message). Agents must key off `tag: "NO_MORE_CREDITS"`, not your human-readable error string. |
+| References | Links to your full API docs, Nevermined docs, x402 spec. |
+
+## Copy-paste template
+
+The same templates ship inside the [`web-search-paid-api-ts`](https://github.com/nevermined-io/tutorials/tree/main/web-search-paid-api-ts/src/llms-txt-template) tutorial under `src/llms-txt-template/`. Pull them from there if you'd rather grab the raw files.
+
+### `llms.txt` (root of your docs site)
+
+```text
+# {{SERVICE_NAME}}
+
+> {{ONE_SENTENCE_DESCRIPTION}}. AI agents can buy access autonomously via Nevermined — no human onboarding required.
+
+## Docs
+
+- [API reference]({{API_REFERENCE_URL}}): every endpoint, with request and response shapes.
+- [Getting started]({{QUICKSTART_URL}}): the human-facing onboarding path.
+
+## Integrations
+
+- [Nevermined]({{NEVERMINED_INTEGRATION_MD_URL}}): autonomous agent payments. A {{PRICE_USD}} purchase provisions or tops up a {{SERVICE_NAME}} API key with {{QUOTA_PER_PURCHASE}} requests. One endpoint, one card charge, no metering changes on the provider side.
+
+## Optional
+
+- [Pricing]({{PRICING_URL}})
+- [Status page]({{STATUS_URL}})
+```
+
+### `nevermined.md` (next to your other integration docs)
+
+````markdown
+# Nevermined
+
+Autonomous agent payments for {{SERVICE_NAME}} via Nevermined x402 card delegation. A {{PRICE_USD}} purchase provisions or tops up a {{SERVICE_NAME}} API key with {{QUOTA_PER_PURCHASE}} requests.
+
+## Buy a key
+
+```
+POST {{PURCHASE_ENDPOINT_URL}}
+payment-signature: <x402-token>
+```
+
+Pay with a credit card enrolled in [Nevermined](https://nevermined.app). One successful POST = one card charge of {{PRICE_USD}}. The response contains a {{SERVICE_NAME}} API key you can use against the regular endpoints.
+
+## What {{PRICE_USD}} buys
+
+| Endpoint | Cost per call | Calls per purchase |
+| --- | --- | --- |
+| `{{ENDPOINT_A_PATH}}` | 1 request | {{QUOTA_PER_PURCHASE}} |
+| `{{ENDPOINT_B_PATH}}` | {{ENDPOINT_B_COST}} requests | {{ENDPOINT_B_CALLS}} |
+| `{{ENDPOINT_C_PATH}}` | {{ENDPOINT_C_COST}} requests | {{ENDPOINT_C_CALLS}} |
+
+Provider-side metering. Independent of any Nevermined credit balance.
+
+## Sample request
+
+```typescript
+import { Payments } from '@nevermined-io/payments'
+
+const PLAN_ID = '{{NEVERMINED_PLAN_ID}}'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'live',
+})
+
+// 1. Mint an x402 token scoped to an enrolled card.
+const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, undefined, {
+  scheme: 'nvm:card-delegation',
+  delegationConfig: {
+    providerPaymentMethodId: 'pm_...',     // Stripe payment method enrolled in Nevermined
+    spendingLimitCents: {{PRICE_CENTS}},  // >= the plan price
+    durationSecs: 3600,
+  },
+})
+
+// 2. Exchange the token for (or top up) an API key.
+const res = await fetch('{{PURCHASE_ENDPOINT_URL}}', {
+  method: 'POST',
+  headers: { 'payment-signature': accessToken },
+})
+const { apiKey } = await res.json()
+
+// 3. Use the key against the normal {{SERVICE_NAME}} endpoints.
+const search = await fetch('{{REGULAR_ENDPOINT_URL}}', {
+  method: 'POST',
+  headers: { 'x-api-key': apiKey, 'content-type': 'application/json' },
+  body: JSON.stringify({ query: 'agentic payments' }),
+})
+```
+
+## Parameters you get from Nevermined
+
+| Field | Value | Where to find it |
+| --- | --- | --- |
+| Plan ID | `{{NEVERMINED_PLAN_ID}}` | Listed above; or look up your plan on https://nevermined.app |
+| Scheme | `nvm:card-delegation` | Fixed for this integration |
+| Spending limit | At least `{{PRICE_CENTS}}` cents | Must cover one purchase |
+| Network / environment | `live` (or `sandbox` for testing) | Match the environment the plan was created in |
+
+## When the key runs out
+
+When the API key's quota is exhausted, regular endpoints return HTTP 402 with:
+
+```json
+{
+  "tag": "NO_MORE_CREDITS",
+  "error": "API key has no remaining requests. Top up by calling {{PURCHASE_ENDPOINT_URL}}."
+}
+```
+
+To top up, call `POST {{PURCHASE_ENDPOINT_URL}}` again with a fresh x402 token. The same card is charged, the same API key is returned with {{QUOTA_PER_PURCHASE}} additional requests credited.
+
+Agents should key off `tag: "NO_MORE_CREDITS"`, not the human-readable `error` string — the wording may vary between providers, the tag is the stable contract.
+
+## References
+
+- {{SERVICE_NAME}} API docs: {{API_REFERENCE_URL}}
+- Nevermined docs: https://docs.nevermined.io
+- x402 specification: https://github.com/coinbase/x402
+- Nevermined x402 module (TypeScript): https://docs.nevermined.io/docs/api-reference/typescript/x402
+````
+
+## Where to host the files
+
+| File | Hosting location | Why |
+| --- | --- | --- |
+| `llms.txt` | Root of your docs site, e.g. `https://yourservice.example/docs/llms.txt` | The llms.txt convention says "at the root". Crawlers look there first. |
+| `nevermined.md` | Next to your other integration docs, e.g. `https://yourservice.example/docs/integrations/nevermined.md` | URL must be stable — the `llms.txt` entry references it by absolute URL. |
+
+If your docs site doesn't already publish `.md` mirrors next to your HTML pages, you'll need to add that. Mintlify-based sites get it automatically; for other doc tools the easiest path is dropping the file in `public/` or whatever your static-asset folder is called.
+
+## Test it before agents see it
+
+<Steps>
+  <Step title="Verify the file is reachable">
+    `curl https://yourservice.example/docs/llms.txt` and `curl https://yourservice.example/docs/integrations/nevermined.md` should both return 200 with the expected content. No JavaScript redirects, no auth walls.
+  </Step>
+  <Step title="Validate the sample request">
+    Run the TypeScript snippet in your `nevermined.md` against your real endpoint, using a sandbox plan. If your own copy-paste doesn't work, no agent's will either.
+  </Step>
+  <Step title="Have an LLM follow the chain">
+    Paste your `llms.txt` URL into Claude, ChatGPT, or any agent that supports web fetching, and ask: *"I want to use `{{SERVICE_NAME}}`. Read the llms.txt and explain how an agent would pay for and use this service."* The summary should match what you actually built — if it doesn't, your `nevermined.md` is ambiguous.
+  </Step>
+</Steps>
+
+## Known agent rakes
+
+Tips collected from running real agents against real integration pages. This list will grow as we validate more agents against the pattern.
+
+<Note>
+  This section will be populated after the multi-agent validation pass that follows [nevermined-io/nvm-monorepo#1684](https://github.com/nevermined-io/nvm-monorepo/issues/1684). For now, the [test it before agents see it](#test-it-before-agents-see-it) checklist above covers the basics.
+</Note>
+
+## Related
+
+- [Monetize paid APIs for agents](/docs/use-cases/monetize-paid-apis-for-agents) — the use case this discoverability layer plugs into
+- [API Providers — implementation guide](/docs/solutions/api-providers) — the server-side handler this integration page describes
+- [llms.txt specification](https://llmstxt.org) — the broader convention
+- [Exa's live `llms.txt`](https://exa.ai/docs/llms.txt) and [`nevermined.md`](https://exa.ai/docs/integrations/nevermined.md) — production reference
