@@ -35,7 +35,7 @@ Use this to drive a workspace picker in your own tools, or to confirm where a pu
     const memberships = await payments.organizations.getMyMemberships()
 
     for (const m of memberships) {
-      console.log(`${m.organizationName} (${m.organizationType}) — ${m.role}`)
+      console.log(`${m.orgName} (${m.orgType}) — ${m.role}${m.isAdmin ? ' (admin)' : ''}`)
     }
     ```
   </Tab>
@@ -54,30 +54,31 @@ Use this to drive a workspace picker in your own tools, or to confirm where a pu
     memberships = payments.organizations.get_my_memberships()
 
     for m in memberships:
-        print(f"{m.organization_name} ({m.organization_type.value}) — {m.role.value}")
+        admin = " (admin)" if m.is_admin else ""
+        print(f"{m.org_name} ({m.org_type.value}) — {m.role.value}{admin}")
     ```
   </Tab>
 </Tabs>
 
-A typical response (single Premium org plus an Enterprise one):
+A typical response (a Premium org and an Enterprise one):
 
 ```json
 [
   {
     "orgId": "org-3f9a...",
-    "organizationName": "Acme Robotics",
-    "organizationType": "Premium",
+    "orgName": "Acme Robotics",
     "role": "Admin",
-    "userIsActive": true,
-    "organizationIsActive": true
+    "orgType": "Premium",
+    "isAdmin": true,
+    "hasSubscriptionHistory": true
   },
   {
     "orgId": "org-7d11...",
-    "organizationName": "Beta Labs",
-    "organizationType": "Enterprise",
+    "orgName": "Beta Labs",
     "role": "Member",
-    "userIsActive": true,
-    "organizationIsActive": true
+    "orgType": "Enterprise",
+    "isAdmin": false,
+    "hasSubscriptionHistory": true
   }
 ]
 ```
@@ -203,13 +204,13 @@ Paginated events for member changes, customer additions, subscription transition
         from: '2026-05-01T00:00:00Z',
         to: '2026-05-31T23:59:59Z',
         page: 1,
-        offset: 25,
+        limit: 25,
       },
     )
 
     console.log(`${page.total} matching events`)
     for (const event of page.items) {
-      console.log(event.createdAt, event.eventType, event.metadata)
+      console.log(event.occurredAt, event.eventType, event.subject.kind, event.subject.id)
     }
     ```
   </Tab>
@@ -224,30 +225,31 @@ Paginated events for member changes, customer additions, subscription transition
             **{"from": "2026-05-01T00:00:00Z"},
             to="2026-05-31T23:59:59Z",
             page=1,
-            offset=25,
+            limit=25,
         ),
     )
 
     print(f"{page.total} matching events")
     for event in page.items:
-        print(event.created_at, event.event_type, event.metadata)
+        print(event.occurred_at, event.event_type, event.subject.kind, event.subject.id)
     ```
   </Tab>
 </Tabs>
 
-All filters are optional. The known event types you can filter on:
+All filters are optional. The `eventType` filter accepts a single value or a list of values (sent as a comma-separated list); `limit` is the page size (backend cap: 200). The known event types you can filter on:
 
 | Event type | Emitted when |
 |---|---|
-| `MEMBER_INVITED` | An admin sends an invitation to join the org |
-| `MEMBER_ACCEPTED` | An invitee accepts and becomes an active member |
-| `MEMBER_ROLE_CHANGED` | A member's role flips between Admin and Member |
-| `MEMBER_DEACTIVATED` / `MEMBER_REACTIVATED` / `MEMBER_REMOVED` | Membership lifecycle transitions |
-| `CUSTOMER_ADDED` / `CUSTOMER_BLOCKED` | External customer lifecycle |
-| `SUBSCRIPTION_CREATED` / `SUBSCRIPTION_CANCELED` | Tier subscription transitions |
-| `WEBHOOK_DELIVERED` | A webhook subscription emitted a delivery (with status in `metadata`) |
+| `member.invited` / `member.joined` | An admin invites a teammate; the invitee accepts |
+| `member.role_changed` | A member's role flips between Admin and Member |
+| `member.deactivated` / `member.reactivated` / `member.removed` | Membership lifecycle transitions |
+| `invitation.revoked` / `invitation.expired` | Pending invitation lifecycle |
+| `agent.created` / `plan.created` / `plan.purchased` | Resource lifecycle inside the org |
+| `customer.added` / `customer.blocked` / `customer.unblocked` | External customer lifecycle |
+| `subscription.upgraded` / `subscription.downgraded` / `subscription.canceled` / `subscription.lapsed` | Tier subscription transitions on the org |
+| `webhook.delivered` / `webhook.failed` | Webhook delivery outcomes (status in `metadata`) |
 
-New event types are accepted without an SDK upgrade — the `eventType` field is a plain string in both SDKs.
+New event types are accepted without an SDK upgrade — the `eventType` field is a plain string in both SDKs. Each event also carries a `subject: { kind, id, …extras }` payload describing the resource it's about (e.g. invitations include `role` + `email`, members include `role` + `userId`, subscriptions include `tier`).
 
 ## How workspace context is resolved
 
