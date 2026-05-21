@@ -1,14 +1,18 @@
 ---
 title: "Card Enrollment"
-description: "Enroll Visa, Stripe, or Braintree payment cards into NVM Pay with PCI-compliant tokenization and secure authentication."
+description: "Enroll Visa, Stripe, or Braintree payment cards into NVM Pay with PCI-compliant tokenization."
 icon: "id-card"
 ---
 
 ## Overview
 
-Before an agent can charge a payment card, the card must be enrolled in NVM Pay. Enrollment tokenizes the card data (NVM Pay never stores raw card numbers), verifies the cardholder's identity, and registers the card with the payment provider.
+Before an agent can charge a payment card, the card must be enrolled in NVM Pay. Enrollment tokenizes the card data (NVM Pay never stores raw card numbers) and registers the card with the provider so future delegations can authorize off-session charges.
 
-NVM Pay supports three enrollment providers, each available as a separate tab in the [Nevermined Pay dashboard](https://pay.nevermined.app). The right provider for a given plan is determined by the seller's `fiatPaymentProvider` metadata: Stripe-priced plans require a Stripe-vaulted card, and Braintree-priced plans require a Braintree-vaulted card.
+NVM Pay supports three enrollment providers, each available as a separate tab in the [Nevermined Pay dashboard](https://pay.nevermined.app). Which provider you should enroll with depends on the plan you intend to pay for — the plan's `fiatPaymentProvider` metadata determines the required card type:
+
+- **Stripe-priced plans** require a Stripe-vaulted card.
+- **Braintree-priced plans** require a Braintree-vaulted card.
+- **Visa Trusted Agent plans** require a Visa Agentic Token (enrolled through the Visa tab).
 
 ## Enrollment Paths
 
@@ -16,60 +20,62 @@ NVM Pay supports three enrollment providers, each available as a separate tab in
   <Tab title="Visa">
     ### Visa Enrollment
 
-    Visa cards are tokenized via Visa Token Service (VTS) and enrolled in Visa Intelligent Commerce (VIC). This path requires passkey (FIDO2) authentication.
+    Visa cards are enrolled as **Visa Agentic Tokens** through the VGS Credential Management Platform (CMP). Card capture happens in a VGS Collect iframe in the Nevermined webapp, so the raw PAN never reaches Nevermined infrastructure.
 
     <Steps>
       <Step title="Capture card data">
-        Enter your card details through the enrollment form. Card data is captured in a PCI-compliant VGS Collect iframe and tokenized in the browser before submission.
+        Enter your card details in the VGS Collect iframe rendered by the webapp. VGS Collect's `form.createCard()` posts the tokenized card directly to CMP and returns a CMP `cardId` (`CRD…`) to the browser. The PAN and CVC never transit the Nevermined backend.
       </Step>
-      <Step title="Tokenize with Visa">
-        NVM Pay registers the card with Visa Token Service (VTS), producing a **provisioned token ID** that replaces the real card number.
+      <Step title="Mint the Agentic Token">
+        The browser sends only the `cardId` (plus BIN-derived `last4`, `brand`, and `expMonth`/`expYear`) to `POST /api/v1/delegation/enroll-visa`. The backend calls VGS Agentic `POST /cards/{cardId}/agentic-tokens` to mint the long-lived Agentic Token (`vat_…`) and persists it as the card's `providerPaymentMethodId`.
       </Step>
-      <Step title="Enroll in Visa Intelligent Commerce">
-        The tokenized card is enrolled in VIC, which enables mandate-based charging.
-      </Step>
-      <Step title="Authenticate with passkey">
-        Complete passkey authentication (FIDO2/WebAuthn) to prove you authorized the enrollment. If passkeys aren't available, a one-time password (OTP) is sent to your email instead.
-      </Step>
-      <Step title="Create a mandate">
-        After enrollment, create a [spending mandate](/docs/products/nvm-pay/mandates) to define how agents can charge this card.
+      <Step title="Create a delegation">
+        After enrollment, create a [spending delegation](/docs/products/nvm-pay/mandates). Each Visa delegation requires a one-time WebAuthn/passkey device-binding ceremony embedded by Visa VTS — see the Visa tab on the [Delegations](/docs/products/nvm-pay/mandates) page.
       </Step>
     </Steps>
 
     #### Visa Card Lifecycle
 
     ```
-    Enrollment started
+    PAN captured in VGS Collect iframe
       |
-      |-> PAN enrolled (VTS tokenization)
+      |-> CMP card created (cardId)
       |
-      |-> Token provisioned (provisioned token ID created)
+      |-> Backend enrolls Agentic Token (vat_…)
       |
-      |-> VIC enrolled (payment network registration)
+      |-> PaymentMethodEntity persisted (provider='visa')
       |
-      |-> Authentication (passkey or OTP)
-      |
-      |-> Active -> Mandates can be created
+      |-> Active -> Delegations can be created
             |
-            |-> Inactive (card deactivated or removed)
+            |-> Removed (card and all delegations revoked)
     ```
 
-    You can track enrollment progress in the dashboard. Each step is recorded, and if enrollment fails at any point, the specific step and error are captured.
+    <Note>
+      VGS Agentic Tokens are keyed on PAN globally. Re-enrolling the same physical card always resolves to the same `cardId`/`tokenId`. If the card is already enrolled under a different Nevermined account, enrollment returns `BCK.VISA.0018` (HTTP 409).
+    </Note>
+
+    <Note>
+      No passkey is required at enrollment. The WebAuthn/passkey ceremony happens once per delegation, not once per card.
+    </Note>
+
+    <Note>
+      Visa enrollment is only reachable from the Nevermined webapp. The `/api/v1/delegation/enroll-visa` endpoint expects a CMP `cardId` produced by VGS Collect in the browser; it cannot be driven from a server-side SDK or curl call.
+    </Note>
   </Tab>
   <Tab title="Stripe">
     ### Stripe Enrollment
 
-    Stripe cards are captured via Stripe Elements and tokenized through Stripe SetupIntents. This is a simpler flow with no passkey requirement.
+    Stripe cards are captured via a VGS Collect iframe and confirmed against a Stripe SetupIntent. This is a single-step flow with no passkey requirement.
 
     <Steps>
-      <Step title="Enter card details">
-        Enter your card number, expiry, and CVC through the Stripe Elements form. Card data goes directly to Stripe and never touches the NVM Pay backend.
+      <Step title="Request a SetupIntent">
+        The webapp asks the API for a Stripe SetupIntent. The API returns the `client_secret`.
       </Step>
-      <Step title="Confirm with Stripe">
-        Stripe creates a SetupIntent and confirms the card. This validates the card and saves it as a reusable payment method.
+      <Step title="Enter card details">
+        Enter your card number, expiry, and CVC into the VGS Collect iframe. VGS forwards the tokenized card directly to Stripe to confirm the SetupIntent and return a PaymentMethod (`pm_…`).
       </Step>
       <Step title="Finalize enrollment">
-        NVM Pay finalizes the enrollment by linking the Stripe payment method to your account. The card appears in your dashboard immediately.
+        The webapp posts the SetupIntent ID to `POST /api/v1/delegation/finalize-enrollment`. The API links the Stripe `pm_…` to the user.
       </Step>
       <Step title="Create a delegation">
         After enrollment, create a [spending delegation](/docs/products/nvm-pay/mandates) to define how agents can charge this card.
@@ -81,7 +87,7 @@ NVM Pay supports three enrollment providers, each available as a separate tab in
     ```
     SetupIntent created
       |
-      |-> Card confirmed (Stripe tokenization)
+      |-> Card confirmed (VGS Collect -> Stripe tokenization)
       |
       |-> Enrollment finalized (linked to NVM Pay account)
       |
@@ -93,17 +99,17 @@ NVM Pay supports three enrollment providers, each available as a separate tab in
   <Tab title="Braintree">
     ### Braintree Enrollment
 
-    Braintree cards are captured via the Braintree Drop-in UI (or hosted fields) and exchanged for a vaulted payment-method token. The flow is similar to Stripe — no passkey is required — but uses Braintree's tokenization and vaulting primitives so the resulting token can be charged by the seller's OAuth-connected Braintree merchant at settlement time.
+    Braintree cards are captured via the Braintree Drop-in (or hosted fields) and exchanged for a vaulted `paymentMethodToken`. The flow is similar to Stripe — no passkey is required — but uses Braintree's tokenization and vaulting primitives so the token can be charged by the seller's OAuth-connected Braintree merchant at settlement time.
 
     <Steps>
       <Step title="Request a client token">
-        The Nevermined App requests a short-lived **Braintree client token** from the facilitator. The client token authorizes the in-browser Drop-in / hosted fields to talk directly to Braintree.
+        The Nevermined webapp requests a short-lived **Braintree client token** from the facilitator. The client token authorizes the in-browser Drop-in / hosted fields to talk directly to Braintree.
       </Step>
       <Step title="Enter card details">
         Enter your card number, expiry, and CVC into the Braintree Drop-in. Card data goes directly to Braintree and never touches the Nevermined backend. Drop-in returns a single-use **payment-method nonce** to the browser.
       </Step>
       <Step title="Vault the card">
-        The browser submits the nonce to the facilitator. The facilitator looks up (or creates) your Braintree customer record and exchanges the nonce for a permanent **`paymentMethodToken`** by vaulting the card with `verifyCard: true`. From this point on, NVM Pay only ever stores the token — never raw card data.
+        The browser submits the nonce to `POST /api/v1/delegation/enroll-braintree`. The facilitator looks up (or creates) your Braintree customer record and exchanges the nonce for a permanent **`paymentMethodToken`** by vaulting the card with `verifyCard: true`. From this point on, NVM Pay only ever stores the token — never raw card data.
       </Step>
       <Step title="Create a delegation">
         After enrollment, create a [spending delegation](/docs/products/nvm-pay/mandates) backed by the vaulted Braintree token. The delegation can then settle x402 charges against any Braintree-priced plan in the supported currency.
@@ -138,27 +144,30 @@ Visa, Stripe, and Braintree cards share these core properties:
 
 | Property | Description |
 |---|---|
-| `id` | Unique card identifier |
+| `id` | Unique payment-method identifier (UUID) |
 | `userId` | Owner of the card |
+| `provider` | `visa`, `stripe`, or `braintree` |
+| `providerPaymentMethodId` | PSP-side token. Visa: `vat_…` (Agentic Token). Stripe: `pm_…`. Braintree: `paymentMethodToken`. |
 | `last4` | Last 4 digits of the card number (for display) |
+| `brand` | Card brand (`visa`, `mastercard`, …) |
 | `alias` | User-friendly name (e.g., "Work Visa", "Dev Card") |
 | `status` | `active` or `inactive` |
-| `spendingCeiling` | Maximum total amount that can be allocated across all active mandates or delegations on this card (default: $10.00) |
+| `spendingCeiling` | Maximum total amount that can be allocated across all active delegations on this card (default: $10.00) |
 
 ## Spending Ceiling
 
-Every card has a **spending ceiling**, a cumulative limit on the total amount allocated to active authorizations. This prevents over-allocation and provides a safety net. Both Visa and Stripe cards enforce the same ceiling.
+Every card has a **spending ceiling** — a cumulative limit on the total amount allocated to active delegations. This prevents over-allocation and provides a safety net. Visa, Stripe, and Braintree cards enforce the same ceiling.
 
 For example, if your card has a $10.00 ceiling:
-- Authorization A: $5.00
-- Authorization B: $3.00
+- Delegation A: $5.00
+- Delegation B: $3.00
 - Remaining capacity: $2.00
 
 <Note>
 The default spending ceiling is $10.00 during the pilot phase. Contact the Nevermined team if you need a higher limit.
 </Note>
 
-When you create or update a mandate/delegation, NVM Pay validates that the total allocated amount across all active authorizations on the card doesn't exceed the ceiling. If it would, the request is rejected with a clear error showing the remaining capacity.
+When you create or update a delegation, NVM Pay validates that the total allocated amount across all active delegations on the card doesn't exceed the ceiling. If it would, the request is rejected with a clear error showing the remaining capacity.
 
 ## Managing Cards
 
@@ -167,47 +176,36 @@ When you create or update a mandate/delegation, NVM Pay validates that the total
 The [Nevermined Pay dashboard](https://pay.nevermined.app) provides a visual interface for managing your enrolled cards. Visa, Stripe, and Braintree cards appear in separate tabs:
 
 - View all enrolled cards with their status and spending ceiling
-- See active mandates/delegations per card with remaining capacity
+- See active delegations per card with remaining capacity
 - View transaction history for each card
 - Deactivate or remove cards
 
 ### Via the API
 
-<Tabs>
-  <Tab title="Visa">
-    | Endpoint | Method | Description |
-    |---|---|---|
-    | `/cards` | `GET` | List enrolled Visa cards (filter by `userId`) |
-    | `/cards/{id}` | `GET` | Get card details including mandates |
-    | `/cards/{id}` | `PUT` | Update card properties |
-    | `/cards/{id}` | `DELETE` | Remove a card and its mandates |
-    | `/cards/{cardId}/transactions` | `GET` | Get transaction history (paginated) |
-  </Tab>
-  <Tab title="Stripe">
-    | Endpoint | Method | Description |
-    |---|---|---|
-    | `/api/v1/payment-methods` | `GET` | List enrolled Stripe cards |
-    | `/api/v1/payment-methods/{id}` | `PATCH` | Update card alias or allowed API keys |
-    | `/api/v1/payment-methods/{id}` | `DELETE` | Remove card and revoke all delegations |
-    | `/api/v1/delegation/{id}/transactions` | `GET` | Get transaction history per delegation |
-  </Tab>
-</Tabs>
+The payment-methods endpoint is heterogeneous: it lists enrolled cards across all three providers plus, when the user has a smart account configured, the ERC-4337 wallet entry that backs crypto delegations. Filter by `provider` to narrow to a single shape.
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/v1/payment-methods` | `GET` | List enrolled payment methods (cards + ERC-4337 wallet) |
+| `/api/v1/payment-methods/{id}` | `PATCH` | Update alias or allowed API keys |
+| `/api/v1/payment-methods/{id}` | `DELETE` | Remove card and revoke all delegations on it |
+| `/api/v1/delegation/{id}/transactions` | `GET` | Per-delegation transaction history |
 
 ## Choosing a Provider
 
 | | Visa | Stripe | Braintree |
 |---|---|---|---|
-| **Enrollment complexity** | Multi-step with passkey auth | Simple card form | Simple card form (Braintree Drop-in) |
-| **Authentication** | Passkeys (FIDO2) or OTP | Stripe handles verification | Braintree `verifyCard` at vault time |
-| **Best for** | High-security use cases, production deployments | Quick setup, developer testing, broader card support | Plans whose seller settles on Braintree (per-currency merchant accounts, OAuth Connect) |
-| **Settlement** | Visa credentials charged via Stripe | Stripe PaymentIntents directly | Braintree `transaction.sale` against vaulted `paymentMethodToken` |
+| **Enrollment complexity** | VGS Collect capture, no passkey at enrolment | VGS Collect capture against a SetupIntent | Braintree Drop-in capture |
+| **Per-delegation auth** | WebAuthn/passkey device binding (browser-only) | API credentials only | API credentials only |
+| **Best for** | Visa Trusted Agent Protocol plans, high-security agent payments | Quick setup, developer testing, broader card support | Plans whose seller settles on Braintree (per-currency merchant accounts, OAuth Connect) |
+| **Settlement** | Stripe Connect against the seller's connected account | Stripe PaymentIntents directly | Braintree `transaction.sale` against vaulted `paymentMethodToken` |
 
-All three providers support the same spending controls (ceilings, usage limits, expiration) and API key linking. The right enrollment provider for a given plan is determined by the plan's `fiatPaymentProvider` metadata: a Braintree-priced plan can only be paid by a Braintree-vaulted card.
+All three providers support the same spending controls (ceilings, usage limits, expiration) and API key linking. The right enrollment provider for a given plan is determined by the plan's `fiatPaymentProvider` metadata: a Braintree-priced plan can only be paid by a Braintree-vaulted card; a Visa Trusted Agent plan can only be paid by a Visa Agentic Token.
 
 ## What's Next?
 
-Once your card is enrolled, create a spending authorization to control how agents can charge it.
+Once your card is enrolled, create a spending delegation to control how agents can charge it.
 
-<Card title="Create a Mandate or Delegation" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+<Card title="Create a Delegation" icon="shield-check" href="/docs/products/nvm-pay/mandates">
   Define spending limits, usage caps, and expiration for agent payments
 </Card>
