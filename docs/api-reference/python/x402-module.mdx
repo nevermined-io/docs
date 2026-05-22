@@ -22,10 +22,36 @@ Nevermined supports two x402 payment schemes:
 
 | Scheme | Network | Use Case | Settlement |
 |--------|---------|----------|------------|
-| `nvm:erc4337` | `eip155:84532` (or other CAIP-2 chain ID) | Crypto payments | ERC-4337 UserOps + session keys |
-| `nvm:card-delegation` | `stripe` or `braintree` | Fiat/credit card | Stripe PaymentIntent or Braintree `transaction.sale` + credit burn |
+| `nvm:erc4337` | `eip155:84532` | Crypto payments | ERC-4337 UserOps + session keys |
+| `nvm:card-delegation` | `stripe` \| `braintree` \| `visa` | Fiat/credit card | Provider charge + credit burn |
 
-The scheme is determined by the plan's pricing configuration. Plans with `isCrypto: false` use `nvm:card-delegation`; all others use `nvm:erc4337`. For card-delegation plans, the network is derived from the plan's `fiatPaymentProvider` metadata (`'stripe'` or `'braintree'`). The SDK auto-detects both via `resolve_scheme()` / `resolve_network()`.
+The scheme is determined by the plan's pricing configuration. Plans with `isCrypto: false` use `nvm:card-delegation`; all others use `nvm:erc4337`. The SDK auto-detects the scheme via `resolve_scheme()`. The `network` value within `nvm:card-delegation` is determined by which provider issued the delegation being consumed (`stripe`, `braintree`, or `visa`).
+
+### Visa support
+
+Visa delegations use the same `nvm:card-delegation` scheme and SDK surface as Stripe and Braintree, but two steps must happen in a **browser** before the SDK can consume them:
+
+1. **Card enrolment** — the cardholder enrols a Visa card through VGS Collect (PCI-compliant iframe) in the Nevermined webapp. The card is bound to a Visa Agentic Token via the VGS Credential Management Platform.
+2. **Delegation creation** — the cardholder approves a delegation via a WebAuthn/passkey (FIDO) device-binding ceremony embedded by Visa VTS. This produces a single-use `assuranceData` blob bound to the spending limit + duration + merchant context.
+
+Both steps require a real DOM and a user gesture, so the SDK cannot perform them programmatically. Once a Visa delegation exists, the SDK consumes it identically to Stripe/Braintree — pass `delegation_id` to `DelegationConfig` and call `get_x402_access_token` as usual:
+
+```python
+from payments_py.x402 import X402TokenOptions, DelegationConfig
+
+result = subscriber_payments.x402.get_x402_access_token(
+    plan_id,
+    token_options=X402TokenOptions(
+        scheme="nvm:card-delegation",
+        network="visa",
+        delegation_config=DelegationConfig(
+            delegation_id="11111111-1111-1111-1111-111111111111",
+        ),
+    ),
+)
+```
+
+`delegation_id` reuse is the **only** supported pattern for Visa — `create_delegation(provider="visa", ...)` is rejected by the backend without the browser-only `consumer_prompt` + `assurance_data` blobs the SDK has no way to produce. When a Visa creation call fails this way, `PaymentsError.code` carries the backend `BCK.VISA.0014` so consumers can branch programmatically.
 
 ## Generate Payment Permissions
 
@@ -313,7 +339,7 @@ payment_required_fiat = X402PaymentRequired(
     accepts=[
         X402Scheme(
             scheme="nvm:card-delegation",
-            network="stripe",  # or "braintree" — must match the plan's fiatPaymentProvider
+            network="stripe",
             plan_id="your-plan-id",
             extra=X402SchemeExtra(
                 http_verb="POST",
@@ -344,7 +370,7 @@ payment_required = build_payment_required(
     endpoint="https://api.example.com/tasks",
     agent_id="agent-123",
     http_verb="POST",
-    scheme="nvm:card-delegation"  # Force fiat scheme; network auto-resolved from plan metadata (stripe or braintree)
+    scheme="nvm:card-delegation"  # Force fiat/Stripe scheme
 )
 
 # Multiple plans — creates one entry per plan in accepts[]
@@ -356,7 +382,7 @@ payment_required = build_payment_required_for_plans(
 )
 ```
 
-For a single plan, `build_payment_required_for_plans` delegates to `build_payment_required` internally. When `scheme` is omitted, the network defaults to `eip155:84532` (Base Sepolia). When `scheme="nvm:card-delegation"`, the network is auto-resolved from the plan's `fiatPaymentProvider` metadata — either `"stripe"` or `"braintree"`.
+For a single plan, `build_payment_required_for_plans` delegates to `build_payment_required` internally. When `scheme` is omitted, the network defaults to `eip155:84532` (Base Sepolia). When `scheme="nvm:card-delegation"`, the network is automatically set to `stripe`.
 
 ## Complete Workflow Example
 
