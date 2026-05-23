@@ -1,16 +1,16 @@
 ---
 title: "Card Delegation"
-description: "Let users enrol a credit or debit card once and delegate a spending budget to AI agents — directly in the app, via a white-labeled redirect, or embedded as a widget."
+description: "Let users enroll a credit or debit card once and delegate a spending budget to AI agents — directly in the app, via a white-labeled redirect, or embedded as a widget."
 icon: "user-shield"
 ---
 
-Credit-card delegation is how a human user authorises an AI agent to spend on their behalf, within an explicit budget and expiry, without handing over the card itself. The card is tokenized once via Stripe, Braintree, or Visa Intelligent Commerce, and the delegation defines exactly how much the agent can charge, for how long, and against which API key.
+Credit-card delegation is how a human user authorizes an AI agent to spend on their behalf, within an explicit budget and expiry, without handing over the card itself. The card is tokenized once via Stripe, Braintree, or Visa Intelligent Commerce, and the delegation defines exactly how much the agent can charge, for how long, and against which API key.
 
 Nevermined ships **three ways** to drive that flow, all built on the same backend. Pick the one that matches where your users live.
 
 <CardGroup cols={3}>
   <Card title="Directly in the App" icon="browser" href="#1-directly-in-the-nevermined-app">
-    Users go to **nevermined.app**, sign in, enrol a card, and create a delegation. Zero integration work.
+    Users go to **nevermined.app**, sign in, enroll a card, and create a delegation. Zero integration work.
   </Card>
   <Card title="White-label redirect (CLI)" icon="terminal" href="#2-white-label-redirect-cli--top-level-tab">
     Your CLI or backend prints a URL. The user clicks it, completes the flow in a chromeless page, and your process receives the IDs at a localhost callback.
@@ -21,7 +21,7 @@ Nevermined ships **three ways** to drive that flow, all built on the same backen
 </CardGroup>
 
 <Note>
-Options **2** and **3** are organisation-scoped — they require an active [Nevermined organisation](/docs/integrations/organizations) with at least one member. Option **1** works for any signed-in user, with or without an organisation.
+Options **2** and **3** are organization-scoped — they require an active [Nevermined organization](/docs/integrations/organizations) with at least one member. Option **1** works for any signed-in user, with or without an organization.
 </Note>
 
 ## 1. Directly in the Nevermined App
@@ -32,8 +32,8 @@ The fastest path for end-users and the natural fit when your users are already a
   <Step title="Sign in to Nevermined">
     Open [nevermined.app](https://nevermined.app) and sign in with email, Google, or GitHub. First-time users land on a short onboarding flow.
   </Step>
-  <Step title="Open Payment Methods">
-    From the sidebar, navigate to **Payment Methods**. This is the dashboard for every card you have enrolled and every active delegation.
+  <Step title="Open Settings > Payment Methods">
+    In the Nevermined App, navigate to **Settings > Payment Methods**. This is the dashboard for every card you have enrolled and every active delegation.
   </Step>
   <Step title="Enroll a card">
     Click **Enroll card** and pick a provider tab: **Stripe**, **Braintree**, or **Visa**. Card data is captured in a PCI-compliant iframe and tokenized before submission — Nevermined never stores the raw card number.
@@ -57,10 +57,10 @@ The fastest path for end-users and the natural fit when your users are already a
 
 ## 2. White-label redirect (CLI / top-level tab)
 
-For tools that run **outside the browser** — CLIs, terminal-based agents, desktop apps — but still need to authorise a card. The pattern mirrors `nvm login`: print a URL, the user clicks it, the browser handles the chromeless card setup, and your process receives the result at a localhost callback.
+For tools that run **outside the browser** — CLIs, terminal-based agents, desktop apps — but still need to authorize a card. The pattern mirrors `nvm login`: print a URL, the user clicks it, the browser handles the chromeless card setup, and your process receives the result at a localhost callback.
 
 <Warning>
-This path requires an **active Nevermined organisation** with at least one member. The user driving the flow must be a member of that organisation. Card setup is positioned as an organisation feature — see [Platform Partners](/docs/integrations/organizations) to upgrade.
+This path requires an **active Nevermined organization** with at least one member. The user driving the flow must be a member of that organization. Card setup is positioned as an organization feature — see [Platform Partners](/docs/integrations/organizations) to upgrade.
 </Warning>
 
 ### How the handshake works
@@ -69,9 +69,10 @@ This path requires an **active Nevermined organisation** with at least one membe
 CLI               Nevermined API           Browser              Local callback
  │                       │                     │                       │
  │ start one-shot        │                     │                       │
- │ http://127.0.0.1:0/cb │                     │                       │──── listening
+ │ bind /callback on     │                     │                       │
+ │ 127.0.0.1:0 (random)  │                     │                       │──── listening
  │                       │                     │                       │
- │ POST /widgets/        │                     │                       │
+ │ POST /api/v1/widgets/ │                     │                       │
  │   session/self        │                     │                       │
  │   Bearer <nvmApiKey>  │                     │                       │
  │   { orgId, returnUrl }│                     │                       │
@@ -97,7 +98,7 @@ CLI               Nevermined API           Browser              Local callback
  │                       │                     │ - window.location     │
  │                       │                     │   .replace(returnUrl  │
  │                       │                     │   + ids + state)      │
- │                       │                     │──────────────────────▶│ GET /cb?paymentMethodId=…
+ │                       │                     │──────────────────────▶│ GET /callback?paymentMethodId=…
  │◀──────────────────────────────────────────────────────────────resolved &delegationId=…&state=…
  │                       │                     │                       │
  │ verify state matches  │                     │                       │
@@ -130,7 +131,7 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
     Bind to `127.0.0.1:0` (the OS picks a free port). Listen on `/callback`. Note the port for step 3. **Never bind to `0.0.0.0`** — the callback should not be reachable from the network.
   </Step>
   <Step title="Mint a widget session">
-    Authenticate the request with the user's own NVM API key (the one they get from `nvm login`). The endpoint rejects callers who are not members of the requested organisation.
+    Authenticate the request with the user's own NVM API key (the one they get from `nvm login`). The endpoint rejects callers who are not members of the requested organization.
 
     ```http
     POST {api}/api/v1/widgets/session/self
@@ -160,7 +161,7 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
     | HTTP | Error code | Meaning |
     |------|------------|---------|
     | 401 | `BCK.APIKEY.0004` | The NVM API key is invalid or expired. Run `nvm login` again. |
-    | 403 | `BCK.WIDGET_SESSION.0018` | The caller has no active organisation memberships. Create or join one first. |
+    | 403 | `BCK.WIDGET_SESSION.0018` | The caller has no active organization memberships. Create or join one first. |
     | 403 | `BCK.WIDGET_SESSION.0019` | The `orgId` in the request is not one of the caller's memberships. |
   </Step>
   <Step title="Open the browser">
@@ -204,7 +205,7 @@ The server validates `returnUrl` against the session's allow-list:
 
 - `localhost`, `127.0.0.1`, `[::1]` (any port, any path) — accepted for **both** session kinds.
 - Other `https://` origins — accepted only for **widget-key** sessions whose key has the origin in its `allowedOrigins` list.
-- **Self-mint** sessions (the `POST /widgets/session/self` path documented above) reject any non-localhost host. Use the widget-key flow (see option 3) if you need remote redirects.
+- **Self-mint** sessions (the `POST /api/v1/widgets/session/self` path documented above) reject any non-localhost host. Use the widget-key flow (see option 3) if you need remote redirects.
 
 ### Security checklist
 
@@ -217,10 +218,10 @@ The full integrator reference, including TypeScript pseudocode, lives in [`cli-c
 
 ## 3. Embedded widgets (iframe)
 
-Your end-users never leave your domain. You mint a session token on your server with the organisation's widget-key, the browser exchanges it for an iframe session, and the user completes the card-enrollment + delegation flow inside your own page.
+Your end-users never leave your domain. You mint a session token on your server with the organization's widget-key, the browser exchanges it for an iframe session, and the user completes the card-enrollment + delegation flow inside your own page.
 
 <Warning>
-Like option 2, the iframe widget flow requires an **active Nevermined organisation**. The widget-key is the credential that scopes every iframe session to your org's users — see [Platform Partners](/docs/integrations/organizations) for the upgrade path.
+Like option 2, the iframe widget flow requires an **active Nevermined organization**. The widget-key is the credential that scopes every iframe session to your org's users — see [Platform Partners](/docs/integrations/organizations) for the upgrade path.
 </Warning>
 
 The full guide — including how to generate a widget key, mint init-tokens server-side, mount the iframe on your page, and react to `nvm:success` / `nvm:error` events — lives in [Embed Nevermined Widgets](/docs/integrations/organization-widgets).
@@ -228,7 +229,7 @@ The full guide — including how to generate a widget key, mint init-tokens serv
 Choose this path when:
 
 - Your users are in a browser already (a website, a SaaS dashboard) and you want to keep them on your domain.
-- You need brand consistency — the iframe inherits the parent page's framing and your organisation's branding theme.
+- You need brand consistency — the iframe inherits the parent page's framing and your organization's branding theme.
 - You want a postMessage event stream rather than a one-shot redirect.
 
 Choose the white-label redirect (option 2) instead when your tool runs outside a browser (CLI, agent, desktop) and you need a localhost callback.
@@ -239,7 +240,7 @@ Choose the white-label redirect (option 2) instead when your tool runs outside a
 |-|-|-|-|
 | **Where the user finishes** | nevermined.app | A chromeless page in their browser | Your own page (iframe) |
 | **Integration effort** | None | One HTTP server + one URL open | A widget key + iframe mount |
-| **Requires an organisation** | No | Yes | Yes |
+| **Requires an organization** | No | Yes | Yes |
 | **Best for** | Power users, internal teams | CLIs, terminal-based agents, desktop apps | Websites, SaaS dashboards |
 | **Authentication** | The user's own Privy login | The user's own NVM API key (Bearer) | Your server-minted init-token |
 | **Result delivery** | UI state | `paymentMethodId` + `delegationId` at a localhost callback | `nvm:success` postMessage to the parent page |
@@ -251,4 +252,4 @@ Choose the white-label redirect (option 2) instead when your tool runs outside a
 - [Mandates](/docs/products/nvm-pay/mandates) — what a delegation does once it exists
 - [Embed Nevermined Widgets](/docs/integrations/organization-widgets) — full widget-key + iframe guide
 - [x402 Card Delegation Spec](/docs/specs/x402-card-delegation) — protocol-level reference
-- [Platform Partners](/docs/integrations/organizations) — how to become an organisation
+- [Platform Partners](/docs/integrations/organizations) — how to become an organization
