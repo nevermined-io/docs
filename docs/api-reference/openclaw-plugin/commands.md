@@ -38,7 +38,7 @@ End your Nevermined session and remove the stored API key from memory. After log
 
 ## Subscriber Tools
 
-These tools are designed for users who consume paid AI agent services. They handle the full lifecycle of purchasing a plan, paying for access, and querying agents.
+These tools are designed for users who consume paid AI agent services. They handle the full lifecycle of subscribing to a plan, paying for access, and querying agents.
 
 ### Check Credit Balance — `nevermined_checkBalance`
 
@@ -102,14 +102,19 @@ Purchase a payment plan using cryptocurrency. This initiates an on-chain transac
 
 Use this for plans priced in native tokens (ETH, MATIC) or ERC-20 tokens (USDC). For plans priced in fiat currency, use `nevermined_orderFiatPlan` instead.
 
+> ⚠️ **Two-step confirmation flow.** This tool spends real money. The first call returns a *quote* — `planId`, `name`, `price`, `credits`, `paymentType`, `environment`, plus the literal `"Re-call with confirm: true to proceed."`. The agent must show that quote to the user and only call again with `confirm: true` once the user has explicitly approved.
+
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `planId` | string | No | Config `planId` | The plan ID to purchase |
+| `confirm` | boolean | No | `false` | Set to `true` only after the user has approved the quote returned by the first call. |
 
 **Example prompt:**
 > Buy the Weather Forecast plan so I can start querying the agent.
 
-**Returns:** Order confirmation with transaction hash.
+**Returns:**
+- Without `confirm: true`: `{ planId, name, price, credits, paymentType, environment, requiresConfirmation: true, message: "Re-call with confirm: true to proceed." }`
+- With `confirm: true`: order confirmation with transaction hash.
 
 ---
 
@@ -119,14 +124,19 @@ Purchase a payment plan using fiat currency (USD). Instead of executing an on-ch
 
 Use this for plans that have been created with `pricingType: fiat`. For crypto-priced plans, use `nevermined_orderPlan` instead.
 
+> ⚠️ **Two-step confirmation flow.** Same as `nevermined_orderPlan`: the first call returns a quote, the second call (with `confirm: true`) issues the Stripe checkout URL.
+
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `planId` | string | No | Config `planId` | The plan ID to purchase |
+| `confirm` | boolean | No | `false` | Set to `true` only after the user has approved the quote returned by the first call. |
 
 **Example prompt:**
-> I want to purchase the Premium Agent plan using my credit card.
+> I want to subscribe to the Premium Agent plan using my credit card.
 
 **Returns:**
+- Without `confirm: true`: `{ planId, name, price, credits, paymentType: "fiat", environment, requiresConfirmation: true, message: "Re-call with confirm: true to proceed." }`
+- With `confirm: true`:
 ```json
 {
   "result": {
@@ -168,10 +178,10 @@ No parameters required.
 Send a prompt to a paid Nevermined AI agent and get the response. This is the main tool for interacting with agents — it handles the full payment lifecycle in a single call:
 
 1. Acquires an x402 access token (crypto or fiat, depending on `paymentType`)
-2. Sends the prompt to the agent's URL with the `PAYMENT-SIGNATURE` header
+2. Sends the prompt to the agent's URL with the `payment-signature` header
 3. Returns the agent's response
 
-If the agent returns a 402 (Payment Required) response, the tool returns an error suggesting you purchase credits first. This typically means your plan has run out of credits or you haven't purchased a plan yet.
+If the agent returns a 402 (Payment Required) response, the tool returns an error suggesting you purchase credits first. This typically means your plan has run out of credits or you haven't subscribed yet.
 
 Like `nevermined_getAccessToken`, this tool supports both crypto and fiat payment types. When using fiat, it automatically resolves your enrolled card and builds the delegation config.
 

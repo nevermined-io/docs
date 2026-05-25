@@ -13,12 +13,12 @@ Complete guide to installing and configuring the Nevermined CLI.
 Before installing the CLI, ensure you have:
 
 - **Node.js** >= 18.0.0
-- **npm** or **yarn** package manager
+- **npm** or **pnpm** package manager
 - A Nevermined account with API key
 
 ## Getting Your API Key
 
-To interact with the Nevermined API, you need an API key. Open [nevermined.app](https://nevermined.app), sign in, then go to **Settings > Global NVM API Keys** and click **+ New API Key**.
+To interact with the Nevermined API, you need an API key. Follow the [Get Your API Key](/docs/getting-started/get-your-api-key) guide to create one.
 
 ## Installation
 
@@ -56,10 +56,10 @@ git clone https://github.com/nevermined-io/payments
 cd payments/cli
 
 # Install dependencies
-yarn install
+pnpm install
 
 # Build the project
-yarn build:manifest
+pnpm build:manifest
 
 # Run the CLI
 ./bin/run.js --help
@@ -289,4 +289,4 @@ nvm plans get-plan --help
 For support:
 - Documentation: https://nevermined.ai/docs
 - Issues: https://github.com/nevermined-io/payments/issues
-- Discord: https://discord.gg/nevermined
+- Discord: https://discord.gg/GZju2qScKq

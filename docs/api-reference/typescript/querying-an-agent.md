@@ -8,6 +8,8 @@ icon: "message"
 
 After purchasing a payment plan, subscribers can generate X402 access tokens and use them to query AI agents. This guide explains how to get tokens and make authenticated requests.
 
+> 🔐 **Treat access tokens like API keys.** The `accessToken` returned by `getX402AccessToken()` is a bearer credential that authorises spending against your plan. Send it only over HTTPS, never log its full value, and scrub the `payment-signature` header from any pino/winston/OpenTelemetry exporter. Use a redaction helper such as ``redactToken(t) => `${t.slice(0,6)}…${t.slice(-4)}` `` if you need diagnostic output.
+
 ## Overview
 
 The query flow consists of:
@@ -153,7 +155,8 @@ const { accessToken } = await subscriberPayments.x402.getX402AccessToken(
   agentId
 )
 
-console.log(`Token generated, length: ${accessToken.length} characters`)
+// ⚠️ Never log the full token — it is a bearer credential.
+console.log('Access token generated')
 ```
 
 ## Token Structure (X402 v2)
@@ -186,9 +189,9 @@ The access token is a JSON Web Token (JWT) containing an X402 v2 payment credent
 
 ## Make Requests with X402 Token
 
-### Using PAYMENT-SIGNATURE Header (X402 v2 Spec)
+### Using payment-signature Header (X402 v2 Spec)
 
-The X402 v2 specification defines the `PAYMENT-SIGNATURE` header for payment credentials:
+The X402 v2 specification defines the `payment-signature` header for payment credentials:
 
 ```typescript
 // Make authenticated request to agent
@@ -196,7 +199,7 @@ const response = await fetch('https://agent.example.com/api/v1/tasks', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'PAYMENT-SIGNATURE': accessToken,  // X402 v2 standard header
+    'payment-signature': accessToken,  // X402 v2 standard header
   },
   body: JSON.stringify({
     prompt: 'What is the weather in San Francisco?',
@@ -239,7 +242,7 @@ async function queryAgent(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'PAYMENT-SIGNATURE': accessToken,
+        'payment-signature': accessToken,
       },
       body: JSON.stringify({ prompt }),
     })
@@ -282,7 +285,7 @@ const response = await fetch(agentUrl, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'PAYMENT-SIGNATURE': accessToken,
+    'payment-signature': accessToken,
   },
   body: JSON.stringify({ prompt }),
 })
@@ -355,7 +358,7 @@ for (const city of ['San Francisco', 'New York', 'London']) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'PAYMENT-SIGNATURE': accessToken,  // Reuse same token
+      'payment-signature': accessToken,  // Reuse same token
     },
     body: JSON.stringify({ prompt: `Weather in ${city}` }),
   })
@@ -402,7 +405,7 @@ async function queryWithBalanceCheck(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'PAYMENT-SIGNATURE': accessToken,
+      'payment-signature': accessToken,
     },
     body: JSON.stringify({ prompt }),
   })
@@ -418,7 +421,7 @@ async function queryWithBalanceCheck(
 3. **Error Handling**: Always handle 402 Payment Required responses
 4. **HTTPS Only**: Never send tokens over unencrypted HTTP
 5. **Token Expiration**: Regenerate tokens if you receive 402 errors
-6. **Header Standard**: Prefer `PAYMENT-SIGNATURE` header (X402 v2 spec)
+6. **Header Standard**: Prefer `payment-signature` header (X402 v2 spec)
 
 ## Related Documentation
 

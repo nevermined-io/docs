@@ -4,6 +4,8 @@ description: "Install and configure the @nevermined-io/payments TypeScript SDK f
 icon: "download"
 ---
 
+# Installation
+
 The Nevermined Payments Library is a TypeScript SDK that enables AI builders and subscribers to monetize and access AI agents through the Nevermined protocol. The library supports flexible payment plans (credits and time-based), multiple payment methods (crypto and fiat), and seamless integration with AI agent frameworks.
 
 ## Overview
@@ -22,19 +24,21 @@ Before installing the Nevermined Payments Library, ensure you have:
 - **Node.js**: Version 18.x or higher
 - **TypeScript**: Version 5.x or higher (recommended)
 - **Nevermined API Key**: Get your free API key from [nevermined.app](https://nevermined.app)
-- **Package Manager**: npm (included with Node.js) or yarn
+- **Package Manager**: npm (included with Node.js) or pnpm
 
 ## Installation
 
-Install the library using npm or yarn:
+Install the library using npm or pnpm. Pin the major version (or use a lockfile-tracked exact version) so SDK upgrades are explicit and reviewable:
 
 ```bash
 # Using npm
-npm install @nevermined-io/payments
+npm install @nevermined-io/payments@^1.1
 
-# Using yarn
-yarn add @nevermined-io/payments
+# Using pnpm
+pnpm add @nevermined-io/payments@^1.1
 ```
+
+> 🔐 **Security:** always commit your `package-lock.json` / `pnpm-lock.yaml` and review SDK version bumps before deploying. Running unpinned installs in production lets transitive dependencies change between deploys.
 
 ### Peer Dependencies
 
