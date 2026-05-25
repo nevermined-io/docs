@@ -274,10 +274,18 @@ For developers who need to automate and integrate directly, our SDKs are the per
     const { sessionId, url } = await payments.plans.orderFiatPlan(plan.planId);
     window.location.href = url; // Redirect to Stripe
 
-    // 3. Get X402 access token
+    // 3. Get X402 access token (delegationConfig is required for both
+    // crypto and fiat plans; omitting it surfaces BCK.X402.0005).
     const { accessToken } = await payments.x402.getX402AccessToken(
       plan.planId,
-      agent.agentId
+      agent.agentId,
+      undefined, // redemptionLimit
+      undefined, // orderLimit
+      undefined, // expiration
+      {
+        scheme: 'nvm:erc4337',
+        delegationConfig: { spendingLimitCents: 1000, durationSecs: 86_400 },
+      }
     );
 
     // 4. Query the agent using the access token

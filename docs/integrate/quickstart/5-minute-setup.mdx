@@ -20,7 +20,16 @@ By the end, you’ll have a **monetizable service** set up with Nevermined — t
     export NVM_API_KEY="sandbox:your-api-key-here"
     ```
 
-    <Tip>Keys are environment-specific — `sandbox:` prefix for testing, `live:` for production.</Tip>
+    <Tip>
+      Keys are environment-specific — the prefix matches the SDK `environment` value you must pass at init.
+
+      | Key prefix | SDK `environment` | Backend |
+      |---|---|---|
+      | `sandbox:` | `sandbox` | `api.sandbox.nevermined.app` |
+      | `live:` | `live` | `api.live.nevermined.app` |
+
+      Use `sandbox` for testing and `live` for production. If you see auth errors that look unrelated to the key, double-check that prefix and `environment` match — a `sandbox:` key against `environment: 'live'` lands at the wrong backend and fails with confusing 4xx errors.
+    </Tip>
   </Step>
 
   <Step title="Install the SDK">
@@ -335,8 +344,23 @@ Response:
   // Get your balance about the plan you just ordered
   const balance = await payments.plans.getPlanBalance(PLAN_ID)
 
-  // Generate the x402 access token
-  const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID)
+  // Generate the x402 access token. `delegationConfig` is required for
+  // both crypto (nvm:erc4337) and fiat (nvm:card-delegation) plans —
+  // omitting it surfaces BCK.X402.0005 at runtime.
+  const { accessToken } = await payments.x402.getX402AccessToken(
+    PLAN_ID,
+    AGENT_ID,
+    undefined, // redemptionLimit
+    undefined, // orderLimit
+    undefined, // expiration
+    {
+      scheme: 'nvm:erc4337',
+      delegationConfig: {
+        spendingLimitCents: 1000, // $10 cap
+        durationSecs: 86_400, // 1 day
+      },
+    },
+  )
 
   // Use this token in the next request
   // HTTP header: 'payment-signature'
