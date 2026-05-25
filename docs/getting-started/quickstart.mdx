@@ -266,27 +266,34 @@ For developers who need to automate and integrate directly, our SDKs are the per
     const plan = agent.plans[0];
 
     // 2. Purchase the plan
-    // Option A: Crypto payment
+    // Option A: Crypto payment (nvm:erc4337 scheme)
     const orderResult = await payments.plans.orderPlan(plan.planId);
     console.log('Order transaction:', orderResult.transactionHash);
 
-    // Option B: Fiat payment (credit card)
+    // Option B: Fiat payment (credit card → nvm:card-delegation scheme).
+    // The browser is redirected to Stripe to complete the purchase.
     const { sessionId, url } = await payments.plans.orderFiatPlan(plan.planId);
     window.location.href = url; // Redirect to Stripe
 
-    // 3. Get X402 access token (delegationConfig is required for both
-    // crypto and fiat plans; omitting it surfaces BCK.X402.0005).
-    const { accessToken } = await payments.x402.getX402AccessToken(
-      plan.planId,
-      agent.agentId,
-      undefined, // redemptionLimit
-      undefined, // orderLimit
-      undefined, // expiration
-      {
-        scheme: 'nvm:erc4337',
-        delegationConfig: { spendingLimitCents: 1000, durationSecs: 86_400 },
-      }
-    );
+    // 3. Get X402 access token. `delegationConfig` is required regardless of
+    // scheme; choose the scheme that matches how you paid for the plan.
+
+    // Crypto plan (Option A)
+    const { accessToken } = await payments.x402.getX402AccessToken(plan.planId, agent.agentId, {
+      scheme: 'nvm:erc4337',
+      delegationConfig: { spendingLimitCents: 1000, durationSecs: 86_400 },
+    });
+
+    // Fiat plan (Option B) — provide the enrolled card and a cap
+    // const { accessToken } = await payments.x402.getX402AccessToken(plan.planId, agent.agentId, {
+    //   scheme: 'nvm:card-delegation',
+    //   delegationConfig: {
+    //     providerPaymentMethodId: 'pm_xxx',
+    //     spendingLimitCents: 1000,
+    //     durationSecs: 86_400,
+    //     currency: 'usd',
+    //   },
+    // });
 
     // 4. Query the agent using the access token
     // Extract URL from endpoint object (endpoints have HTTP method as key)
