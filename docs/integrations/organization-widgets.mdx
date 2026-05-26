@@ -27,19 +27,19 @@ This guide is for organization admins. If you haven't upgraded to an organizatio
 ## How it works
 
 ```
-Your server  →  createInitToken({ userId, orgId, secretKey })
-             →  initToken (JWT, valid 5 minutes)
+Your server  →  createWidgetSession({ email, orgId, rawSecret, apiBaseUrl })
+             →  WidgetSession (2-hour JWT + bearer credential)
 
-Browser      →  NeverminedWidgets.initialize({ initToken, environment })
-             →  exchanges initToken for a session, mounts iframe(s)
+Browser      →  NeverminedWidgets.initialize({ session, environment })
+             →  mounts iframe(s) directly — no token-exchange call
 
 Iframe       →  postMessage events: nvm:ready, nvm:success, nvm:error, nvm:close
 ```
 
-The widget secret never leaves your server. Your backend mints a short-lived `initToken` per browser session; the SDK exchanges it for a 2-hour widget session that scopes every API call to a single end-user from your system.
+The widget secret never leaves your server. The integrator backend POSTs `{ email, orgId, rawSecret }` to the Nevermined API server-to-server; the API hashes the candidate and constant-time compares against the SHA-256 of the keys you generated in the dashboard, then returns a 2-hour `WidgetSession` your backend forwards verbatim to the browser SDK.
 
 <Warning>
-The `secretKey` is the equivalent of a password for your organization's widget surface. Anyone who has it can mint tokens that act as any end-user of your org. Keep it in environment variables on a server you control — never commit it, never bundle it into client-side JavaScript.
+The `rawSecret` is the equivalent of a password for your organization's widget surface. Anyone who has it can mint sessions as any end-user of your org. Keep it in environment variables on a server you control — never commit it, never bundle it into client-side JavaScript. The API only ever stores its SHA-256; if you lose the raw value, revoke the key in the dashboard and generate a new one.
 </Warning>
 
 ## Setup
@@ -68,8 +68,8 @@ The `secretKey` is the equivalent of a password for your organization's widget s
     </Warning>
   </Step>
 
-  <Step title="Mint the initToken on your server">
-    Install the server SDK on your backend and expose a small endpoint that signs an `initToken` for the currently logged-in end-user.
+  <Step title="Mint the widget session on your server">
+    Install the server SDK on your backend and expose a small endpoint that mints a `WidgetSession` for the currently logged-in end-user.
 
     ```bash
     npm install @nevermined-io/ui-widgets-server
@@ -78,12 +78,13 @@ The `secretKey` is the equivalent of a password for your organization's widget s
     The call is the same regardless of framework:
 
     ```ts
-    import { createInitToken } from '@nevermined-io/ui-widgets-server'
+    import { createWidgetSession } from '@nevermined-io/ui-widgets-server'
 
-    const initToken = await createInitToken({
-      userId: '<the end-user id from your system>',
+    const session = await createWidgetSession({
+      email: '<the end-user email from your system>',
       orgId: '<your org id from the dashboard>',
-      secretKey: process.env.NVM_WIDGET_SECRET!,
+      rawSecret: process.env.NVM_WIDGET_SECRET!,
+      apiBaseUrl: 'https://api.sandbox.nevermined.app', // or live URL
     })
     ```
 
@@ -98,17 +99,27 @@ The `secretKey` is the equivalent of a password for your organization's widget s
         export default defineConfig({
           plugins: [
             {
-              name: 'nvm-init-token',
+              name: 'nvm-widget-session',
               configureServer(server) {
-                server.middlewares.use('/api/init-token', async (req, res) => {
-                  const { createInitToken } = await import('@nevermined-io/ui-widgets-server')
-                  const initToken = await createInitToken({
-                    userId: req.headers['x-user-id'] as string, // resolve from your auth
+                // POST-only: the response carries a bearer credential, so
+                // the endpoint must not be cacheable / prefetch-friendly.
+                server.middlewares.use('/api/widget-session', async (req, res) => {
+                  if (req.method !== 'POST') {
+                    res.statusCode = 405
+                    res.setHeader('allow', 'POST')
+                    res.end()
+                    return
+                  }
+                  const { createWidgetSession } = await import('@nevermined-io/ui-widgets-server')
+                  const session = await createWidgetSession({
+                    email: req.headers['x-user-email'] as string, // resolve from your auth
                     orgId: process.env.NVM_ORG_ID!,
-                    secretKey: process.env.NVM_WIDGET_SECRET!,
+                    rawSecret: process.env.NVM_WIDGET_SECRET!,
+                    apiBaseUrl: process.env.NVM_API_BASE_URL!,
                   })
                   res.setHeader('content-type', 'application/json')
-                  res.end(JSON.stringify({ initToken, environment: 'sandbox' }))
+                  res.setHeader('cache-control', 'no-store')
+                  res.end(JSON.stringify({ session, environment: 'sandbox' }))
                 })
               },
             },
@@ -119,45 +130,54 @@ The `secretKey` is the equivalent of a password for your organization's widget s
       <Tab title="Express">
         ```ts
         import express from 'express'
-        import { createInitToken } from '@nevermined-io/ui-widgets-server'
+        import { createWidgetSession } from '@nevermined-io/ui-widgets-server'
 
         const app = express()
 
-        app.get('/api/init-token', async (req, res) => {
-          const initToken = await createInitToken({
-            userId: req.user!.id, // from your auth middleware
+        // POST-only + `Cache-Control: no-store`: the response is a bearer
+        // credential and must not be cached or prefetched.
+        app.post('/api/widget-session', async (req, res) => {
+          const session = await createWidgetSession({
+            email: req.user!.email, // from your auth middleware
             orgId: process.env.NVM_ORG_ID!,
-            secretKey: process.env.NVM_WIDGET_SECRET!,
+            rawSecret: process.env.NVM_WIDGET_SECRET!,
+            apiBaseUrl: process.env.NVM_API_BASE_URL!,
           })
-          res.json({ initToken, environment: 'sandbox' })
+          res.setHeader('cache-control', 'no-store')
+          res.json({ session, environment: 'sandbox' })
         })
         ```
       </Tab>
       <Tab title="Next.js Route Handler">
         ```ts
-        // app/api/init-token/route.ts
+        // app/api/widget-session/route.ts — POST-only handler.
         import { NextResponse } from 'next/server'
-        import { createInitToken } from '@nevermined-io/ui-widgets-server'
+        import { createWidgetSession } from '@nevermined-io/ui-widgets-server'
         import { auth } from '@/lib/auth'
 
-        export async function GET() {
-          const session = await auth()
-          if (!session?.user?.id) {
+        export async function POST() {
+          const authSession = await auth()
+          if (!authSession?.user?.email) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
           }
-          const initToken = await createInitToken({
-            userId: session.user.id,
+          const session = await createWidgetSession({
+            email: authSession.user.email,
             orgId: process.env.NVM_ORG_ID!,
-            secretKey: process.env.NVM_WIDGET_SECRET!,
+            rawSecret: process.env.NVM_WIDGET_SECRET!,
+            apiBaseUrl: process.env.NVM_API_BASE_URL!,
           })
-          return NextResponse.json({ initToken, environment: 'sandbox' })
+          // Stop caches / prefetchers from snapshotting the bearer credential.
+          return NextResponse.json(
+            { session, environment: 'sandbox' },
+            { headers: { 'cache-control': 'no-store' } },
+          )
         }
         ```
       </Tab>
     </Tabs>
 
     <Note>
-      `userId` identifies the **end-user of your site**, not the org admin. Resolve it from your auth session — Nevermined uses it as the `sub` of the session JWT to scope every widget action to that user.
+      `email` identifies the **end-user of your site**, not the org admin. Resolve it from your auth session — Nevermined uses it as the canonical identity for the widget user (the same email logging in directly at nevermined.app resolves to the same Privy user, wallet and profile).
     </Note>
   </Step>
 
@@ -168,13 +188,16 @@ The `secretKey` is the equivalent of a password for your organization's widget s
     npm install @nevermined-io/ui-widgets
     ```
 
-    Fetch the `initToken` from your endpoint and initialize the SDK. The same `nvm` instance can mount any of the available widgets.
+    Fetch the `session` from your endpoint with a `POST` (the server side mints a bearer credential — `GET` would risk caching/prefetching it) and pass it straight to the SDK. The same `nvm` instance can mount any of the available widgets.
 
     ```ts
     import { NeverminedWidgets } from '@nevermined-io/ui-widgets'
 
-    const { initToken, environment } = await fetch('/api/init-token').then(r => r.json())
-    const nvm = await NeverminedWidgets.initialize({ initToken, environment })
+    const { session, environment } = await fetch('/api/widget-session', {
+      method: 'POST',
+      credentials: 'same-origin', // forward your app's auth cookies
+    }).then((r) => r.json())
+    const nvm = await NeverminedWidgets.initialize({ session, environment })
     ```
 
     Then mount whichever widget you need into a container element on your page:
@@ -270,16 +293,16 @@ Pick the environment that matches the Nevermined dashboard you used to mint the 
     Add every domain where you mount the widget. The backend rejects sessions from any other origin.
   </Card>
   <Card title="HTTPS only" icon="lock-keyhole">
-    Serve both your site and your initToken endpoint over HTTPS in production. `parentOrigin` includes the scheme, so origins must match exactly.
+    Serve both your site and your widget-session endpoint over HTTPS in production. `parentOrigin` includes the scheme, so origins must match exactly.
   </Card>
-  <Card title="Real userId per session" icon="user">
-    Pass the actual end-user identifier from your auth — never a placeholder, never the same value for every visitor.
+  <Card title="Real email per session" icon="user">
+    Pass the actual end-user email from your auth — never a placeholder, never the same value for every visitor. It's the canonical identity used across Nevermined.
   </Card>
   <Card title="Rotate on suspicion" icon="rotate">
-    If the secret might have leaked, revoke the key from the dashboard and generate a new one. Update your env var and redeploy.
+    If the secret might have leaked, revoke the key from the dashboard and generate a new one. Update your env var and redeploy. The API only ever stores its SHA-256, so the only recovery path is rotation.
   </Card>
-  <Card title="Short token TTLs" icon="clock">
-    Default `initToken` expiry is 5 minutes — leave it. Don't cache the token server-side.
+  <Card title="Short session TTLs" icon="clock">
+    Widget sessions expire after 2 hours; the SDK auto-refreshes them in-place. Don't cache or share session objects across users.
   </Card>
 </CardGroup>
 
@@ -287,11 +310,10 @@ Pick the environment that matches the Nevermined dashboard you used to mint the 
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0001` | initToken expired or signed with a wrong/revoked secret | Mint a fresh token; verify your secret matches the active key in the dashboard |
+| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0001` | `rawSecret` doesn't match any active key for the org | Confirm the secret in your env matches an active key in the dashboard; rotate if leaked |
 | `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0002` | The org has no active widget keys | Generate one in the dashboard |
-| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0005` | Session token expired (default 2h) | The SDK auto-refreshes; if it fails persistently, re-fetch the initToken from your server |
-| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0007` | initToken missing `orgId` or `wallet` claim | Upgrade `@nevermined-io/ui-widgets-server` to the latest version |
-| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0011` | The widget key was revoked while the session was alive | Mint a new `initToken` with the new key |
+| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0005` | Session token expired (default 2h) | The SDK auto-refreshes; if it fails persistently, re-fetch a fresh session from your server |
+| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0011` | The widget key was revoked while the session was alive | Re-call `createWidgetSession` with the new key's `rawSecret` |
 | `onError`: `NETWORK` | Fetch failed before getting a response | Check your network, CORS, and that the `environment` matches the API you minted the key against |
 | Widget mounts but never fires `onReady` | `parentOrigin` doesn't match `allowedOrigins` | Add your site's origin to the key's allowlist (mind the scheme: `https://` vs `http://`) |
 | `[NeverminedWidgets] initialize: invalid environment` | `environment` is not a supported value | Use `'sandbox'` or `'live'` |
