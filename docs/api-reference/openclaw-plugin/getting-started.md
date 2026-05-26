@@ -19,13 +19,15 @@ The Nevermined OpenClaw plugin exposes AI agent payment operations as gateway to
 Install the plugin from your OpenClaw gateway:
 
 ```bash
-openclaw plugin install @nevermined-io/openclaw-plugin
+openclaw plugin install @nevermined-io/openclaw-plugin@^1.1
 ```
+
+The plugin requires `@nevermined-io/payments@^1.1` as a peer dependency. Pin both packages and commit your lockfile so SDK upgrades are explicit.
 
 ## Authentication
 
 <Note>
-To interact with the Nevermined API, you need an API key. Open [nevermined.app](https://nevermined.app), sign in, then go to **Settings > Global NVM API Keys** and click **+ New API Key**.
+To interact with the Nevermined API, you need an API key. Follow the [Get Your API Key](/docs/getting-started/get-your-api-key) guide to create one.
 </Note>
 
 ### Option A: Browser login (recommended)
