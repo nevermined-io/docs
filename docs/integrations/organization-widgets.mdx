@@ -14,7 +14,7 @@ This guide is for organization admins. If you haven't upgraded to an organizatio
 
 <CardGroup cols={3}>
   <Card title="Checkout" icon="cart-shopping">
-    Sell agent plans from your own pricing page. Reports a transaction hash on success.
+    Sell an agent's plans — or a standalone plan with no agent — from your own pricing page.
   </Card>
   <Card title="Card enrollment" icon="credit-card">
     Let users add a payment method without leaving your site. Returns the resulting `paymentMethodId`.
@@ -202,19 +202,41 @@ The `rawSecret` is the equivalent of a password for your organization's widget s
 
     Then mount whichever widget you need into a container element on your page:
 
+    Each `onSuccess` receives a single `event` object: `event.result` holds the flow's result fields and `event.handle.close()` dismisses the iframe. The widget **stays mounted on success** (showing its success state) until you call `handle.close()` — there is no auto-dismiss.
+
     <Tabs>
-      <Tab title="Checkout">
+      <Tab title="Checkout (agent)">
+        Sell a specific agent's plans. Pass the agent `did`; `planId` is optional — omit it to show the plan carousel.
+
         ```ts
         nvm.checkout.start({
           did: 'did:nv:<your-agent-did>',
-          // planId is optional; omit to show the plan carousel
+          planId: 'plan-<optional>', // omit to show the plan carousel
           container: document.getElementById('checkout-widget')!,
           onReady: () => console.log('Widget rendered'),
-          onSuccess: ({ did, planId, txHash }) => {
-            console.log('Purchase complete', { did, planId, txHash })
+          onSuccess: ({ result, handle }) => {
+            // result: { did: string; planId?: string; txHash?: string }
+            console.log('Purchase complete', result)
+            handle.close() // dismiss when your post-purchase UI is ready
           },
           onError: (err) => console.error('Checkout failed', err),
           onClose: () => console.log('User closed the widget'),
+        })
+        ```
+      </Tab>
+      <Tab title="Checkout (plan only)">
+        Sell a plan that isn't tied to a specific agent — mirrors the public `/checkout/plan/:planId` page. No `did` required.
+
+        ```ts
+        nvm.checkout.startPlan({
+          planId: 'plan-<your-plan-id>',
+          container: document.getElementById('checkout-widget')!,
+          onSuccess: ({ result, handle }) => {
+            // result: { planId: string; txHash?: string }
+            console.log('Purchase complete', result)
+            handle.close()
+          },
+          onError: (err) => console.error('Checkout failed', err),
         })
         ```
       </Tab>
@@ -222,8 +244,10 @@ The `rawSecret` is the equivalent of a password for your organization's widget s
         ```ts
         nvm.delegations.enrollCard({
           container: document.getElementById('enroll-widget')!,
-          onSuccess: ({ paymentMethodId }) => {
-            console.log('Card enrolled', paymentMethodId)
+          provider: 'stripe', // 'stripe' | 'braintree' | 'visa' — defaults to 'stripe'
+          onSuccess: ({ result, handle }) => {
+            console.log('Card enrolled', result.paymentMethodId)
+            handle.close()
           },
           onError: (err) => console.error('Enrollment failed', err),
         })
@@ -234,11 +258,15 @@ The `rawSecret` is the equivalent of a password for your organization's widget s
         nvm.delegations.listCards({
           container: document.getElementById('cards-widget')!,
           onCardAction: ({ action, paymentMethodId }) => {
+            // action: 'delegate' (user wants to delegate this card) | 'revoked' (removed inline)
             if (action === 'delegate') {
               nvm.delegations.createDelegation({
                 paymentMethodId,
                 container: document.getElementById('cards-widget')!,
-                onSuccess: ({ delegationId }) => console.log('Delegated', delegationId),
+                onSuccess: ({ result, handle }) => {
+                  console.log('Delegated', result.delegationId)
+                  handle.close()
+                },
               })
             }
           },
@@ -246,6 +274,10 @@ The `rawSecret` is the equivalent of a password for your organization's widget s
         ```
       </Tab>
     </Tabs>
+
+    <Note>
+      Every iframe-mounting method also accepts optional `width` / `height` (pixels) for inline sizing — the SDK clamps them to a supported range; omit them for the default overlay. Checkout, enroll, and list also accept `onAuthMismatch` / `onAuthSwitchRequest` for the multi-org identity case — see [Handling identity mismatches](#handling-identity-mismatches).
+    </Note>
   </Step>
 </Steps>
 
@@ -253,10 +285,11 @@ The `rawSecret` is the equivalent of a password for your organization's widget s
 
 | Method | Mounts iframe | Result |
 |---|---|---|
-| `nvm.checkout.start({ did, planId?, container, ... })` | yes | `onSuccess`: `{ did, planId, txHash }` |
-| `nvm.delegations.enrollCard({ container, ... })` | yes | `onSuccess`: `{ paymentMethodId }` |
-| `nvm.delegations.listCards({ container, onCardAction, ... })` | yes | `onCardAction`: `{ action: 'delegate', paymentMethodId }` |
-| `nvm.delegations.createDelegation({ paymentMethodId, container, ... })` | yes | `onSuccess`: `{ delegationId, paymentMethodId }` |
+| `nvm.checkout.start({ did, planId?, container, ... })` | yes | `onSuccess` → `event.result`: `{ did, planId?, txHash? }` |
+| `nvm.checkout.startPlan({ planId, container, ... })` | yes | `onSuccess` → `event.result`: `{ planId, txHash? }` |
+| `nvm.delegations.enrollCard({ container, provider?, ... })` | yes | `onSuccess` → `event.result`: `{ paymentMethodId }` |
+| `nvm.delegations.listCards({ container, onCardAction, ... })` | yes | `onCardAction`: `{ action: 'delegate' \| 'revoked', paymentMethodId }` |
+| `nvm.delegations.createDelegation({ paymentMethodId, container, ... })` | yes | `onSuccess` → `event.result`: `{ delegationId, paymentMethodId }` |
 | `await nvm.delegations.revokeCard(paymentMethodId)` | no — direct API call | resolves on 2xx |
 | `await nvm.delegations.revokeDelegation(delegationId)` | no — direct API call | resolves on 2xx |
 
@@ -266,13 +299,61 @@ All iframe-mounting methods share the same lifecycle:
 |---|---|
 | `onBooted` | iframe DOM mounted (auth not yet validated) |
 | `onReady` | session validated, widget interactive |
-| `onSuccess` | terminal success — widget destroys itself |
+| `onSuccess(event)` | flow succeeded — the widget **stays mounted** in its success state; call `event.handle.close()` to dismiss it |
 | `onError` | terminal error — widget destroys itself |
-| `onClose` | user closed the widget — instance destroyed |
+| `onClose` | widget dismissed (the user closed it, or you called `event.handle.close()`) — instance destroyed |
 
 <Note>
-Once a widget instance fires `onSuccess`, `onError`, or `onClose`, it's terminal: calling its method again throws. Construct a fresh widget via the same `nvm` instance to mount another flow.
+A widget instance is single-use. Once it reaches a terminal state — you call `event.handle.close()` after success, or it fires `onError` / `onClose` — calling its method again throws. Construct a fresh widget via the same `nvm` instance to mount another flow.
 </Note>
+
+## Redirect / CLI mode (no iframe)
+
+For integrations that aren't an in-page iframe — a CLI tool, or any flow where you'd rather hand the user to a full-page Nevermined screen and get them back via a callback — open the embed route as a **top-level browser navigation** instead of mounting it through the SDK.
+
+You pass a `sessionToken` and a `returnUrl` on the query string. The page runs the same flow and, on success, redirects the browser to `returnUrl` with the result IDs (plus your `state` echo) appended as query parameters — the same shape as an OAuth callback.
+
+Supported on the card flows and plan-only checkout. The **agent checkout (`/embed/checkout/$did`) is iframe-only**.
+
+| Route | Result params appended to `returnUrl` |
+|---|---|
+| `/embed/cards/setup` | `paymentMethodId`, `delegationId` |
+| `/embed/cards/enroll` | `paymentMethodId` |
+| `/embed/cards/delegate` | `delegationId` |
+| `/embed/checkout/plan/<planId>` | `planId`, `paymentIntent` |
+
+### Minting a session for redirect mode
+
+- **CLI / logged-in Nevermined user** — `POST {apiBaseUrl}/api/v1/widgets/session/self` with the user's Nevermined credential and the `orgId` (the user must be a member of the org). Self-mint sessions only accept **localhost** `returnUrl`s — the CLI listens on a local port.
+- **Hosted site** — mint with the same server-side `createWidgetSession` as the iframe flow; the `returnUrl` must belong to the widget key's `allowedOrigins`.
+
+### Example
+
+```text
+https://nevermined.app/embed/cards/setup
+  ?sessionToken=<the WidgetSession token>
+  &returnUrl=http://localhost:8976/callback
+  &state=<opaque csrf value>
+```
+
+On success the browser lands on:
+
+```text
+http://localhost:8976/callback?paymentMethodId=pm_...&delegationId=del_...&state=<your csrf value>
+```
+
+<Warning>
+`returnUrl` must be an absolute `http(s)` URL and is re-validated server-side against the session's allow-list — localhost for self-mint sessions, the widget key's `allowedOrigins` otherwise. A URL that isn't allowed refuses to mount, so result IDs are never sent to an unapproved destination.
+</Warning>
+
+## Handling identity mismatches
+
+A widget session is minted for a specific **email** (the end-user you passed to `createWidgetSession`). If the host browser already has a Nevermined (Privy) login for a *different* email, the iframe detects the mismatch and:
+
+- fires **`onAuthMismatch(detail)`** — `detail` carries the expected vs. host emails, and the iframe shows an in-place prompt (mirror it in your own UI if you want);
+- if the user chooses "Continue as `<host email>`", fires **`onAuthSwitchRequest(detail)`** — re-mint a widget session bound to `detail.requestedEmail` (call your session endpoint again with that email) and reopen the widget.
+
+If the browser has no Nevermined login there's no mismatch, and the widget proceeds against the session's email.
 
 ## Environments
 
@@ -310,12 +391,13 @@ Pick the environment that matches the Nevermined dashboard you used to mint the 
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0001` | `rawSecret` doesn't match any active key for the org | Confirm the secret in your env matches an active key in the dashboard; rotate if leaked |
-| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0002` | The org has no active widget keys | Generate one in the dashboard |
+| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0001` | `rawSecret` doesn't match any active key for the org — **or** the org has no active key at all (one code covers both cases, by design, so attackers can't probe which) | Confirm the secret in your env matches an active key in the dashboard; generate one if the org has none; rotate if leaked |
 | `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0005` | Session token expired (default 2h) | The SDK auto-refreshes; if it fails persistently, re-fetch a fresh session from your server |
 | `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0011` | The widget key was revoked while the session was alive | Re-call `createWidgetSession` with the new key's `rawSecret` |
+| Widget mounts but never reaches `onReady` → `onError` apiCode `BCK.WIDGET_SESSION.0012` (403) | The mount origin isn't in the key's `allowedOrigins` | Add your site's origin to the key's allowlist (mind the scheme: `https://` vs `http://`) |
+| `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0020` (403) | The `did` / `planId` you're checking out belongs to a **different organization** than the widget session | Embed only agents/plans owned by the org the session was minted for |
+| `onError`: `PAYMENT_NOT_CONFIRMED` | Came back from a Stripe redirect, but the backend couldn't confirm the payment intent | Don't trust the `redirect_status` query flag alone; if the user was actually charged, reconcile via your Stripe dashboard / support |
 | `onError`: `NETWORK` | Fetch failed before getting a response | Check your network, CORS, and that the `environment` matches the API you minted the key against |
-| Widget mounts but never fires `onReady` | `parentOrigin` doesn't match `allowedOrigins` | Add your site's origin to the key's allowlist (mind the scheme: `https://` vs `http://`) |
 | `[NeverminedWidgets] initialize: invalid environment` | `environment` is not a supported value | Use `'sandbox'` or `'live'` |
 
 ## Related
