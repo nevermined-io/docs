@@ -218,13 +218,13 @@ The full integrator reference, including TypeScript pseudocode, lives in [`cli-c
 
 ## 3. Embedded widgets (iframe)
 
-Your end-users never leave your domain. You mint a session token on your server with the organization's widget-key, the browser exchanges it for an iframe session, and the user completes the card-enrollment + delegation flow inside your own page.
+Your end-users never leave your domain. You mint a widget session on your server with the organization's widget-key and pass it straight to the browser SDK — no token-exchange round-trip — and the user completes the card-enrollment + delegation flow inside your own page.
 
 <Warning>
 Like option 2, the iframe widget flow requires an **active Nevermined organization**. The widget-key is the credential that scopes every iframe session to your org's users — see [Platform Partners](/docs/integrations/organizations) for the upgrade path.
 </Warning>
 
-The full guide — including how to generate a widget key, mint init-tokens server-side, mount the iframe on your page, and react to `nvm:success` / `nvm:error` events — lives in [Embed Nevermined Widgets](/docs/integrations/organization-widgets).
+The full guide — including how to generate a widget key, mint widget sessions server-side, mount the iframe on your page, and react to `nvm:success` / `nvm:error` events — lives in [Embed Nevermined Widgets](/docs/integrations/organization-widgets).
 
 Choose this path when:
 
@@ -242,7 +242,7 @@ Choose the white-label redirect (option 2) instead when your tool runs outside a
 | **Integration effort** | None | One HTTP server + one URL open | A widget key + iframe mount |
 | **Requires an organization** | No | Yes | Yes |
 | **Best for** | Power users, internal teams | CLIs, terminal-based agents, desktop apps | Websites, SaaS dashboards |
-| **Authentication** | The user's own Privy login | The user's own NVM API key (Bearer) | Your server-minted init-token |
+| **Authentication** | The user's own Privy login | The user's own NVM API key (Bearer) | Your server-minted widget session |
 | **Result delivery** | UI state | `paymentMethodId` + `delegationId` at a localhost callback | `nvm:success` postMessage to the parent page |
 | **Cross-origin redirect** | n/a | Localhost only (self-mint), or widget-key `allowedOrigins` | Same as widget-key `allowedOrigins` |
 

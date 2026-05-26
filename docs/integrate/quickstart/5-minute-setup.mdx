@@ -20,7 +20,16 @@ By the end, you’ll have a **monetizable service** set up with Nevermined — t
     export NVM_API_KEY="sandbox:your-api-key-here"
     ```
 
-    <Tip>Keys are environment-specific — `sandbox:` prefix for testing, `live:` for production.</Tip>
+    <Tip>
+      Keys are environment-specific — the prefix matches the SDK `environment` value you must pass at init.
+
+      | Key prefix | SDK `environment` | Backend |
+      |---|---|---|
+      | `sandbox:` | `sandbox` | `https://api.sandbox.nevermined.app` |
+      | `live:` | `live` | `https://api.live.nevermined.app` |
+
+      Use `sandbox` for testing and `live` for production. If you see auth errors that look unrelated to the key, double-check that prefix and `environment` match — a `sandbox:` key against `environment: 'live'` lands at the wrong backend and fails with confusing 4xx errors.
+    </Tip>
   </Step>
 
   <Step title="Install the SDK">
@@ -335,8 +344,16 @@ Response:
   // Get your balance about the plan you just ordered
   const balance = await payments.plans.getPlanBalance(PLAN_ID)
 
-  // Generate the x402 access token
-  const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID)
+  // Generate the x402 access token. `delegationConfig` is required for
+  // both crypto (nvm:erc4337) and fiat (nvm:card-delegation) plans —
+  // omitting it surfaces BCK.X402.0005 at runtime.
+  const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
+    scheme: 'nvm:erc4337',
+    delegationConfig: {
+      spendingLimitCents: 1000, // $10 cap
+      durationSecs: 86_400, // 1 day
+    },
+  })
 
   // Use this token in the next request
   // HTTP header: 'payment-signature'
@@ -347,6 +364,7 @@ Response:
   ```python
     import os
     from payments_py import Payments, PaymentOptions
+    from payments_py.x402 import X402TokenOptions, DelegationConfig
 
     payments = Payments.get_instance(
         PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
@@ -358,9 +376,19 @@ Response:
     # Get your balance about the plan you just ordered
     balance = payments.plans.get_plan_balance(plan_id)
 
-    # Generate the x402 access token
-    token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
-    access_token = token_res['accessToken']  
+    # Generate the x402 access token (delegation_config is required)
+    token_res = payments.x402.get_x402_access_token(
+        plan_id,
+        agent_id,
+        token_options=X402TokenOptions(
+            scheme='nvm:erc4337',
+            delegation_config=DelegationConfig(
+                spending_limit_cents=1000,
+                duration_secs=86_400,
+            ),
+        ),
+    )
+    access_token = token_res['accessToken']
   ```
   </Tab>
 </Tabs>
