@@ -1,0 +1,191 @@
+---
+title: "LangSmith Deployment"
+description: "Gate a LangGraph agent deployed to LangSmith Deployment with Nevermined x402"
+icon: "graduation-cap"
+frameworks: ["langchain", "langgraph", "langsmith", "python"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/docs/integrate/quickstart/5-minute-setup).
+</Note>
+
+<Card title="Runnable tutorial" icon="play" href="https://github.com/nevermined-io/tutorials/tree/main/langchain-langsmith-deployment-py">
+  **`langchain-langsmith-deployment-py`** — a deliberately minimal LangGraph agent
+  with `POST /threads/{id}/runs/wait` gated by Nevermined x402. Clone, fill in
+  `.env`, run `poetry run buyer` to drive the full 402 → token-acquisition →
+  settlement round-trip in five numbered steps.
+</Card>
+
+Add payment protection to a [LangGraph](https://www.langchain.com/langgraph) agent deployed to **LangSmith Deployment** (the rebrand of LangGraph Platform) using the [x402 protocol](https://github.com/coinbase/x402). This is the deployment-time alternative to the per-tool `@requires_payment` decorator covered in [LangChain](./langchain) — both can coexist; they protect different layers.
+
+| Layer | Tool-time ([LangChain](./langchain)) | Deployment-time (this page) |
+| --- | --- | --- |
+| Code surface | `@requires_payment` on individual `@tool` functions | `PaymentMiddleware` mounted via `langgraph.json` `http.app` |
+| Gated unit | A single tool call inside the agent | The agent's HTTP entry point (e.g. `POST /threads/{id}/runs/wait`) |
+| Charge frequency | Once per tool invocation | Once per HTTP request to the deployment |
+| Runtime | Any LangChain / LangGraph host | LangSmith Deployment, `langgraph dev`, `langgraph up` |
+
+## Install
+
+```bash
+pip install payments-py[langsmith]
+```
+
+The `[langsmith]` extra pulls `fastapi`, `starlette`, and `langsmith`.
+
+<Note>
+  **Python only.** LangSmith Deployment's custom-app surface is documented by
+  LangChain as Python-only. A TypeScript variant is tracked in our LangChain
+  integration epic but blocked on LangChain shipping a TS runtime.
+</Note>
+
+## Define the middleware app
+
+Create `nvm_app.py` next to your `langgraph.json`. Four lines of glue:
+
+```python
+# nvm_app.py
+import os
+from payments_py import Payments, PaymentOptions
+from payments_py.langsmith import build_payment_app, RouteConfig
+
+payments = Payments.get_instance(
+    PaymentOptions(
+        nvm_api_key=os.environ["NVM_API_KEY"],
+        environment=os.environ.get("NVM_ENVIRONMENT", "sandbox"),
+    )
+)
+
+app = build_payment_app(
+    payments=payments,
+    routes={
+        "POST /threads/{thread_id}/runs/wait": RouteConfig(
+            plan_id=os.environ["NVM_PLAN_ID"],
+            credits=int(os.environ.get("NVM_CREDITS_PER_INVOKE", "1")),
+        ),
+    },
+)
+```
+
+`build_payment_app` returns a FastAPI app pre-wired with `PaymentMiddleware`. Mount it from `langgraph.json`:
+
+```json
+{
+  "graphs": { "my_agent": "./src/agent.py:graph" },
+  "http": { "app": "./nvm_app.py:app" },
+  "env": ".env"
+}
+```
+
+That's the whole integration. `langgraph dev` (local) and `langgraph up` (Docker) both honor the `http.app` field; the middleware composes around LangSmith Deployment's built-in routes (`/runs`, `/threads/{id}/runs`, `/assistants`, etc.).
+
+<Note>
+  **Why FastAPI?** Some `langgraph-api` versions crash on plain Starlette `http.app`
+  wrappers due to an upstream OpenAPI generation bug. FastAPI takes a clean path
+  through `app.openapi()`. The `build_payment_app` factory returns a FastAPI app
+  so you do not need to know about this — `PaymentMiddleware` itself is a
+  `BaseHTTPMiddleware` and works on both.
+</Note>
+
+## The 402 round-trip
+
+```bash
+# 1. Create a thread (unprotected)
+THREAD=$(curl -s -X POST http://127.0.0.1:2024/threads \
+  -H 'content-type: application/json' -d '{}' | jq -r .thread_id)
+
+# 2. First attempt without payment-signature → 402 + envelope
+curl -i -X POST "http://127.0.0.1:2024/threads/$THREAD/runs/wait" \
+  -H 'content-type: application/json' \
+  -d '{"assistant_id":"my_agent","input":{"input":"hello"}}'
+# HTTP/1.1 402 Payment Required
+# payment-required: eyJ4NDAyVmVyc2lvbi...   ← base64-encoded x402 envelope
+# {"error":"Payment Required","message":"Missing x402 payment token..."}
+
+# 3. Acquire an x402 token from the envelope's plan_id (via payments-py)
+# 4. Retry with the payment-signature header → 200 + settlement receipt
+curl -i -X POST "http://127.0.0.1:2024/threads/$THREAD/runs/wait" \
+  -H 'content-type: application/json' \
+  -H "payment-signature: $TOKEN" \
+  -d '{"assistant_id":"my_agent","input":{"input":"hello"}}'
+# HTTP/1.1 200 OK
+# payment-response: eyJzdWNjZXNzIjp0cn...   ← base64-encoded SettleResponse
+# {"input":"hello","output":"<agent reply>"}
+```
+
+Steps 3-4 in real client code: see the [buyer script](https://github.com/nevermined-io/tutorials/blob/main/langchain-langsmith-deployment-py/src/buyer.py) in the tutorial. The buyer uses `payments_py.x402.resolve_scheme.resolve_network` to pick the right enrolled payment method from the plan metadata.
+
+## Per-route pricing
+
+`RouteConfig` accepts a static `int` or a callable for `credits`:
+
+```python
+from payments_py.langsmith import build_payment_app, RouteConfig
+
+app = build_payment_app(
+    payments=payments,
+    routes={
+        "POST /threads/{thread_id}/runs/wait": RouteConfig(
+            plan_id="plan-cheap", credits=1,
+        ),
+        # Dynamic credits — sync or async callable
+        "POST /threads/{thread_id}/runs/stream": RouteConfig(
+            plan_id="plan-premium",
+            credits=lambda req: estimate_credits(req),
+        ),
+    },
+)
+```
+
+Path parameters work with either Starlette `:param` or FastAPI/LangGraph `{param}` syntax — both match by position. Routes not listed pass through ungated.
+
+## Lifecycle
+
+The middleware implements the canonical x402 **verify → agent runs → settle** ordering inside one HTTP cycle. Failed agent runs (non-2xx) skip settlement so buyers are not charged. Settle failures after a successful 2xx are logged but do not surface to the client — the buyer already received the value.
+
+For the full step-by-step diagram, see [chapter 13 of the SDK docs](https://nevermined-io.github.io/payments-py/api/13-langsmith-deployment/#lifecycle).
+
+## Why `/runs/wait` specifically
+
+LangSmith Deployment exposes three run-execution shapes:
+
+| Endpoint | Behavior | Works with this middleware? |
+| --- | --- | --- |
+| `POST /threads/{id}/runs/wait` | Synchronous; blocks until the agent finishes, returns final state | **Yes** — the only path that fits verify-then-work-then-settle in one HTTP cycle |
+| `POST /threads/{id}/runs` | Background; returns 202 immediately with a `run_id` | No — settle would fire before the agent did the work |
+| `POST /threads/{id}/runs/stream` | Server-sent events; streams agent output | Partially — the middleware buffers the response body to attach the settlement header, which negates streaming |
+
+Gate `/runs/wait` for a clean demo. The middleware will pass through `/threads`, `/assistants/search`, `/info`, `/ok`, and other non-billable endpoints automatically.
+
+## Observability
+
+When `LANGSMITH_TRACING=true` is set, the middleware emits two top-level traces per gated request:
+
+```
+nvm:x402-request            ← middleware parent trace
+├─ nvm:verify                ← child, nvm.* metadata (plan_ids, scheme, network, payer, payment_token abbreviated)
+└─ nvm:settlement            ← child, nvm.* metadata (credits_redeemed, balance.after, tx_hash)
+
+my_agent                    ← LangGraph's separate trace (sibling, not nested)
+```
+
+The graph's trace appears as a sibling top-level because `langgraph-api` initiates it at the graph-invocation boundary, independent of our middleware's trace context. Both nvm spans plus the parent carry searchable `nvm.*` metadata; the raw `payment-signature` token is abbreviated to `eyJ4NDAyVmVyc2lvb…bsig`-style so it can be cross-referenced without exposure.
+
+Verification failures raise `PaymentRequiredError` inside `verify_span` so LangSmith marks the parent + child as **failed** via the canonical context-manager exit path. Settle failures after a successful 2xx mark only the settle child as failed; the parent stays successful (matching the buyer-visible 200).
+
+## Combining with `@requires_payment`
+
+The middleware and the [LangChain decorator](./langchain) can be used together — the middleware gates the agent's HTTP entry point, the decorator gates individual tools inside the agent. Each layer charges independently. Common pattern: charge a flat rate per agent invocation (middleware) plus dynamic per-tool credits (decorator) for expensive tool calls.
+
+## Limitations
+
+- **Streaming responses are buffered.** The middleware reads the downstream response body in full before attaching the `payment-response` settlement header. SSE / `/runs/stream` endpoints become blocking-then-bulk. Gate `/runs/wait` only, or accept the trade-off.
+- **Python only.** TypeScript variant tracked but blocked on LangChain shipping a TS runtime.
+- **Sync I/O is wrapped.** The four sync SDK calls (`resolve_scheme`, `resolve_network`, `verify_permissions`, `settle_permissions`) run via `asyncio.to_thread(...)` so they don't block the event loop. `langgraph dev`'s blocking-call detector treats unwrapped sync HTTP as fatal warnings.
+
+## See also
+
+- [LangChain](./langchain) — tool-time `@requires_payment` decorator
+- [`payments-py[langsmith]` SDK docs (chapter 13)](https://nevermined-io.github.io/payments-py/api/13-langsmith-deployment/) — full API reference
+- [`langchain-langsmith-deployment-py` tutorial](https://github.com/nevermined-io/tutorials/tree/main/langchain-langsmith-deployment-py) — runnable end-to-end demo
