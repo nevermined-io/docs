@@ -382,6 +382,57 @@ if receipt:
   layer instead.
 </Warning>
 
+### Trace payments in LangSmith (Python)
+
+Once `@requires_payment` is wired up, you can have every paid tool call surface as structured spans in [LangSmith](https://smith.langchain.com) — no code changes required, just two env vars and an optional extra.
+
+**Install the optional extra:**
+
+```bash
+pip install "payments-py[langchain,langsmith]"
+```
+
+**Enable tracing:**
+
+```bash filename=".env"
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=lsv2_pt_your-key
+LANGSMITH_PROJECT=nvm-langchain          # optional
+# Only needed if your LangSmith account is NOT in GCP US:
+# LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com
+```
+
+That's it. Running the same agent invocation now produces a trace tree with two dedicated Nevermined child spans nested under the tool:
+
+```text
+LangGraph
+└── tools
+    └── get_market_insight
+        ├── nvm:verify      0.28s     ← around payments.facilitator.verify_permissions
+        └── nvm:settlement  1.88s     ← around payments.facilitator.settle_permissions
+```
+
+Each Nevermined span carries `nvm.*` metadata for audit + reconciliation:
+
+| Span | Attributes |
+| ---- | ---------- |
+| `nvm:verify` | `nvm.plan_ids`, `nvm.scheme`, `nvm.network`, `nvm.agent_id`, `nvm.payer`, `nvm.agent_request_id`, `nvm.payment_token` (abbreviated), `nvm.verify.duration_ms` |
+| `nvm:settlement` | `nvm.credits_redeemed`, `nvm.balance.after`, `nvm.tx_hash`, `nvm.network`, `nvm.payer`, `nvm.payment_token` (abbreviated), `nvm.settle.duration_ms` |
+
+The same `nvm.*` metadata is also attached to the parent tool span so cmd-F searches in the LangSmith UI land on either level.
+
+**Failed discovery probes are first-class too.** When the buyer's first `agent.invoke()` runs without a `payment_token` (the discovery-first flow), the `nvm:verify` span still opens, carries the static `nvm.plan_ids` / `nvm.scheme` / `nvm.network`, and is marked failed by the raised `PaymentRequiredError`. That gives you "which plan was the probe against?" filterability instead of an opaque LangChain crash.
+
+<Warning title="Sensitive data in traces">
+  The `payment_token` the buyer passes in `config["configurable"]["payment_token"]` would normally be captured into the parent tool span's metadata by LangChain and inherited by every child span. The full token grants access to the protected tool until it expires. `@requires_payment` **proactively strips it from the parent span's metadata** before opening any `nvm:*` child, so the full credential never reaches a Nevermined-emitted attribute. The abbreviated `nvm.payment_token` (first 16 chars + `…` + last 4 chars) remains available for correlation.
+
+  Other channels (custom callbacks, an explicit `add_metadata({"payment_token": ...})`, tool signatures that contain the token) are not covered — strip them yourself or set `export LANGSMITH_HIDE_INPUTS=true` for blanket coverage.
+</Warning>
+
+If a span failure ever occurs during metadata building or attachment, observability is silently dropped — the payment flow itself is never interrupted. Settlement receipts persist via `last_settlement()` regardless of whether the span emit succeeded.
+
+For the full module reference (function signatures, manual usage from non-LangChain code paths), see the [Python LangChain module reference](/docs/api-reference/python/langchain-module#observability-with-langsmith).
+
 ### Dynamic Credits
 
 <Note>

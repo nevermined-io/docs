@@ -128,6 +128,24 @@ if receipt:
 
 **Single-tenant only.** The slot is process-global — in multi-tenant servers (concurrent settlements), the value reflects whichever invocation settled most recently. Use a callback or observability layer for multi-tenant scenarios.
 
+## Observability with LangSmith — `payments-py[langsmith]`
+
+Install the optional extra (`pip install "payments-py[langchain,langsmith]"`) and set `LANGSMITH_TRACING=true` + `LANGSMITH_API_KEY` (+ `LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com` for non-US accounts). `@requires_payment` then automatically emits two dedicated child spans nested under the active tool span — `nvm:verify` and `nvm:settlement` — each carrying `nvm.*` metadata for audit and reconciliation. No code changes required.
+
+```text
+LangGraph
+└── tools
+    └── get_market_insight
+        ├── nvm:verify      attrs: nvm.plan_ids, nvm.scheme, nvm.network, nvm.payer, nvm.agent_request_id, nvm.payment_token (abbrev), nvm.verify.duration_ms
+        └── nvm:settlement  attrs: nvm.credits_redeemed, nvm.balance.after, nvm.tx_hash, nvm.payer, nvm.payment_token (abbrev), nvm.settle.duration_ms
+```
+
+The same `nvm.*` metadata is also attached to the parent tool span. Failed discovery probes (no `payment_token` in config) still produce an `nvm:verify` span with the static attrs, marked failed by the raised `PaymentRequiredError` — so observability survives the first invocation of the discovery-first flow.
+
+**Token redaction.** LangChain auto-captures every key in `config["configurable"]` into the parent tool span's metadata, which child spans inherit. The decorator strips `payment_token` from the parent span before opening any `nvm:*` child, so the full credential never reaches a Nevermined-emitted attribute. The abbreviated `nvm.payment_token` (`<first 16>…<last 4>`) remains for correlation. To cover non-configurable channels (custom callbacks, tool args, etc.) set `LANGSMITH_HIDE_INPUTS=true` for blanket coverage.
+
+Observability failures are silently logged and dropped — the payment flow itself is never interrupted, and `last_settlement()` continues to return the on-chain receipt even if span emission fails.
+
 ## Decorator Configuration
 
 ### Single plan
