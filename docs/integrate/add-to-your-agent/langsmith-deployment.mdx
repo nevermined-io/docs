@@ -193,6 +193,21 @@ The CLI buyer above is enough to validate the protocol, but most demos want a fa
 
 The `NVM_API_KEY` lives only on the Next.js server. The browser holds, at most, the short-lived `sessionToken` for the duration of the popup.
 
+The chat UI's underlying LangGraph SDK (`useStream`) always hits `POST /threads/{id}/runs/stream`, not `/runs/wait`, so your `nvm_app.py` needs **both** routes in the `routes` map for the demo to actually gate:
+
+```python
+ROUTE_CONFIG = RouteConfig(plan_id=NVM_PLAN_ID, credits=1)
+app = build_payment_app(
+    payments=payments,
+    routes={
+        "POST /threads/{thread_id}/runs/wait": ROUTE_CONFIG,    # CLI buyers
+        "POST /threads/{thread_id}/runs/stream": ROUTE_CONFIG,  # chat UI
+    },
+)
+```
+
+Streaming responses through the middleware are buffered until settlement (see the [Limitations](#limitations) section), so the chat UI's "streaming" reply arrives as one bulk chunk. Fine for short replies, worth knowing if you ship long streamed outputs.
+
 ```
 Browser → Next.js proxy → LangGraph + PaymentMiddleware (this page)
 Browser → /api/x402/session → POST /api/v1/widgets/session/self  (mint widget session)
