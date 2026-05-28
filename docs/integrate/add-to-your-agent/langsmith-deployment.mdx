@@ -98,7 +98,7 @@ THREAD=$(curl -s -X POST http://127.0.0.1:2024/threads \
 # 2. First attempt without payment-signature → 402 + envelope
 curl -i -X POST "http://127.0.0.1:2024/threads/$THREAD/runs/wait" \
   -H 'content-type: application/json' \
-  -d '{"assistant_id":"my_agent","input":{"input":"hello"}}'
+  -d '{"assistant_id":"my_agent","input":{"messages":[{"type":"human","content":"hello"}]}}'
 # HTTP/1.1 402 Payment Required
 # payment-required: eyJ4NDAyVmVyc2lvbi...   ← base64-encoded x402 envelope
 # {"error":"Payment Required","message":"Missing x402 payment token..."}
@@ -108,10 +108,10 @@ curl -i -X POST "http://127.0.0.1:2024/threads/$THREAD/runs/wait" \
 curl -i -X POST "http://127.0.0.1:2024/threads/$THREAD/runs/wait" \
   -H 'content-type: application/json' \
   -H "payment-signature: $TOKEN" \
-  -d '{"assistant_id":"my_agent","input":{"input":"hello"}}'
+  -d '{"assistant_id":"my_agent","input":{"messages":[{"type":"human","content":"hello"}]}}'
 # HTTP/1.1 200 OK
 # payment-response: eyJzdWNjZXNzIjp0cn...   ← base64-encoded SettleResponse
-# {"input":"hello","output":"<agent reply>"}
+# {"messages":[{"type":"human","content":"hello"},{"type":"ai","content":"<agent reply>"}]}
 ```
 
 Steps 3-4 in real client code: see the [buyer script](https://github.com/nevermined-io/tutorials/blob/main/langchain-langsmith-deployment-py/src/buyer.py) in the tutorial. The buyer uses `payments_py.x402.resolve_scheme.resolve_network` to pick the right enrolled payment method from the plan metadata.
