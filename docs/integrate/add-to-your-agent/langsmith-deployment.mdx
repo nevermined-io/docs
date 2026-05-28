@@ -98,7 +98,7 @@ THREAD=$(curl -s -X POST http://127.0.0.1:2024/threads \
 # 2. First attempt without payment-signature → 402 + envelope
 curl -i -X POST "http://127.0.0.1:2024/threads/$THREAD/runs/wait" \
   -H 'content-type: application/json' \
-  -d '{"assistant_id":"my_agent","input":{"input":"hello"}}'
+  -d '{"assistant_id":"my_agent","input":{"messages":[{"type":"human","content":"hello"}]}}'
 # HTTP/1.1 402 Payment Required
 # payment-required: eyJ4NDAyVmVyc2lvbi...   ← base64-encoded x402 envelope
 # {"error":"Payment Required","message":"Missing x402 payment token..."}
@@ -108,10 +108,10 @@ curl -i -X POST "http://127.0.0.1:2024/threads/$THREAD/runs/wait" \
 curl -i -X POST "http://127.0.0.1:2024/threads/$THREAD/runs/wait" \
   -H 'content-type: application/json' \
   -H "payment-signature: $TOKEN" \
-  -d '{"assistant_id":"my_agent","input":{"input":"hello"}}'
+  -d '{"assistant_id":"my_agent","input":{"messages":[{"type":"human","content":"hello"}]}}'
 # HTTP/1.1 200 OK
 # payment-response: eyJzdWNjZXNzIjp0cn...   ← base64-encoded SettleResponse
-# {"input":"hello","output":"<agent reply>"}
+# {"messages":[{"type":"human","content":"hello"},{"type":"ai","content":"<agent reply>"}]}
 ```
 
 Steps 3-4 in real client code: see the [buyer script](https://github.com/nevermined-io/tutorials/blob/main/langchain-langsmith-deployment-py/src/buyer.py) in the tutorial. The buyer uses `payments_py.x402.resolve_scheme.resolve_network` to pick the right enrolled payment method from the plan metadata.
@@ -174,6 +174,56 @@ The graph's trace appears as a sibling top-level because `langgraph-api` initiat
 
 Verification failures raise `PaymentRequiredError` inside `verify_span` so LangSmith marks the parent + child as **failed** via the canonical context-manager exit path. Settle failures after a successful 2xx mark only the settle child as failed; the parent stays successful (matching the buyer-visible 200).
 
+## Host a chat UI on top of the deployment
+
+<Card title="Runnable tutorial" icon="play" href="https://github.com/nevermined-io/tutorials/tree/main/langchain-chat-ui-nvm">
+  **`langchain-chat-ui-nvm`** — a Next.js fork of LangChain's `agent-chat-ui`
+  with a 402-aware proxy and a card-delegation popup. Run it next to the
+  `langchain-langsmith-deployment-py` agent for a full browser demo of the
+  middleware.
+</Card>
+
+The CLI buyer above is enough to validate the protocol, but most demos want a face. The `langchain-chat-ui-nvm` tutorial does this by forking `langchain-ai/agent-chat-ui` and adding three Next.js API routes plus a popup target. The flow:
+
+1. The user opens the chat and clicks **Authorize** on a top banner. A popup opens at `{nevermined.app}/embed/cards/setup?sessionToken=…&returnUrl=…/x402-callback&state=…`.
+2. They enrol a card on the Nevermined page (Stripe, Braintree, or Visa Intelligent Commerce) and pick a budget — e.g. **$10 / 24 h** — then submit.
+3. Nevermined redirects the popup back to the chat UI's callback page with `paymentMethodId`, `delegationId`, and the round-tripped `state` nonce. The callback validates `state`, `postMessage`s the IDs to `window.opener`, then closes itself.
+4. The chat UI's Next.js server mints an x402 access token from the `delegationId` (`payments.x402.getX402AccessToken(planId, agentId, { delegationConfig: { delegationId } })`, pattern B in `@nevermined-io/payments`) and stores it in a `httpOnly` cookie. The browser never sees the raw token.
+5. From then on, the catch-all `/api/[..._path]` proxy reads the cookie on every outgoing LangGraph request and forwards it as `payment-signature`. Every chat message is paid for transparently. When the on-chain budget runs out the server returns 402 again and the banner re-prompts.
+
+The `NVM_API_KEY` lives only on the Next.js server. The browser holds, at most, the short-lived `sessionToken` for the duration of the popup.
+
+The chat UI's underlying LangGraph SDK (`useStream`) always hits `POST /threads/{id}/runs/stream`, not `/runs/wait`, so your `nvm_app.py` needs **both** routes in the `routes` map for the demo to actually gate:
+
+```python
+ROUTE_CONFIG = RouteConfig(plan_id=NVM_PLAN_ID, credits=1)
+app = build_payment_app(
+    payments=payments,
+    routes={
+        "POST /threads/{thread_id}/runs/wait": ROUTE_CONFIG,    # CLI buyers
+        "POST /threads/{thread_id}/runs/stream": ROUTE_CONFIG,  # chat UI
+    },
+)
+```
+
+Streaming responses through the middleware are buffered until settlement (see the [Limitations](#limitations) section), so the chat UI's "streaming" reply arrives as one bulk chunk. Fine for short replies, worth knowing if you ship long streamed outputs.
+
+```
+Browser → Next.js proxy → LangGraph + PaymentMiddleware (this page)
+Browser → /api/x402/session → POST /api/v1/widgets/session/self  (mint widget session)
+Browser → popup → {nevermined.app}/embed/cards/setup            (user authorizes)
+Browser ← postMessage(delegationId) ← /x402-callback             (popup closes)
+Browser → /api/x402/token → mints x402 access token, sets cookie
+```
+
+Important constraints, all inherited from the Sprint 3 / 5 demo design:
+
+- The widget session uses the **self-mint** endpoint (`POST /api/v1/widgets/session/self`), which restricts `returnUrl` to `localhost` / `127.0.0.1` / `[::1]`. Deploying the chat UI to a real domain requires the [widget-key flow](/docs/integrations/organization-widgets) instead.
+- The agent must be gated by a **single plan** in this demo (the chat UI reads `NVM_PLAN_ID` from env). Multi-plan agents need a per-route resolver.
+- The popup pattern needs same-origin between the chat UI and the callback page (both served by Next.js).
+
+Full setup, troubleshooting, and architecture notes live in the [tutorial README](https://github.com/nevermined-io/tutorials/blob/main/langchain-chat-ui-nvm/README.md).
+
 ## Combining with `@requires_payment`
 
 The middleware and the [LangChain decorator](./langchain) can be used together — the middleware gates the agent's HTTP entry point, the decorator gates individual tools inside the agent. Each layer charges independently. Common pattern: charge a flat rate per agent invocation (middleware) plus dynamic per-tool credits (decorator) for expensive tool calls.
@@ -188,4 +238,6 @@ The middleware and the [LangChain decorator](./langchain) can be used together �
 
 - [LangChain](./langchain) — tool-time `@requires_payment` decorator
 - [`payments-py[langsmith]` SDK docs (chapter 13)](https://nevermined-io.github.io/payments-py/api/13-langsmith-deployment/) — full API reference
-- [`langchain-langsmith-deployment-py` tutorial](https://github.com/nevermined-io/tutorials/tree/main/langchain-langsmith-deployment-py) — runnable end-to-end demo
+- [`langchain-langsmith-deployment-py` tutorial](https://github.com/nevermined-io/tutorials/tree/main/langchain-langsmith-deployment-py) — runnable CLI end-to-end demo
+- [`langchain-chat-ui-nvm` tutorial](https://github.com/nevermined-io/tutorials/tree/main/langchain-chat-ui-nvm) — browser chat UI with card-delegation popup
+- [Card delegation — white-label redirect](/docs/solutions/card-delegation) — full reference for the `/embed/cards/setup` flow used by the chat UI popup
