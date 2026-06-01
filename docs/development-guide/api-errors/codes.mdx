@@ -38,7 +38,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.WIDGET_SESSION`](#bck-widget_session) — 12 codes
 - [`BCK.X402`](#bck-x402) — 17 codes
 
-## `BCK.AGENT` { #bck-agent }
+## <span id="bck-agent"></span>`BCK.AGENT`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -54,7 +54,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-agent-0010"></a>`BCK.AGENT.0010` | 403 | business | — | Task not found or completed |  |
 | <a id="bck-agent-0011"></a>`BCK.AGENT.0011` | 500 | internal | ❌ | Agent lookup failed: agent with the given entryId not found in service layer | The service-layer findOneById returned null. The original behaviour was a generic 500; consumer code that needs 404 semantics should use BCK.PROTOCOL.0004. |
 
-## `BCK.APIKEY` { #bck-apikey }
+## <span id="bck-apikey"></span>`BCK.APIKEY`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -71,7 +71,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-apikey-0012"></a>`BCK.APIKEY.0012` | 401 | auth | — | Unable to generate assertion |  |
 | <a id="bck-apikey-0013"></a>`BCK.APIKEY.0013` | 401 | auth | — | Malformed API Key payload |  |
 
-## `BCK.AUTH` { #bck-auth }
+## <span id="bck-auth"></span>`BCK.AUTH`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -85,7 +85,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-auth-0008"></a>`BCK.AUTH.0008` | 403 | auth | ❌ | Caller account is not active | The user is suspended/disabled. Reactivate via the admin UI before retrying. |
 | <a id="bck-auth-0009"></a>`BCK.AUTH.0009` | 403 | auth | ❌ | Target organisation is not active | The org has been deactivated (subscription lapsed, manual disable, etc.). Reactivate before performing admin operations. |
 
-## `BCK.BRAINTREE` { #bck-braintree }
+## <span id="bck-braintree"></span>`BCK.BRAINTREE`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -99,7 +99,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-braintree-0008"></a>`BCK.BRAINTREE.0008` | 400 | integration | — | Cannot create a Braintree plan in this currency: your Braintree account has no merchant account in that currency. Add one in your Braintree dashboard, then disconnect and reconnect to refresh. |  |
 | <a id="bck-braintree-0009"></a>`BCK.BRAINTREE.0009` | 400 | integration | — | Plan metadata is missing currency. Plans must specify a currency to be settled via Braintree. |  |
 
-## `BCK.COMMON` { #bck-common }
+## <span id="bck-common"></span>`BCK.COMMON`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -133,7 +133,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-common-0028"></a>`BCK.COMMON.0028` | 409 | business | ❌ | Referenced resource does not exist (foreign key violation) | The request references an entity (plan, agent, user, organisation) that does not exist or has been deleted. Verify the referenced ID. |
 | <a id="bck-common-0029"></a>`BCK.COMMON.0029` | 503 | integration | ✅ | Database temporarily unavailable | The database is being restarted or is under maintenance. Retry the request after a short backoff. |
 
-## `BCK.CREDITS` { #bck-credits }
+## <span id="bck-credits"></span>`BCK.CREDITS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -144,21 +144,21 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-credits-0005"></a>`BCK.CREDITS.0005` | 500 | business | — | Credit lots do not satisfy the burned amount — FIFO invariant violated |  |
 | <a id="bck-credits-0006"></a>`BCK.CREDITS.0006` | 500 | internal | ❌ | Cannot enqueue on-chain order mirror without a corresponding minted credit lot | enqueueFiatOrderMirror must be called after a successful creditsService.mint with the same sourceTx. This usually indicates an out-of-order call by a service, not a runtime data issue. |
 
-## `BCK.DELEGATION` { #bck-delegation }
+## <span id="bck-delegation"></span>`BCK.DELEGATION`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-delegation-0001"></a>`BCK.DELEGATION.0001` | 404 | business | ❌ | Payment method not found | Verify the paymentMethodId. The payment method may have been removed or never existed. |
 | <a id="bck-delegation-0002"></a>`BCK.DELEGATION.0002` | 404 | business | ❌ | Delegation not found | Verify the delegationId. The delegation may have been revoked, expired, or never existed. |
 
-## `BCK.GUEST` { #bck-guest }
+## <span id="bck-guest"></span>`BCK.GUEST`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-guest-0001"></a>`BCK.GUEST.0001` | 400 | validation | ❌ | Invalid guest account request | Check the request body — guest provisioning requires either fingerprint or externalId. |
 | <a id="bck-guest-0002"></a>`BCK.GUEST.0002` | 500 | business | — | Failed to provision guest account |  |
 
-## `BCK.LEGAL_DOCS` { #bck-legal_docs }
+## <span id="bck-legal_docs"></span>`BCK.LEGAL_DOCS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -169,7 +169,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-legal_docs-0005"></a>`BCK.LEGAL_DOCS.0005` | 401 | business | — | Authenticated request without a resolvable user identity |  |
 | <a id="bck-legal_docs-0006"></a>`BCK.LEGAL_DOCS.0006` | 400 | business | — | No wallet linked to the authenticated Privy account |  |
 
-## `BCK.METRIC` { #bck-metric }
+## <span id="bck-metric"></span>`BCK.METRIC`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -179,7 +179,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-metric-0004"></a>`BCK.METRIC.0004` | 500 | integration | — | Error getting balance for account |  |
 | <a id="bck-metric-0005"></a>`BCK.METRIC.0005` | 500 | integration | — | Error getting total hits for account |  |
 
-## `BCK.NOTIF` { #bck-notif }
+## <span id="bck-notif"></span>`BCK.NOTIF`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -193,7 +193,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-notif-0008"></a>`BCK.NOTIF.0008` | 500 | integration | — | Error sending email notification |  |
 | <a id="bck-notif-0009"></a>`BCK.NOTIF.0009` | 401 | integration | — | The user doesnt own this notification |  |
 
-## `BCK.OAUTH` { #bck-oauth }
+## <span id="bck-oauth"></span>`BCK.OAUTH`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -204,7 +204,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-oauth-0005"></a>`BCK.OAUTH.0005` | 400 | auth | ❌ | Resource mismatch between token request and authorization code | The `resource` parameter on /token does not match the value bound to the authorization code. Resend with the same `resource` you used on /authorize. |
 | <a id="bck-oauth-0006"></a>`BCK.OAUTH.0006` | 400 | auth | ❌ | User profile not found for the authorization code | The user bound to the authorization code no longer exists in our DB (deleted profile, or environment mismatch). Restart the flow with a valid signed-in user. |
 
-## `BCK.OBSERVABILITY` { #bck-observability }
+## <span id="bck-observability"></span>`BCK.OBSERVABILITY`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -214,7 +214,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-observability-0004"></a>`BCK.OBSERVABILITY.0004` | 429 | integration | — | Rate limit exceeded for Helicone API |  |
 | <a id="bck-observability-0005"></a>`BCK.OBSERVABILITY.0005` | 502 | integration | — | Helicone API service unavailable |  |
 
-## `BCK.ORGANIZATIONS` { #bck-organizations }
+## <span id="bck-organizations"></span>`BCK.ORGANIZATIONS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -234,19 +234,19 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-organizations-0014"></a>`BCK.ORGANIZATIONS.0014` | 403 | business | ❌ | User already belongs to another organization | A user can only belong to one organization at a time. Remove the user from the current organization before adding them to a new one. |
 | <a id="bck-organizations-0015"></a>`BCK.ORGANIZATIONS.0015` | 500 | integration | ✅ | Failed to look up organization (database error) | Repository.findOne returned a driver/connection error rather than null. Inspect the cause field on the server log; if the database is up, this is likely a query timeout or connection-pool exhaustion. Distinct from BCK.ORGANIZATIONS.0011, which signals a confirmed not-found result. |
 
-## `BCK.PAYPAL` { #bck-paypal }
+## <span id="bck-paypal"></span>`BCK.PAYPAL`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-paypal-0001"></a>`BCK.PAYPAL.0001` | 500 | integration | — | Unexpected error during PayPal/Braintree checkout |  |
 
-## `BCK.PLANS` { #bck-plans }
+## <span id="bck-plans"></span>`BCK.PLANS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-plans-0001"></a>`BCK.PLANS.0001` | 500 | internal | ❌ | Plan lookup failed: plan with the given entryId not found in service layer | The service-layer findOneById returned null. Original behaviour was a generic 500; consumer code that needs 404 semantics should use BCK.PROTOCOL.0003. |
 
-## `BCK.POINT` { #bck-point }
+## <span id="bck-point"></span>`BCK.POINT`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -270,7 +270,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-point-0018"></a>`BCK.POINT.0018` | 500 | internal | ❌ | No fiat-seller points rule for the supplied price | getRuleIdByFiatSellerPrice() saw a price the tier table does not cover. |
 | <a id="bck-point-0019"></a>`BCK.POINT.0019` | 500 | internal | ❌ | No fiat-buyer points rule for the supplied price | getRuleIdByFiatBuyerPrice() saw a price the tier table does not cover. |
 
-## `BCK.PROTOCOL` { #bck-protocol }
+## <span id="bck-protocol"></span>`BCK.PROTOCOL`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -322,7 +322,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-protocol-0046"></a>`BCK.PROTOCOL.0046` | 400 | integration | — | Fiat plan price exceeds the maximum allowed ($999,999.99). Stripe does not support payment intents above this limit. |  |
 | <a id="bck-protocol-0047"></a>`BCK.PROTOCOL.0047` | 400 | integration | — | Fiat plan price is below the minimum allowed ($1.00). Lower prices do not cover the payment-processor fixed fee. |  |
 
-## `BCK.STRIPE` { #bck-stripe }
+## <span id="bck-stripe"></span>`BCK.STRIPE`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -359,7 +359,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-stripe-0037"></a>`BCK.STRIPE.0037` | 400 | integration | ✅ | Stripe subscription creation: no latest invoice on subscription | The newly-created subscription did not return a latest_invoice. Retry once; if it persists, check Stripe dashboard for the subscription state. |
 | <a id="bck-stripe-0038"></a>`BCK.STRIPE.0038` | 400 | integration | ✅ | Stripe subscription creation: no payment intent on subscription | The subscription invoice did not yield a payment_intent. This usually means the customer has no default payment method. Confirm the SetupIntent has succeeded before creating the subscription. |
 
-## `BCK.STRIPE.CONNECT` { #bck-stripe-connect }
+## <span id="bck-stripe-connect"></span>`BCK.STRIPE.CONNECT`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -369,13 +369,13 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-stripe-connect-0004"></a>`BCK.STRIPE.CONNECT.0004` | 400 | integration | — | Stripe account environment does not match platform environment |  |
 | <a id="bck-stripe-connect-0005"></a>`BCK.STRIPE.CONNECT.0005` | 404 | integration | — | User profile not found for Stripe Connect update |  |
 
-## `BCK.TRANSCODING` { #bck-transcoding }
+## <span id="bck-transcoding"></span>`BCK.TRANSCODING`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-transcoding-0001"></a>`BCK.TRANSCODING.0001` | 404 | integration | — | UGC not found |  |
 
-## `BCK.TXS` { #bck-txs }
+## <span id="bck-txs"></span>`BCK.TXS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -390,14 +390,14 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-txs-0009"></a>`BCK.TXS.0009` | 404 | integration | — | Error getting total revenue for owner |  |
 | <a id="bck-txs-0010"></a>`BCK.TXS.0010` | 404 | integration | — | Error getting dashboard metrics for owner |  |
 
-## `BCK.USER_PROFILE` { #bck-user_profile }
+## <span id="bck-user_profile"></span>`BCK.USER_PROFILE`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-user_profile-0001"></a>`BCK.USER_PROFILE.0001` | 500 | internal | ❌ | User profile not found | Verify the entryId. Note: legacy callers depended on this surfacing as 500; the canonical "user profile not found for caller-supplied identifier" lookup-not-found semantics live in BCK.USER_PROFILE.0002 (404). |
 | <a id="bck-user_profile-0002"></a>`BCK.USER_PROFILE.0002` | 404 | business | ❌ | User profile not found | Verify the user identifier. The profile may have been disabled or never created. |
 
-## `BCK.VISA` { #bck-visa }
+## <span id="bck-visa"></span>`BCK.VISA`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -420,7 +420,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-visa-0017"></a>`BCK.VISA.0017` | 502 | integration | — | Stripe Connect account lookup failed while resolving Visa merchant context | Inspect Stripe dashboard logs for the connected account id in params. Connect account lookup failed transiently — retry; if it persists, check the seller's Connect status. |
 | <a id="bck-visa-0018"></a>`BCK.VISA.0018` | 409 | business | — | This card is already enrolled to a different account | VGS Agentic Tokens are keyed on PAN globally — the same physical card resolves to the same tokenId regardless of which user enrols it. The card you tried to enrol is already on file under another account. Use a different card. |
 
-## `BCK.WIDGET` { #bck-widget }
+## <span id="bck-widget"></span>`BCK.WIDGET`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -430,14 +430,14 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-widget-0004"></a>`BCK.WIDGET.0004` | 500 | business | — | Error updating widget config |  |
 | <a id="bck-widget-0005"></a>`BCK.WIDGET.0005` | 500 | business | — | Error deleting widget config |  |
 
-## `BCK.WIDGET_KEYS` { #bck-widget_keys }
+## <span id="bck-widget_keys"></span>`BCK.WIDGET_KEYS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-widget_keys-0001"></a>`BCK.WIDGET_KEYS.0001` | 500 | internal | ❌ | Widget key generation failed |  |
 | <a id="bck-widget_keys-0002"></a>`BCK.WIDGET_KEYS.0002` | 404 | auth | — | Widget key not found |  |
 
-## `BCK.WIDGET_SESSION` { #bck-widget_session }
+## <span id="bck-widget_session"></span>`BCK.WIDGET_SESSION`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
@@ -454,7 +454,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-widget_session-0011"></a>`BCK.WIDGET_SESSION.0011` | 401 | auth | — | Widget key has been revoked or no longer exists |  |
 | <a id="bck-widget_session-0012"></a>`BCK.WIDGET_SESSION.0012` | 403 | auth | — | Origin not allowed for this widget key |  |
 
-## `BCK.X402` { #bck-x402 }
+## <span id="bck-x402"></span>`BCK.X402`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|

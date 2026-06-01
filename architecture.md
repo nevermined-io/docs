@@ -30,6 +30,7 @@ Major documentation reorganization completed:
 - ✅ Welcome & Overview (`docs/getting-started/welcome.mdx`)
 - ✅ How It Works (`docs/getting-started/how-it-works.mdx`)
 - ✅ Core Concepts (`docs/getting-started/core-concepts.mdx`)
+- ✅ AI Agents: Buy Access Autonomously (`docs/getting-started/ai-agent-purchase.mdx`)
 
 #### Solutions (Use Cases)
 - ✅ Agent-to-Agent Monetization (`docs/solutions/agent-to-agent-monetization.mdx`)
