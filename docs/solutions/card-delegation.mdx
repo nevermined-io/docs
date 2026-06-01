@@ -21,7 +21,7 @@ Nevermined ships **three ways** to drive that flow, all built on the same backen
 </CardGroup>
 
 <Note>
-Options **2** and **3** are organization-scoped — they require an active [Nevermined organization](/docs/integrations/organizations) with at least one member. Option **1** works for any signed-in user, with or without an organization.
+Only the **embedded widgets** (option 3, iframe) are organization-scoped — they need an active [Nevermined organization](/docs/integrations/organizations) with a widget key. Options **1** and **2** work for **anyone**: option 1 for any signed-in user, and option 2 for any holder of an NVM API key. The redirect flow has an **open path for autonomous agents** (`POST /api/v1/embed/session`, no organization required) and an org-scoped path (`POST /api/v1/widgets/session/self`) used by the `nvm` CLI and org members.
 </Note>
 
 <Tip>
@@ -63,51 +63,52 @@ The fastest path for end-users and the natural fit when your users are already a
 
 For tools that run **outside the browser** — CLIs, terminal-based agents, desktop apps — but still need to authorize a card. The pattern mirrors `nvm login`: print a URL, the user clicks it, the browser handles the chromeless card setup, and your process receives the result at a localhost callback.
 
-<Warning>
-This path requires an **active Nevermined organization** with at least one member. The user driving the flow must be a member of that organization. Card setup is positioned as an organization feature — see [Platform Partners](/docs/integrations/organizations) to upgrade.
-</Warning>
+<Note>
+This flow works **with or without an organization**, depending on which session you mint:
+
+- **Autonomous agents / buyers (no org):** mint an open embedded session with `POST /api/v1/embed/session` — any valid NVM API key, no organization needed. This is the path for AI agents purchasing on a user's behalf.
+- **Org members (e.g. the `nvm` CLI):** mint an org-scoped session with `POST /api/v1/widgets/session/self`, which requires membership in the target organization.
+
+Both produce a `sessionToken` of the same shape that the embed app accepts; what differs is **who can mint it** and **what the card/delegation attach to** — your own Nevermined account via the embedded path, or the organization via the widget path. See [Platform Partners](/docs/integrations/organizations) for the organization features.
+</Note>
 
 ### How the handshake works
 
 ```
-CLI               Nevermined API           Browser              Local callback
- │                       │                     │                       │
- │ start one-shot        │                     │                       │
- │ bind /callback on     │                     │                       │
- │ 127.0.0.1:0 (random)  │                     │                       │──── listening
- │                       │                     │                       │
- │ POST /api/v1/widgets/ │                     │                       │
- │   session/self        │                     │                       │
- │   Bearer <nvmApiKey>  │                     │                       │
- │   { orgId, returnUrl }│                     │                       │
- │──────────────────────▶│                     │                       │
- │◀──────────────────────│ verify org          │                       │
- │ { sessionToken,       │ membership, mint    │                       │
- │   isReturnUrlAllowed }│ kind:'self-mint'    │                       │
- │                       │ widget session JWT  │                       │
- │                       │                     │                       │
- │ open                  │                     │                       │
- │ {embed}/cards/setup   │                     │                       │
- │  (embed app origin)   │                     │                       │
- │  ?sessionToken=…      │                     │                       │
- │  &returnUrl=…         │                     │                       │
- │  &state=<rand>        │                     │                       │
- │  &provider=stripe     │                     │                       │
- │───────────────────────────────────────────▶│ chromeless page:      │
- │                       │                     │ - validate session     │
- │                       │                     │ - enroll card (Stripe │
- │                       │                     │   Elements / VGS /    │
- │                       │                     │   Braintree Drop-in)  │
- │                       │                     │ - create delegation   │
- │                       │                     │ - window.location     │
- │                       │                     │   .replace(returnUrl  │
- │                       │                     │   + ids + state)      │
- │                       │                     │──────────────────────▶│ GET /callback?paymentMethodId=…
- │◀──────────────────────────────────────────────────────────────resolved &delegationId=…&state=…
- │                       │                     │                       │
- │ verify state matches  │                     │                       │
- │ → resolve, close      │                     │                       │
+Agent / CLI            Nevermined API          Embed app (browser)    Local callback
+ │                          │                     │                       │
+ │ start one-shot           │                     │                       │
+ │ bind /callback on        │                     │                       │
+ │ 127.0.0.1:0 (random)     │                     │                       │──── listening
+ │                          │                     │                       │
+ │ POST /api/v1/embed/session                     │                       │
+ │   Bearer <nvmApiKey>     │                     │                       │
+ │   { returnUrl }          │                     │                       │
+ │─────────────────────────▶│                     │                       │
+ │◀─────────────────────────│ mint a session      │                       │
+ │ { sessionToken,          │ bound to the        │                       │
+ │   isReturnUrlAllowed }    │ caller's identity   │                       │
+ │                          │ (no org needed)     │                       │
+ │                          │                     │                       │
+ │ open {embed}/cards/setup │                     │                       │
+ │   ?sessionToken=…&returnUrl=…&state=<rand>&provider=stripe              │
+ │────────────────────────────────────────────────▶│ chromeless page:    │
+ │                          │                     │ - validate session    │
+ │                          │                     │ - enroll card (Stripe │
+ │                          │                     │   Elements / VGS /    │
+ │                          │                     │   Braintree Drop-in)  │
+ │                          │                     │ - create delegation   │
+ │                          │                     │ - redirect to         │
+ │                          │                     │   returnUrl + ids +   │
+ │                          │                     │   state               │
+ │                          │                     │──────────────────────▶│ GET /callback?paymentMethodId=…
+ │◀──────────────────────────────────────────────────────── resolved &delegationId=…&state=…
+ │                          │                     │                       │
+ │ verify state matches     │                     │                       │
+ │ → resolve, close         │                     │                       │
 ```
+
+Org members (e.g. the `nvm` CLI) mint the session with `POST /api/v1/widgets/session/self` (`{ orgId, returnUrl }`) instead — same handshake, but it requires membership in the target organization.
 
 ### The shortest possible integration
 
@@ -124,7 +125,7 @@ nvm cards enroll [--org <id>] [--provider …]
 nvm cards delegate --card <paymentMethodId> [--org <id>]
 ```
 
-Each command opens the browser at `{embed}/cards/<route>?…` — the dedicated embed app (`https://embed.nevermined.app` in production, `https://embed.nevermined.dev` on staging) — waits up to 5 minutes for the user to complete the flow, then exits cleanly with the resulting IDs. `--no-browser` prints the URL instead of opening it — useful over SSH or in CI.
+Each command opens the browser at `{embed}/cards/<route>?…` — the standalone embed app (`embed.nevermined.app` for live, `embed.nevermined.dev` for staging), not the old webapp `/embed/*` routes — waits up to 5 minutes for the user to complete the flow, then exits cleanly with the resulting IDs. `--no-browser` prints the URL instead of opening it — useful over SSH or in CI.
 
 ### Build your own (any language)
 
@@ -134,16 +135,15 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
   <Step title="Start a one-shot localhost callback server">
     Bind to `127.0.0.1:0` (the OS picks a free port). Listen on `/callback`. Note the port for step 3. **Never bind to `0.0.0.0`** — the callback should not be reachable from the network.
   </Step>
-  <Step title="Mint a widget session">
-    Authenticate the request with the user's own NVM API key (the one they get from `nvm login`). The endpoint rejects callers who are not members of the requested organization.
+  <Step title="Mint a session">
+    Authenticate the request with the user's own NVM API key. **Autonomous agents and buyers should use the open embedded session** — it needs no organization:
 
     ```http
-    POST {api}/api/v1/widgets/session/self
+    POST {api}/api/v1/embed/session
     Authorization: Bearer <nvmApiKey>
     Content-Type: application/json
 
     {
-      "orgId": "org-abc-123",
       "returnUrl": "http://localhost:54321/callback"
     }
     ```
@@ -160,18 +160,33 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
     }
     ```
 
-    Failure codes:
+    The card and delegation attach to the caller's own account. There is no org-membership check, so the failure modes are only:
 
-    | HTTP | Error code | Meaning |
-    |------|------------|---------|
-    | 401 | `BCK.APIKEY.0004` | The NVM API key is invalid or expired. Run `nvm login` again. |
-    | 403 | `BCK.WIDGET_SESSION.0018` | The caller has no active organization memberships. Create or join one first. |
-    | 403 | `BCK.WIDGET_SESSION.0019` | The `orgId` in the request is not one of the caller's memberships. |
+    | HTTP | Meaning |
+    |------|---------|
+    | 400 | `returnUrl` is not a valid `http`/`https` URL (DTO validation). |
+    | 401 `BCK.APIKEY.0004` | The NVM API key is invalid or expired — run `nvm login` again. |
+    | 429 | Rate limited — the endpoint allows 30 mint calls per minute. Back off and retry. |
+
+    <Accordion title="Org-scoped alternative: POST /api/v1/widgets/session/self">
+      Org members (and the `nvm` CLI) can instead mint an **org-scoped** session. It returns the same `sessionToken` shape, but requires membership in the target organization and takes an `orgId`:
+
+      ```http
+      POST {api}/api/v1/widgets/session/self
+      Authorization: Bearer <nvmApiKey>
+      Content-Type: application/json
+
+      {
+        "orgId": "org-abc-123",
+        "returnUrl": "http://localhost:54321/callback"
+      }
+      ```
+
+      Additional failure codes: `403 BCK.WIDGET_SESSION.0018` (the caller has no active organization memberships — if you're a buyer/agent enrolling a card, use the open `POST /api/v1/embed/session` flow above instead) and `403 BCK.WIDGET_SESSION.0019` (the `orgId` is not one of the caller's memberships — list them via `/organizations/my-memberships`).
+    </Accordion>
   </Step>
   <Step title="Open the browser">
     Construct the URL and open it with the OS browser-opener (`xdg-open` / `open` / `start`):
-
-    `{embed}` is the embed app for your tier — `https://embed.nevermined.app` (production) or `https://embed.nevermined.dev` (staging); `http://localhost:4250` in local dev.
 
     ```
     {embed}/cards/setup
@@ -181,13 +196,13 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
       &provider=stripe
     ```
 
-    Three routes are available:
+    `{embed}` is the standalone embed app — `https://embed.nevermined.app` (live) or `https://embed.nevermined.dev` (staging). The card surfaces moved off the webapp `/embed/*` routes to this dedicated app. Three routes are available:
 
     | Route | Callback returns |
     |-------|------------------|
-    | `/cards/setup` | `paymentMethodId` + `delegationId` (one-shot, both steps) |
-    | `/cards/enroll` | `paymentMethodId` only |
-    | `/cards/delegate?paymentMethodId=<id>` | `delegationId` only |
+    | `{embed}/cards/setup` | `paymentMethodId` + `delegationId` (one-shot, both steps) |
+    | `{embed}/cards/enroll` | `paymentMethodId` only |
+    | `{embed}/cards/delegate?paymentMethodId=<id>` | `delegationId` only |
 
     The `state` value is echoed back in the redirect so you can bind the callback to this specific request (CSRF). 16 bytes (32 hex characters) of cryptographic randomness is the recommended minimum.
   </Step>
@@ -211,7 +226,7 @@ The server validates `returnUrl` against the session's allow-list:
 
 - `localhost`, `127.0.0.1`, `[::1]` (any port, any path) — accepted for **both** session kinds.
 - Other `https://` origins — accepted only for **widget-key** sessions whose key has the origin in its `allowedOrigins` list.
-- **Self-mint** sessions (the `POST /api/v1/widgets/session/self` path documented above) reject any non-localhost host. Use the widget-key flow (see option 3) if you need remote redirects.
+- **Self-mint** sessions — both the open `POST /api/v1/embed/session` and the org-scoped `POST /api/v1/widgets/session/self` documented above — reject any non-localhost host. Use the widget-key flow (see option 3) if you need remote redirects.
 
 ### Security checklist
 
@@ -227,7 +242,7 @@ The full integrator reference, including TypeScript pseudocode, lives in [`cli-c
 Your end-users never leave your domain. You mint a widget session on your server with the organization's widget-key and pass it straight to the browser SDK — no token-exchange round-trip — and the user completes the card-enrollment + delegation flow inside your own page.
 
 <Warning>
-Like option 2, the iframe widget flow requires an **active Nevermined organization**. The widget-key is the credential that scopes every iframe session to your org's users — see [Platform Partners](/docs/integrations/organizations) for the upgrade path.
+The iframe widget flow requires an **active Nevermined organization** — this is the one option that does. The widget-key is the credential that scopes every iframe session to your org's users — see [Platform Partners](/docs/integrations/organizations) for the upgrade path.
 </Warning>
 
 The full guide — including how to generate a widget key, mint widget sessions server-side, mount the iframe on your page, and react to `nvm:success` / `nvm:error` events — lives in [Embed Nevermined Widgets](/docs/integrations/organization-widgets).
@@ -246,7 +261,7 @@ Choose the white-label redirect (option 2) instead when your tool runs outside a
 |-|-|-|-|
 | **Where the user finishes** | nevermined.app | A chromeless page in their browser | Your own page (iframe) |
 | **Integration effort** | None | One HTTP server + one URL open | A widget key + iframe mount |
-| **Requires an organization** | No | Yes | Yes |
+| **Requires an organization** | No | No (open embed session) — or org-scoped via the widget session | Yes |
 | **Best for** | Power users, internal teams | CLIs, terminal-based agents, desktop apps | Websites, SaaS dashboards |
 | **Authentication** | The user's own Privy login | The user's own NVM API key (Bearer) | Your server-minted widget session |
 | **Result delivery** | UI state | `paymentMethodId` + `delegationId` at a localhost callback | `nvm:success` postMessage to the parent page |
