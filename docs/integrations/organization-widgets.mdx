@@ -276,7 +276,7 @@ The `rawSecret` is the equivalent of a password for your organization's widget s
     </Tabs>
 
     <Note>
-      Every iframe-mounting method also accepts optional `width` / `height` (pixels) for inline sizing — the SDK clamps them to a supported range; omit them for the default overlay. Checkout, enroll, and list also accept `onAuthMismatch` / `onAuthSwitchRequest` for the multi-org identity case — see [Handling identity mismatches](#handling-identity-mismatches).
+      Every iframe-mounting method also accepts optional `width` / `height` (pixels) for inline sizing — the SDK clamps them to a supported range; omit them for the default overlay.
     </Note>
   </Step>
 </Steps>
@@ -313,14 +313,14 @@ For integrations that aren't an in-page iframe — a CLI tool, or any flow where
 
 You pass a `sessionToken` and a `returnUrl` on the query string. The page runs the same flow and, on success, redirects the browser to `returnUrl` with the result IDs (plus your `state` echo) appended as query parameters — the same shape as an OAuth callback.
 
-Supported on the card flows and plan-only checkout. The **agent checkout (`/embed/checkout/$did`) is iframe-only**.
+These pages are served by the dedicated **embed app** (`https://embed.nevermined.app` in production, `https://embed.nevermined.dev` on staging, `http://localhost:4250` in local dev) — the same origin the SDK mounts in iframe mode. Supported on the card flows and plan-only checkout; the **agent checkout (`/checkout/$did`) is iframe-only**.
 
-| Route | Result params appended to `returnUrl` |
+| Route (on the embed app) | Result params appended to `returnUrl` |
 |---|---|
-| `/embed/cards/setup` | `paymentMethodId`, `delegationId` |
-| `/embed/cards/enroll` | `paymentMethodId` |
-| `/embed/cards/delegate` | `delegationId` |
-| `/embed/checkout/plan/<planId>` | `planId`, `paymentIntent` |
+| `/cards/setup` | `paymentMethodId`, `delegationId` |
+| `/cards/enroll` | `paymentMethodId` |
+| `/cards/delegate` | `delegationId` |
+| `/checkout/plan/<planId>` | `planId`, `paymentIntent` |
 
 ### Minting a session for redirect mode
 
@@ -330,7 +330,7 @@ Supported on the card flows and plan-only checkout. The **agent checkout (`/embe
 ### Example
 
 ```text
-https://nevermined.app/embed/cards/setup
+https://embed.nevermined.app/cards/setup
   ?sessionToken=<the WidgetSession token>
   &returnUrl=http://localhost:8976/callback
   &state=<opaque csrf value>
@@ -346,23 +346,20 @@ http://localhost:8976/callback?paymentMethodId=pm_...&delegationId=del_...&state
 `returnUrl` must be an absolute `http(s)` URL and is re-validated server-side against the session's allow-list — localhost for self-mint sessions, the widget key's `allowedOrigins` otherwise. A URL that isn't allowed refuses to mount, so result IDs are never sent to an unapproved destination.
 </Warning>
 
-## Handling identity mismatches
+## Identity
 
-A widget session is minted for a specific **email** (the end-user you passed to `createWidgetSession`). If the host browser already has a Nevermined (Privy) login for a *different* email, the iframe detects the mismatch and:
-
-- fires **`onAuthMismatch(detail)`** — `detail` carries the expected vs. host emails, and the iframe shows an in-place prompt (mirror it in your own UI if you want);
-- if the user chooses "Continue as `<host email>`", fires **`onAuthSwitchRequest(detail)`** — re-mint a widget session bound to `detail.requestedEmail` (call your session endpoint again with that email) and reopen the widget.
-
-If the browser has no Nevermined login there's no mismatch, and the widget proceeds against the session's email.
+A widget session is minted for a specific **email** (the end-user you passed to `createWidgetSession`), and that session is the **sole** identity inside the iframe. The embed app is Privy-free: it never reads the host page's Nevermined (Privy) login — which is exactly why it runs on any of your domains without that domain having to be on Nevermined's auth allow-list. There's nothing to reconcile on the host side, so no `onAuthMismatch` / host-login handling is needed; the widget always acts as the session's user.
 
 ## Environments
 
 Pick the environment that matches the Nevermined dashboard you used to mint the widget key.
 
-| Environment | API base | Webapp base | When to use |
-|---|---|---|---|
-| `sandbox` | `https://api.sandbox.nevermined.app` | `https://nevermined.app` | Testing on Base Sepolia with sandbox credentials |
-| `live` | `https://api.live.nevermined.app` | `https://nevermined.app` | Production on Base mainnet |
+| Environment | API base | Webapp base | Embed app | When to use |
+|---|---|---|---|---|
+| `sandbox` | `https://api.sandbox.nevermined.app` | `https://nevermined.app` | `https://embed.nevermined.app` | Testing on Base Sepolia with sandbox credentials |
+| `live` | `https://api.live.nevermined.app` | `https://nevermined.app` | `https://embed.nevermined.app` | Production on Base mainnet |
+
+The SDK resolves all three for you from the `environment` you pass to `initialize` — you only need the **Embed app** origin when building a [redirect-mode](#redirect--cli-mode-no-iframe) URL by hand. A single embed deployment serves both networks of its tier; the SDK forwards the active one as a `?network=` query param when it mounts.
 
 ## Production checklist
 
