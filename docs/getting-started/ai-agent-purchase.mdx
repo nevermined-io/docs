@@ -44,10 +44,10 @@ API keys are environment-specific: Sandbox keys start with `sandbox:`, Live keys
   <Step title="Discover what an organization sells">
     Every organization exposes two agent-discoverable files. Start here — they tell you the plans, the agents, and **which environment you're in**:
 
-    - `GET {API_BASE}/api/v1/organizations/{orgId}/agentic-instructions.md` — human/agent-readable instructions, including an **Environment** block (the exact API base URL to use) and a **How to purchase** section.
-    - `GET {API_BASE}/api/v1/organizations/{orgId}/llms.txt` — a compact index of plans, agents, and reference links.
+    - `GET {API_BASE}/organizations/{orgId}/agentic-instructions.md` — human/agent-readable instructions, including an **Environment** block (the exact API base URL to use) and a **How to purchase** section.
+    - `GET {API_BASE}/organizations/{orgId}/llms.txt` — a compact index of plans, agents, and reference links.
 
-    Both are plain text and need no authentication. Use the **API base URL printed in the Environment block** for every later call, and grab the per-environment OpenAPI reference at `{API_BASE}/api/v1/rest/docs-json` (human-browsable UI at `/api/v1/rest/docs`).
+    Both are plain text and need no authentication. Use the **API base URL printed in the Environment block** for every later call, and grab the per-environment OpenAPI reference at `{API_BASE}/rest/docs-json` (human-browsable UI at `{API_BASE}/rest/docs`).
   </Step>
 
   <Step title="Get a Nevermined API Key (one-time, needs a human)">
