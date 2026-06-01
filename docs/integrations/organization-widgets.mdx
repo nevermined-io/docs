@@ -334,7 +334,12 @@ https://embed.nevermined.app/cards/setup
   ?sessionToken=<the WidgetSession token>
   &returnUrl=http://localhost:8976/callback
   &state=<opaque csrf value>
+  &network=<sandbox | live>
 ```
+
+<Warning>
+In redirect mode **you build the URL by hand**, so you must include `&network=` yourself — set it to the network you minted the session against (`sandbox` or `live`). The embed app reads its active backend **solely** from this param and **defaults to `sandbox`** when it's absent, so omitting it on a `live` session makes the embed validate the token against the sandbox backend (where it doesn't exist) and the flow fails. In iframe mode the SDK forwards it for you; here it's on you.
+</Warning>
 
 On success the browser lands on:
 
