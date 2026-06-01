@@ -87,8 +87,8 @@ CLI               Nevermined API           Browser              Local callback
  │                       │ widget session JWT  │                       │
  │                       │                     │                       │
  │ open                  │                     │                       │
- │ {frontend}/embed/     │                     │                       │
- │  cards/setup          │                     │                       │
+ │ {embed}/cards/setup   │                     │                       │
+ │  (embed app origin)   │                     │                       │
  │  ?sessionToken=…      │                     │                       │
  │  &returnUrl=…         │                     │                       │
  │  &state=<rand>        │                     │                       │
@@ -124,7 +124,7 @@ nvm cards enroll [--org <id>] [--provider …]
 nvm cards delegate --card <paymentMethodId> [--org <id>]
 ```
 
-Each command opens the browser at `{frontend}/embed/cards/<route>?…`, waits up to 5 minutes for the user to complete the flow, then exits cleanly with the resulting IDs. `--no-browser` prints the URL instead of opening it — useful over SSH or in CI.
+Each command opens the browser at `{embed}/cards/<route>?…` — the dedicated embed app (`https://embed.nevermined.app` in production, `https://embed.nevermined.dev` on staging) — waits up to 5 minutes for the user to complete the flow, then exits cleanly with the resulting IDs. `--no-browser` prints the URL instead of opening it — useful over SSH or in CI.
 
 ### Build your own (any language)
 
@@ -171,8 +171,10 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
   <Step title="Open the browser">
     Construct the URL and open it with the OS browser-opener (`xdg-open` / `open` / `start`):
 
+    `{embed}` is the embed app for your tier — `https://embed.nevermined.app` (production) or `https://embed.nevermined.dev` (staging); `http://localhost:4250` in local dev.
+
     ```
-    {frontend}/embed/cards/setup
+    {embed}/cards/setup
       ?sessionToken=<token>
       &returnUrl=<urlEncoded callback>
       &state=<cryptographically random nonce>
@@ -183,9 +185,9 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
 
     | Route | Callback returns |
     |-------|------------------|
-    | `/embed/cards/setup` | `paymentMethodId` + `delegationId` (one-shot, both steps) |
-    | `/embed/cards/enroll` | `paymentMethodId` only |
-    | `/embed/cards/delegate?paymentMethodId=<id>` | `delegationId` only |
+    | `/cards/setup` | `paymentMethodId` + `delegationId` (one-shot, both steps) |
+    | `/cards/enroll` | `paymentMethodId` only |
+    | `/cards/delegate?paymentMethodId=<id>` | `delegationId` only |
 
     The `state` value is echoed back in the redirect so you can bind the callback to this specific request (CSRF). 16 bytes (32 hex characters) of cryptographic randomness is the recommended minimum.
   </Step>
