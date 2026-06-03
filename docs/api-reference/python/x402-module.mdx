@@ -185,12 +185,20 @@ delegation = payments.delegation.create_delegation(
 )
 print(f"Delegation ID: {delegation.delegation_id}")
 
-# List enrolled payment methods (for card delegation)
+# List enrolled payment methods (every provider)
 methods = payments.delegation.list_payment_methods()
 for method in methods:
     print(f"{method.brand} ****{method.last4} (expires {method.exp_month}/{method.exp_year})")
     # e.g., "visa ****4242 (expires 12/2027)"
+
+# Restrict the result to a single provider with the optional `provider` kwarg
+stripe_methods = payments.delegation.list_payment_methods(provider="stripe")
 ```
+
+`list_payment_methods()` accepts an optional `provider` keyword argument
+(`'stripe' | 'braintree' | 'visa' | 'erc4337'`). When set, it is forwarded as a
+`?provider=` query string and only methods backed by that provider are returned.
+Omit it (the default) to return methods from every provider.
 
 `PaymentMethodSummary` fields:
 
@@ -514,5 +522,8 @@ sequenceDiagram
   </Card>
   <Card title="MCP Integration" icon="arrow-right" href="/docs/api-reference/python/mcp-module">
     x402 with MCP servers
+  </Card>
+  <Card title="MCP OAuth and x402 Discovery" icon="arrow-right" href="09-mcp-integration.md#mcp-oauth-and-x402-discovery">
+    Experimental MCP payment discovery metadata
   </Card>
 </CardGroup>
