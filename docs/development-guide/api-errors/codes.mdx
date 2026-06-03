@@ -9,139 +9,189 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 ## Namespaces
 
-- [`BCK.AGENT`](#bck-agent) — 11 codes
-- [`BCK.APIKEY`](#bck-apikey) — 12 codes
-- [`BCK.AUTH`](#bck-auth) — 9 codes
-- [`BCK.BRAINTREE`](#bck-braintree) — 9 codes
-- [`BCK.COMMON`](#bck-common) — 29 codes
+- [`BCK.ACCOUNT_PROVISIONING`](#bck-account_provisioning) — 2 codes
+- [`BCK.AGENT`](#bck-agent) — 12 codes
+- [`BCK.APIKEY`](#bck-apikey) — 13 codes
+- [`BCK.AUTH`](#bck-auth) — 13 codes
+- [`BCK.BILLING`](#bck-billing) — 21 codes
+- [`BCK.BRAINTREE`](#bck-braintree) — 10 codes
+- [`BCK.COMMON`](#bck-common) — 34 codes
 - [`BCK.CREDITS`](#bck-credits) — 6 codes
-- [`BCK.DELEGATION`](#bck-delegation) — 2 codes
+- [`BCK.DELEGATION`](#bck-delegation) — 3 codes
+- [`BCK.ENTITLEMENTS`](#bck-entitlements) — 2 codes
 - [`BCK.GUEST`](#bck-guest) — 2 codes
+- [`BCK.INVITATIONS`](#bck-invitations) — 5 codes
 - [`BCK.LEGAL_DOCS`](#bck-legal_docs) — 6 codes
 - [`BCK.METRIC`](#bck-metric) — 5 codes
 - [`BCK.NOTIF`](#bck-notif) — 9 codes
-- [`BCK.OAUTH`](#bck-oauth) — 6 codes
+- [`BCK.OAUTH`](#bck-oauth) — 7 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
-- [`BCK.ORGANIZATIONS`](#bck-organizations) — 15 codes
+- [`BCK.ORGANIZATIONS`](#bck-organizations) — 32 codes
+- [`BCK.ORG_INTEGRATION`](#bck-org_integration) — 2 codes
 - [`BCK.PAYPAL`](#bck-paypal) — 1 code
 - [`BCK.PLANS`](#bck-plans) — 1 code
 - [`BCK.POINT`](#bck-point) — 19 codes
-- [`BCK.PROTOCOL`](#bck-protocol) — 47 codes
-- [`BCK.STRIPE`](#bck-stripe) — 32 codes
+- [`BCK.PROTOCOL`](#bck-protocol) — 50 codes
+- [`BCK.STRIPE`](#bck-stripe) — 33 codes
 - [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 5 codes
-- [`BCK.TRANSCODING`](#bck-transcoding) — 1 code
+- [`BCK.TRANSCODING`](#bck-transcoding) — 4 codes
 - [`BCK.TXS`](#bck-txs) — 10 codes
-- [`BCK.USER_PROFILE`](#bck-user_profile) — 2 codes
-- [`BCK.VISA`](#bck-visa) — 18 codes
+- [`BCK.USER_PROFILE`](#bck-user_profile) — 4 codes
+- [`BCK.VISA`](#bck-visa) — 19 codes
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
-- [`BCK.WIDGET_SESSION`](#bck-widget_session) — 12 codes
-- [`BCK.X402`](#bck-x402) — 17 codes
+- [`BCK.WIDGET_SESSION`](#bck-widget_session) — 13 codes
+- [`BCK.X402`](#bck-x402) — 31 codes
+
+## <span id="bck-account_provisioning"></span>`BCK.ACCOUNT_PROVISIONING`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-account_provisioning-0001"></a>`BCK.ACCOUNT_PROVISIONING.0001` | 400 | validation | — | Account provisioning requires an email | Pass an email in the request body. Account provisioning is keyed on email; passwordless flows are not supported here. |
+| <a id="bck-account_provisioning-0003"></a>`BCK.ACCOUNT_PROVISIONING.0003` | 500 | integration | — | Unexpected failure during account provisioning | Inspect the underlying error in logs. Provisioning failed mid-way — usually a Privy or DB-layer error. The partial profile (if any) needs manual cleanup. |
 
 ## <span id="bck-agent"></span>`BCK.AGENT`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-agent-0001"></a>`BCK.AGENT.0001` | 400 | business | — | Invalid Agent Execution Status |  |
-| <a id="bck-agent-0002"></a>`BCK.AGENT.0002` | 500 | business | — | Error updating step agent |  |
-| <a id="bck-agent-0003"></a>`BCK.AGENT.0003` | 403 | business | — | Unable to create task for agent |  |
-| <a id="bck-agent-0004"></a>`BCK.AGENT.0004` | 403 | business | — | Invalid user |  |
-| <a id="bck-agent-0005"></a>`BCK.AGENT.0005` | 403 | business | — | Unable to get task for did, task and user |  |
-| <a id="bck-agent-0006"></a>`BCK.AGENT.0006` | 403 | business | — | Unable to find tasks by subscriber |  |
-| <a id="bck-agent-0007"></a>`BCK.AGENT.0007` | 404 | business | — | Connection not found for clientId |  |
-| <a id="bck-agent-0008"></a>`BCK.AGENT.0008` | 500 | business | — | Error registering websocket connection |  |
-| <a id="bck-agent-0009"></a>`BCK.AGENT.0009` | 403 | business | — | Error creating steps for agent |  |
-| <a id="bck-agent-0010"></a>`BCK.AGENT.0010` | 403 | business | — | Task not found or completed |  |
+| <a id="bck-agent-0001"></a>`BCK.AGENT.0001` | 400 | business | — | Invalid Agent Execution Status | Provide one of the valid execution statuses (Pending, In_Progress, Completed, Failed). Other strings are rejected to keep state-machine transitions auditable. |
+| <a id="bck-agent-0002"></a>`BCK.AGENT.0002` | 500 | business | — | Error updating step agent | Inspect the underlying error in logs. The step persistence failed — usually a DB-layer constraint or stale step row. |
+| <a id="bck-agent-0003"></a>`BCK.AGENT.0003` | 403 | business | — | Unable to create task for agent | Verify the caller holds an active plan that covers this agent, and that the agent is published. |
+| <a id="bck-agent-0004"></a>`BCK.AGENT.0004` | 403 | business | — | Invalid user | Verify the authenticated user identity. The agent task endpoint requires a real (non-guest) user with a wallet. |
+| <a id="bck-agent-0005"></a>`BCK.AGENT.0005` | 403 | business | — | Unable to get task for did, task and user | Verify the (DID, taskId, user) tuple matches an existing task the user owns. Most often a stale taskId or wrong agent DID. |
+| <a id="bck-agent-0006"></a>`BCK.AGENT.0006` | 403 | business | — | Unable to find tasks by subscriber | Inspect the underlying error in logs. Subscriber-side task lookup failed — usually a DB-layer error. |
+| <a id="bck-agent-0007"></a>`BCK.AGENT.0007` | 404 | business | — | Connection not found for clientId | Verify the clientId is the value returned by the websocket handshake for this session. Clients reconnecting must rebind a fresh clientId. |
+| <a id="bck-agent-0008"></a>`BCK.AGENT.0008` | 500 | business | — | Error registering websocket connection | Inspect the underlying error in logs. Websocket registration failed — usually a Redis/queue-layer issue. |
+| <a id="bck-agent-0009"></a>`BCK.AGENT.0009` | 403 | business | — | Error creating steps for agent | Inspect the underlying error in logs. Step creation failed — verify the agent task exists and is in a state that accepts new steps. |
+| <a id="bck-agent-0010"></a>`BCK.AGENT.0010` | 403 | business | — | Task not found or completed | Verify the taskId. The task may have been marked Completed/Failed already and no longer accepts state changes. |
 | <a id="bck-agent-0011"></a>`BCK.AGENT.0011` | 500 | internal | ❌ | Agent lookup failed: agent with the given entryId not found in service layer | The service-layer findOneById returned null. The original behaviour was a generic 500; consumer code that needs 404 semantics should use BCK.PROTOCOL.0004. |
+| <a id="bck-agent-0012"></a>`BCK.AGENT.0012` | 500 | internal | ❌ | Agent DTO mapping called with a null entity | GetAgentDto.fromEntity received null. The caller should branch on the service-layer lookup result before calling fromEntity; this code only fires if a programming error leaks past that guard. |
 
 ## <span id="bck-apikey"></span>`BCK.APIKEY`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-apikey-0001"></a>`BCK.APIKEY.0001` | 403 | auth | — | API Key not registered, you need to register it first |  |
-| <a id="bck-apikey-0002"></a>`BCK.APIKEY.0002` | 404 | auth | — | API Key with given hash not found |  |
-| <a id="bck-apikey-0003"></a>`BCK.APIKEY.0003` | 401 | auth | — | Unable to revoke API Key |  |
-| <a id="bck-apikey-0004"></a>`BCK.APIKEY.0004` | 401 | auth | — | Invalid Nevermined API Key |  |
-| <a id="bck-apikey-0006"></a>`BCK.APIKEY.0006` | 401 | auth | — | Invalid Nevermined Key Metadata |  |
-| <a id="bck-apikey-0007"></a>`BCK.APIKEY.0007` | 401 | auth | — | API Key issuer does not match user address |  |
-| <a id="bck-apikey-0008"></a>`BCK.APIKEY.0008` | 403 | auth | — | API Key with hash already exists |  |
-| <a id="bck-apikey-0009"></a>`BCK.APIKEY.0009` | 500 | auth | — | Error search API Key trannsactions |  |
-| <a id="bck-apikey-0010"></a>`BCK.APIKEY.0010` | 401 | auth | — | Expiration date must be in the future |  |
-| <a id="bck-apikey-0011"></a>`BCK.APIKEY.0011` | 500 | auth | — | Error searching user API Keys |  |
-| <a id="bck-apikey-0012"></a>`BCK.APIKEY.0012` | 401 | auth | — | Unable to generate assertion |  |
-| <a id="bck-apikey-0013"></a>`BCK.APIKEY.0013` | 401 | auth | — | Malformed API Key payload |  |
+| <a id="bck-apikey-0001"></a>`BCK.APIKEY.0001` | 403 | auth | — | API Key not registered, you need to register it first | Register the API key via POST /api-keys before using it. The key signature is valid but no record exists in our DB. |
+| <a id="bck-apikey-0002"></a>`BCK.APIKEY.0002` | 404 | auth | — | API Key with given hash not found | Verify the API key value. The hashed lookup returned no row; the key may have been revoked or never registered. |
+| <a id="bck-apikey-0003"></a>`BCK.APIKEY.0003` | 401 | auth | — | Unable to revoke API Key | Inspect the underlying error in logs. The revocation write failed — usually a DB-layer issue. |
+| <a id="bck-apikey-0004"></a>`BCK.APIKEY.0004` | 401 | auth | — | Invalid Nevermined API Key | Verify the API key value is well-formed (header.payload.signature) and not truncated. Reissue if it was rotated. |
+| <a id="bck-apikey-0006"></a>`BCK.APIKEY.0006` | 401 | auth | — | Invalid Nevermined Key Metadata | Verify the API-key payload includes the expected metadata fields (sub, iss, aud, exp). Reissue if it predates the metadata schema change. |
+| <a id="bck-apikey-0007"></a>`BCK.APIKEY.0007` | 401 | auth | — | API Key issuer does not match user address | Reissue the API key from the authenticated user’s wallet. The token’s iss claim must equal the authenticated address byte-for-byte. |
+| <a id="bck-apikey-0008"></a>`BCK.APIKEY.0008` | 403 | auth | — | API Key with hash already exists | Revoke and reissue the API key. The collision means the same hash was already stored (extremely rare; usually a duplicate-create call). |
+| <a id="bck-apikey-0009"></a>`BCK.APIKEY.0009` | 500 | auth | — | Error search API Key trannsactions | Inspect the underlying error in logs. The API-key transactions query failed — usually a DB-layer error or pagination issue. |
+| <a id="bck-apikey-0010"></a>`BCK.APIKEY.0010` | 401 | auth | — | Expiration date must be in the future | Provide an exp claim in the future when creating the key, or omit it for a never-expiring key. |
+| <a id="bck-apikey-0011"></a>`BCK.APIKEY.0011` | 500 | auth | — | Error searching user API Keys | Inspect the underlying error in logs. The per-user API-keys lookup failed — usually a DB-layer error. |
+| <a id="bck-apikey-0012"></a>`BCK.APIKEY.0012` | 401 | auth | — | Unable to generate assertion | Inspect the underlying error in logs. Assertion generation failed — verify the signer wallet is unlocked and the requested audience is registered. |
+| <a id="bck-apikey-0013"></a>`BCK.APIKEY.0013` | 401 | auth | — | Malformed API Key payload | Verify the JWT was not truncated or tampered with in transit. Reissue the API key from the source credential store and retry. |
+| <a id="bck-apikey-0014"></a>`BCK.APIKEY.0014` | 500 | internal | ❌ | API Key claim is missing the issuer (iss) address | The validated JWT payload reached the service layer without an iss claim. Inspect the upstream guard that produced this payload — iss is mandatory for API-key issuance. |
 
 ## <span id="bck-auth"></span>`BCK.AUTH`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-auth-0001"></a>`BCK.AUTH.0001` | 500 | auth | — | Error registering API Key |  |
-| <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid |  |
-| <a id="bck-auth-0003"></a>`BCK.AUTH.0003` | 403 | auth | — | Forbidden: caller is not the owner of this resource and lacks an admin role |  |
+| <a id="bck-auth-0001"></a>`BCK.AUTH.0001` | 500 | auth | — | Error registering API Key | Inspect the underlying error in logs. API-key registration failed — usually a DB-layer error or assertion-validation reject. |
+| <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid | Send an Authorization: Bearer <token> header or a valid Nevermined API key. Anonymous access is not permitted on this endpoint. |
+| <a id="bck-auth-0003"></a>`BCK.AUTH.0003` | 403 | auth | — | Forbidden: caller is not the owner of this resource and lacks an admin role | Authenticate as the resource owner or an admin who has access to it. Cross-account access is rejected unless you carry an admin role. |
 | <a id="bck-auth-0004"></a>`BCK.AUTH.0004` | 403 | auth | ❌ | Organisation admin privileges required | The caller is not an active admin of the target organisation. Prefer the more specific siblings (BCK.AUTH.0005-0009) at new throw sites; this code remains as a catch-all. |
 | <a id="bck-auth-0005"></a>`BCK.AUTH.0005` | 403 | auth | ✅ | Unable to verify organisation membership | The membership lookup itself failed (e.g. transient DB error). Check the cause field on the server log; retry once. |
 | <a id="bck-auth-0006"></a>`BCK.AUTH.0006` | 403 | auth | ❌ | Caller does not belong to any organisation | Add the user as a member of the target organisation before calling admin-scoped endpoints. |
 | <a id="bck-auth-0007"></a>`BCK.AUTH.0007` | 403 | auth | ❌ | Caller does not have administrator privileges | The caller is a member but not an admin. Promote the role via the organisation admin UI / API, or call from an admin account. |
 | <a id="bck-auth-0008"></a>`BCK.AUTH.0008` | 403 | auth | ❌ | Caller account is not active | The user is suspended/disabled. Reactivate via the admin UI before retrying. |
 | <a id="bck-auth-0009"></a>`BCK.AUTH.0009` | 403 | auth | ❌ | Target organisation is not active | The org has been deactivated (subscription lapsed, manual disable, etc.). Reactivate before performing admin operations. |
+| <a id="bck-auth-0010"></a>`BCK.AUTH.0010` | 403 | auth | ❌ | Direct organisation creation is restricted to internal callers | End users must upgrade via /checkout/organization-upgrade. Internal tooling must provide a valid X-Ops-Org-Create-Token header matching OPS_ORG_CREATE_TOKEN. |
+| <a id="bck-auth-0011"></a>`BCK.AUTH.0011` | 500 | internal | ❌ | Authenticated request did not yield a resolvable account address | The authenticated request reached the handler without req.address or req.smartAccountAddress populated. Two causes are common: the guard chain is misconfigured for this route, or the user has no wallet linked to their account. |
+| <a id="bck-auth-0012"></a>`BCK.AUTH.0012` | 401 | auth | ❌ | Malformed Authorization header | The Authorization header was present but not a well-formed `Bearer <token>`. Send `Authorization: Bearer <token>` (the second space-separated segment is the token). Triage tip: this code separates "garbage token" from "no token" — the latter throws BCK.AUTH.0002. |
+| <a id="bck-auth-0013"></a>`BCK.AUTH.0013` | 403 | internal | ❌ | Role guard active without @Roles metadata | A route was decorated with `@UseGuards(RolesGuard)` but no `@Roles(...)` declaration. The guard fails closed: no role list means no caller can satisfy the requirement. Add `@Roles(...)` to the handler or remove the `RolesGuard` wiring. |
+
+## <span id="bck-billing"></span>`BCK.BILLING`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-billing-0001"></a>`BCK.BILLING.0001` | 403 | auth | ❌ | Bootstrap endpoint is not enabled in this environment | The Stripe tier-products bootstrap endpoint (and /invitations/expire-stale) are gated behind `OPS_BOOTSTRAP_TOKEN`. Leave the env var unset to keep them disabled; set it to enable. |
+| <a id="bck-billing-0002"></a>`BCK.BILLING.0002` | 403 | auth | ❌ | Invalid bootstrap token | The X-Bootstrap-Token header did not match `OPS_BOOTSTRAP_TOKEN`. This endpoint is operator-only — request the token from infra. |
+| <a id="bck-billing-0003"></a>`BCK.BILLING.0003` | 503 | integration | ❌ | Stripe is not configured in this environment | `STRIPE_API_KEY` is unset, so we cannot create Stripe products. Configure Stripe credentials before running tier-products bootstrap. |
+| <a id="bck-billing-0004"></a>`BCK.BILLING.0004` | 503 | integration | ✅ | Tier catalog row missing for the requested (tier, currency, interval) combination | Run the hybrid-tier-plans bootstrap (`ENABLE_ORG_TIER_BOOTSTRAP`=true on next startup, or POST /api/v1/organizations/billing/tier-bootstrap with the ops token) to materialise the catalog rows. Returns 503 because the deployment has not been fully provisioned yet — clients may retry once the operator finishes the bootstrap. |
+| <a id="bck-billing-0010"></a>`BCK.BILLING.0010` | 400 | validation | ❌ | Invalid combination of currency and interval for org-tier checkout | USD and EUR plans must use interval=month or year (Stripe). USDC and EURC plans must use interval=one_shot (on-chain payment). Other combinations are rejected. |
+| <a id="bck-billing-0011"></a>`BCK.BILLING.0011` | 202 | integration | ✅ | Transaction receipt not yet available — please retry | The /confirm-crypto endpoint polled for `CRYPTO_CONFIRM_POLL_TIMEOUT_SECS` without seeing the receipt on chain. The caller should retry with the same txHash; on-chain finality is propagating. |
+| <a id="bck-billing-0012"></a>`BCK.BILLING.0012` | 400 | validation | ❌ | Transaction does not match the expected crypto payment for this catalog row | Verify the transaction transferred the exact token (USDC for USDC plans, EURC for EURC plans) with the exact amount specified by the catalog row, to the Nevermined node-account address. |
+| <a id="bck-billing-0013"></a>`BCK.BILLING.0013` | 400 | business | ❌ | No active subscription found to cancel for this organization | The /billing/cancel endpoint requires an existing Stripe-backed subscription on the org. Org-tier upgrades through /billing/checkout populate this row; legacy crypto-paid orgs do not and cannot be canceled this way. |
+| <a id="bck-billing-0014"></a>`BCK.BILLING.0014` | 400 | business | ❌ | Subscription is already canceled — cannot downgrade | Stripe rejects updates on canceled subscriptions. Start a fresh Premium subscription via /checkout/organization-upgrade instead of attempting to downgrade the cancelled one. |
+| <a id="bck-billing-0015"></a>`BCK.BILLING.0015` | 400 | validation | ❌ | Invalid downgrade target tier | The /billing/downgrade endpoint only accepts Premium as the target. Use /billing/cancel to end the subscription (Lapsed/Personal are not valid downgrade targets). |
+| <a id="bck-billing-0016"></a>`BCK.BILLING.0016` | 400 | business | ❌ | No active subscription found to downgrade for this organization | The /billing/downgrade endpoint requires an existing Stripe-backed Enterprise subscription on the org. Legacy crypto-paid orgs and orgs without a tier subscription cannot be downgraded this way. |
+| <a id="bck-billing-0017"></a>`BCK.BILLING.0017` | 400 | business | ❌ | Current tier is not Enterprise — nothing to downgrade | Only Enterprise → Premium downgrades are supported. Premium and below have no paid tier above to step down from; use /billing/cancel to end the subscription instead. |
+| <a id="bck-billing-0018"></a>`BCK.BILLING.0018` | 503 | integration | ✅ | Catalog row has no Stripe priceId — Stripe products bootstrap incomplete | Run the Stripe products bootstrap (POST /api/v1/organizations/billing/bootstrap with the ops token, or `ENABLE_ORG_TIER_BOOTSTRAP`=true at startup) so the catalog row is paired with a Stripe price. Returns 503 because the deployment is partially provisioned; clients may retry once Stripe wiring lands. |
+| <a id="bck-billing-0019"></a>`BCK.BILLING.0019` | 502 | integration | ❌ | Stripe subscription has no line items | The Stripe subscription on file has zero items, which prevents a price swap during downgrade. Inspect the subscription in the Stripe dashboard — this should never happen for org-tier subs we minted ourselves. |
+| <a id="bck-billing-0020"></a>`BCK.BILLING.0020` | 502 | integration | ✅ | Stripe Checkout session created without a hosted URL | Stripe accepted the Checkout session create but returned no `url`. Treat as a transient Stripe API anomaly — retry the checkout endpoint. If it persists, inspect the Stripe Dashboard's events for the session id we return in params. |
+| <a id="bck-billing-0021"></a>`BCK.BILLING.0021` | 503 | integration | ✅ | Token address not configured for currency / chain — operator action required | The crypto-one-shot checkout cannot proceed because no ERC-20 token address is registered for the catalog row's (currency, chainId) pair. Add the mapping to getTokenAddressForChain and redeploy; until then the endpoint will keep returning 503. |
+| <a id="bck-billing-0022"></a>`BCK.BILLING.0022` | 409 | business | ❌ | Organization already has an active subscription | A live Stripe subscription (active, trialing, or past_due) already exists for this org, so /billing/checkout would create a SECOND one and bill the org twice. Use /billing/upgrade or /billing/downgrade to change tier on the existing subscription. Re-subscribing via /checkout is only allowed once the current subscription is canceled. |
+| <a id="bck-billing-0023"></a>`BCK.BILLING.0023` | 400 | validation | ❌ | Invalid upgrade target tier | The /billing/upgrade endpoint only accepts Enterprise as the target — it swaps a Premium subscription up to Enterprise in place. To start a brand-new subscription use /checkout; to step down from Enterprise use /billing/downgrade. |
+| <a id="bck-billing-0024"></a>`BCK.BILLING.0024` | 400 | business | ❌ | No active subscription found to upgrade for this organization | The in-place /billing/upgrade requires an existing Stripe-backed Premium subscription on the org. An initial subscribe goes through /checkout; legacy crypto-paid orgs and orgs without a tier subscription cannot be upgraded this way. |
+| <a id="bck-billing-0025"></a>`BCK.BILLING.0025` | 400 | business | ❌ | Current tier is not Premium — nothing to upgrade in place | Only Premium → Enterprise in-place upgrades are supported. Not-yet-subscribed orgs start via /checkout, and Enterprise is already the top tier with nothing to upgrade to. |
+| <a id="bck-billing-0026"></a>`BCK.BILLING.0026` | 400 | business | ❌ | Subscription is already canceled — cannot upgrade | Stripe rejects updates on canceled subscriptions. Start a fresh subscription via /checkout instead of attempting to upgrade the canceled one. |
 
 ## <span id="bck-braintree"></span>`BCK.BRAINTREE`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-braintree-0001"></a>`BCK.BRAINTREE.0001` | 500 | integration | — | Braintree platform gateway is not configured |  |
-| <a id="bck-braintree-0002"></a>`BCK.BRAINTREE.0002` | 400 | integration | — | Braintree charge failed |  |
-| <a id="bck-braintree-0003"></a>`BCK.BRAINTREE.0003` | 502 | integration | — | Braintree OAuth token refresh failed |  |
-| <a id="bck-braintree-0004"></a>`BCK.BRAINTREE.0004` | 400 | integration | — | Plan owner has not connected a Braintree merchant account |  |
-| <a id="bck-braintree-0005"></a>`BCK.BRAINTREE.0005` | 400 | integration | — | Plan is not a fiat plan — cannot be purchased via Braintree |  |
-| <a id="bck-braintree-0006"></a>`BCK.BRAINTREE.0006` | 409 | integration | — | Plan owner has no Braintree merchant account connected |  |
-| <a id="bck-braintree-0007"></a>`BCK.BRAINTREE.0007` | 400 | integration | — | Plan owner's Braintree account does not have a merchant account in the plan's currency |  |
-| <a id="bck-braintree-0008"></a>`BCK.BRAINTREE.0008` | 400 | integration | — | Cannot create a Braintree plan in this currency: your Braintree account has no merchant account in that currency. Add one in your Braintree dashboard, then disconnect and reconnect to refresh. |  |
-| <a id="bck-braintree-0009"></a>`BCK.BRAINTREE.0009` | 400 | integration | — | Plan metadata is missing currency. Plans must specify a currency to be settled via Braintree. |  |
+| <a id="bck-braintree-0001"></a>`BCK.BRAINTREE.0001` | 500 | integration | — | Braintree platform gateway is not configured | The `BRAINTREE_PLATFORM_*` env vars are unset. Configure the platform-gateway credentials before enabling Braintree features. |
+| <a id="bck-braintree-0002"></a>`BCK.BRAINTREE.0002` | 400 | integration | — | Braintree charge failed | Inspect the Braintree dashboard for the transaction id in params. Common causes: processor declined, invalid CVV, or insufficient funds. |
+| <a id="bck-braintree-0003"></a>`BCK.BRAINTREE.0003` | 502 | integration | — | Braintree OAuth token refresh failed | Inspect the underlying error in logs. Token refresh failed — usually expired credentials; the merchant must re-authorize via OAuth. |
+| <a id="bck-braintree-0004"></a>`BCK.BRAINTREE.0004` | 400 | integration | — | Plan owner has not connected a Braintree merchant account | The plan owner has not connected Braintree. They must complete OAuth on the seller dashboard before their plans can be sold via Braintree. |
+| <a id="bck-braintree-0005"></a>`BCK.BRAINTREE.0005` | 400 | integration | — | Plan is not a fiat plan — cannot be purchased via Braintree | Use Braintree only for fiat plans. Crypto plans must be paid through the on-chain flow. |
+| <a id="bck-braintree-0006"></a>`BCK.BRAINTREE.0006` | 409 | integration | — | Plan owner has no Braintree merchant account connected | The plan owner has revoked or never connected their Braintree account. Ask them to reconnect before retrying the purchase. |
+| <a id="bck-braintree-0007"></a>`BCK.BRAINTREE.0007` | 400 | integration | — | Plan owner's Braintree account does not have a merchant account in the plan's currency | Ask the seller to add a Braintree merchant account in the plan’s currency, then disconnect and reconnect to refresh the cached account list. |
+| <a id="bck-braintree-0008"></a>`BCK.BRAINTREE.0008` | 400 | integration | — | Cannot create a Braintree plan in this currency: your Braintree account has no merchant account in that currency. Add one in your Braintree dashboard, then disconnect and reconnect to refresh. | Add a merchant account in the requested currency in the Braintree dashboard, then disconnect and reconnect to refresh. |
+| <a id="bck-braintree-0009"></a>`BCK.BRAINTREE.0009` | 400 | integration | — | Plan metadata is missing currency. Plans must specify a currency to be settled via Braintree. | Re-publish the plan with metadata.currency populated. Braintree cannot route the settlement without a target currency. |
+| <a id="bck-braintree-0010"></a>`BCK.BRAINTREE.0010` | 503 | integration | ✅ | Braintree/PayPal payment provider is not available in this environment | Set `BRAINTREE_MERCHANT_ID`, `BRAINTREE_PUBLIC_KEY`, and `BRAINTREE_PRIVATE_KEY` in the deployment env. Returns 503 because the route is reachable only after the operator wires Braintree up. |
 
 ## <span id="bck-common"></span>`BCK.COMMON`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-common-0001"></a>`BCK.COMMON.0001` | 500 | internal | — | Unable to initialize Nevermined instance |  |
-| <a id="bck-common-0002"></a>`BCK.COMMON.0002` | 500 | internal | — | Unable to generate session key |  |
-| <a id="bck-common-0003"></a>`BCK.COMMON.0003` | 500 | internal | — | Unable to retrieve fees information from Nevermined |  |
-| <a id="bck-common-0004"></a>`BCK.COMMON.0004` | 500 | internal | — | Unable to calculate Asset Price |  |
-| <a id="bck-common-0005"></a>`BCK.COMMON.0005` | 500 | internal | — | Unable to load NFT Contract |  |
-| <a id="bck-common-0006"></a>`BCK.COMMON.0006` | 500 | internal | — | Unable to register Credits Plan on Nevermined |  |
-| <a id="bck-common-0007"></a>`BCK.COMMON.0007` | 500 | internal | — | Unable to register Time Plan on Nevermined |  |
-| <a id="bck-common-0008"></a>`BCK.COMMON.0008` | 500 | internal | — | Unable to register Points event in the database |  |
-| <a id="bck-common-0009"></a>`BCK.COMMON.0009` | 500 | internal | — | Unable to register API Key usage in the database |  |
-| <a id="bck-common-0010"></a>`BCK.COMMON.0010` | 500 | internal | — | Unable to register AI Agent |  |
-| <a id="bck-common-0011"></a>`BCK.COMMON.0011` | 500 | internal | — | Unable to register File asset |  |
-| <a id="bck-common-0012"></a>`BCK.COMMON.0012` | 500 | internal | — | Unable to generate access token to AI Agent |  |
-| <a id="bck-common-0013"></a>`BCK.COMMON.0013` | 404 | internal | — | Unable to resolve DDO from DID |  |
-| <a id="bck-common-0014"></a>`BCK.COMMON.0014` | 404 | internal | — | Plan not found |  |
-| <a id="bck-common-0015"></a>`BCK.COMMON.0015` | 500 | internal | — | Unable to get the Plan balance |  |
-| <a id="bck-common-0016"></a>`BCK.COMMON.0016` | 500 | internal | — | Unable to order the subscription |  |
-| <a id="bck-common-0017"></a>`BCK.COMMON.0017` | 500 | internal | — | There are no files associated to the file asset |  |
-| <a id="bck-common-0018"></a>`BCK.COMMON.0018` | 500 | internal | — | An error happened while downloading the asset files |  |
-| <a id="bck-common-0019"></a>`BCK.COMMON.0019` | 500 | internal | — | An error happened while trying to mint credits |  |
-| <a id="bck-common-0020"></a>`BCK.COMMON.0020` | 500 | internal | — | An error happened while trying to burn credits |  |
-| <a id="bck-common-0021"></a>`BCK.COMMON.0021` | 404 | internal | — | Unable to resolve widget metadata from DID |  |
-| <a id="bck-common-0022"></a>`BCK.COMMON.0022` | 403 | internal | — | Method not supported |  |
-| <a id="bck-common-0023"></a>`BCK.COMMON.0023` | 403 | internal | — | Error parsing input |  |
-| <a id="bck-common-0024"></a>`BCK.COMMON.0024` | 401 | internal | — | Could not validate the login claim |  |
-| <a id="bck-common-0025"></a>`BCK.COMMON.0025` | 400 | internal | — | Invalid UUID format in request |  |
-| <a id="bck-common-0026"></a>`BCK.COMMON.0026` | 400 | validation | — | Invalid uint256 identifier (must be a decimal string in [0, 2^256 - 1]) |  |
+| <a id="bck-common-0001"></a>`BCK.COMMON.0001` | 500 | internal | — | Unable to initialize Nevermined instance | Inspect the API logs around startup. The Nevermined SDK could not initialise — usually a misconfigured RPC provider, missing wallet seed, or a chain-config mismatch. |
+| <a id="bck-common-0002"></a>`BCK.COMMON.0002` | 500 | internal | — | Unable to generate session key | Inspect the underlying error in logs. The Nevermined SDK could not derive a session signer — usually a wallet/keystore configuration problem. |
+| <a id="bck-common-0003"></a>`BCK.COMMON.0003` | 500 | internal | — | Unable to retrieve fees information from Nevermined | Inspect the underlying error in logs. The protocol fee lookup failed — verify chain connectivity and that the FeeController contract is reachable. |
+| <a id="bck-common-0004"></a>`BCK.COMMON.0004` | 500 | internal | — | Unable to calculate Asset Price | Inspect the underlying error in logs. The pricing helper failed — usually a missing/invalid plan price metadata or a chain-side revert. |
+| <a id="bck-common-0005"></a>`BCK.COMMON.0005` | 500 | internal | — | Unable to load NFT Contract | Inspect the underlying error in logs. The NFT contract handle could not be resolved — verify the address registered in protocol config matches the deployed contract. |
+| <a id="bck-common-0006"></a>`BCK.COMMON.0006` | 500 | internal | — | Unable to register Credits Plan on Nevermined | Inspect the underlying error in logs. Credit plan registration failed at protocol or SDK layer — re-run after fixing the cause; the partial plan row (if any) needs manual cleanup. |
+| <a id="bck-common-0007"></a>`BCK.COMMON.0007` | 500 | internal | — | Unable to register Time Plan on Nevermined | Inspect the underlying error in logs. Time plan registration failed at protocol or SDK layer — re-run after fixing the cause; the partial plan row (if any) needs manual cleanup. |
+| <a id="bck-common-0008"></a>`BCK.COMMON.0008` | 500 | internal | — | Unable to register Points event in the database | Inspect the underlying error in logs. The points-event insert failed — typically a DB-side constraint or connectivity issue. Re-run idempotently or backfill manually. |
+| <a id="bck-common-0009"></a>`BCK.COMMON.0009` | 500 | internal | — | Unable to register API Key usage in the database | Inspect the underlying error in logs. The API-key usage insert failed — typically a DB-side constraint or connectivity issue. |
+| <a id="bck-common-0010"></a>`BCK.COMMON.0010` | 500 | internal | — | Unable to register AI Agent | Inspect the underlying error in logs. Agent registration failed at protocol or DB layer. The partial row (if any) should be removed before retry. |
+| <a id="bck-common-0011"></a>`BCK.COMMON.0011` | 500 | internal | — | Unable to register File asset | Inspect the underlying error in logs. File asset registration failed — usually a storage-layer or DDO-write error. |
+| <a id="bck-common-0012"></a>`BCK.COMMON.0012` | 500 | internal | — | Unable to generate access token to AI Agent | Inspect the underlying error in logs. Access-token minting failed — verify the agent is registered and the requesting user has a valid plan. |
+| <a id="bck-common-0013"></a>`BCK.COMMON.0013` | 404 | internal | — | Unable to resolve DDO from DID | Verify the DID is well-formed and exists in metadata. The DDO resolver returned no document; this is a 404 by design. |
+| <a id="bck-common-0014"></a>`BCK.COMMON.0014` | 404 | internal | — | Plan not found | Verify the planId. The plan may have been deleted or never registered. Common causes: stale link, environment mismatch (sandbox vs live). |
+| <a id="bck-common-0015"></a>`BCK.COMMON.0015` | 500 | internal | — | Unable to get the Plan balance | Inspect the underlying error in logs. Balance lookup failed — usually a chain RPC or contract-call revert. |
+| <a id="bck-common-0016"></a>`BCK.COMMON.0016` | 500 | internal | — | Unable to order the subscription | Inspect the underlying error in logs. Subscription ordering failed — verify the buyer has sufficient balance and the plan is active. |
+| <a id="bck-common-0017"></a>`BCK.COMMON.0017` | 500 | internal | — | There are no files associated to the file asset | Re-publish the asset with at least one file entry, or use a different agent endpoint that does not require files. |
+| <a id="bck-common-0018"></a>`BCK.COMMON.0018` | 500 | internal | — | An error happened while downloading the asset files | Inspect the underlying error in logs. Asset file download failed — usually a storage-layer access issue or expired signed URL. |
+| <a id="bck-common-0019"></a>`BCK.COMMON.0019` | 500 | internal | — | An error happened while trying to mint credits | Inspect the underlying error in logs. Credit minting failed at protocol or SDK layer — verify the plan exists and the credit type matches. |
+| <a id="bck-common-0020"></a>`BCK.COMMON.0020` | 500 | internal | — | An error happened while trying to burn credits | Inspect the underlying error in logs. Credit burning failed — verify the user holds enough credits and the plan permits burning at this point. |
+| <a id="bck-common-0021"></a>`BCK.COMMON.0021` | 404 | internal | — | Unable to resolve widget metadata from DID | Verify the DID is a widget DID and exists. Widget metadata resolution returns 404 when the DID is not registered or its metadata was pruned. |
+| <a id="bck-common-0022"></a>`BCK.COMMON.0022` | 403 | internal | — | Method not supported | The endpoint or sub-feature is disabled in this deployment. Check feature-flag configuration before retrying. |
+| <a id="bck-common-0023"></a>`BCK.COMMON.0023` | 403 | internal | — | Error parsing input | Inspect the request body against the documented schema for this endpoint. The parser rejected a required field or malformed JSON. |
+| <a id="bck-common-0024"></a>`BCK.COMMON.0024` | 401 | internal | — | Could not validate the login claim | Re-issue a fresh login claim. The signed claim either has an invalid signature, an expired timestamp, or was issued for a different audience. |
+| <a id="bck-common-0025"></a>`BCK.COMMON.0025` | 400 | internal | — | Invalid UUID format in request | Provide a valid UUID v4 string in the highlighted field. Most ID parameters require canonical UUID format. |
+| <a id="bck-common-0026"></a>`BCK.COMMON.0026` | 400 | validation | — | Invalid uint256 identifier (must be a decimal string in [0, 2^256 - 1]) | Provide a decimal-string uint256 in the highlighted field (no 0x prefix, no scientific notation). Plan IDs and agent IDs use this format end-to-end. |
 | <a id="bck-common-0027"></a>`BCK.COMMON.0027` | 409 | business | ❌ | Resource already exists (database unique constraint violated) | A record with the same unique key already exists. Either update the existing record or use a different identifier. |
 | <a id="bck-common-0028"></a>`BCK.COMMON.0028` | 409 | business | ❌ | Referenced resource does not exist (foreign key violation) | The request references an entity (plan, agent, user, organisation) that does not exist or has been deleted. Verify the referenced ID. |
 | <a id="bck-common-0029"></a>`BCK.COMMON.0029` | 503 | integration | ✅ | Database temporarily unavailable | The database is being restarted or is under maintenance. Retry the request after a short backoff. |
+| <a id="bck-common-0030"></a>`BCK.COMMON.0030` | 500 | internal | ❌ | Invalid ECDSA public key format | The provider public key did not match the expected 65-byte uncompressed prefix (0x04 + x + y). Inspect getProviderPublicKey() output. |
+| <a id="bck-common-0031"></a>`BCK.COMMON.0031` | 500 | internal | ❌ | Invalid ECDSA public key length | After normalising, the provider public key was not 128 hex characters (64 bytes). Inspect getProviderPublicKey() output and the upstream key derivation. |
+| <a id="bck-common-0032"></a>`BCK.COMMON.0032` | 500 | internal | ❌ | Provider public key not available for JWKS endpoint | NeverminedService.getProviderPublicKey() returned empty. Verify the node wallet seed configuration and that the service initialised successfully at startup. |
+| <a id="bck-common-0033"></a>`BCK.COMMON.0033` | 404 | integration | ❌ | Email challenge search returned no rows or the query failed | Inspect the underlying error in logs. The historical behaviour mapped any failure here to a 404; preserved for backward compatibility. A failed search usually means a DB-layer error or invalid filter combination. |
+| <a id="bck-common-0034"></a>`BCK.COMMON.0034` | 400 | validation | ❌ | Query parameter exceeds maximum length | A bounded query parameter (e.g. `textSearch`) was sent above its byte/character limit. Truncate the value client-side and retry. Limits exist to bound the cost of downstream filters — see the parameter description in the OpenAPI spec. |
 
 ## <span id="bck-credits"></span>`BCK.CREDITS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-credits-0001"></a>`BCK.CREDITS.0001` | 400 | business | — | Mint amount must be positive |  |
-| <a id="bck-credits-0002"></a>`BCK.CREDITS.0002` | 400 | business | — | Burn amount must be positive |  |
-| <a id="bck-credits-0003"></a>`BCK.CREDITS.0003` | 402 | business | — | Insufficient credits for plan |  |
-| <a id="bck-credits-0004"></a>`BCK.CREDITS.0004` | 400 | business | — | Refund amount must be positive |  |
-| <a id="bck-credits-0005"></a>`BCK.CREDITS.0005` | 500 | business | — | Credit lots do not satisfy the burned amount — FIFO invariant violated |  |
+| <a id="bck-credits-0001"></a>`BCK.CREDITS.0001` | 400 | business | — | Mint amount must be positive | Send mint amount > 0. Zero or negative mints are rejected; cleanup of bad lots must happen through a refund path. |
+| <a id="bck-credits-0002"></a>`BCK.CREDITS.0002` | 400 | business | — | Burn amount must be positive | Send burn amount > 0. Zero or negative burns are rejected. |
+| <a id="bck-credits-0003"></a>`BCK.CREDITS.0003` | 402 | business | — | Insufficient credits for plan | Buy or top up credits before retrying. The buyer wallet does not hold enough credits for the requested redemption. |
+| <a id="bck-credits-0004"></a>`BCK.CREDITS.0004` | 400 | business | — | Refund amount must be positive | Send refund amount > 0. Zero or negative refunds are rejected; they are also bounded by the original mint amount. |
+| <a id="bck-credits-0005"></a>`BCK.CREDITS.0005` | 500 | business | — | Credit lots do not satisfy the burned amount — FIFO invariant violated | Inspect the underlying error and the planId/userId in params. The FIFO credit-lots ledger could not satisfy the burn — this indicates a data-integrity issue; do not retry blindly. |
 | <a id="bck-credits-0006"></a>`BCK.CREDITS.0006` | 500 | internal | ❌ | Cannot enqueue on-chain order mirror without a corresponding minted credit lot | enqueueFiatOrderMirror must be called after a successful creditsService.mint with the same sourceTx. This usually indicates an out-of-order call by a service, not a runtime data issue. |
 
 ## <span id="bck-delegation"></span>`BCK.DELEGATION`
@@ -150,48 +200,66 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 |---|---|---|---|---|---|
 | <a id="bck-delegation-0001"></a>`BCK.DELEGATION.0001` | 404 | business | ❌ | Payment method not found | Verify the paymentMethodId. The payment method may have been removed or never existed. |
 | <a id="bck-delegation-0002"></a>`BCK.DELEGATION.0002` | 404 | business | ❌ | Delegation not found | Verify the delegationId. The delegation may have been revoked, expired, or never existed. |
+| <a id="bck-delegation-0003"></a>`BCK.DELEGATION.0003` | 400 | validation | ❌ | Unknown payment method provider | The ?provider= query param must be one of the supported providers (stripe, braintree, erc4337, visa). Omit it to list methods from every provider. |
+
+## <span id="bck-entitlements"></span>`BCK.ENTITLEMENTS`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-entitlements-0001"></a>`BCK.ENTITLEMENTS.0001` | 403 | business | ❌ | Resource cap reached for your current workspace. Upgrade to unlock higher limits. | The active workspace (personal or Premium org) has hit its agent/plan cap. Response `params.cap` and `params.current` carry the limit and current count; switch workspaces, deactivate unused resources, or upgrade the org tier to lift the cap. |
+| <a id="bck-entitlements-0002"></a>`BCK.ENTITLEMENTS.0002` | 403 | business | ❌ | Organization is not active. Reactivate the subscription before creating new resources. | The target workspace has a lapsed subscription (paid period ended without renewal, or admin override). Existing resources remain visible but new agents/plans cannot be registered until the org is reactivated via the Billing page. |
 
 ## <span id="bck-guest"></span>`BCK.GUEST`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-guest-0001"></a>`BCK.GUEST.0001` | 400 | validation | ❌ | Invalid guest account request | Check the request body — guest provisioning requires either fingerprint or externalId. |
-| <a id="bck-guest-0002"></a>`BCK.GUEST.0002` | 500 | business | — | Failed to provision guest account |  |
+| <a id="bck-guest-0002"></a>`BCK.GUEST.0002` | 500 | business | — | Failed to provision guest account | Inspect the underlying error in logs. Guest provisioning failed mid-way — usually a DB-layer or Privy issue. |
+
+## <span id="bck-invitations"></span>`BCK.INVITATIONS`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-invitations-0001"></a>`BCK.INVITATIONS.0001` | 422 | business | ❌ | Seat cap reached: cannot invite more members to this organization | The seat cap (members + pending invitations) for this tier has been reached. Remove pending invitations, deactivate inactive members, or upgrade the tier to invite more seats. |
+| <a id="bck-invitations-0002"></a>`BCK.INVITATIONS.0002` | 409 | business | ❌ | A pending invitation already exists for this email in the organization | Revoke the existing invitation (or wait for the invitee to accept it) before sending a new one. Resending overwrites the role; revoking removes it entirely. |
+| <a id="bck-invitations-0003"></a>`BCK.INVITATIONS.0003` | 404 | business | ❌ | Invitation token is invalid or has expired | Invitations expire 7 days after creation. Ask the org Admin to resend the invitation, which mints a fresh token. |
+| <a id="bck-invitations-0004"></a>`BCK.INVITATIONS.0004` | 403 | business | ❌ | Email mismatch: the invitation was sent to a different email address | Sign in with the email address the invitation was sent to. Invitations are bound to a specific email and cannot be redirected. |
+| <a id="bck-invitations-0005"></a>`BCK.INVITATIONS.0005` | 400 | validation | ❌ | Role not allowed: only Admin and Member roles are permitted for invitations | Pass role=Admin or role=Member. Other role values (e.g. Owner) are not assignable via invitation. |
 
 ## <span id="bck-legal_docs"></span>`BCK.LEGAL_DOCS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-legal_docs-0001"></a>`BCK.LEGAL_DOCS.0001` | 404 | business | — | Unknown legal document |  |
-| <a id="bck-legal_docs-0002"></a>`BCK.LEGAL_DOCS.0002` | 404 | business | — | Unknown legal document version |  |
-| <a id="bck-legal_docs-0003"></a>`BCK.LEGAL_DOCS.0003` | 422 | business | — | Submitted legal document version is not the current effective version |  |
-| <a id="bck-legal_docs-0004"></a>`BCK.LEGAL_DOCS.0004` | 412 | business | — | Legal consent is required for the current document versions |  |
-| <a id="bck-legal_docs-0005"></a>`BCK.LEGAL_DOCS.0005` | 401 | business | — | Authenticated request without a resolvable user identity |  |
-| <a id="bck-legal_docs-0006"></a>`BCK.LEGAL_DOCS.0006` | 400 | business | — | No wallet linked to the authenticated Privy account |  |
+| <a id="bck-legal_docs-0001"></a>`BCK.LEGAL_DOCS.0001` | 404 | business | — | Unknown legal document | Verify the legal-document slug (terms, privacy, etc.). Unknown slugs are rejected to surface typos early. |
+| <a id="bck-legal_docs-0002"></a>`BCK.LEGAL_DOCS.0002` | 404 | business | — | Unknown legal document version | Verify the document version. Unknown versions are rejected; ask the admin to publish the version first. |
+| <a id="bck-legal_docs-0003"></a>`BCK.LEGAL_DOCS.0003` | 422 | business | — | Submitted legal document version is not the current effective version | Submit consent against the current effective version. The version in the request is older or newer than what the system is currently asking for. |
+| <a id="bck-legal_docs-0004"></a>`BCK.LEGAL_DOCS.0004` | 412 | business | — | Legal consent is required for the current document versions | Have the user accept the current legal documents before retrying. The endpoint is gated on up-to-date consent. |
+| <a id="bck-legal_docs-0005"></a>`BCK.LEGAL_DOCS.0005` | 401 | business | — | Authenticated request without a resolvable user identity | Authenticate the caller (Privy/wallet) before retrying. The request reached the endpoint without a resolvable user identity. |
+| <a id="bck-legal_docs-0006"></a>`BCK.LEGAL_DOCS.0006` | 400 | business | — | No wallet linked to the authenticated Privy account | Link a wallet to the Privy account before retrying. Legal consent must be bound to an on-chain identity. |
 
 ## <span id="bck-metric"></span>`BCK.METRIC`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-metric-0001"></a>`BCK.METRIC.0001` | 500 | integration | — | Error registering asset access |  |
-| <a id="bck-metric-0002"></a>`BCK.METRIC.0002` | 404 | integration | — | Error search asset metrics |  |
-| <a id="bck-metric-0003"></a>`BCK.METRIC.0003` | 404 | integration | — | Error getting info from metrics service for |  |
-| <a id="bck-metric-0004"></a>`BCK.METRIC.0004` | 500 | integration | — | Error getting balance for account |  |
-| <a id="bck-metric-0005"></a>`BCK.METRIC.0005` | 500 | integration | — | Error getting total hits for account |  |
+| <a id="bck-metric-0001"></a>`BCK.METRIC.0001` | 500 | integration | — | Error registering asset access | Inspect the underlying error in logs. Asset-access metric write failed — usually a DB/queue layer issue. Metrics are best-effort; the user request still completed. |
+| <a id="bck-metric-0002"></a>`BCK.METRIC.0002` | 404 | integration | — | Error search asset metrics | Verify the asset DID and that metrics retention has not pruned the rows. Empty metric lookups return 404 by design. |
+| <a id="bck-metric-0003"></a>`BCK.METRIC.0003` | 404 | integration | — | Error getting info from metrics service for | Inspect the underlying error in logs. Upstream metrics service did not respond — verify the metrics service URL and that it is reachable from the API. |
+| <a id="bck-metric-0004"></a>`BCK.METRIC.0004` | 500 | integration | — | Error getting balance for account | Inspect the underlying error in logs. Account-balance metric query failed — usually a DB or chain-RPC issue. |
+| <a id="bck-metric-0005"></a>`BCK.METRIC.0005` | 500 | integration | — | Error getting total hits for account | Inspect the underlying error in logs. Hits-counter aggregation query failed — usually a DB-layer error. |
 
 ## <span id="bck-notif"></span>`BCK.NOTIF`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-notif-0001"></a>`BCK.NOTIF.0001` | 404 | integration | — | Unable to find notification by id |  |
-| <a id="bck-notif-0002"></a>`BCK.NOTIF.0002` | 404 | integration | — | Error searching for notifications |  |
-| <a id="bck-notif-0003"></a>`BCK.NOTIF.0003` | 500 | integration | — | Error updating notification |  |
-| <a id="bck-notif-0004"></a>`BCK.NOTIF.0004` | 500 | integration | — | Error updating notification read status |  |
-| <a id="bck-notif-0005"></a>`BCK.NOTIF.0005` | 500 | integration | — | Error deleting notification |  |
-| <a id="bck-notif-0006"></a>`BCK.NOTIF.0006` | 404 | integration | — | Error searching for notifications filtered by receiver |  |
-| <a id="bck-notif-0007"></a>`BCK.NOTIF.0007` | 500 | integration | — | Resend API Key or Email Sender not set |  |
-| <a id="bck-notif-0008"></a>`BCK.NOTIF.0008` | 500 | integration | — | Error sending email notification |  |
-| <a id="bck-notif-0009"></a>`BCK.NOTIF.0009` | 401 | integration | — | The user doesnt own this notification |  |
+| <a id="bck-notif-0001"></a>`BCK.NOTIF.0001` | 404 | integration | — | Unable to find notification by id | Verify the notification id. The notification may have been deleted or never existed. |
+| <a id="bck-notif-0002"></a>`BCK.NOTIF.0002` | 404 | integration | — | Error searching for notifications | Inspect the underlying error in logs. Notification search failed — usually a DB-layer error or invalid query filter. |
+| <a id="bck-notif-0003"></a>`BCK.NOTIF.0003` | 500 | integration | — | Error updating notification | Inspect the underlying error in logs. Notification update failed — usually a DB-layer error. |
+| <a id="bck-notif-0004"></a>`BCK.NOTIF.0004` | 500 | integration | — | Error updating notification read status | Inspect the underlying error in logs. Notification read-status update failed — usually a DB-layer error. |
+| <a id="bck-notif-0005"></a>`BCK.NOTIF.0005` | 500 | integration | — | Error deleting notification | Inspect the underlying error in logs. Notification deletion failed — usually a DB-layer error. |
+| <a id="bck-notif-0006"></a>`BCK.NOTIF.0006` | 404 | integration | — | Error searching for notifications filtered by receiver | Verify the receiver address. Empty result sets surface as 404 by design. |
+| <a id="bck-notif-0007"></a>`BCK.NOTIF.0007` | 500 | integration | — | Resend API Key or Email Sender not set | Configure `RESEND_API_KEY` and `EMAIL_SENDER` in the deployment env. Email notifications are disabled until both are present. |
+| <a id="bck-notif-0008"></a>`BCK.NOTIF.0008` | 500 | integration | — | Error sending email notification | Inspect Resend dashboard logs for the sender/recipient in params. Common causes: invalid recipient address, domain not verified, or quota exhaustion. |
+| <a id="bck-notif-0009"></a>`BCK.NOTIF.0009` | 401 | integration | — | The user doesnt own this notification | Authenticate as the notification owner before retrying. Notifications are scoped to a single recipient. |
 
 ## <span id="bck-oauth"></span>`BCK.OAUTH`
 
@@ -203,42 +271,67 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-oauth-0004"></a>`BCK.OAUTH.0004` | 400 | auth | ❌ | Invalid or expired authorization code | Authorization codes are single-use and short-lived. Restart the flow from /authorize to obtain a fresh code, and ensure the code_verifier matches the original PKCE code_challenge. |
 | <a id="bck-oauth-0005"></a>`BCK.OAUTH.0005` | 400 | auth | ❌ | Resource mismatch between token request and authorization code | The `resource` parameter on /token does not match the value bound to the authorization code. Resend with the same `resource` you used on /authorize. |
 | <a id="bck-oauth-0006"></a>`BCK.OAUTH.0006` | 400 | auth | ❌ | User profile not found for the authorization code | The user bound to the authorization code no longer exists in our DB (deleted profile, or environment mismatch). Restart the flow with a valid signed-in user. |
+| <a id="bck-oauth-0007"></a>`BCK.OAUTH.0007` | 400 | auth | ❌ | Authorize endpoint requires an authenticated user | The POST /oauth/authorize endpoint expects a signed-in user (NVM API key hash or Privy identity token). Authenticate before requesting an authorization code. |
 
 ## <span id="bck-observability"></span>`BCK.OBSERVABILITY`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-observability-0001"></a>`BCK.OBSERVABILITY.0001` | 500 | integration | — | Error fetching observability data from Helicone |  |
-| <a id="bck-observability-0002"></a>`BCK.OBSERVABILITY.0002` | 400 | integration | — | Invalid response from Helicone API |  |
-| <a id="bck-observability-0003"></a>`BCK.OBSERVABILITY.0003` | 401 | integration | — | Unauthorized access to Helicone API |  |
-| <a id="bck-observability-0004"></a>`BCK.OBSERVABILITY.0004` | 429 | integration | — | Rate limit exceeded for Helicone API |  |
-| <a id="bck-observability-0005"></a>`BCK.OBSERVABILITY.0005` | 502 | integration | — | Helicone API service unavailable |  |
+| <a id="bck-observability-0001"></a>`BCK.OBSERVABILITY.0001` | 500 | integration | — | Error fetching observability data from Helicone | Inspect Helicone dashboard logs for the request id in params. Common causes: invalid filter, expired token, or a transient Helicone outage. |
+| <a id="bck-observability-0002"></a>`BCK.OBSERVABILITY.0002` | 400 | integration | — | Invalid response from Helicone API | Inspect Helicone dashboard logs. Helicone returned a payload our parser rejected — usually a schema mismatch after a Helicone API change. |
+| <a id="bck-observability-0003"></a>`BCK.OBSERVABILITY.0003` | 401 | integration | — | Unauthorized access to Helicone API | Refresh `HELICONE_API_KEY` in the deployment env. The current key is missing, revoked, or scoped to a different workspace. |
+| <a id="bck-observability-0004"></a>`BCK.OBSERVABILITY.0004` | 429 | integration | — | Rate limit exceeded for Helicone API | Back off and retry. Helicone is rate-limiting our API key; consider increasing the plan limit or batching requests. |
+| <a id="bck-observability-0005"></a>`BCK.OBSERVABILITY.0005` | 502 | integration | — | Helicone API service unavailable | Inspect Helicone status page. The upstream Helicone API is unavailable; retry after a backoff. |
 
 ## <span id="bck-organizations"></span>`BCK.ORGANIZATIONS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-organizations-0001"></a>`BCK.ORGANIZATIONS.0001` | 500 | business | — | Error creating organization member |  |
-| <a id="bck-organizations-0002"></a>`BCK.ORGANIZATIONS.0002` | 500 | business | — | Error getting organization members |  |
-| <a id="bck-organizations-0003"></a>`BCK.ORGANIZATIONS.0003` | 500 | business | — | Error saving organization branding |  |
-| <a id="bck-organizations-0004"></a>`BCK.ORGANIZATIONS.0004` | 500 | business | — | Error updating organization |  |
-| <a id="bck-organizations-0005"></a>`BCK.ORGANIZATIONS.0005` | 500 | business | — | Error creating organization |  |
+| <a id="bck-organizations-0001"></a>`BCK.ORGANIZATIONS.0001` | 500 | business | — | Error creating organization member | Inspect the underlying error in logs. Member-create failed — usually a DB-layer constraint (duplicate membership, FK violation). |
+| <a id="bck-organizations-0002"></a>`BCK.ORGANIZATIONS.0002` | 500 | business | — | Error getting organization members | Inspect the underlying error in logs. Members lookup failed — usually a DB-layer error. |
+| <a id="bck-organizations-0003"></a>`BCK.ORGANIZATIONS.0003` | 500 | business | — | Error saving organization branding | Inspect the underlying error in logs. Branding persistence failed — usually a storage-layer error for the uploaded logo, or a DB-layer error for the colour palette. |
+| <a id="bck-organizations-0004"></a>`BCK.ORGANIZATIONS.0004` | 500 | business | — | Error updating organization | Inspect the underlying error in logs. Organization update failed — usually a DB-layer error or validation reject on the new fields. |
+| <a id="bck-organizations-0005"></a>`BCK.ORGANIZATIONS.0005` | 500 | business | — | Error creating organization | Inspect the underlying error in logs. Organization-create failed — usually a DB-layer error or a duplicate slug/name. |
 | <a id="bck-organizations-0006"></a>`BCK.ORGANIZATIONS.0006` | 500 | business | — | Error creating organization with first admin | The two-step bootstrap (create org + add first admin) failed. Check the underlying error in logs; the org may have been created without the admin link. |
-| <a id="bck-organizations-0007"></a>`BCK.ORGANIZATIONS.0007` | 500 | auth | — | Login failed for organization |  |
+| <a id="bck-organizations-0007"></a>`BCK.ORGANIZATIONS.0007` | 500 | auth | — | Login failed for organization | Inspect the underlying error in logs. Org login failed — typically a misconfigured Privy app id or membership lookup error. |
 | <a id="bck-organizations-0008"></a>`BCK.ORGANIZATIONS.0008` | 403 | business | ❌ | User is already a member of the organization | The membership already exists. Read the membership instead of recreating it, or change the role via the update endpoint. |
 | <a id="bck-organizations-0009"></a>`BCK.ORGANIZATIONS.0009` | 403 | business | ❌ | User is not a member of the organization | Add the user as a member before performing membership-scoped operations. |
-| <a id="bck-organizations-0010"></a>`BCK.ORGANIZATIONS.0010` | 500 | business | — | Failed to update organization member |  |
+| <a id="bck-organizations-0010"></a>`BCK.ORGANIZATIONS.0010` | 500 | business | — | Failed to update organization member | Inspect the underlying error in logs. Member-update failed — usually a DB-layer error. |
 | <a id="bck-organizations-0011"></a>`BCK.ORGANIZATIONS.0011` | 404 | business | ❌ | Organization not found | Verify the orgId. Soft-deleted organizations also surface as not-found. |
-| <a id="bck-organizations-0012"></a>`BCK.ORGANIZATIONS.0012` | 500 | business | — | Failed to deactivate organization |  |
-| <a id="bck-organizations-0013"></a>`BCK.ORGANIZATIONS.0013` | 500 | business | — | Failed to retrieve updated organization |  |
+| <a id="bck-organizations-0012"></a>`BCK.ORGANIZATIONS.0012` | 500 | business | — | Failed to deactivate organization | Inspect the underlying error in logs. Org deactivation failed — usually a DB-layer error. |
+| <a id="bck-organizations-0013"></a>`BCK.ORGANIZATIONS.0013` | 500 | business | — | Failed to retrieve updated organization | Inspect the underlying error in logs. The post-update re-read returned nothing — the row may have been deleted between the update and the read. |
 | <a id="bck-organizations-0014"></a>`BCK.ORGANIZATIONS.0014` | 403 | business | ❌ | User already belongs to another organization | A user can only belong to one organization at a time. Remove the user from the current organization before adding them to a new one. |
 | <a id="bck-organizations-0015"></a>`BCK.ORGANIZATIONS.0015` | 500 | integration | ✅ | Failed to look up organization (database error) | Repository.findOne returned a driver/connection error rather than null. Inspect the cause field on the server log; if the database is up, this is likely a query timeout or connection-pool exhaustion. Distinct from BCK.ORGANIZATIONS.0011, which signals a confirmed not-found result. |
+| <a id="bck-organizations-0016"></a>`BCK.ORGANIZATIONS.0016` | 404 | business | ❌ | Organization customer not found | Verify the customerId is correct and belongs to the organization in the URL. Customers are scoped per-org; a customer that exists in another org will surface as not-found here. |
+| <a id="bck-organizations-0017"></a>`BCK.ORGANIZATIONS.0017` | 422 | business | ❌ | Cannot remove the last admin from the organization | An organization must always have at least one active admin. Promote another member to Admin (or invite a new one) before demoting, deactivating, or removing the last admin. |
+| <a id="bck-organizations-0018"></a>`BCK.ORGANIZATIONS.0018` | 404 | business | ❌ | Organization member not found | Verify the memberId (the OrganizationMember row PK) and that it belongs to the orgId in the URL. Deactivated members still exist; truly removed members return 404. |
+| <a id="bck-organizations-0019"></a>`BCK.ORGANIZATIONS.0019` | 403 | business | ❌ | Customer management is not available for this organization tier | Viewing organization customers requires the Enterprise tier. Upgrade the organization to Enterprise to access the customers tab and per-customer activity. (Customers are still tracked on every tier — only the view is gated.) |
+| <a id="bck-organizations-0020"></a>`BCK.ORGANIZATIONS.0020` | 403 | business | ❌ | Activity feed is not available for this organization tier | The activity feed is a Premium+ feature. Upgrade the organization to Premium or Enterprise to access the activity log. |
+| <a id="bck-organizations-0021"></a>`BCK.ORGANIZATIONS.0021` | 403 | business | ❌ | Outbound webhooks are not available for this organization tier | Outbound webhooks are a Premium+ feature. Upgrade the organization to Premium or Enterprise to subscribe to org events from external systems. |
+| <a id="bck-organizations-0022"></a>`BCK.ORGANIZATIONS.0022` | 403 | business | ❌ | Analytics are not available for this organization tier | The analytics dashboard is a Premium+ feature. Upgrade the organization to Premium or Enterprise to access revenue, customer, and agent-usage metrics. |
+| <a id="bck-organizations-0023"></a>`BCK.ORGANIZATIONS.0023` | 404 | business | ❌ | Webhook subscription not found | Verify the subscription id and that it belongs to the orgId in the URL. Deleted subscriptions return 404. |
+| <a id="bck-organizations-0024"></a>`BCK.ORGANIZATIONS.0024` | 422 | validation | ❌ | Invalid webhook URL: must be a valid URL with http or https scheme | Provide an absolute URL with an http:// or https:// scheme. Schemes like ftp:// or relative URLs are rejected. |
+| <a id="bck-organizations-0025"></a>`BCK.ORGANIZATIONS.0025` | 422 | validation | ❌ | Webhook URL must use HTTPS in production environments | Webhook URLs in live environments must use HTTPS so the signed payload cannot be intercepted in transit. Use HTTPS, or test against the sandbox environment which permits HTTP for local development. |
+| <a id="bck-organizations-0026"></a>`BCK.ORGANIZATIONS.0026` | 404 | business | ❌ | Webhook delivery not found | Verify the deliveryId. Old deliveries may be pruned by the retention job; check the activity feed for the parent event instead. |
+| <a id="bck-organizations-0027"></a>`BCK.ORGANIZATIONS.0027` | 404 | business | ❌ | Webhook delivery not found in this organization | The delivery exists but belongs to a different organization. Use the orgId that owns the delivery, or call this endpoint as a member of that org. |
+| <a id="bck-organizations-0028"></a>`BCK.ORGANIZATIONS.0028` | 404 | business | ❌ | User organisation info not found | The user exists but has no membership matching the requested environment. Verify the userId and environment query param. |
+| <a id="bck-organizations-0029"></a>`BCK.ORGANIZATIONS.0029` | 400 | validation | ❌ | Role transition not permitted: only Admin and Member roles are assignable | Pass role=Admin or role=Member. Other role values (Owner, Client, etc.) are not supported via this endpoint. |
+| <a id="bck-organizations-0030"></a>`BCK.ORGANIZATIONS.0030` | 400 | auth | ❌ | Required caller identity is missing from the request | The userId/address fields populated by the auth guards were absent. This typically means the guard chain has been misconfigured — the endpoint should be reachable only after auth. |
+| <a id="bck-organizations-0031"></a>`BCK.ORGANIZATIONS.0031` | 403 | business | ❌ | Realtime event streaming is not available for this organization tier | The realtime (WebSocket) activity stream is an Enterprise-only feature. Upgrade the organization to Enterprise to manage WebSocket secrets and subscribe to the live event stream. |
+| <a id="bck-organizations-0032"></a>`BCK.ORGANIZATIONS.0032` | 404 | business | ❌ | WebSocket secret not found | No WebSocket secret with that id exists for the current member in this organization. It may have already been deleted, or belongs to a different member. |
+
+## <span id="bck-org_integration"></span>`BCK.ORG_INTEGRATION`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-org_integration-0001"></a>`BCK.ORG_INTEGRATION.0001` | 404 | business | ❌ | Organization not found or not eligible for agentic integration | The org id either does not exist, is inactive, or does not have an active paid subscription. Only Premium and Enterprise orgs expose agentic integration files. |
+| <a id="bck-org_integration-0002"></a>`BCK.ORG_INTEGRATION.0002` | 500 | internal | ✅ | Failed to render organization integration document | Inspect the underlying error in logs. The integration template rendering failed — usually a missing template variable or a malformed organization metadata row. |
 
 ## <span id="bck-paypal"></span>`BCK.PAYPAL`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-paypal-0001"></a>`BCK.PAYPAL.0001` | 500 | integration | — | Unexpected error during PayPal/Braintree checkout |  |
+| <a id="bck-paypal-0001"></a>`BCK.PAYPAL.0001` | 500 | integration | — | Unexpected error during PayPal/Braintree checkout | Inspect the underlying error in logs. PayPal-via-Braintree checkout failed — usually a Braintree transaction reject or PayPal account restriction. |
 
 ## <span id="bck-plans"></span>`BCK.PLANS`
 
@@ -250,14 +343,14 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-point-0001"></a>`BCK.POINT.0001` | 401 | business | — | User with address is not allowed to access |  |
-| <a id="bck-point-0002"></a>`BCK.POINT.0002` | 404 | business | — | User with id not found |  |
-| <a id="bck-point-0003"></a>`BCK.POINT.0003` | 404 | business | — | Unable to search user points |  |
-| <a id="bck-point-0004"></a>`BCK.POINT.0004` | 404 | business | — | Unable to search event points |  |
-| <a id="bck-point-0005"></a>`BCK.POINT.0005` | 404 | business | — | Unable to find user points aggregated |  |
-| <a id="bck-point-0006"></a>`BCK.POINT.0006` | 404 | business | — | Points rule not found |  |
+| <a id="bck-point-0001"></a>`BCK.POINT.0001` | 401 | business | — | User with address is not allowed to access | Verify the caller wallet is a registered user. The points endpoints require a user-profile row to attribute accruals. |
+| <a id="bck-point-0002"></a>`BCK.POINT.0002` | 404 | business | — | User with id not found | Verify the user id. The user may have been deleted or never existed. |
+| <a id="bck-point-0003"></a>`BCK.POINT.0003` | 404 | business | — | Unable to search user points | Verify the user id and that points retention has not pruned the rows. Empty per-user point lookups surface as 404. |
+| <a id="bck-point-0004"></a>`BCK.POINT.0004` | 404 | business | — | Unable to search event points | Verify the event id. Empty per-event point lookups surface as 404. |
+| <a id="bck-point-0005"></a>`BCK.POINT.0005` | 404 | business | — | Unable to find user points aggregated | Verify the user id. Empty aggregated lookups surface as 404. |
+| <a id="bck-point-0006"></a>`BCK.POINT.0006` | 404 | business | — | Points rule not found | Verify the ruleId. Empty rule lookups surface as 404; rules may be disabled or removed. |
 | <a id="bck-point-0007"></a>`BCK.POINT.0007` | 403 | business | ❌ | Points rule recurrency exhausted for user | The rule allows only one (or N) accruals per user; the cap has been reached. |
-| <a id="bck-point-0008"></a>`BCK.POINT.0008` | 500 | internal | — | Points rule recurrency type not implemented |  |
+| <a id="bck-point-0008"></a>`BCK.POINT.0008` | 500 | internal | — | Points rule recurrency type not implemented | The rule references an unimplemented recurrency type. Update points.rules.ts to use one of: onlyonce, timeslimitted, onceperitem, capday, capweek, capmonth. |
 | <a id="bck-point-0009"></a>`BCK.POINT.0009` | 500 | internal | ❌ | No points rule matches the supplied price/role | The price/role tiers in points.rules.ts are exhaustive for non-negative inputs; reaching this code typically means a negative or otherwise unexpected price was supplied. The status is 500 to preserve the original "throw new Error" behaviour from before #1538; a follow-up (tracked in the Wave-B issue) will demote this to 400 and add input validation at the API boundary. |
 | <a id="bck-point-0010"></a>`BCK.POINT.0010` | 403 | business | ❌ | Unsupported points cap recurrency type | The rule references a cap recurrency variant that the engine does not recognise. Update the rule to one of capday/capweek/capmonth. |
 | <a id="bck-point-0011"></a>`BCK.POINT.0011` | 403 | business | ❌ | Points rule (onlyonce) already accrued by this user | The rule allows exactly one accrual per user and the user already received their share. No retry will succeed. |
@@ -274,82 +367,86 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-protocol-0001"></a>`BCK.PROTOCOL.0001` | 500 | integration | — | Unable to register payment plan |  |
-| <a id="bck-protocol-0002"></a>`BCK.PROTOCOL.0002` | 500 | integration | — | Unable to register agent |  |
-| <a id="bck-protocol-0003"></a>`BCK.PROTOCOL.0003` | 404 | integration | — | Unable to get payment plan by planId |  |
-| <a id="bck-protocol-0004"></a>`BCK.PROTOCOL.0004` | 404 | integration | — | Unable to get agent by agentId |  |
-| <a id="bck-protocol-0005"></a>`BCK.PROTOCOL.0005` | 500 | integration | — | Error ordering plan |  |
-| <a id="bck-protocol-0006"></a>`BCK.PROTOCOL.0006` | 500 | integration | — | Error getting balance of plan |  |
-| <a id="bck-protocol-0007"></a>`BCK.PROTOCOL.0007` | 500 | integration | — | Error minting plan |  |
-| <a id="bck-protocol-0008"></a>`BCK.PROTOCOL.0008` | 500 | integration | — | Error deleting plan from agent |  |
-| <a id="bck-protocol-0009"></a>`BCK.PROTOCOL.0009` | 500 | integration | — | Error adding plan to agent |  |
-| <a id="bck-protocol-0010"></a>`BCK.PROTOCOL.0010` | 403 | integration | — | Invalid credits type |  |
-| <a id="bck-protocol-0011"></a>`BCK.PROTOCOL.0011` | 403 | integration | — | Insufficient balance |  |
-| <a id="bck-protocol-0012"></a>`BCK.PROTOCOL.0012` | 500 | integration | — | Error updating agent |  |
-| <a id="bck-protocol-0013"></a>`BCK.PROTOCOL.0013` | 500 | integration | — | Error updating plan |  |
-| <a id="bck-protocol-0014"></a>`BCK.PROTOCOL.0014` | 500 | integration | — | Error de-activating agent |  |
-| <a id="bck-protocol-0015"></a>`BCK.PROTOCOL.0015` | 500 | integration | — | Error de-activating plan |  |
-| <a id="bck-protocol-0016"></a>`BCK.PROTOCOL.0016` | 401 | integration | — | The user doesnt own this agent |  |
-| <a id="bck-protocol-0017"></a>`BCK.PROTOCOL.0017` | 401 | integration | — | The user doesnt own this plan |  |
-| <a id="bck-protocol-0018"></a>`BCK.PROTOCOL.0018` | 200 | integration | — | The agent is already in the desired state |  |
-| <a id="bck-protocol-0019"></a>`BCK.PROTOCOL.0019` | 200 | integration | — | The plan is already in the desired state |  |
-| <a id="bck-protocol-0020"></a>`BCK.PROTOCOL.0020` | 500 | integration | — | Error redeming credits |  |
-| <a id="bck-protocol-0021"></a>`BCK.PROTOCOL.0021` | 500 | integration | — | Error getting user plans |  |
-| <a id="bck-protocol-0022"></a>`BCK.PROTOCOL.0022` | 404 | integration | — | Error getting user agents |  |
-| <a id="bck-protocol-0023"></a>`BCK.PROTOCOL.0023` | 404 | integration | — | Error getting plan associated to agent. Agent not found |  |
-| <a id="bck-protocol-0024"></a>`BCK.PROTOCOL.0024` | 404 | integration | — | Error getting agent associated to plan. Plan not found |  |
-| <a id="bck-protocol-0025"></a>`BCK.PROTOCOL.0025` | 500 | integration | — | Unable to generate agent access token |  |
-| <a id="bck-protocol-0026"></a>`BCK.PROTOCOL.0026` | 403 | integration | — | The agent doesnt include the plan specified |  |
-| <a id="bck-protocol-0027"></a>`BCK.PROTOCOL.0027` | 403 | integration | — | Unable to validate access token |  |
-| <a id="bck-protocol-0028"></a>`BCK.PROTOCOL.0028` | 403 | integration | — | Invalid agent ID in access token |  |
-| <a id="bck-protocol-0029"></a>`BCK.PROTOCOL.0029` | 403 | integration | — | Proof is required for this plan |  |
-| <a id="bck-protocol-0030"></a>`BCK.PROTOCOL.0030` | 403 | integration | — | Invalid proof |  |
-| <a id="bck-protocol-0031"></a>`BCK.PROTOCOL.0031` | 403 | integration | — | Endpoint not included in the agent api |  |
-| <a id="bck-protocol-0032"></a>`BCK.PROTOCOL.0032` | 500 | integration | — | Unable to track access transaction |  |
-| <a id="bck-protocol-0033"></a>`BCK.PROTOCOL.0033` | 403 | integration | — | You do not have permission to track access transactions for this owner |  |
-| <a id="bck-protocol-0034"></a>`BCK.PROTOCOL.0034` | 500 | integration | — | Unable to track access processor queue entry |  |
-| <a id="bck-protocol-0035"></a>`BCK.PROTOCOL.0035` | 500 | integration | — | Unable to track agent task |  |
-| <a id="bck-protocol-0036"></a>`BCK.PROTOCOL.0036` | 500 | integration | — | Unable to track agent processor queue entry |  |
-| <a id="bck-protocol-0037"></a>`BCK.PROTOCOL.0037` | 404 | integration | — | Agent task not found |  |
-| <a id="bck-protocol-0038"></a>`BCK.PROTOCOL.0038` | 500 | integration | — | Error updating agent task |  |
-| <a id="bck-protocol-0039"></a>`BCK.PROTOCOL.0039` | 500 | integration | — | Error redeeming credits and updating agent task |  |
-| <a id="bck-protocol-0040"></a>`BCK.PROTOCOL.0040` | 500 | integration | — | Unable to register agent and plan |  |
-| <a id="bck-protocol-0041"></a>`BCK.PROTOCOL.0041` | 403 | integration | — | The user doesnt have a valid Stripe account enabled |  |
-| <a id="bck-protocol-0042"></a>`BCK.PROTOCOL.0042` | 403 | integration | — | Either amount or marginPercent must be provided, but not both |  |
-| <a id="bck-protocol-0043"></a>`BCK.PROTOCOL.0043` | 403 | integration | — | Plan does not have valid price configuration for margin calculation. Credits type must be DYNAMIC. |  |
-| <a id="bck-protocol-0044"></a>`BCK.PROTOCOL.0044` | 404 | integration | — | No Helicone request found for agent request ID |  |
-| <a id="bck-protocol-0045"></a>`BCK.PROTOCOL.0045` | 500 | integration | — | Error getting all plans |  |
-| <a id="bck-protocol-0046"></a>`BCK.PROTOCOL.0046` | 400 | integration | — | Fiat plan price exceeds the maximum allowed ($999,999.99). Stripe does not support payment intents above this limit. |  |
-| <a id="bck-protocol-0047"></a>`BCK.PROTOCOL.0047` | 400 | integration | — | Fiat plan price is below the minimum allowed ($1.00). Lower prices do not cover the payment-processor fixed fee. |  |
+| <a id="bck-protocol-0001"></a>`BCK.PROTOCOL.0001` | 500 | integration | — | Unable to register payment plan | Inspect the underlying error in logs. Payment-plan registration failed at protocol or SDK layer — usually a chain revert or missing token approval. |
+| <a id="bck-protocol-0002"></a>`BCK.PROTOCOL.0002` | 500 | integration | — | Unable to register agent | Inspect the underlying error in logs. Agent registration failed at protocol or SDK layer — usually a chain revert or duplicate agentId. |
+| <a id="bck-protocol-0003"></a>`BCK.PROTOCOL.0003` | 404 | integration | — | Unable to get payment plan by planId | Verify the planId. The plan may have been removed at the protocol side or never registered. Sandbox/live mismatches surface here too. |
+| <a id="bck-protocol-0004"></a>`BCK.PROTOCOL.0004` | 404 | integration | — | Unable to get agent by agentId | Verify the agentId. The agent may have been removed at the protocol side or never registered. Sandbox/live mismatches surface here too. |
+| <a id="bck-protocol-0005"></a>`BCK.PROTOCOL.0005` | 500 | integration | — | Error ordering plan | Inspect the underlying error in logs. Plan ordering failed — usually insufficient balance, expired plan, or chain revert. |
+| <a id="bck-protocol-0006"></a>`BCK.PROTOCOL.0006` | 500 | integration | — | Error getting balance of plan | Inspect the underlying error in logs. Balance retrieval reverted — verify the planId and that the chain RPC is reachable. |
+| <a id="bck-protocol-0007"></a>`BCK.PROTOCOL.0007` | 500 | integration | — | Error minting plan | Inspect the underlying error in logs. Credit minting reverted — verify the planId, credit type, and the minter role on the protocol contract. |
+| <a id="bck-protocol-0008"></a>`BCK.PROTOCOL.0008` | 500 | integration | — | Error deleting plan from agent | Inspect the underlying error in logs. The agent→plan unlink call reverted — verify the caller owns both the agent and the plan. |
+| <a id="bck-protocol-0009"></a>`BCK.PROTOCOL.0009` | 500 | integration | — | Error adding plan to agent | Inspect the underlying error in logs. The agent→plan link call reverted — verify the caller owns both the agent and the plan. |
+| <a id="bck-protocol-0010"></a>`BCK.PROTOCOL.0010` | 403 | integration | — | Invalid credits type | Provide one of the valid credit types: FIXED, DYNAMIC, EXPIRABLE. Other strings are rejected by the protocol layer. |
+| <a id="bck-protocol-0011"></a>`BCK.PROTOCOL.0011` | 402 | integration | — | Insufficient balance | Top up the buyer balance (USDC/EURC/USD/EUR depending on plan currency) before retrying. The protocol reverted because the order amount exceeds the wallet balance. |
+| <a id="bck-protocol-0012"></a>`BCK.PROTOCOL.0012` | 500 | integration | — | Error updating agent | Inspect the underlying error in logs. Agent metadata update reverted — verify the caller owns the agent and the new metadata is well-formed. |
+| <a id="bck-protocol-0013"></a>`BCK.PROTOCOL.0013` | 500 | integration | — | Error updating plan | Inspect the underlying error in logs. Plan metadata update reverted — verify the caller owns the plan and the new metadata is well-formed. |
+| <a id="bck-protocol-0014"></a>`BCK.PROTOCOL.0014` | 500 | integration | — | Error de-activating agent | Inspect the underlying error in logs. Agent de-activation reverted — verify the caller owns the agent and it is not already inactive. |
+| <a id="bck-protocol-0015"></a>`BCK.PROTOCOL.0015` | 500 | integration | — | Error de-activating plan | Inspect the underlying error in logs. Plan de-activation reverted — verify the caller owns the plan and it is not already inactive. |
+| <a id="bck-protocol-0016"></a>`BCK.PROTOCOL.0016` | 401 | integration | — | The user doesnt own this agent | Authenticate as the agent owner before retrying. Only the wallet that registered the agent can perform owner-scoped operations. |
+| <a id="bck-protocol-0017"></a>`BCK.PROTOCOL.0017` | 401 | integration | — | The user doesnt own this plan | Authenticate as the plan owner before retrying. Only the wallet that registered the plan can perform owner-scoped operations. |
+| <a id="bck-protocol-0018"></a>`BCK.PROTOCOL.0018` | 200 | integration | — | The agent is already in the desired state | No action required. The agent is already in the requested active/inactive state; the response carries the current state in params. |
+| <a id="bck-protocol-0019"></a>`BCK.PROTOCOL.0019` | 200 | integration | — | The plan is already in the desired state | No action required. The plan is already in the requested active/inactive state; the response carries the current state in params. |
+| <a id="bck-protocol-0020"></a>`BCK.PROTOCOL.0020` | 500 | integration | — | Error redeming credits | Inspect the underlying error in logs. Credit redemption reverted — verify the buyer holds enough credits and the plan permits redemption at this point. |
+| <a id="bck-protocol-0021"></a>`BCK.PROTOCOL.0021` | 500 | integration | — | Error getting user plans | Inspect the underlying error in logs. The per-user plans query failed — usually a DB-layer or chain-RPC issue. |
+| <a id="bck-protocol-0022"></a>`BCK.PROTOCOL.0022` | 404 | integration | — | Error getting user agents | Verify the user address. Empty per-user agent listings surface as 404; users with zero agents fall through this code. |
+| <a id="bck-protocol-0023"></a>`BCK.PROTOCOL.0023` | 404 | integration | — | Error getting plan associated to agent. Agent not found | Verify the agentId. The agent may have been removed, or no plan is associated with it yet. |
+| <a id="bck-protocol-0024"></a>`BCK.PROTOCOL.0024` | 404 | integration | — | Error getting agent associated to plan. Plan not found | Verify the planId. The plan may have been removed, or no agent is associated with it yet. |
+| <a id="bck-protocol-0025"></a>`BCK.PROTOCOL.0025` | 500 | integration | — | Unable to generate agent access token | Inspect the underlying error in logs. Agent access-token minting failed — verify the agent is registered and the requesting plan is active. |
+| <a id="bck-protocol-0026"></a>`BCK.PROTOCOL.0026` | 403 | integration | — | The agent doesnt include the plan specified | Re-link the plan to the agent (or use a different plan that is linked to this agent). Plans without an explicit link cannot grant access. |
+| <a id="bck-protocol-0027"></a>`BCK.PROTOCOL.0027` | 403 | integration | — | Unable to validate access token | Re-mint the access token. The supplied token is expired, malformed, or signed by a key the API does not recognise. |
+| <a id="bck-protocol-0028"></a>`BCK.PROTOCOL.0028` | 403 | integration | — | Invalid agent ID in access token | Verify the agentId encoded in the access-token claim matches the agent the caller is invoking. Cross-agent token use is rejected. |
+| <a id="bck-protocol-0029"></a>`BCK.PROTOCOL.0029` | 403 | integration | — | Proof is required for this plan | Attach a signed proof to the request when ordering against this plan. The plan owner enabled proof-required for credit redemption. |
+| <a id="bck-protocol-0030"></a>`BCK.PROTOCOL.0030` | 403 | integration | — | Invalid proof | Re-sign the proof. The proof signature does not validate against the registered signer or the proof payload does not match the request. |
+| <a id="bck-protocol-0031"></a>`BCK.PROTOCOL.0031` | 403 | integration | — | Endpoint not included in the agent api | Add the endpoint to the agent metadata `endpoints` array (or call a registered endpoint). Only listed endpoints are reachable via the access token. |
+| <a id="bck-protocol-0032"></a>`BCK.PROTOCOL.0032` | 500 | integration | — | Unable to track access transaction | Inspect the underlying error in logs. The access-tx insert failed — usually a DB-layer or queue-layer error. Metrics are best-effort; the consumer request still completed. |
+| <a id="bck-protocol-0033"></a>`BCK.PROTOCOL.0033` | 403 | integration | — | You do not have permission to track access transactions for this owner | Authenticate as the agent or plan owner before retrying. Only owners can track access transactions for resources they own. |
+| <a id="bck-protocol-0034"></a>`BCK.PROTOCOL.0034` | 500 | integration | — | Unable to track access processor queue entry | Inspect the underlying error in logs. The processor-queue insert failed — usually a queue-layer error. Safe to retry idempotently. |
+| <a id="bck-protocol-0035"></a>`BCK.PROTOCOL.0035` | 500 | integration | — | Unable to track agent task | Inspect the underlying error in logs. The agent-task tracking insert failed — usually a DB-layer or constraint issue. |
+| <a id="bck-protocol-0036"></a>`BCK.PROTOCOL.0036` | 500 | integration | — | Unable to track agent processor queue entry | Inspect the underlying error in logs. The agent-task processor-queue insert failed — usually a queue-layer error. Safe to retry idempotently. |
+| <a id="bck-protocol-0037"></a>`BCK.PROTOCOL.0037` | 404 | integration | — | Agent task not found | Verify the taskId and that it belongs to the caller agent. Task ids are scoped per-agent. |
+| <a id="bck-protocol-0038"></a>`BCK.PROTOCOL.0038` | 500 | integration | — | Error updating agent task | Inspect the underlying error in logs. Agent-task update failed — usually a state-transition guard rejection (the task is in a terminal state). |
+| <a id="bck-protocol-0039"></a>`BCK.PROTOCOL.0039` | 500 | integration | — | Error redeeming credits and updating agent task | Inspect the underlying error in logs. The combined redeem+update transaction failed mid-way — the DB row may be left inconsistent and need manual reconciliation. |
+| <a id="bck-protocol-0040"></a>`BCK.PROTOCOL.0040` | 500 | integration | — | Unable to register agent and plan | Inspect the underlying error in logs. The combined register-agent-and-plan call failed — verify the caller owns both resources and the protocol contract is reachable. |
+| <a id="bck-protocol-0041"></a>`BCK.PROTOCOL.0041` | 403 | integration | — | The user doesnt have a valid Stripe account enabled | Complete Stripe Connect onboarding before publishing fiat plans. Until charges_enabled is true on the Connect account, plans cannot be sold for fiat. |
+| <a id="bck-protocol-0042"></a>`BCK.PROTOCOL.0042` | 403 | integration | — | Either amount or marginPercent must be provided, but not both | Send exactly one of amount or marginPercent on a DYNAMIC plan. The two fields are mutually exclusive — pick the pricing model that fits. |
+| <a id="bck-protocol-0043"></a>`BCK.PROTOCOL.0043` | 403 | integration | — | Plan does not have valid price configuration for margin calculation. Credits type must be DYNAMIC. | Re-publish the plan with credits.type=DYNAMIC and the required margin/cost configuration. Margin calculations are only valid for DYNAMIC plans. |
+| <a id="bck-protocol-0044"></a>`BCK.PROTOCOL.0044` | 404 | integration | — | No Helicone request found for agent request ID | Verify the Helicone request id and that the agent invocation actually fired through the Helicone proxy. Stale ids and proxied-off agents land here. |
+| <a id="bck-protocol-0045"></a>`BCK.PROTOCOL.0045` | 500 | integration | — | Error getting all plans | Inspect the underlying error in logs. The list-all-plans query failed — usually a DB-layer error or pagination issue. |
+| <a id="bck-protocol-0046"></a>`BCK.PROTOCOL.0046` | 400 | integration | — | Fiat plan price exceeds the maximum allowed ($999,999.99). Stripe does not support payment intents above this limit. | Lower the plan price below $999,999.99 (Stripe payment-intent cap). Higher-value sales must go through Stripe Connect transfers or off-platform settlement. |
+| <a id="bck-protocol-0047"></a>`BCK.PROTOCOL.0047` | 400 | integration | — | Fiat plan price is below the minimum allowed ($1.00). Lower prices do not cover the payment-processor fixed fee. | Raise the plan price to at least $1.00. Lower prices do not cover the payment-processor fixed fee and would settle at a loss. |
+| <a id="bck-protocol-0048"></a>`BCK.PROTOCOL.0048` | 400 | business | — | Plan and agent must belong to the same organization. A Personal plan cannot be linked to an organization agent (and vice versa); plans owned by one organization cannot be linked to agents owned by a different organization. | Either move the plan or the agent so both belong to the same organization (or both to the same Personal account). Cross-org and personal-vs-org links are rejected by design. |
+| <a id="bck-protocol-0049"></a>`BCK.PROTOCOL.0049` | 500 | integration | ❌ | On-chain submit returned without a transaction hash | The chain broadcast call succeeded at the SDK boundary but did not return a tx hash. Treat as an SDK-shape drift; the dead-letter accounting flags the row so it can be re-tried after investigation. |
+| <a id="bck-protocol-0050"></a>`BCK.PROTOCOL.0050` | 400 | business | ❌ | Fiat plans cannot be ordered through this endpoint. Use the x402 card-delegation settle flow (POST /api/v1/x402/settle) so the buyer card delegation can be charged before credits are provisioned. | This endpoint settles stablecoin (crypto) plans only. For fiat / `nvm:card-delegation` plans, register a card delegation and call /api/v1/x402/settle — that path charges the card BEFORE credits are provisioned in the off-chain ledger. On-chain mirroring (when the plan opts in) happens asynchronously after settlement; do not assume synchronous on-chain finality. |
 
 ## <span id="bck-stripe"></span>`BCK.STRIPE`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-stripe-0001"></a>`BCK.STRIPE.0001` | 400 | integration | — | Error creating Stripe account |  |
-| <a id="bck-stripe-0002"></a>`BCK.STRIPE.0002` | 400 | integration | — | Error creating Stripe checkout session |  |
-| <a id="bck-stripe-0003"></a>`BCK.STRIPE.0003` | 400 | integration | — | Error creating Stripe payment intent |  |
-| <a id="bck-stripe-0004"></a>`BCK.STRIPE.0004` | 500 | integration | — | Error processing Stripe account webhook for updating an account |  |
-| <a id="bck-stripe-0005"></a>`BCK.STRIPE.0005` | 400 | integration | — | Error processing Stripe connect webhook |  |
-| <a id="bck-stripe-0006"></a>`BCK.STRIPE.0006` | 500 | integration | — | Error processing Stripe checkout event with error |  |
-| <a id="bck-stripe-0007"></a>`BCK.STRIPE.0007` | 400 | integration | — | Invalid input params |  |
-| <a id="bck-stripe-0008"></a>`BCK.STRIPE.0008` | 400 | integration | — | Stripe event not handled |  |
-| <a id="bck-stripe-0009"></a>`BCK.STRIPE.0009` | 400 | integration | — | The plan indicated is not valid for Stripe payment |  |
-| <a id="bck-stripe-0010"></a>`BCK.STRIPE.0010` | 400 | integration | — | The plan is not a Fiat plan |  |
-| <a id="bck-stripe-0011"></a>`BCK.STRIPE.0011` | 400 | integration | — | Error calculating plan checkout price |  |
-| <a id="bck-stripe-0012"></a>`BCK.STRIPE.0012` | 400 | integration | — | The account selling the plan is not properly configured to accept Stripe payments |  |
-| <a id="bck-stripe-0013"></a>`BCK.STRIPE.0013` | 400 | integration | — | Payment intent not succeeded |  |
-| <a id="bck-stripe-0014"></a>`BCK.STRIPE.0014` | 400 | integration | — | Invalid payment amount from payment intent |  |
-| <a id="bck-stripe-0015"></a>`BCK.STRIPE.0015` | 400 | integration | — | Customer not found |  |
-| <a id="bck-stripe-0016"></a>`BCK.STRIPE.0016` | 400 | integration | — | Subscription not found |  |
-| <a id="bck-stripe-0017"></a>`BCK.STRIPE.0017` | 400 | integration | — | Invoices not found |  |
-| <a id="bck-stripe-0018"></a>`BCK.STRIPE.0018` | 400 | integration | — | Error retrieving Stripe payment metadata |  |
-| <a id="bck-stripe-0019"></a>`BCK.STRIPE.0019` | 400 | integration | — | Error retrieving Stripe balance |  |
-| <a id="bck-stripe-0020"></a>`BCK.STRIPE.0020` | 500 | integration | — | Error canceling subscription |  |
-| <a id="bck-stripe-0021"></a>`BCK.STRIPE.0021` | 400 | integration | — | Unable to create Stripe subscription |  |
-| <a id="bck-stripe-0022"></a>`BCK.STRIPE.0022` | 424 | integration | — | The settlement could not be executed because the seller account has not properly configured the payment service provider (Stripe) |  |
-| <a id="bck-stripe-0023"></a>`BCK.STRIPE.0023` | 503 | integration | — | Transient failure while looking up the seller payment service provider configuration |  |
-| <a id="bck-stripe-0030"></a>`BCK.STRIPE.0030` | 500 | integration | — | Application-fee true-up refund failed; row left Settled with the owed amount stored in providerMetadata.trueUpRefundOwedMicro for manual reconciliation |  |
+| <a id="bck-stripe-0001"></a>`BCK.STRIPE.0001` | 400 | integration | — | Error creating Stripe account | Inspect Stripe dashboard logs for the request id we return in params. Account creation failed at the Stripe side — usually a missing legal entity or invalid country. |
+| <a id="bck-stripe-0002"></a>`BCK.STRIPE.0002` | 400 | integration | — | Error creating Stripe checkout session | Inspect Stripe dashboard logs for the request id we return in params. Checkout session creation failed — verify the plan’s priceId is live and the Connect account is fully onboarded. |
+| <a id="bck-stripe-0003"></a>`BCK.STRIPE.0003` | 400 | integration | — | Error creating Stripe payment intent | Inspect Stripe dashboard logs for the request id we return in params. PaymentIntent creation failed — usually an invalid currency/amount or missing customer. |
+| <a id="bck-stripe-0004"></a>`BCK.STRIPE.0004` | 500 | integration | — | Error processing Stripe account webhook for updating an account | Inspect the underlying error and the Stripe event id in params. The webhook handler failed; the event will be retried by Stripe. |
+| <a id="bck-stripe-0005"></a>`BCK.STRIPE.0005` | 400 | integration | — | Error processing Stripe connect webhook | Inspect the underlying error and Stripe event id in params. The Connect webhook handler rejected the payload — usually a schema mismatch or unsupported event type. |
+| <a id="bck-stripe-0006"></a>`BCK.STRIPE.0006` | 500 | integration | — | Error processing Stripe checkout event with error | Inspect the underlying error and Stripe event id in params. The checkout-completed handler failed; manual reconciliation may be needed for the buyer. |
+| <a id="bck-stripe-0007"></a>`BCK.STRIPE.0007` | 400 | integration | — | Invalid input params | Verify the request body matches the endpoint schema. Common cause: missing planId or zero amount. |
+| <a id="bck-stripe-0008"></a>`BCK.STRIPE.0008` | 400 | integration | — | Stripe event not handled | Stripe sent an event type this deployment does not handle. Safe to ignore unless the event is one we expect to act on — in which case add the handler. |
+| <a id="bck-stripe-0009"></a>`BCK.STRIPE.0009` | 400 | integration | — | The plan indicated is not valid for Stripe payment | Verify the planId references a fiat plan with a configured Stripe priceId. Crypto-only plans cannot be paid via Stripe. |
+| <a id="bck-stripe-0010"></a>`BCK.STRIPE.0010` | 400 | integration | — | The plan is not a Fiat plan | Use a fiat plan for Stripe checkout. Crypto plans must be paid through the on-chain flow (/protocol/order or x402). |
+| <a id="bck-stripe-0011"></a>`BCK.STRIPE.0011` | 400 | integration | — | Error calculating plan checkout price | Inspect the underlying error and the planId in params. Checkout-price computation failed — usually a missing/invalid price metadata or platform-fee config. |
+| <a id="bck-stripe-0012"></a>`BCK.STRIPE.0012` | 400 | integration | — | The account selling the plan is not properly configured to accept Stripe payments | The plan seller must complete Stripe Connect onboarding (charges_enabled + payouts_enabled). Until then their plans cannot be sold via Stripe. |
+| <a id="bck-stripe-0013"></a>`BCK.STRIPE.0013` | 400 | integration | — | Payment intent not succeeded | The Stripe PaymentIntent is not in a terminal success state. Check status in the Stripe dashboard; if it is processing, retry after the webhook lands. |
+| <a id="bck-stripe-0014"></a>`BCK.STRIPE.0014` | 400 | integration | — | Invalid payment amount from payment intent | The PaymentIntent amount does not match the expected plan price. Verify currency and amount on the Stripe side; mismatched currencies are the most common cause. |
+| <a id="bck-stripe-0015"></a>`BCK.STRIPE.0015` | 400 | integration | — | Customer not found | Verify the Stripe customerId. The customer may have been deleted in the Stripe dashboard or never created for this user. |
+| <a id="bck-stripe-0016"></a>`BCK.STRIPE.0016` | 400 | integration | — | Subscription not found | Verify the Stripe subscriptionId. The subscription may have been canceled and pruned, or belong to a different account/environment. |
+| <a id="bck-stripe-0017"></a>`BCK.STRIPE.0017` | 400 | integration | — | Invoices not found | Verify the Stripe subscription/customer reference. No invoices were found for the requested filters. |
+| <a id="bck-stripe-0018"></a>`BCK.STRIPE.0018` | 400 | integration | — | Error retrieving Stripe payment metadata | Inspect Stripe dashboard logs for the request id we return in params. PaymentIntent metadata retrieval failed — usually a transient Stripe API issue. |
+| <a id="bck-stripe-0019"></a>`BCK.STRIPE.0019` | 400 | integration | — | Error retrieving Stripe balance | Inspect Stripe dashboard logs for the request id we return in params. Balance retrieval failed — usually a Connect-account configuration or scope issue. |
+| <a id="bck-stripe-0020"></a>`BCK.STRIPE.0020` | 500 | integration | — | Error canceling subscription | Inspect Stripe dashboard logs for the request id we return in params. Subscription cancellation failed — verify the subscription belongs to the right Connect account. |
+| <a id="bck-stripe-0021"></a>`BCK.STRIPE.0021` | 400 | integration | — | Unable to create Stripe subscription | Inspect Stripe dashboard logs for the request id we return in params. Subscription create failed — usually a missing customer default payment method or invalid price. |
+| <a id="bck-stripe-0022"></a>`BCK.STRIPE.0022` | 424 | integration | — | The settlement could not be executed because the seller account has not properly configured the payment service provider (Stripe) | The plan seller has not completed Stripe Connect onboarding (charges_enabled is false). Ask the seller to finish onboarding before retrying the settlement. |
+| <a id="bck-stripe-0023"></a>`BCK.STRIPE.0023` | 503 | integration | — | Transient failure while looking up the seller payment service provider configuration | Inspect the underlying error in logs. The seller PSP-configuration lookup failed transiently — retry; if it persists, check DB connectivity. |
+| <a id="bck-stripe-0024"></a>`BCK.STRIPE.0024` | 424 | integration | ❌ | The organization owning the plan you are trying to purchase has not configured its payment service provider (Stripe). Contact the organization to complete the setup before retrying the purchase. | The plan is owned by an organization that has not connected Stripe (or has not completed Connect onboarding) for this environment. Surface the orgId / orgName carried in params so the buyer can identify the organization to contact. |
+| <a id="bck-stripe-0030"></a>`BCK.STRIPE.0030` | 500 | integration | — | Application-fee true-up refund failed; row left Settled with the owed amount stored in providerMetadata.trueUpRefundOwedMicro for manual reconciliation | The Stripe application-fee true-up refund failed. The settlement row is left as Settled with the owed amount in providerMetadata.trueUpRefundOwedMicro for manual reconciliation through Stripe Dashboard. |
 | <a id="bck-stripe-0031"></a>`BCK.STRIPE.0031` | 500 | internal | ❌ | Price conversion overflow when converting micro-units to cents | The plan price exceeds Number.MAX_SAFE_INTEGER after conversion. Lower the plan price or fix the unit boundary in convertMicroUnitsToCents. |
 | <a id="bck-stripe-0032"></a>`BCK.STRIPE.0032` | 500 | integration | ❌ | Stripe checkout: user profile not found for account event | The Stripe account event referenced a user that no longer exists in our DB (deleted profile, or environment mismatch between live/sandbox). The webhook is marked permanent so Stripe stops retrying. |
 | <a id="bck-stripe-0033"></a>`BCK.STRIPE.0033` | 500 | integration | ✅ | Stripe account webhook handler failed | Generic catch-all for the account webhook handler — inspect the cause field for the underlying error and the params for eventId/stripeAccountId/userId. |
@@ -363,116 +460,137 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-stripe-connect-0001"></a>`BCK.STRIPE.CONNECT.0001` | 503 | integration | — | Stripe Connect is not configured |  |
-| <a id="bck-stripe-connect-0002"></a>`BCK.STRIPE.CONNECT.0002` | 400 | integration | — | Stripe OAuth token exchange failed |  |
-| <a id="bck-stripe-connect-0003"></a>`BCK.STRIPE.CONNECT.0003` | 400 | integration | — | Stripe OAuth response missing stripe_user_id |  |
-| <a id="bck-stripe-connect-0004"></a>`BCK.STRIPE.CONNECT.0004` | 400 | integration | — | Stripe account environment does not match platform environment |  |
-| <a id="bck-stripe-connect-0005"></a>`BCK.STRIPE.CONNECT.0005` | 404 | integration | — | User profile not found for Stripe Connect update |  |
+| <a id="bck-stripe-connect-0001"></a>`BCK.STRIPE.CONNECT.0001` | 503 | integration | — | Stripe Connect is not configured | `STRIPE_CONNECT_CLIENT_ID` is unset. Configure Stripe Connect credentials in the environment before enabling Connect features. |
+| <a id="bck-stripe-connect-0002"></a>`BCK.STRIPE.CONNECT.0002` | 400 | integration | — | Stripe OAuth token exchange failed | Inspect Stripe dashboard logs for the request id we return in params. The OAuth code exchange failed — usually a mismatched redirect_uri or expired code. |
+| <a id="bck-stripe-connect-0003"></a>`BCK.STRIPE.CONNECT.0003` | 400 | integration | — | Stripe OAuth response missing stripe_user_id | Stripe returned a successful OAuth response without stripe_user_id. Treat as a Stripe API anomaly and restart the OAuth flow. |
+| <a id="bck-stripe-connect-0004"></a>`BCK.STRIPE.CONNECT.0004` | 400 | integration | — | Stripe account environment does not match platform environment | The connected account is in a different Stripe environment (sandbox vs live) than the platform. Re-connect using the platform’s matching environment. |
+| <a id="bck-stripe-connect-0005"></a>`BCK.STRIPE.CONNECT.0005` | 404 | integration | — | User profile not found for Stripe Connect update | Verify the user-profile id in params. The OAuth callback fired for a user that no longer has a profile row — likely a deleted account. |
 
 ## <span id="bck-transcoding"></span>`BCK.TRANSCODING`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-transcoding-0001"></a>`BCK.TRANSCODING.0001` | 404 | integration | — | UGC not found |  |
+| <a id="bck-transcoding-0001"></a>`BCK.TRANSCODING.0001` | 404 | integration | — | UGC not found | Verify the UGC asset id. The asset may have been deleted, or transcoding has not finished yet for newly uploaded media. |
+| <a id="bck-transcoding-0002"></a>`BCK.TRANSCODING.0002` | 404 | business | ❌ | Transcoded asset not found for the given UGC id | Verify the UGC id in params. The queue row may have been pruned, or the upload never reached the transcoder. |
+| <a id="bck-transcoding-0003"></a>`BCK.TRANSCODING.0003` | 500 | integration | ❌ | Transcoding failed for UGC asset | Inspect the underlying error in logs. The transcoder marked this asset Errored — usually a codec/format issue or storage failure. Re-upload after fixing the source. |
+| <a id="bck-transcoding-0004"></a>`BCK.TRANSCODING.0004` | 503 | integration | ✅ | Transcoding is still in progress for UGC asset | The transcoder has not finished encoding this asset. Retry after a short backoff; the worker typically completes within seconds for small assets. |
 
 ## <span id="bck-txs"></span>`BCK.TXS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-txs-0001"></a>`BCK.TXS.0001` | 404 | integration | — | Error searching asset transactions by id |  |
-| <a id="bck-txs-0002"></a>`BCK.TXS.0002` | 404 | integration | — | Error searching asset consumer transactions |  |
-| <a id="bck-txs-0003"></a>`BCK.TXS.0003` | 404 | integration | — | Error searching distintc asset transactions |  |
-| <a id="bck-txs-0004"></a>`BCK.TXS.0004` | 404 | integration | — | Error searching plan transactions |  |
-| <a id="bck-txs-0005"></a>`BCK.TXS.0005` | 404 | integration | — | Error searching asset transactions grouped by owner |  |
-| <a id="bck-txs-0006"></a>`BCK.TXS.0006` | 404 | integration | — | Error gathering DDO Info |  |
-| <a id="bck-txs-0007"></a>`BCK.TXS.0007` | 404 | integration | — | Error getting active users for owner |  |
-| <a id="bck-txs-0008"></a>`BCK.TXS.0008` | 404 | integration | — | Error getting total API calls for owner |  |
-| <a id="bck-txs-0009"></a>`BCK.TXS.0009` | 404 | integration | — | Error getting total revenue for owner |  |
-| <a id="bck-txs-0010"></a>`BCK.TXS.0010` | 404 | integration | — | Error getting dashboard metrics for owner |  |
+| <a id="bck-txs-0001"></a>`BCK.TXS.0001` | 404 | integration | — | Error searching asset transactions by id | Verify the asset/transaction id. Empty transaction lookups return 404 by design. |
+| <a id="bck-txs-0002"></a>`BCK.TXS.0002` | 404 | integration | — | Error searching asset consumer transactions | Verify the consumer address and asset id. Empty result sets return 404 by design. |
+| <a id="bck-txs-0003"></a>`BCK.TXS.0003` | 404 | integration | — | Error searching distintc asset transactions | Verify the asset id. Empty distinct-asset transaction lookups return 404. |
+| <a id="bck-txs-0004"></a>`BCK.TXS.0004` | 404 | integration | — | Error searching plan transactions | Verify the planId. Empty plan-transaction lookups return 404 by design. |
+| <a id="bck-txs-0005"></a>`BCK.TXS.0005` | 404 | integration | — | Error searching asset transactions grouped by owner | Verify the owner address. Empty owner-grouped transaction lookups return 404. |
+| <a id="bck-txs-0006"></a>`BCK.TXS.0006` | 404 | integration | — | Error gathering DDO Info | Verify the DID is well-formed and registered. DDO resolution failures bubble up as 404 here. |
+| <a id="bck-txs-0007"></a>`BCK.TXS.0007` | 404 | integration | — | Error getting active users for owner | Verify the owner address. Empty active-users lookups return 404 by design. |
+| <a id="bck-txs-0008"></a>`BCK.TXS.0008` | 404 | integration | — | Error getting total API calls for owner | Verify the owner address. Empty total-calls lookups return 404 by design. |
+| <a id="bck-txs-0009"></a>`BCK.TXS.0009` | 404 | integration | — | Error getting total revenue for owner | Verify the owner address. Empty total-revenue lookups return 404 by design. |
+| <a id="bck-txs-0010"></a>`BCK.TXS.0010` | 404 | integration | — | Error getting dashboard metrics for owner | Verify the owner address. Empty dashboard-metrics lookups return 404 by design. |
 
 ## <span id="bck-user_profile"></span>`BCK.USER_PROFILE`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-user_profile-0001"></a>`BCK.USER_PROFILE.0001` | 500 | internal | ❌ | User profile not found | Verify the entryId. Note: legacy callers depended on this surfacing as 500; the canonical "user profile not found for caller-supplied identifier" lookup-not-found semantics live in BCK.USER_PROFILE.0002 (404). |
+| <a id="bck-user_profile-0001"></a>`BCK.USER_PROFILE.0001` | 500 | internal | ❌ | User profile not found | A profile lookup returned null where a row was expected. Two known throw sites: DTO mappers asserting a non-null entity, and the org-tier bootstrap requiring the node-account system user. Inspect the throw-site `details` for the specific context. Legacy callers depended on this surfacing as 500; the canonical "user profile not found for caller-supplied identifier" lookup-not-found semantics live in `BCK.USER_PROFILE.0002` (404). |
 | <a id="bck-user_profile-0002"></a>`BCK.USER_PROFILE.0002` | 404 | business | ❌ | User profile not found | Verify the user identifier. The profile may have been disabled or never created. |
+| <a id="bck-user_profile-0003"></a>`BCK.USER_PROFILE.0003` | 400 | validation | ❌ | No wallet linked to the authenticated Privy account | Complete wallet linkage in the Privy flow before calling endpoints that require a smart-account address (dashboards, profile reads, etc.). |
+| <a id="bck-user_profile-0004"></a>`BCK.USER_PROFILE.0004` | 400 | business | ❌ | User profile already exists for this address | Use the PATCH endpoint to update an existing profile, or call POST with a different address. Profiles are unique per wallet. |
 
 ## <span id="bck-visa"></span>`BCK.VISA`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-visa-0001"></a>`BCK.VISA.0001` | 503 | integration | — | Visa payment provider is not configured |  |
-| <a id="bck-visa-0002"></a>`BCK.VISA.0002` | 502 | integration | — | Visa card enrollment failed |  |
-| <a id="bck-visa-0003"></a>`BCK.VISA.0003` | 502 | integration | — | VGS mandate provisioning failed | VGS rejected `POST /intents` while provisioning the Visa mandate — typically because `assuranceData` is stale, replayed, or doesn't match the spending limit / duration / merchant context shown in the approval prompt. Restart the WebAuthn / passkey device-binding ceremony in the Nevermined webapp to mint a fresh `assuranceData` blob, then retry delegation creation. |
-| <a id="bck-visa-0004"></a>`BCK.VISA.0004` | 502 | integration | — | VGS cryptogram issuance failed |  |
-| <a id="bck-visa-0005"></a>`BCK.VISA.0005` | 400 | integration | — | Invalid VGS webhook signature |  |
-| <a id="bck-visa-0006"></a>`BCK.VISA.0006` | 502 | integration | — | VGS OAuth2 client_credentials request failed |  |
-| <a id="bck-visa-0007"></a>`BCK.VISA.0007` | 502 | integration | — | Stripe settlement of Visa virtual card failed |  |
-| <a id="bck-visa-0008"></a>`BCK.VISA.0008` | 400 | integration | — | User has no email on file (required for Visa enrolment) |  |
-| <a id="bck-visa-0009"></a>`BCK.VISA.0009` | 422 | integration | — | Visa mandate (intent) not provisioned for this delegation |  |
-| <a id="bck-visa-0010"></a>`BCK.VISA.0010` | 404 | integration | — | VGS webhook references unknown card |  |
-| <a id="bck-visa-0011"></a>`BCK.VISA.0011` | 400 | integration | — | VGS webhook payload malformed |  |
-| <a id="bck-visa-0012"></a>`BCK.VISA.0012` | 400 | integration | — | VGS webhook revoke event missing card identifier |  |
-| <a id="bck-visa-0013"></a>`BCK.VISA.0013` | 500 | integration | — | Unable to process VGS webhook |  |
-| <a id="bck-visa-0014"></a>`BCK.VISA.0014` | 400 | business | — | Visa delegation creation requires consumerPrompt and assuranceData | Provide both `consumerPrompt` and `assuranceData` when creating a Visa delegation. These are required by the Visa Trusted Agent Protocol and produced by the in-browser VGS Agentic Auth device-binding flow. |
-| <a id="bck-visa-0015"></a>`BCK.VISA.0015` | 400 | business | — | Visa delegation requires planId — mandate must bind to a single plan seller | Provide `planId` when creating a Visa delegation. Visa mandates must bind to a single plan seller for compliance with the Trusted Agent Protocol. |
+| <a id="bck-visa-0001"></a>`BCK.VISA.0001` | 503 | integration | — | Visa payment provider is not configured | VGS_* env vars are unset. Configure the VGS vault credentials before enabling Visa Agentic Token features. |
+| <a id="bck-visa-0002"></a>`BCK.VISA.0002` | 502 | integration | — | Visa card enrollment failed | Inspect VGS dashboard logs for the enrollment id in params. Common causes: invalid card details, sanctions/AVS reject, or vault routing. |
+| <a id="bck-visa-0003"></a>`BCK.VISA.0003` | 502 | integration | — | Visa mandate creation failed | Inspect VGS dashboard logs for the mandate id in params. Mandate creation may fail when consumerPrompt/assuranceData are missing or the card is non-eligible. |
+| <a id="bck-visa-0004"></a>`BCK.VISA.0004` | 502 | integration | — | VGS cryptogram issuance failed | Inspect VGS dashboard logs for the cryptogram request id in params. Common causes: vault session expired, card revoked, or merchant data mismatch. |
+| <a id="bck-visa-0005"></a>`BCK.VISA.0005` | 400 | integration | — | Invalid VGS webhook signature | Verify the `VGS_WEBHOOK_SECRET` in env matches the secret configured in VGS dashboard. Replayed or forged webhooks land here. |
+| <a id="bck-visa-0006"></a>`BCK.VISA.0006` | 502 | integration | — | VGS OAuth2 client_credentials request failed | Inspect VGS dashboard logs. The OAuth2 client_credentials call failed — usually expired credentials or the wrong `VGS_BASE_URL`. |
+| <a id="bck-visa-0007"></a>`BCK.VISA.0007` | 502 | integration | — | Stripe settlement of Visa virtual card failed | Inspect Stripe dashboard for the PaymentIntent id in params. The Stripe settlement of the VGS-issued virtual card failed at the Stripe side. |
+| <a id="bck-visa-0008"></a>`BCK.VISA.0008` | 400 | integration | — | User has no email on file (required for Visa enrolment) | Capture or update the user email before retrying Visa enrolment. Visa requires a deliverable email for the cardholder. |
+| <a id="bck-visa-0009"></a>`BCK.VISA.0009` | 422 | integration | — | Visa mandate (intent) not provisioned for this delegation | Re-issue the delegation via the Visa flow so a mandate (Visa intent) is provisioned. Without it the card cannot be used for spending. |
+| <a id="bck-visa-0010"></a>`BCK.VISA.0010` | 404 | integration | — | VGS webhook references unknown card | Verify the VGS payload references a card our DB has registered. Stale or cross-environment webhooks land here. |
+| <a id="bck-visa-0011"></a>`BCK.VISA.0011` | 400 | integration | — | VGS webhook payload malformed | Inspect the underlying VGS payload structure. Required fields are missing or have the wrong shape — usually a VGS API version mismatch. |
+| <a id="bck-visa-0012"></a>`BCK.VISA.0012` | 400 | integration | — | VGS webhook revoke event missing card identifier | The revoke webhook is missing the card identifier we need to flip our DB state. Inspect VGS to confirm the event payload and replay manually if needed. |
+| <a id="bck-visa-0013"></a>`BCK.VISA.0013` | 500 | integration | — | Unable to process VGS webhook | Inspect the underlying error and webhook event id in params. The handler crashed mid-processing; VGS will retry the webhook. |
+| <a id="bck-visa-0014"></a>`BCK.VISA.0014` | 400 | business | — | Visa delegation creation requires consumerPrompt and assuranceData | Provide both consumerPrompt and assuranceData when creating a Visa delegation. These are required by the Visa Trusted Agent Protocol. |
+| <a id="bck-visa-0015"></a>`BCK.VISA.0015` | 400 | business | — | Visa delegation requires planId — mandate must bind to a single plan seller | Provide planId when creating a Visa delegation. Visa mandates must bind to a single plan seller for compliance with the Trusted Agent Protocol. |
 | <a id="bck-visa-0016"></a>`BCK.VISA.0016` | 400 | business | — | Plan seller has not completed Stripe Connect onboarding required for Visa delegations | The plan seller must complete Stripe Connect onboarding before accepting Visa delegations. Ask the seller to finish onboarding. |
-| <a id="bck-visa-0017"></a>`BCK.VISA.0017` | 502 | integration | — | Stripe Connect account lookup failed while resolving Visa merchant context | Inspect Stripe dashboard logs for the connected account id in params. Connect account lookup failed transiently — retry; if it persists, check the seller's Connect status. |
+| <a id="bck-visa-0017"></a>`BCK.VISA.0017` | 502 | integration | — | Stripe Connect account lookup failed while resolving Visa merchant context | Inspect Stripe dashboard logs for the connected account id in params. Connect account lookup failed transiently — retry; if it persists, check the seller’s Connect status. |
 | <a id="bck-visa-0018"></a>`BCK.VISA.0018` | 409 | business | — | This card is already enrolled to a different account | VGS Agentic Tokens are keyed on PAN globally — the same physical card resolves to the same tokenId regardless of which user enrols it. The card you tried to enrol is already on file under another account. Use a different card. |
+| <a id="bck-visa-0019"></a>`BCK.VISA.0019` | 500 | internal | ❌ | Visa provider misconfigured for this environment | The Visa provider is otherwise wired but VGS_AGENTIC_BROWSER_CLIENT_ID/SECRET are missing. The browser-token endpoint would silently fall back to the privileged backend service account in this state. Provision the narrower Client-Side Service Account or unset the Visa env vars to disable the provider. See VIS-011 in security audit 2026-05-27. |
 
 ## <span id="bck-widget"></span>`BCK.WIDGET`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-widget-0001"></a>`BCK.WIDGET.0001` | 500 | business | — | Unable to store widget config |  |
-| <a id="bck-widget-0002"></a>`BCK.WIDGET.0002` | 404 | business | — | Unable to get widget config from id |  |
-| <a id="bck-widget-0003"></a>`BCK.WIDGET.0003` | 401 | business | — | The user doesnt own this widget |  |
-| <a id="bck-widget-0004"></a>`BCK.WIDGET.0004` | 500 | business | — | Error updating widget config |  |
-| <a id="bck-widget-0005"></a>`BCK.WIDGET.0005` | 500 | business | — | Error deleting widget config |  |
+| <a id="bck-widget-0001"></a>`BCK.WIDGET.0001` | 500 | business | — | Unable to store widget config | Inspect the underlying error in logs. Widget config persistence failed — usually a DB-layer or storage-layer error. |
+| <a id="bck-widget-0002"></a>`BCK.WIDGET.0002` | 404 | business | — | Unable to get widget config from id | Verify the widget id. The widget may have been deleted or never created. |
+| <a id="bck-widget-0003"></a>`BCK.WIDGET.0003` | 401 | business | — | The user doesnt own this widget | Authenticate as the widget owner before retrying. Only the wallet that created the widget can edit or delete its config. |
+| <a id="bck-widget-0004"></a>`BCK.WIDGET.0004` | 500 | business | — | Error updating widget config | Inspect the underlying error in logs. Widget update failed — usually a DB-layer error or validation reject on the new config. |
+| <a id="bck-widget-0005"></a>`BCK.WIDGET.0005` | 500 | business | — | Error deleting widget config | Inspect the underlying error in logs. Widget deletion failed — usually a DB-layer error. |
 
 ## <span id="bck-widget_keys"></span>`BCK.WIDGET_KEYS`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-widget_keys-0001"></a>`BCK.WIDGET_KEYS.0001` | 500 | internal | ❌ | Widget key generation failed |  |
-| <a id="bck-widget_keys-0002"></a>`BCK.WIDGET_KEYS.0002` | 404 | auth | — | Widget key not found |  |
+| <a id="bck-widget_keys-0001"></a>`BCK.WIDGET_KEYS.0001` | 500 | internal | ❌ | Widget key generation failed | Inspect the underlying error in logs. Widget-key minting failed — usually a DB-write error. |
+| <a id="bck-widget_keys-0002"></a>`BCK.WIDGET_KEYS.0002` | 404 | auth | — | Widget key not found | Verify the widget-key id and that it belongs to the caller organisation. Revoked keys also surface as not-found. |
 
 ## <span id="bck-widget_session"></span>`BCK.WIDGET_SESSION`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-widget_session-0001"></a>`BCK.WIDGET_SESSION.0001` | 401 | auth | — | Invalid or expired widget init token |  |
-| <a id="bck-widget_session-0002"></a>`BCK.WIDGET_SESSION.0002` | 401 | auth | — | Organization has no active widget key |  |
-| <a id="bck-widget_session-0003"></a>`BCK.WIDGET_SESSION.0003` | 500 | auth | — | Widget JWT secret not configured |  |
-| <a id="bck-widget_session-0004"></a>`BCK.WIDGET_SESSION.0004` | 500 | auth | — | Error creating widget session user |  |
-| <a id="bck-widget_session-0005"></a>`BCK.WIDGET_SESSION.0005` | 401 | auth | — | Invalid or expired widget session token |  |
-| <a id="bck-widget_session-0006"></a>`BCK.WIDGET_SESSION.0006` | 500 | auth | — | Widget encryption key not configured or invalid |  |
-| <a id="bck-widget_session-0007"></a>`BCK.WIDGET_SESSION.0007` | 401 | auth | — | Widget init token is missing required fields |  |
-| <a id="bck-widget_session-0008"></a>`BCK.WIDGET_SESSION.0008` | 401 | auth | — | Widget session token is missing required wallet claim |  |
-| <a id="bck-widget_session-0009"></a>`BCK.WIDGET_SESSION.0009` | 401 | auth | — | Widget session token is missing required apiKeyHash claim |  |
-| <a id="bck-widget_session-0010"></a>`BCK.WIDGET_SESSION.0010` | 401 | auth | — | Widget session token is missing required widgetKeyId claim |  |
-| <a id="bck-widget_session-0011"></a>`BCK.WIDGET_SESSION.0011` | 401 | auth | — | Widget key has been revoked or no longer exists |  |
-| <a id="bck-widget_session-0012"></a>`BCK.WIDGET_SESSION.0012` | 403 | auth | — | Origin not allowed for this widget key |  |
+| <a id="bck-widget_session-0001"></a>`BCK.WIDGET_SESSION.0001` | 401 | auth | — | Invalid widget credentials | F-055: covers both "org has no active widget key" and "secret rejected". The integrator backend must send the active `wk_...` secret as `rawSecret` in `POST /widgets/session`; if the org never generated a key, create one in the admin UI first. A single error code is returned so an attacker probing the public endpoint cannot distinguish the two cases. |
+| <a id="bck-widget_session-0003"></a>`BCK.WIDGET_SESSION.0003` | 500 | auth | — | Widget JWT secret not configured | Configure `WIDGET_JWT_SECRET` in the deployment env. The widget-session JWT signer requires this secret to be set. |
+| <a id="bck-widget_session-0004"></a>`BCK.WIDGET_SESSION.0004` | 500 | auth | — | Error creating widget session user | Inspect the underlying error in logs. Widget guest-user creation failed — usually a DB-layer error. |
+| <a id="bck-widget_session-0005"></a>`BCK.WIDGET_SESSION.0005` | 401 | auth | — | Invalid or expired widget session token | Re-issue the session token via the widget refresh endpoint. Session tokens are short-lived; expired tokens land here. |
+| <a id="bck-widget_session-0008"></a>`BCK.WIDGET_SESSION.0008` | 401 | auth | — | Widget session token is missing required wallet claim | Reissue the session token after capturing the user wallet. Wallet-bound session features require the wallet claim. |
+| <a id="bck-widget_session-0009"></a>`BCK.WIDGET_SESSION.0009` | 401 | auth | — | Widget session token is missing required apiKeyHash claim | Reissue the session token with the apiKeyHash claim populated. The widget runtime expects an apiKeyHash to attribute usage. |
+| <a id="bck-widget_session-0010"></a>`BCK.WIDGET_SESSION.0010` | 401 | auth | — | Widget session token is missing required widgetKeyId claim | Reissue the session token with the widgetKeyId claim populated. The widget runtime expects a widgetKeyId for revocation checks. |
+| <a id="bck-widget_session-0011"></a>`BCK.WIDGET_SESSION.0011` | 401 | auth | — | Widget key has been revoked or no longer exists | Generate a fresh widget key in the org admin UI. Revoked keys cannot resume existing sessions; the embed must be updated. |
+| <a id="bck-widget_session-0012"></a>`BCK.WIDGET_SESSION.0012` | 403 | auth | — | Origin not allowed for this widget key | Add the requesting origin to the widget key’s allowed-origins list, or embed the widget from an approved origin. |
+| <a id="bck-widget_session-0013"></a>`BCK.WIDGET_SESSION.0013` | 400 | auth | — | Widget session request is missing the required email field | The integrator backend must forward the end-user email in the `email` field of POST /widgets/session. Email is the canonical Nevermined identity for widget users. |
+| <a id="bck-widget_session-0018"></a>`BCK.WIDGET_SESSION.0018` | 403 | auth | — | Card setup is only available to organization members | The authenticated user has no active organization membership — `POST /widgets/session/self` is the org-scoped (members-only) widget path. To enroll a card or create a delegation as a buyer/agent, use the open embedded flow instead: `POST /api/v1/embed/session` (then open the embed app card-setup page with the returned sessionToken). |
+| <a id="bck-widget_session-0019"></a>`BCK.WIDGET_SESSION.0019` | 403 | auth | — | orgId is not one of the caller’s organization memberships | Pass an `orgId` the authenticated user is a member of — list your memberships via `/organizations/my-memberships` or the org switcher in the dashboard. To enroll a card or create a delegation as a buyer/agent (no org), use the open embedded flow: `POST /api/v1/embed/session` (then open the embed app card-setup page with the returned sessionToken). |
+| <a id="bck-widget_session-0020"></a>`BCK.WIDGET_SESSION.0020` | 403 | auth | — | Agent or plan does not belong to the widget session’s organization | The embed checkout can only purchase agents/plans owned by the organization the widget session was minted for. Verify the `agentId`/`planId` in the embed URL belongs to that organization. |
 
 ## <span id="bck-x402"></span>`BCK.X402`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-x402-0001"></a>`BCK.X402.0001` | 404 | business | — | Agent not found |  |
-| <a id="bck-x402-0002"></a>`BCK.X402.0002` | 404 | business | — | Plan not found |  |
-| <a id="bck-x402-0003"></a>`BCK.X402.0003` | 400 | business | — | The plan is not associated to the agent |  |
-| <a id="bck-x402-0004"></a>`BCK.X402.0004` | 500 | business | — | Error generating X402 access token |  |
-| <a id="bck-x402-0005"></a>`BCK.X402.0005` | 402 | business | — | Invalid access token |  |
-| <a id="bck-x402-0006"></a>`BCK.X402.0006` | 500 | business | — | Error verifying permissions |  |
-| <a id="bck-x402-0007"></a>`BCK.X402.0007` | 500 | business | — | Failed to order Pay-as-you-go plan |  |
-| <a id="bck-x402-0008"></a>`BCK.X402.0008` | 500 | business | — | Failed to order crypto plan |  |
-| <a id="bck-x402-0009"></a>`BCK.X402.0009` | 500 | business | — | Failed to redeem credits |  |
-| <a id="bck-x402-0010"></a>`BCK.X402.0010` | 400 | business | — | Invalid x402 access token |  |
-| <a id="bck-x402-0011"></a>`BCK.X402.0011` | 404 | business | — | User profile not found |  |
-| <a id="bck-x402-0012"></a>`BCK.X402.0012` | 400 | business | — | resource.url is required when agentId is provided |  |
-| <a id="bck-x402-0013"></a>`BCK.X402.0013` | 400 | business | — | Accepted payment method does not match requirements |  |
-| <a id="bck-x402-0014"></a>`BCK.X402.0014` | 400 | business | — | Delegation restricted to a different plan |  |
+| <a id="bck-x402-0001"></a>`BCK.X402.0001` | 404 | business | — | Agent not found | Verify the agentId in the x402 facilitator-resource URL. Agents that are deactivated or in a different environment surface as not-found here. |
+| <a id="bck-x402-0002"></a>`BCK.X402.0002` | 404 | business | — | Plan not found | Verify the planId in the x402 facilitator-resource URL. Plans that are deactivated or in a different environment surface as not-found here. |
+| <a id="bck-x402-0003"></a>`BCK.X402.0003` | 400 | business | — | The plan is not associated to the agent | Re-link the plan to the agent before retrying, or use a different plan that is already linked. x402 requires an explicit (agent, plan) edge. |
+| <a id="bck-x402-0004"></a>`BCK.X402.0004` | 500 | business | — | Error generating X402 access token | Inspect the underlying error in logs. x402 access-token minting failed — usually a JWT signing key issue or an upstream chain RPC error. |
+| <a id="bck-x402-0005"></a>`BCK.X402.0005` | 402 | business | — | Invalid access token | Mint a fresh access token via the x402 /generate-token endpoint. Expired or tampered tokens land here. |
+| <a id="bck-x402-0006"></a>`BCK.X402.0006` | 500 | business | — | Error verifying permissions | Inspect the underlying error in logs. The verifyPermissions call failed — usually a transient DB error; retry once. Persistent failures may indicate a stale plan-permissions cache. |
+| <a id="bck-x402-0007"></a>`BCK.X402.0007` | 500 | business | — | Failed to order Pay-as-you-go plan | Inspect the underlying error in logs. Pay-as-you-go plan ordering failed — usually a delegation/credit issue on the buyer side or an upstream chain RPC error. |
+| <a id="bck-x402-0008"></a>`BCK.X402.0008` | 500 | business | — | Failed to order crypto plan | Inspect the underlying error in logs. Crypto plan ordering failed — usually a buyer balance/approval issue or a chain RPC revert. |
+| <a id="bck-x402-0009"></a>`BCK.X402.0009` | 500 | business | — | Failed to redeem credits | Inspect the underlying error in logs. Credit redemption failed mid-way — the buyer may have been charged but not credited; check the activity feed and reconcile manually if needed. |
+| <a id="bck-x402-0010"></a>`BCK.X402.0010` | 400 | business | — | Invalid x402 access token | Mint a fresh access token via the x402 /generate-token endpoint. The supplied token is malformed or signed by an unknown key. |
+| <a id="bck-x402-0011"></a>`BCK.X402.0011` | 404 | business | — | User profile not found | Verify the buyer wallet has a user-profile row. New wallets must complete the signup flow before purchasing via x402. |
+| <a id="bck-x402-0012"></a>`BCK.X402.0012` | 400 | business | — | resource.url is required when agentId is provided | Pass resource.url alongside agentId in the x402 settlement body. The URL is required for routing the settlement to the right merchant. |
+| <a id="bck-x402-0013"></a>`BCK.X402.0013` | 400 | business | — | Accepted payment method does not match requirements | Pass an accepted payment method that matches the plan’s configured currency/scheme. The combinations are documented per-plan in the plan metadata. |
+| <a id="bck-x402-0014"></a>`BCK.X402.0014` | 400 | business | — | Delegation restricted to a different plan | Reuse the delegation only with the planId it was originally bound to, or create a fresh delegation for the new plan. Visa mandates are plan-scoped. |
 | <a id="bck-x402-0015"></a>`BCK.X402.0015` | 404 | business | ❌ | Permission not found | The permission record either has been revoked or never existed for this combination of (subscriber, plan, agent). |
 | <a id="bck-x402-0016"></a>`BCK.X402.0016` | 400 | business | ❌ | Permission is already revoked | The permission was already revoked. No further action required. |
 | <a id="bck-x402-0017"></a>`BCK.X402.0017` | 500 | internal | ❌ | Failed to issue credits after card charge | The card was charged successfully but the DB-side mint of credits failed. The charge is auto-refunded when the provider supports it; otherwise a `failed_post_charge_*` delegationTransactions row is left for manual reconciliation. |
+| <a id="bck-x402-0018"></a>`BCK.X402.0018` | 500 | internal | ❌ | Invalid amountCents derived from order | A defensive arithmetic check in the erc4337 settlement path produced a non-finite or negative cents amount. Inspect the order amount and currency in params; this should never happen for legitimate orders. |
+| <a id="bck-x402-0019"></a>`BCK.X402.0019` | 402 | business | ❌ | Delegation not found | No delegation with this id is owned by the caller — it either never existed or belongs to someone else (the two are intentionally indistinguishable). Verify the delegationId, or create a fresh delegation. Revoked/expired/exhausted delegations report BCK.X402.0020/0021/0022 instead. |
+| <a id="bck-x402-0020"></a>`BCK.X402.0020` | 402 | business | ❌ | Delegation is revoked | This delegation has been revoked and can no longer be used. Create a new card delegation to continue. |
+| <a id="bck-x402-0021"></a>`BCK.X402.0021` | 402 | business | ❌ | Delegation has expired | The delegation passed its expiry. Mint a new one (omit `delegationId` and resubmit with the payment method plus `spendingLimitCents` and `durationSecs`). |
+| <a id="bck-x402-0022"></a>`BCK.X402.0022` | 402 | business | ❌ | Delegation budget exhausted | The delegation has reached its spending limit or maximum transaction count. Create a new delegation with a higher `spendingLimitCents` / `maxTransactions` to keep transacting. |
+| <a id="bck-x402-0023"></a>`BCK.X402.0023` | 402 | business | ❌ | Delegation budget insufficient for this order | The remaining delegation budget is smaller than the cost of this order. Use a smaller order, or create a new delegation with a higher `spendingLimitCents`. |
+| <a id="bck-x402-0024"></a>`BCK.X402.0024` | 402 | business | ❌ | No active permission found for the delegation | The delegation has no active permission backing it. Re-create the delegation so its permission and session keys are provisioned. |
+| <a id="bck-x402-0025"></a>`BCK.X402.0025` | 402 | business | ❌ | Permission has been revoked | The permission backing this token was revoked. Create a fresh delegation/permission and mint a new access token. |
+| <a id="bck-x402-0026"></a>`BCK.X402.0026` | 402 | business | ❌ | Permission has expired | The permission backing this token expired. Create a fresh delegation/permission and mint a new access token. |
+| <a id="bck-x402-0027"></a>`BCK.X402.0027` | 402 | business | ❌ | Payment method not found or unusable | No usable payment method was found for this request. Add or re-enable a payment method in the dashboard, then retry — optionally passing its identifier via `delegationConfig.providerPaymentMethodId` or `delegationConfig.cardId`. |
+| <a id="bck-x402-0028"></a>`BCK.X402.0028` | 402 | business | ❌ | Payment method is revoked | The payment method has been revoked. Add or re-enable a payment method in the dashboard and retry with its identifier. |
+| <a id="bck-x402-0029"></a>`BCK.X402.0029` | 402 | business | ❌ | API key not authorized for this delegation or payment method | The API key used is not in the allow-list for this delegation / payment method. Use an authorized API key, or update the payment method allowedApiKeyIds to include it. |
+| <a id="bck-x402-0030"></a>`BCK.X402.0030` | 402 | business | ❌ | Required token-generation input is missing or incomplete | A required input for issuing the access token is missing. Provide `accepted.planId`, and a complete `delegationConfig`: reuse with `{ delegationId }`, or create with `{ providerPaymentMethodId \| cardId, spendingLimitCents, durationSecs }` (optionally `currency`). The per-failure `details` names the specific missing field. |
+| <a id="bck-x402-0034"></a>`BCK.X402.0034` | 402 | business | ❌ | Unsupported scheme or currency | The requested payment scheme or currency is not supported. Check the plan configured scheme/currency (e.g. Visa delegations support only usd / eur) and resubmit with a supported combination. |
 
