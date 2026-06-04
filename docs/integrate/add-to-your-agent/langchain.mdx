@@ -437,7 +437,7 @@ The same `nvm.*` metadata is also attached to the parent tool span so cmd-F sear
 <Warning title="Sensitive data in traces">
   The `payment_token` the buyer passes in `configurable.payment_token` would normally be captured into the parent tool span's metadata by LangChain and inherited by every child span. The full token grants access to the protected tool until it expires. Both SDKs **proactively strip it from the parent span's metadata** before opening any `nvm:*` child, so the full credential never reaches a Nevermined-emitted attribute. The abbreviated `nvm.payment_token` (first 16 chars + `…` + last 4 chars) remains available for correlation.
 
-  A too-short token (≤ 20 chars — almost always a misconfiguration, since real x402 access tokens are JWTs) is **redacted, not exported**: only `<first 4>…(short)` is surfaced and a warning is logged, so a wrong value passed as the token never lands in a trace.
+  A too-short token (≤ 20 chars — almost always a misconfiguration, since real x402 access tokens are JWTs) is **redacted, not exported**: at most the first 4 chars are surfaced followed by a `…(short)` marker, and a token of 4 chars or fewer reveals **nothing** (just `…(short)`). A warning is logged, so a wrong value passed as the token never lands in a trace.
 
   Other channels (custom callbacks, an explicit metadata write that includes the token, tool signatures that contain the token) are not covered — strip them yourself or set `export LANGSMITH_HIDE_INPUTS=true` for blanket coverage.
 </Warning>
