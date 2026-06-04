@@ -290,96 +290,197 @@ The same payment-protected tools work with LangGraph's `create_react_agent`. The
   </Tab>
 </Tabs>
 
-### Discovery-first flow with `create_paid_react_agent` (Python)
+### Discovery-first flow with `createPaidReactAgent`
 
-If the buyer **doesn't** know the plan id / scheme / provider up front, the x402 way is to invoke the agent without a token, let the protected tool raise `PaymentRequiredError`, and read the requirements off the exception. By default LangGraph's `ToolNode` would catch that exception and stringify it into a `ToolMessage` for the LLM — losing the `X402PaymentRequired` payload. The SDK ships `create_paid_react_agent` for exactly this: it builds the underlying `ToolNode` with `handle_tool_errors=False`, so the exception propagates to `agent.invoke()`'s caller with the payload intact.
+If the buyer **doesn't** know the plan id / scheme / provider up front, the x402 way is to invoke the agent without a token, let the protected tool raise `PaymentRequiredError`, and read the requirements off the exception. By default LangGraph's `ToolNode` would catch that exception and stringify it into a `ToolMessage` for the LLM — losing the `X402PaymentRequired` payload. Both SDKs ship a paid-agent helper for exactly this — `createPaidReactAgent` (TypeScript) / `create_paid_react_agent` (Python) — that builds the underlying `ToolNode` with `handleToolErrors: false` / `handle_tool_errors=False`, so the exception propagates to `agent.invoke()`'s caller with the payload intact.
 
-```python
-from payments_py.x402.langchain import (
-    PaymentRequiredError,
-    create_paid_react_agent,
-    requires_payment,
-)
-from payments_py.x402.types import DelegationConfig, X402TokenOptions
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { tool } from '@langchain/core/tools'
+    import { ChatOpenAI } from '@langchain/openai'
+    import { z } from 'zod'
+    import {
+      PaymentRequiredError,
+      createPaidReactAgent,
+      requiresPayment,
+    } from '@nevermined-io/payments/langchain'
 
-@tool
-@requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
-def get_market_insight(topic: str, config: RunnableConfig = None) -> str:
-    """Return a market insight. Costs 1 credit."""
-    return f"Market insight for '{topic}': ..."
+    const getMarketInsight = tool(
+      requiresPayment(
+        (args) => `Market insight for '${args.topic}': ...`,
+        { payments, planId: PLAN_ID, credits: 1 },
+      ),
+      {
+        name: 'get_market_insight',
+        description: 'Return a market insight. Costs 1 credit.',
+        schema: z.object({ topic: z.string() }),
+      },
+    )
 
-agent = create_paid_react_agent(
-    ChatOpenAI(model="gpt-4o-mini", temperature=0),
-    [get_market_insight],
-    prompt="You are a market data assistant.",
-)
+    const agent = await createPaidReactAgent(
+      new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0 }),
+      [getMarketInsight],
+      { prompt: 'You are a market data assistant.' },
+    )
 
-# 1. Discover what the agent's tool charges by invoking without a token.
-try:
-    agent.invoke({"messages": [("human", QUERY)]}, config={"configurable": {}})
-except PaymentRequiredError as err:
-    accept = err.payment_required.accepts[0]
-    # accept.scheme    → "nvm:erc4337" or "nvm:card-delegation"
-    # accept.network   → CAIP-2 chain or provider name (stripe, braintree, …)
-    # accept.plan_id   → which plan to acquire a token against
+    // 1. Discover what the agent's tool charges by invoking without a token.
+    let accept
+    try {
+      await agent.invoke(
+        { messages: [{ role: 'human', content: QUERY }] },
+        { configurable: {} },
+      )
+    } catch (err) {
+      if (!(err instanceof PaymentRequiredError)) throw err
+      accept = err.paymentRequired!.accepts[0]
+      // accept.scheme  → "nvm:erc4337" or "nvm:card-delegation"
+      // accept.network → CAIP-2 chain or provider name (stripe, braintree, …)
+      // accept.planId  → which plan to acquire a token against
+    }
 
-# 2. Pick a payment method matching the discovered network.
-pm = next(m for m in payments.delegation.list_payment_methods()
-          if m.provider == accept.network)
+    // 2. Pick a payment method matching the discovered network.
+    const methods = await payments.delegation.listPaymentMethods()
+    const pm = methods.find((m) => m.provider === accept.network)!
 
-# 3. Acquire the token against the discovered plan.
-token = payments.x402.get_x402_access_token(
-    accept.plan_id,
-    token_options=X402TokenOptions(
-        scheme=accept.scheme,
-        delegation_config=DelegationConfig(
-            provider_payment_method_id=pm.id,
-            spending_limit_cents=10000,
-            duration_secs=3600,
-            currency="usd",
+    // 3. Acquire the token against the discovered plan.
+    const { accessToken } = await payments.x402.getX402AccessToken(
+      accept.planId,
+      undefined,
+      {
+        scheme: accept.scheme,
+        delegationConfig: {
+          providerPaymentMethodId: pm.id,
+          spendingLimitCents: 10000,
+          durationSecs: 3600,
+          currency: 'usd',
+        },
+      },
+    )
+
+    // 4. Retry with the token.
+    const result = await agent.invoke(
+      { messages: [{ role: 'human', content: QUERY }] },
+      { configurable: { payment_token: accessToken } },
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402.langchain import (
+        PaymentRequiredError,
+        create_paid_react_agent,
+        requires_payment,
+    )
+    from payments_py.x402.types import DelegationConfig, X402TokenOptions
+
+    @tool
+    @requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
+    def get_market_insight(topic: str, config: RunnableConfig = None) -> str:
+        """Return a market insight. Costs 1 credit."""
+        return f"Market insight for '{topic}': ..."
+
+    agent = create_paid_react_agent(
+        ChatOpenAI(model="gpt-4o-mini", temperature=0),
+        [get_market_insight],
+        prompt="You are a market data assistant.",
+    )
+
+    # 1. Discover what the agent's tool charges by invoking without a token.
+    try:
+        agent.invoke({"messages": [("human", QUERY)]}, config={"configurable": {}})
+    except PaymentRequiredError as err:
+        accept = err.payment_required.accepts[0]
+        # accept.scheme    → "nvm:erc4337" or "nvm:card-delegation"
+        # accept.network   → CAIP-2 chain or provider name (stripe, braintree, …)
+        # accept.plan_id   → which plan to acquire a token against
+
+    # 2. Pick a payment method matching the discovered network.
+    pm = next(m for m in payments.delegation.list_payment_methods()
+              if m.provider == accept.network)
+
+    # 3. Acquire the token against the discovered plan.
+    token = payments.x402.get_x402_access_token(
+        accept.plan_id,
+        token_options=X402TokenOptions(
+            scheme=accept.scheme,
+            delegation_config=DelegationConfig(
+                provider_payment_method_id=pm.id,
+                spending_limit_cents=10000,
+                duration_secs=3600,
+                currency="usd",
+            ),
         ),
-    ),
-)["accessToken"]
+    )["accessToken"]
 
-# 4. Retry with the token.
-result = agent.invoke(
-    {"messages": [("human", QUERY)]},
-    config={"configurable": {"payment_token": token}},
-)
-```
+    # 4. Retry with the token.
+    result = agent.invoke(
+        {"messages": [("human", QUERY)]},
+        config={"configurable": {"payment_token": token}},
+    )
+    ```
+  </Tab>
+</Tabs>
 
 <Note>
-  For card-delegation plans the SDK needs a `DelegationConfig` so it can
+  For card-delegation plans the SDK needs a delegation config so it can
   auto-create the Stripe / Braintree delegation that backs the payment
-  signature. Crypto plans (`nvm:erc4337`) need the same — see the [x402
-  Protocol module reference](/docs/api-reference/python/x402-module) for the
-  full token-options surface.
+  signature. Crypto plans (`nvm:erc4337`) need the same — see the x402 Protocol
+  module reference ([TypeScript](/docs/api-reference/typescript/x402) ·
+  [Python](/docs/api-reference/python/x402-module)) for the full token-options
+  surface.
+</Note>
+
+<Note>
+  `createPaidReactAgent` is **async** in TypeScript — it `await`s the lazy
+  `@langchain/langgraph` import so the dependency stays optional. Install
+  LangGraph yourself (`pnpm add @langchain/langgraph`) to use it.
 </Note>
 
 ### Reading the settlement receipt
 
-After a successful agent call, the buyer can read the `SettleResponse` — `credits_redeemed`, `remaining_balance`, `transaction`, `network`, `payer` — via `last_settlement()`:
+After a successful agent call, the buyer can read the settlement receipt — credits redeemed, remaining balance, transaction hash, network, payer — via `lastSettlement()` (TypeScript) / `last_settlement()` (Python). LangGraph copies `configurable` per node, so the in-place `payment_settlement` write is invisible to the outer scope; the accessor reads it from a module-level slot instead.
 
-```python
-from payments_py.x402.langchain import last_settlement
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { lastSettlement } from '@nevermined-io/payments/langchain'
 
-result = agent.invoke(
-    {"messages": [("human", QUERY)]},
-    config={"configurable": {"payment_token": token}},
-)
-receipt = last_settlement()
-if receipt:
-    print(f"credits redeemed: {receipt.credits_redeemed}")
-    print(f"remaining balance: {receipt.remaining_balance}")
-    print(f"tx: {receipt.transaction}")
-```
+    const result = await agent.invoke(
+      { messages: [{ role: 'human', content: QUERY }] },
+      { configurable: { payment_token: accessToken } },
+    )
+    const receipt = lastSettlement()
+    if (receipt) {
+      console.log(`credits redeemed: ${receipt.creditsRedeemed}`)
+      console.log(`remaining balance: ${receipt.remainingBalance}`)
+      console.log(`tx: ${receipt.transaction}`)
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402.langchain import last_settlement
+
+    result = agent.invoke(
+        {"messages": [("human", QUERY)]},
+        config={"configurable": {"payment_token": token}},
+    )
+    receipt = last_settlement()
+    if receipt:
+        print(f"credits redeemed: {receipt.credits_redeemed}")
+        print(f"remaining balance: {receipt.remaining_balance}")
+        print(f"tx: {receipt.transaction}")
+    ```
+  </Tab>
+</Tabs>
 
 <Warning>
-  `last_settlement()` reads from a module-level slot. In multi-tenant processes
-  (e.g. a server handling concurrent settlements), the value reflects whichever
-  invocation settled most recently — there is no per-call isolation. For
-  multi-tenant scenarios, surface settlement via a callback or observability
-  layer instead.
+  `lastSettlement()` / `last_settlement()` reads from a module-level slot. In
+  multi-tenant processes (e.g. a server handling concurrent settlements), the
+  value reflects whichever invocation settled most recently — there is no
+  per-call isolation. For multi-tenant scenarios, surface settlement via a
+  callback or observability layer instead.
 </Warning>
 
 ### Trace payments in LangSmith (Python)
