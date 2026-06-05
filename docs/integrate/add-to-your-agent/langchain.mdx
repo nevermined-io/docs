@@ -483,15 +483,26 @@ After a successful agent call, the buyer can read the settlement receipt — cre
   callback or observability layer instead.
 </Warning>
 
-### Trace payments in LangSmith (Python)
+### Trace payments in LangSmith
 
-Once `@requires_payment` is wired up, you can have every paid tool call surface as structured spans in [LangSmith](https://smith.langchain.com) — no code changes required, just two env vars and an optional extra.
+Once payment protection is wired up, you can have every paid tool call surface as structured spans in [LangSmith](https://smith.langchain.com) — no code changes required, just two env vars and an optional dependency. **Both SDKs emit the identical `nvm:verify` / `nvm:settlement` span shape** (the cross-SDK [observability-spans-v1 contract](https://github.com/nevermined-io/nvm-monorepo/blob/main/docs/specs/observability-spans-v1.md)), so a single trace can be correlated across a TypeScript buyer and a Python seller — e.g. filter on `nvm.tx_hash`.
 
-**Install the optional extra:**
+**Install the optional dependency:**
 
-```bash
-pip install "payments-py[langchain,langsmith]"
-```
+<Tabs>
+  <Tab title="TypeScript">
+    ```bash
+    pnpm add langsmith
+    ```
+
+    `langsmith` is an optional peer dependency — the `requiresPayment` wrapper emits the spans automatically when it is installed and tracing is enabled.
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    pip install "payments-py[langchain,langsmith]"
+    ```
+  </Tab>
+</Tabs>
 
 **Enable tracing:**
 
@@ -509,8 +520,8 @@ That's it. Running the same agent invocation now produces a trace tree with two 
 LangGraph
 └── tools
     └── get_market_insight
-        ├── nvm:verify      0.28s     ← around payments.facilitator.verify_permissions
-        └── nvm:settlement  1.88s     ← around payments.facilitator.settle_permissions
+        ├── nvm:verify      0.28s     ← around the facilitator verify call
+        └── nvm:settlement  1.88s     ← around the facilitator settle call
 ```
 
 Each Nevermined span carries `nvm.*` metadata for audit + reconciliation:
@@ -525,14 +536,16 @@ The same `nvm.*` metadata is also attached to the parent tool span so cmd-F sear
 **Failed discovery probes are first-class too.** When the buyer's first `agent.invoke()` runs without a `payment_token` (the discovery-first flow), the `nvm:verify` span still opens, carries the static `nvm.plan_ids` / `nvm.scheme` / `nvm.network`, and is marked failed by the raised `PaymentRequiredError`. That gives you "which plan was the probe against?" filterability instead of an opaque LangChain crash.
 
 <Warning title="Sensitive data in traces">
-  The `payment_token` the buyer passes in `config["configurable"]["payment_token"]` would normally be captured into the parent tool span's metadata by LangChain and inherited by every child span. The full token grants access to the protected tool until it expires. `@requires_payment` **proactively strips it from the parent span's metadata** before opening any `nvm:*` child, so the full credential never reaches a Nevermined-emitted attribute. The abbreviated `nvm.payment_token` (first 16 chars + `…` + last 4 chars) remains available for correlation.
+  The `payment_token` the buyer passes in `configurable.payment_token` would normally be captured into the parent tool span's metadata by LangChain and inherited by every child span. The full token grants access to the protected tool until it expires. Both SDKs **proactively strip it from the parent span's metadata** before opening any `nvm:*` child, so the full credential never reaches a Nevermined-emitted attribute. The abbreviated `nvm.payment_token` (first 16 chars + `…` + last 4 chars) remains available for correlation.
 
-  Other channels (custom callbacks, an explicit `add_metadata({"payment_token": ...})`, tool signatures that contain the token) are not covered — strip them yourself or set `export LANGSMITH_HIDE_INPUTS=true` for blanket coverage.
+  A too-short token (≤ 20 chars — almost always a misconfiguration, since real x402 access tokens are JWTs) is **redacted, not exported**: at most the first 4 chars are surfaced followed by a `…(short)` marker, and a token of 4 chars or fewer reveals **nothing** (just `…(short)`). A warning is logged, so a wrong value passed as the token never lands in a trace.
+
+  Other channels (custom callbacks, an explicit metadata write that includes the token, tool signatures that contain the token) are not covered — strip them yourself or set `export LANGSMITH_HIDE_INPUTS=true` for blanket coverage.
 </Warning>
 
-If a span failure ever occurs during metadata building or attachment, observability is silently dropped — the payment flow itself is never interrupted. Settlement receipts persist via `last_settlement()` regardless of whether the span emit succeeded.
+If a span failure ever occurs during metadata building or attachment, observability is silently dropped — the payment flow itself is never interrupted. Settlement receipts persist (via `lastSettlement()` in TypeScript / `last_settlement()` in Python) regardless of whether the span emit succeeded.
 
-For the full module reference (function signatures, manual usage from non-LangChain code paths), see the [Python LangChain module reference](/docs/api-reference/python/langchain-module#observability-with-langsmith).
+For the full module reference, see the [Python LangChain module reference](/docs/api-reference/python/langchain-module#observability-with-langsmith). The TypeScript helper surface (`verifySpan`, `settlementSpan`, `abbreviateToken`, `addMetadata`, `redactMetadataKeys`, `activeRunTree`, plus `buildVerifyMetadata` / `buildSettleMetadata` for manual use outside the `requiresPayment` decorator) is exported from `@nevermined-io/payments/langsmith` — JSDoc on each helper documents the contract until the next `update-docs.yml` sync mirrors a dedicated TS api-reference page.
 
 ### Dynamic Credits
 
