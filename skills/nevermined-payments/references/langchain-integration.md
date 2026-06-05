@@ -1,6 +1,6 @@
 # LangChain & LangGraph Integration
 
-Add x402 payment protection to LangChain tools and LangGraph ReAct agents using the `@requires_payment` decorator + helper utilities from `payments_py.x402.langchain`.
+Add x402 payment protection to LangChain tools and LangGraph ReAct agents. Python uses the `@requires_payment` decorator + helpers from `payments_py.x402.langchain`; TypeScript uses the matching `requiresPayment` wrapper + helpers from `@nevermined-io/payments/langchain` (see [TypeScript](#typescript-nevermined-iopayments) below). The sections below are Python unless noted.
 
 ## Installation
 
@@ -205,6 +205,129 @@ The `credits` argument is sent to the facilitator as `max_amount`. The amount ac
 - **Range plans** clamp the value into `[plan.credits.minAmount, plan.credits.maxAmount]`.
 
 Configure the plan as fixed if you want predictable per-call cost; the decorator value is then a client-side declaration.
+
+## TypeScript (`@nevermined-io/payments`)
+
+The TypeScript SDK ships the same primitives under the `@nevermined-io/payments/langchain` sub-path export. The shapes match the Python API one-to-one; only the casing and idioms differ (`requiresPayment` is a higher-order **wrapper** around the tool implementation, not a decorator).
+
+```bash
+pnpm add @nevermined-io/payments @langchain/core @langchain/langgraph @langchain/openai
+```
+
+`@langchain/core` is the only LangChain peer the wrapper needs; `@langchain/langgraph` and `@langchain/openai` are optional — required only for `createPaidReactAgent`. `createPaidReactAgent` imports `@langchain/langgraph` lazily, so it is **async** (`await`).
+
+### Protect a tool
+
+```typescript
+import { tool } from '@langchain/core/tools'
+import { z } from 'zod'
+import { Payments } from '@nevermined-io/payments'
+import { requiresPayment } from '@nevermined-io/payments/langchain'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: process.env.NVM_ENVIRONMENT ?? 'sandbox',
+})
+
+const PLAN_ID = process.env.NVM_PLAN_ID!
+
+const getMarketInsight = tool(
+  requiresPayment(
+    (args) => `Market insight for '${args.topic}': demand is up 12% QoQ.`,
+    { payments, planId: PLAN_ID, credits: 1 },
+  ),
+  {
+    name: 'get_market_insight',
+    description: 'Return a short market insight. Costs 1 credit per call.',
+    schema: z.object({ topic: z.string() }),
+  },
+)
+```
+
+The wrapper extracts the token from `config.configurable.payment_token` (the second arg LangChain threads into the tool impl), verifies via the facilitator, runs the tool, then settles. Missing/invalid token → `PaymentRequiredError` carrying the `X402PaymentRequired` payload.
+
+### LangGraph agent + discovery-first flow
+
+`createPaidReactAgent` builds the underlying `ToolNode` with `handleToolErrors: false` so `PaymentRequiredError` reaches `agent.invoke()`'s caller with its payload intact (the default `ToolNode` would stringify it into a `ToolMessage` and lose the payload).
+
+```typescript
+import { ChatOpenAI } from '@langchain/openai'
+import {
+  PaymentRequiredError,
+  createPaidReactAgent,
+  lastSettlement,
+} from '@nevermined-io/payments/langchain'
+
+const agent = await createPaidReactAgent(
+  new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0 }),
+  [getMarketInsight],
+  { prompt: 'You are a market data assistant.' },
+)
+
+// 1. Discover by invoking without a token.
+let accept
+try {
+  await agent.invoke(
+    { messages: [{ role: 'human', content: QUERY }] },
+    { configurable: {} },
+  )
+} catch (err) {
+  if (!(err instanceof PaymentRequiredError)) throw err
+  accept = err.paymentRequired!.accepts[0] // .scheme / .network / .planId
+}
+
+// 2. Pick a payment method matching the discovered network.
+const methods = await payments.delegation.listPaymentMethods()
+const pm = methods.find((m) => m.provider === accept.network)!
+
+// 3. Acquire a token against the discovered plan.
+const { accessToken } = await payments.x402.getX402AccessToken(
+  accept.planId,
+  undefined,
+  {
+    scheme: accept.scheme,
+    delegationConfig: {
+      providerPaymentMethodId: pm.id,
+      spendingLimitCents: 10000, // $100 cap per delegation
+      durationSecs: 3600, // 1 hour TTL
+      currency: 'usd',
+    },
+  },
+)
+
+// 4. Retry with the token, then read the receipt.
+await agent.invoke(
+  { messages: [{ role: 'human', content: QUERY }] },
+  { configurable: { payment_token: accessToken } },
+)
+const receipt = lastSettlement()
+if (receipt) {
+  console.log(`credits redeemed:  ${receipt.creditsRedeemed}`)
+  console.log(`remaining balance: ${receipt.remainingBalance}`)
+  console.log(`transaction:       ${receipt.transaction}`)
+}
+```
+
+All extra `createReactAgent` options (`prompt`, `stateSchema`, `checkpointer`, …) are forwarded. `lastSettlement()` reads from a process-global module slot with the same **single-tenant** caveat as Python: in multi-tenant servers the value reflects whichever invocation settled most recently.
+
+### Dynamic credits
+
+`credits` accepts a static number or a callback `(ctx) => number`, where `ctx` is `{ args, result }` resolved **after** execution.
+
+```typescript
+const summarize = tool(
+  requiresPayment((args) => `Summary of: ${args.text}...`, {
+    payments,
+    planId: PLAN_ID,
+    credits: (ctx) => Math.max(1, Math.floor(String(ctx.result).length / 100)),
+  }),
+  { name: 'summarize', description: 'Cost scales with output length.', schema: z.object({ text: z.string() }) },
+)
+```
+
+The fixed-vs-range credits semantics ([above](#credits-semantics--fixed-vs-range-plans)) apply identically — `credits` is sent as `maxAmount`.
+
+**Observability is Python-only for now.** LangSmith span tracing for the TypeScript SDK (the `nvm:verify` / `nvm:settlement` spans) is not yet shipped — it lands in a follow-up (`@nevermined-io/payments/langsmith`, [nvm-monorepo#1709](https://github.com/nevermined-io/nvm-monorepo/issues/1709)).
 
 ## Alternative: HTTP middleware
 
