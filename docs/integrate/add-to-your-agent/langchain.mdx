@@ -442,9 +442,9 @@ The same `nvm.*` metadata is also attached to the parent tool span so cmd-F sear
   Other channels (custom callbacks, an explicit metadata write that includes the token, tool signatures that contain the token) are not covered — strip them yourself or set `export LANGSMITH_HIDE_INPUTS=true` for blanket coverage.
 </Warning>
 
-If a span failure ever occurs during metadata building or attachment, observability is silently dropped — the payment flow itself is never interrupted. Settlement receipts persist (via `last_settlement()` in TypeScript / `last_settlement()` in Python) regardless of whether the span emit succeeded.
+If a span failure ever occurs during metadata building or attachment, observability is silently dropped — the payment flow itself is never interrupted. Settlement receipts persist (via `lastSettlement()` in TypeScript / `last_settlement()` in Python) regardless of whether the span emit succeeded.
 
-For the full module reference, see the [Python LangChain module reference](/docs/api-reference/python/langchain-module#observability-with-langsmith). The TypeScript helper surface is exported from `@nevermined-io/payments/langsmith`.
+For the full module reference, see the [Python LangChain module reference](/docs/api-reference/python/langchain-module#observability-with-langsmith). The TypeScript helper surface (`verifySpan`, `settlementSpan`, `abbreviateToken`, `addMetadata`, `redactMetadataKeys`, `activeRunTree`, plus `buildVerifyMetadata` / `buildSettleMetadata` for manual use outside the `requiresPayment` decorator) is exported from `@nevermined-io/payments/langsmith` — JSDoc on each helper documents the contract until the next `update-docs.yml` sync mirrors a dedicated TS api-reference page.
 
 ### Dynamic Credits
 
