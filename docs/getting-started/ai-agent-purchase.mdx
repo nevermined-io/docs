@@ -10,6 +10,38 @@ This is the end-to-end path for an **autonomous AI agent** — Claude Code, an O
   **Always pay through the x402 flow** (`verify` → `settle`). Never call Stripe or any other payment processor directly. x402 is the only supported payment path, and it works the same whether you pay with a card or with stablecoins.
 </Warning>
 
+## See it in action
+
+Watch an autonomous agent run this exact flow end to end — discover an organization, get a payment method, and buy plan credits with x402:
+
+<Frame caption="An AI agent buying plan credits autonomously via Nevermined.">
+  <iframe
+    width="100%"
+    height="400"
+    src="https://www.youtube.com/embed/C_aIQErhs6M"
+    title="AI agents buy access autonomously via Nevermined"
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+  ></iframe>
+</Frame>
+
+### Try it yourself
+
+Hand this prompt to any coding agent (Claude Code, Cursor, an OpenAI agent — anything that can read a URL and run code). It points the agent at one organization's discovery file and tells it to figure out the rest on its own, exactly as a first-time agent would:
+
+```text
+You are a user who wants to purchase the "Acme Gold Plan" with a cost of $10 via Nevermined. Here the instructions. Try to do it and tell me when you are able to demonstrate you purchased the plan and get the credits:
+
+https://api.sandbox.nevermined.app/api/v1/organizations/org-9d81acea-7d38-460e-b7c0-c3b92abcbb07/agentic-instructions.md
+
+Don't use any local existing Nevermined CLI or previous knowledge about Nevermined. It's important to simulate how a new to Nevermined agent is gonna resolve this with the information given in the agentic-instructions.md file.
+```
+
+<Note>
+  This points at **Sandbox**, so no real money moves. Swap in your own organization's `agentic-instructions.md` URL to run it against your own plans.
+</Note>
+
 ## What you'll do
 
 <CardGroup cols={2}>
