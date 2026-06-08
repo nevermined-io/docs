@@ -90,7 +90,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-auth-0001"></a>`BCK.AUTH.0001` | 500 | auth | — | Error registering API Key | Inspect the underlying error in logs. API-key registration failed — usually a DB-layer error or assertion-validation reject. |
-| <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid | Send an Authorization: Bearer <token> header or a valid Nevermined API key. Anonymous access is not permitted on this endpoint. |
+| <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid | Send an `Authorization: Bearer <token>` header or a valid Nevermined API key. Anonymous access is not permitted on this endpoint. |
 | <a id="bck-auth-0003"></a>`BCK.AUTH.0003` | 403 | auth | — | Forbidden: caller is not the owner of this resource and lacks an admin role | Authenticate as the resource owner or an admin who has access to it. Cross-account access is rejected unless you carry an admin role. |
 | <a id="bck-auth-0004"></a>`BCK.AUTH.0004` | 403 | auth | ❌ | Organisation admin privileges required | The caller is not an active admin of the target organisation. Prefer the more specific siblings (BCK.AUTH.0005-0009) at new throw sites; this code remains as a catch-all. |
 | <a id="bck-auth-0005"></a>`BCK.AUTH.0005` | 403 | auth | ✅ | Unable to verify organisation membership | The membership lookup itself failed (e.g. transient DB error). Check the cause field on the server log; retry once. |
