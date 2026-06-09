@@ -105,6 +105,8 @@ https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=h
 
 On completion the browser redirects to your `returnUrl` with `paymentMethodId` and `delegationId`. **Store the `delegationId`.**
 
+> **Callback security.** Generate `state` as an unguessable random value and reject the callback unless the returned `state` matches it (binds the response to your request — CSRF guard). `paymentMethodId`/`delegationId` here — and `nvm_api_key` in the API-key flow (step 1) — arrive in the **query string**, the most-logged part of a request, so your `127.0.0.1` callback server must not log the request line, and the key belongs in a secret store, never on disk in the clear.
+
 > Can't host a localhost callback? Have your human enroll a card and create a delegation directly at [nevermined.app](https://nevermined.app) (Payment Methods → Enroll card → Delegate), then resume at step 4.
 
 ### 3b. Create a delegation explicitly
@@ -135,7 +137,7 @@ Response:
 { "delegationId": "del_...", "delegationToken": "eyJ..." }
 ```
 
-> **Visa is browser-only.** `provider: "visa"` on `delegation/create` is rejected with `BCK.VISA.0014` (Visa needs a WebAuthn `consumerPrompt` + `assuranceData` produced in-browser). Create Visa delegations in the webapp and reuse the `delegationId`.
+> **Visa needs browser-produced proofs.** `provider: "visa"` *is* accepted by `delegation/create`, but only together with `consumerPrompt` + `assuranceData` from a Visa WebAuthn ceremony; without them it's rejected with `BCK.VISA.0014` ("requires consumerPrompt and assuranceData"). An autonomous agent can't generate `assuranceData`, so create Visa delegations in the webapp and reuse the `delegationId`.
 
 ---
 
@@ -208,7 +210,7 @@ If you're calling an x402-protected agent/service rather than topping up a plan,
 2. Get an access token (step 4a) using its `accepts[0]` scheme/network/planId.
 3. Retry the request with header `payment-signature: <accessToken>`. The agent verifies and settles for you and returns `200` with a `payment-response` receipt header (base64 JSON of the settle response above).
 
-Common errors: `BCK.X402.0001` (invalid planId/agentId), `BCK.X402.0002` (plan not found — usually wrong environment), `BCK.X402.0003` (token invalid/expired).
+Common errors (read the message — code semantics differ slightly between the OpenAPI examples and the backend error registry, so recover by the message, not the number alone): `BCK.X402.0001` — can't generate the token: unknown/invalid `planId` or `agentId` (the agent may not exist). `BCK.X402.0002` — plan not found (often the wrong environment). `BCK.X402.0003` — token rejected: it's expired/invalid **or** the plan isn't linked to the agent — regenerate the token, and if it persists verify the plan↔agent association rather than looping on token regeneration.
 
 ---
 
@@ -230,7 +232,7 @@ curl -s -H "Authorization: Bearer $NVM_API_KEY" \
 # One delegation's charges
 curl -s -H "Authorization: Bearer $NVM_API_KEY" \
   https://api.sandbox.nevermined.app/api/v1/delegation/<DELEGATION_ID>/transactions
-# → [ { id, delegationId, providerTransactionId, amountCents, currency, status, createdAt } ]
+# → { totalResults, page, offset, transactions: [ { id, delegationId, providerTransactionId, amountCents, currency, status, createdAt } ] }
 ```
 
 `YOUR_ADDRESS` is your account wallet: the `id`/address of your `erc4337` payment method from `GET /payment-methods` (crypto path), or the `userWallet` returned by `POST /embed/session`.

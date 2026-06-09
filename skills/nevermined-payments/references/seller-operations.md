@@ -2,7 +2,7 @@
 
 How an agent (or its operator) checks the **performance of the plans and agents it sells**: revenue, recurring revenue, usage, customers, and the underlying plan/agent inventory. Companion to **Track A · A7** in `SKILL.md`.
 
-> Verified against the live sandbox API. Send `Authorization: Bearer $NVM_API_KEY` on every call. The `analytics/*` endpoints are served by the platform but are not listed in the public OpenAPI (`docs-json`) — use the paths below directly.
+> Verified against the live sandbox API. Send `Authorization: Bearer $NVM_API_KEY` on every call. The `analytics/*` endpoints are served by the platform but are **not** discoverable in the live `docs-json` (it lists only `agentic-instructions.md` / `llms.txt` under `organizations`), so use the paths below directly.
 
 ## Two layers
 
@@ -71,12 +71,16 @@ These are user-scoped to your API key — no `orgId` and no Premium needed.
 # Your published plans (paginated)
 curl -s -H "Authorization: Bearer $NVM_API_KEY" \
   "https://api.sandbox.nevermined.app/api/v1/protocol/plans?page=1&offset=20"
-# → { total, page, offset, plans: [ { planId, planName, pricePerCredit, planType, ... } ] }
+# → { total, page, offset, plans: [ <full plan record> ] }
+#   Each item is the entity, not a flat summary: name at metadata.main.name,
+#   price/type in registry/metadata, id at .id (no flat planName/pricePerCredit/planType here —
+#   that flat shape is only on the balance endpoint).
 
 # Your published agents
 curl -s -H "Authorization: Bearer $NVM_API_KEY" \
   "https://api.sandbox.nevermined.app/api/v1/protocol/agents?page=1&offset=20"
-# → { total, page, offset, agents: [ { agentId, agentName, description, ... } ] }
+# → { total, page, offset, agents: [ <full agent record> ] }
+#   Each item is the entity: name at metadata.main.name, id at .id (no flat agentName/description).
 
 # Plans attached to one agent
 curl -s -H "Authorization: Bearer $NVM_API_KEY" \

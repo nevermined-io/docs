@@ -29,7 +29,7 @@ metadata:
 
 > **Skill version**: 0.4.0 | **Last updated**: 2026-06-09
 >
-> Verified against `@nevermined-io/payments@1.4.1` and `payments-py@1.5.0`, and against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`).
+> Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK method names are stable from `@nevermined-io/payments@1.4.1` through the current `1.6.0`, and `payments-py@1.5.0`.
 
 ## Overview
 
@@ -61,9 +61,9 @@ Three HTTP headers carry x402 data: `payment-signature` (client→server, the to
 
 This is a **REST runbook**: every step is a plain HTTPS call you can make with `curl` or any HTTP client — **no SDK install required**. Each flow ends with the equivalent SDK one-liner if you prefer typed calls. Full request/response bodies for every call live in `references/autonomous-operations.md`.
 
-> **Design principle — minimal human interaction.** A human is needed **exactly twice**, and only the first time:
-> 1. **Get your first API key** (a human signs in once), and
-> 2. **Enroll a card** (a human enters card details in a browser — required by PCI; not needed at all if you pay with stablecoins).
+> **Design principle — minimal human interaction.** A human is needed for **at most two one-time setup steps — often just one**:
+> 1. **Get your first API key** (a human signs in once) — always required, and
+> 2. **Enroll a card** (a human enters card details in a browser — required by PCI) — **only if you pay by card**; the stablecoin path skips this entirely.
 >
 > **Everything else is fully programmatic** and reusable: checking payment methods, creating delegations, purchasing, settling, registering plans/agents, and reading buyer/seller status. Store the API key and any `delegationId` and reuse them.
 
@@ -76,7 +76,8 @@ Pick the environment and use its **exact base URL** for every call. State it exp
 | **sandbox** (test money) | `https://api.sandbox.nevermined.app` | `https://nevermined.app` | `https://embed.nevermined.app` | Base Sepolia `eip155:84532` | `sandbox:` |
 | **live** (real money) | `https://api.live.nevermined.app` | `https://nevermined.app` | `https://embed.nevermined.app` | Base Mainnet `eip155:8453` | `live:` |
 
-- **Auth:** send your key as `Authorization: Bearer <NVM_API_KEY>` on every call.
+- **Auth:** send your key as `Authorization: Bearer <NVM_API_KEY>` on every call (a few read-only endpoints — e.g. `GET /protocol/plans/{id}` and `GET /protocol/agents/{id}/plans` — are public, but the header is harmless there).
+- **Never log or persist secrets in the clear:** API keys, `delegationId`, and `paymentMethodId` arrive as query-string params on your `127.0.0.1` callback (see A1/A3). Your callback server must not log the request line, and you should keep the key in a secret store — query strings are the most-logged part of any request (access logs, shell history, process args).
 - **Discover the full API surface:** `GET {API_BASE}/api/v1/rest/docs-json` returns the OpenAPI JSON for the environment.
 - **Default to `sandbox`** unless the human explicitly asks for `live` — `live` moves real money.
 
@@ -129,6 +130,8 @@ https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=h
 
 3. When they finish, the browser redirects to your `returnUrl` with **`paymentMethodId`** and **`delegationId`** as query params. **Store the `delegationId`** — a delegation authorizes you to spend within a fixed budget and time window, and you reuse it until it is spent or expires.
 
+> Generate `state` as an unguessable random value and **reject the callback unless the returned `state` matches** the one you sent — it binds the response to your request (CSRF guard). And per A0, don't log the callback request line: `paymentMethodId`/`delegationId` ride in the query string.
+
 **Create a delegation explicitly.** `provider` is one of `stripe`, `braintree`, `visa` (card) or `erc4337` (stablecoin). `spendingLimitCents` and `durationSecs` are **required**.
 
 ```bash
@@ -146,7 +149,7 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 
 SDK: `payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitCents, durationSecs })`.
 
-> **Visa caveat.** Visa delegations are **browser-only** (a WebAuthn ceremony produces `consumerPrompt` + `assuranceData`). Calling `delegation/create` with `provider: "visa"` is rejected (`BCK.VISA.0014`). Ask your human to create a Visa delegation in the webapp and reuse its `delegationId`.
+> **Visa caveat.** `delegation/create` *does* accept `provider: "visa"`, but only together with a browser-produced `consumerPrompt` + `assuranceData` from a Visa WebAuthn ceremony; omitting them is rejected with `BCK.VISA.0014` ("requires consumerPrompt and assuranceData"). An autonomous agent can't generate `assuranceData`, so in practice have your human create the Visa delegation in the webapp and reuse its `delegationId`.
 
 ## A4 · Buy access via x402  *(fully programmatic)*
 
@@ -259,6 +262,8 @@ curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/
 curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/api/v1/protocol/agents    # your agents
 curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/api/v1/protocol/agents/<AGENT_ID>/plans  # plans on an agent
 ```
+
+These return `{ total, page, offset, plans|agents: [ … ] }`, but each **item is the full record**, not a flat summary: read the name from `metadata.main.name` and price/type from `registry` / `metadata` (the `id` is the plan/agent id). The flat `{ planName, planType, pricePerCredit }` shape is only returned by the **balance** endpoint in A5, not by these list endpoints.
 
 For per-request usage and cost observability (Helicone), see `references/seller-operations.md`, which details every seller query and the response shapes.
 
@@ -812,11 +817,11 @@ curl -X POST http://localhost:3000/chat \
 | HTTP 402 returned | No `payment-signature` header or invalid/expired token | Generate a fresh token via `getX402AccessToken` with `delegationConfig` |
 | `401 BCK.AUTH.0002` on a REST call | Missing/expired API key | Send `Authorization: Bearer $NVM_API_KEY`; mint a key per **A1** |
 | `403 BCK.ORGANIZATIONS.0022` on analytics | Org is not on Premium tier | Use the any-tier building blocks in **A7**, or upgrade the org |
-| `BCK.VISA.0014` creating a delegation | Visa delegations are browser-only | Create it in the webapp; reuse the `delegationId` |
+| `BCK.VISA.0014` creating a delegation | `provider:"visa"` sent without the browser-produced `consumerPrompt` + `assuranceData` | An agent can't produce `assuranceData` — create the Visa delegation in the webapp; reuse the `delegationId` |
 | `BCK.X402.0002` Plan not found | Wrong `planId` or wrong environment | Verify the plan ID and that you are calling the matching `sandbox`/`live` base URL |
 | MCP error `-32003` | Payment Required — no token, invalid token, or insufficient credits | Check subscriber has purchased plan and has credits remaining |
 | MCP error `-32002` | Server misconfiguration | Verify `NVM_API_KEY`, `NVM_PLAN_ID`, and `NVM_AGENT_ID` are set correctly |
-| `verification.isValid` is false | Token expired, wrong plan, or insufficient credits | Re-order the plan or generate a new token |
+| `verification.isValid` is false | Token expired/invalid, wrong plan, **plan not linked to the agent**, or insufficient credits | Regenerate the token; if it persists, verify the plan is associated with the agent and that credits remain (don't just loop on token regeneration) |
 | Credits not deducting | Settlement not called after request | Ensure you call `settlePermissions` after processing (middleware does this automatically) |
 | `payment-required` header missing | Server not returning 402 properly | Use `buildPaymentRequired()` helper or framework middleware |
 
