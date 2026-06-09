@@ -13,6 +13,34 @@ As a subscriber (consumer of a paid API/agent), you:
 4. Send requests with the `payment-signature` header
 5. Decode the settlement receipt from the `payment-response` header
 
+## Pure-REST purchase (no SDK)
+
+An autonomous agent can complete the whole subscriber flow with plain HTTP — no SDK install. Send `Authorization: Bearer $NVM_API_KEY` on each call.
+
+```bash
+# 1. Get an x402 access token (reuse a delegationId, or pass spendingLimitCents+durationSecs to auto-create one)
+curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "accepted": { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<PLAN_ID>" },
+        "delegationConfig": { "delegationId": "<DELEGATION_ID>" } }' \
+  https://api.sandbox.nevermined.app/api/v1/x402/permissions
+# → { "accessToken": "..." }
+
+# 2. Settle (proof of purchase). For a plan top-up, resource.url is the plan URL.
+curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "paymentRequired": { "x402Version": 2, "resource": { "url": "<PLAN_OR_RESOURCE_URL>" },
+          "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<PLAN_ID>", "extra": {} } ],
+          "extensions": {} },
+        "x402AccessToken": "<accessToken>" }' \
+  https://api.sandbox.nevermined.app/api/v1/x402/settle
+# → { "success": true, "creditsRedeemed": "1", "remainingBalance": "999", "transaction": "0x..." }
+```
+
+- **Card payment:** switch `scheme` to `nvm:card-delegation` and `network` to `stripe` (or `braintree`/`visa`) in both calls.
+- **Calling a protected agent directly:** skip building `paymentRequired` — send the access token as the `payment-signature` header; the agent settles for you and returns the receipt in the `payment-response` header.
+- **Proof of purchase:** `creditsRedeemed > 0` and a `remainingBalance` in the settle response.
+
+Full runbook with API-key retrieval, card enrollment, and status checks: `autonomous-operations.md`.
+
 ## Order a Plan and Get a Token
 
 ### TypeScript

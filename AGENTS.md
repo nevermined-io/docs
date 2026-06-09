@@ -9,7 +9,7 @@ This repository contains documentation for Nevermined, an AI payment infrastruct
 
 ## Required Environment Variables
 
-- `NVM_API_KEY` — Nevermined API key (format: `nvm:...`)
+- `NVM_API_KEY` — Nevermined API key (format: `sandbox:...` for sandbox, `live:...` for production)
 - `NVM_ENVIRONMENT` — `sandbox` or `live`
 - `NVM_PLAN_ID` — payment plan ID from Nevermined
 - `NVM_AGENT_ID` — agent ID (required when plans have multiple agents)
@@ -78,6 +78,10 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 - `buildPaymentRequired()` (TS) / `build_payment_required()` (Python) generates the 402 payload
 - Middleware handles verify/settle automatically; manual integration requires both calls
 
+## Autonomous Operations (REST, no SDK)
+
+When an agent must act on its own behalf at runtime (buy a plan, enroll a card, check credits/revenue), call the REST API directly with `Authorization: Bearer $NVM_API_KEY` against `https://api.sandbox.nevermined.app` (sandbox) or `https://api.live.nevermined.app` (live). Buy in two calls — `POST /api/v1/x402/permissions` (→ `accessToken`) then `POST /api/v1/x402/settle` (→ `creditsRedeemed`, `remainingBalance`). Crypto uses `scheme: "nvm:erc4337"` / `network: "eip155:84532"`; cards use `scheme: "nvm:card-delegation"` / `network: "stripe"`. A human is needed only for one-time setup — the first API key, plus card enrollment if paying by card (the stablecoin path needs neither). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
+
 ## Full Reference
 
-See `skills/nevermined-payments/SKILL.md` for complete integration patterns with 8 framework-specific reference files.
+See `skills/nevermined-payments/SKILL.md` for complete integration patterns (Track A = operate autonomously via REST; Track B = add payments to your code via SDK) and its reference files.
