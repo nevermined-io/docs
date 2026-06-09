@@ -59,7 +59,16 @@ Three HTTP headers carry x402 data: `payment-signature` (client→server, the to
 
 # Track A — Operate as an autonomous agent
 
-This is a **REST runbook**: every step is a plain HTTPS call you can make with `curl` or any HTTP client — **no SDK install required**. Each flow ends with the equivalent SDK one-liner if you prefer typed calls. Full request/response bodies for every call live in `references/autonomous-operations.md`.
+This is a **REST runbook**: every step (A1–A8 below) is a plain HTTPS call you can make with `curl` or any HTTP client — **no SDK install required**. Each flow ends with the equivalent SDK one-liner if you prefer typed calls.
+
+**Where the full detail lives.** Every flow is documented inline below (A1–A8). The complete request/response bodies are in the reference files alongside this skill — read the matching one when you need exact payloads:
+
+| You need… | Read |
+|---|---|
+| API keys, **card enrollment + embedded session + delegation**, payment methods, x402 buy/settle, buyer status — full REST bodies | `references/autonomous-operations.md` (card flow = **§3**, x402 buy = **§4**) |
+| Seller revenue / analytics queries (A7) | `references/seller-operations.md` |
+| Plan registration + the plan-type matrix (A6) | `references/payment-plans.md` |
+| Subscriber-side SDK patterns | `references/client-integration.md` |
 
 > **Design principle — minimal human interaction.** A human is needed for **at most two one-time setup steps — often just one**:
 > 1. **Get your first API key** (a human signs in once) — always required, and
@@ -150,6 +159,8 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 SDK: `payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitCents, durationSecs })`.
 
 > **Visa caveat.** `delegation/create` *does* accept `provider: "visa"`, but only together with a browser-produced `consumerPrompt` + `assuranceData` from a Visa WebAuthn ceremony; omitting them is rejected with `BCK.VISA.0014` ("requires consumerPrompt and assuranceData"). An autonomous agent can't generate `assuranceData`, so in practice have your human create the Visa delegation in the webapp and reuse its `delegationId`.
+
+**Full detail:** the complete embedded card-enrollment handshake (session → card-setup redirect → `delegationId`), the localhost-callback rules, and every `delegation/create` field and response are in `references/autonomous-operations.md` §3.
 
 ## A4 · Buy access via x402  *(fully programmatic)*
 
