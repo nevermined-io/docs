@@ -1,0 +1,116 @@
+---
+title: "Check Your Credits (Buyer)"
+description: "Have an AI agent report your Nevermined buyer status — credits remaining on each plan, active delegations, and remaining spending budgets — so it can top up before running out."
+icon: "wallet"
+---
+
+An agent that pays for services should know where it stands: how many credits are left on each plan, and how much budget remains on its delegations. This flow pulls that status over the REST API so the agent can warn you — or top up — before it runs dry mid-task.
+
+## Useful for
+
+- A **pre-flight check** before a run: does the agent have enough credits and delegation budget to finish?
+- A **"what do I have" report** across every plan you hold and every delegation you've granted.
+- **Top-up triggers**: detect when a balance or budget is low and act before it hits zero.
+
+## See it in action
+
+{/* TODO: replace VIDEO_ID with the YouTube video ID once recorded */}
+<Frame caption="An AI agent reporting remaining credits and delegation budgets.">
+  <iframe
+    width="100%"
+    height="400"
+    src="https://www.youtube.com/embed/VIDEO_ID"
+    title="Check your Nevermined credits as a buyer"
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+  ></iframe>
+</Frame>
+
+## Try it yourself
+
+```text
+You are my autonomous payments agent. Give me a status report of my Nevermined buyer account in sandbox using my NVM_API_KEY and the REST API:
+
+1. My payment methods (card and stablecoin), and which are active.
+2. My delegations — for each, the spending limit, amount spent, remaining budget, and expiry.
+3. For each plan I hold, my remaining credit balance.
+
+Flag anything that's expired, exhausted, or close to running out, and tell me what I'd need to do to top up. Base URL: https://api.sandbox.nevermined.app/api/v1 .
+```
+
+## How it works
+
+All three checks are simple authenticated `GET`s.
+
+<Steps>
+  <Step title="Payment methods">
+    ```http
+    GET {API_BASE}/payment-methods
+    Authorization: Bearer <api-key>
+    ```
+
+    Returns your cards and your stablecoin (`erc4337`) wallet, each with `status`. The `erc4337` method's `id` **is your wallet/holder address** — you'll use it as the holder when checking plan balances.
+  </Step>
+
+  <Step title="Delegations and remaining budget">
+    ```http
+    GET {API_BASE}/delegation
+    Authorization: Bearer <api-key>
+    ```
+
+    Returns `{ totalResults, page, offset, delegations: [ … ] }`, each with `spendingLimitCents`, `amountSpentCents`, `remainingBudgetCents`, `status`, and `expiresAt`. Drill into one delegation's charges with:
+
+    ```http
+    GET {API_BASE}/delegation/{delegationId}/transactions
+    Authorization: Bearer <api-key>
+    ```
+
+    (returns `{ totalResults, page, offset, transactions: [ … ] }`).
+  </Step>
+
+  <Step title="Credit balance per plan">
+    For each plan you hold, query your balance with your wallet as the holder:
+
+    <Tabs>
+      <Tab title="REST">
+        ```http
+        GET {API_BASE}/protocol/plans/{planId}/balance/{yourAddress}
+        Authorization: Bearer <api-key>
+        ```
+
+        Returns `{ planName, planType, isSubscriber, balance, pricePerCredit, … }` — `balance` is your remaining credits.
+      </Tab>
+      <Tab title="TypeScript">
+        ```typescript
+        const balance = await payments.plans.getPlanBalance(planId)
+        console.log(`Credits: ${balance.balance}`) // bigint
+        ```
+      </Tab>
+      <Tab title="Python">
+        ```python
+        balance = payments.plans.get_plan_balance(plan_id)
+        print(f"Credits: {balance['balance']}")
+        ```
+      </Tab>
+    </Tabs>
+
+    <Note>
+      The receipt from a purchase (`creditsRedeemed` / `remainingBalance`, returned by `settle` or decoded from the `payment-response` header) is also a live proof of your balance right after a buy.
+    </Note>
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Buy access" icon="cart-shopping" href="/docs/getting-started/ai-agent-purchase">
+    Top up when a balance runs low.
+  </Card>
+  <Card title="Enroll a card & delegate" icon="credit-card" href="/docs/agents-guide/enroll-card">
+    Grant a fresh budget when a delegation is spent or expired.
+  </Card>
+  <Card title="Order Plans" icon="receipt" href="/docs/development-guide/order-plans">
+    Buy credits upfront for stablecoin plans.
+  </Card>
+</CardGroup>

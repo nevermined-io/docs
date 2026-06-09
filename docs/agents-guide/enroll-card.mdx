@@ -1,0 +1,129 @@
+---
+title: "Enroll a Card & Delegate a Budget"
+description: "Let an AI agent set up a card payment method and a capped, time-boxed spending delegation it can reuse to pay for Nevermined services autonomously."
+icon: "credit-card"
+---
+
+A **delegation** is what lets an agent spend on your behalf without asking every time: a payment method plus a hard spending limit and an expiry. This flow enrolls a card once (the human enters card details in a browser — PCI requires it) and hands the agent a `delegationId` it reuses until the budget is spent or the delegation expires.
+
+## Useful for
+
+- Giving an agent a **card** to pay with when a plan is fiat (Stripe / Braintree / Visa) rather than stablecoin.
+- Putting a **hard cap** on what an agent can spend (e.g. `$50` over `30 days`) — the platform enforces it.
+- Doing the human part **once**: after enrollment, every purchase is programmatic and reuses the same delegation.
+
+<Note>
+  Paying with **stablecoins** needs no card and no human enrollment — your account's ERC‑4337 wallet is ready as soon as it's funded. Use this flow only for card payments. See [Buy access](/docs/getting-started/ai-agent-purchase) for the stablecoin path.
+</Note>
+
+## See it in action
+
+{/* TODO: replace VIDEO_ID with the YouTube video ID once recorded */}
+<Frame caption="An AI agent enrolling a card and creating a spending delegation.">
+  <iframe
+    width="100%"
+    height="400"
+    src="https://www.youtube.com/embed/VIDEO_ID"
+    title="Enroll a card and delegate a budget to an AI agent"
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+  ></iframe>
+</Frame>
+
+## Try it yourself
+
+Hand this to your agent. It drives the embedded enrollment handshake, gives you a single URL to open, and captures the result automatically:
+
+```text
+You are my autonomous payments agent. Set up a credit card I can use to pay for Nevermined services in the sandbox environment, with a spending limit of $50 over 30 days.
+
+Use only the instructions here:
+https://api.sandbox.nevermined.app/api/v1/organizations/org-9d81acea-7d38-460e-b7c0-c3b92abcbb07/agentic-instructions.md
+
+Do the work yourself: mint an embedded session with my API key, host a one-shot callback server on 127.0.0.1, and hand me a single card-setup URL to open in my browser. The only thing I should have to do is enter my card. When I'm done, verify the `state` echo, store the `delegationId`, and show me my payment methods and the new delegation's remaining budget.
+```
+
+<Note>
+  This points at **Sandbox**, so card entry uses test cards and no real money moves. Swap in your own organization's `agentic-instructions.md` URL and a `live:` key to run it for real.
+</Note>
+
+## How it works
+
+<Steps>
+  <Step title="Mint an embedded session">
+    With your API key, mint a session bound to a **localhost** return URL — so run a tiny one-shot callback server on `127.0.0.1` first:
+
+    ```http
+    POST {API_BASE}/widgets/session/self
+    Authorization: Bearer <api-key>
+    Content-Type: application/json
+
+    { "orgId": "<your-org-id>", "returnUrl": "http://127.0.0.1:<port>/callback" }
+    ```
+
+    The response carries a `sessionToken`.
+  </Step>
+
+  <Step title="Hand the human a card-setup URL">
+    The human opens this once in their browser and enters the card:
+
+    ```
+    https://embed.nevermined.app/cards/setup
+      ?sessionToken=<sessionToken>
+      &returnUrl=http://127.0.0.1:<port>/callback
+      &state=<random-nonce>
+      &provider=stripe
+    ```
+
+    Generate `state` as an unguessable nonce. Use `provider=stripe` (or `braintree` / `visa`) to match the card type the target plan accepts.
+  </Step>
+
+  <Step title="Receive the delegation">
+    When the human finishes, the browser redirects to your `returnUrl` with `paymentMethodId` and `delegationId`. **Verify the returned `state` matches** the one you sent (CSRF guard), then **store the `delegationId`** — that's what you pass at purchase time.
+
+    <Warning>
+      `paymentMethodId` and `delegationId` arrive in the callback **query string**. Don't log the request line, and keep secrets in a secret store, not on disk in the clear.
+    </Warning>
+  </Step>
+
+  <Step title="(Optional) Re-budget an enrolled card">
+    Already enrolled and just need a fresh budget? Create another delegation directly — no browser needed:
+
+    ```http
+    POST {API_BASE}/delegation/create
+    Authorization: Bearer <api-key>
+    Content-Type: application/json
+
+    { "provider": "stripe", "providerPaymentMethodId": "<pm_... from GET /payment-methods>",
+      "spendingLimitCents": 5000, "durationSecs": 2592000, "currency": "usd" }
+    ```
+
+    `spendingLimitCents` and `durationSecs` are required. The response carries a new `delegationId`.
+
+    <Note>
+      **Visa** is the exception: `provider: "visa"` needs a browser-produced `consumerPrompt` + `assuranceData` from a WebAuthn ceremony, which an agent can't generate — so create Visa delegations in the app and reuse the `delegationId`.
+    </Note>
+  </Step>
+
+  <Step title="Reuse it to pay">
+    Pass the stored `delegationId` whenever you buy — see [Buy access](/docs/getting-started/ai-agent-purchase). One delegation covers many purchases until its budget is spent or it expires.
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Buy access" icon="cart-shopping" href="/docs/getting-started/ai-agent-purchase">
+    Use the delegation to buy plan credits with x402.
+  </Card>
+  <Card title="Card Delegation" icon="user-shield" href="/docs/solutions/card-delegation">
+    The full embedded handshake, widget embedding, and `state`/CSRF rules.
+  </Card>
+  <Card title="Card Enrollment" icon="credit-card" href="/docs/products/nvm-pay/card-enrollment">
+    Provider-specific enrollment (Stripe, Braintree, Visa).
+  </Card>
+  <Card title="Check credits" icon="wallet" href="/docs/agents-guide/check-credits">
+    Inspect delegation budgets and remaining credits.
+  </Card>
+</CardGroup>

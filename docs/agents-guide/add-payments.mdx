@@ -1,0 +1,141 @@
+---
+title: "Add Payments to Your Agent"
+description: "Have a coding agent retrofit your existing AI agent or API so callers must pay per request through an x402 paywall — middleware, plan registration, and a test."
+icon: "plug"
+---
+
+This flow is the other side of the market: instead of paying, your agent **gets paid**. Point a coding agent (Claude Code, Cursor, an OpenAI agent) at your existing service and the Nevermined SDK, and it wires an x402 paywall in front of the endpoints you choose — so every call costs credits.
+
+## Useful for
+
+- **Monetizing** an existing Express, FastAPI, MCP, or A2A agent without building billing yourself.
+- Charging **per request** (fixed or dynamic credits) with metering and settlement handled for you.
+- Generating the **registration script + middleware + a test** in one pass, so you go from unpaid to paid in minutes.
+
+## See it in action
+
+{/* TODO: replace VIDEO_ID with the YouTube video ID once recorded */}
+<Frame caption="A coding agent adding an x402 paywall to an existing API.">
+  <iframe
+    width="100%"
+    height="400"
+    src="https://www.youtube.com/embed/VIDEO_ID"
+    title="Add Nevermined payments to your agent"
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+  ></iframe>
+</Frame>
+
+## Try it yourself
+
+Run this in your project with a coding agent that can read and edit your files:
+
+```text
+My project is an Express (TypeScript) AI agent with an endpoint `POST /ask`. Add Nevermined payments so callers must pay 1 credit per request via the x402 protocol.
+
+Use the @nevermined-io/payments SDK and follow https://nevermined.ai/docs/integrate/add-to-your-agent/express . Produce:
+1. A registration script that publishes my agent and a "Starter" plan granting 100 credits for $10 in USDC (my builder wallet: 0xYOUR_WALLET), printing the agentId and planId.
+2. The payment middleware wiring that gates `POST /ask` at 1 credit, reading NVM_API_KEY, NVM_PLAN_ID, NVM_AGENT_ID from env.
+3. A short test that calls `POST /ask` with no token (expect 402), then with a fresh x402 token (expect 200), in the sandbox environment.
+
+Keep my existing handler logic intact. Use payment-signature / verifyPermissions / settlePermissions (not the deprecated isValidRequest).
+```
+
+<Note>
+  Swap the framework line for your stack — guides exist for [Express](/docs/integrate/add-to-your-agent/express), [FastAPI](/docs/integrate/add-to-your-agent/fastapi), [Strands](/docs/integrate/add-to-your-agent/strands), and [generic HTTP](/docs/integrate/add-to-your-agent/generic-http).
+</Note>
+
+## How it works
+
+<Steps>
+  <Step title="Register an agent and a plan">
+    Publish the service and price it. The SDK helpers build the on-chain price/credits config for you:
+
+    <Tabs>
+      <Tab title="TypeScript">
+        ```typescript
+        const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+          { name: 'My Agent', description: 'AI service', tags: ['ai'], dateCreated: new Date() },
+          { endpoints: [{ POST: 'https://your-api.com/ask' }] },
+          { name: 'Starter Plan', description: '100 requests for $10', dateCreated: new Date() },
+          payments.plans.getERC20PriceConfig(10_000_000n, USDC_ADDRESS, process.env.BUILDER_ADDRESS),
+          payments.plans.getFixedCreditsConfig(100n, 1n),
+        )
+        ```
+      </Tab>
+      <Tab title="Python">
+        ```python
+        result = payments.agents.register_agent_and_plan(
+            agent_metadata={'name': 'My Agent', 'description': 'AI service', 'tags': ['ai']},
+            agent_api={'endpoints': [{'POST': 'https://your-api.com/ask'}]},
+            plan_metadata={'name': 'Starter Plan', 'description': '100 requests for $10'},
+            price_config=get_erc20_price_config(10_000_000, USDC_ADDRESS, os.environ['BUILDER_ADDRESS']),
+            credits_config=get_fixed_credits_config(100, 1),
+        )
+        ```
+      </Tab>
+    </Tabs>
+
+    See [Register a plan & agent](/docs/agents-guide/register-plan-and-agent) for the full options (fiat pricing, time-based and pay-as-you-go plans).
+  </Step>
+
+  <Step title="Gate your routes with middleware">
+    Add the payment middleware and list the routes to protect with their credit cost. Everything not listed stays public:
+
+    <Tabs>
+      <Tab title="Express (TypeScript)">
+        ```typescript
+        import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+        app.use(paymentMiddleware(payments, {
+          'POST /ask': { planId: process.env.NVM_PLAN_ID, credits: 1 },
+        }))
+        ```
+      </Tab>
+      <Tab title="FastAPI (Python)">
+        ```python
+        from payments_py.x402.fastapi import PaymentMiddleware
+
+        app.add_middleware(
+            PaymentMiddleware,
+            payments=payments,
+            routes={"POST /ask": {"plan_id": os.environ["NVM_PLAN_ID"], "credits": 1}},
+        )
+        ```
+      </Tab>
+    </Tabs>
+
+    The middleware returns `402` with a `payment-required` challenge when the token is missing, verifies it when present, runs your handler, then settles (burns credits) and returns the receipt in `payment-response`.
+  </Step>
+
+  <Step title="Test the paywall">
+    Call without a token (expect `402`), then with a fresh token (expect `200`):
+
+    ```bash
+    # 1) No token → 402
+    curl -i -X POST http://localhost:3000/ask -d '{"q":"hi"}'
+
+    # 2) With an x402 token → 200 (mint one as a buyer would — see "Buy access")
+    curl -i -X POST http://localhost:3000/ask \
+      -H "payment-signature: <accessToken>" -d '{"q":"hi"}'
+    ```
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Register a plan & agent" icon="store" href="/docs/agents-guide/register-plan-and-agent">
+    Publish and price the service you're protecting.
+  </Card>
+  <Card title="Nevermined x402" icon="bolt" href="/docs/development-guide/nevermined-x402">
+    The protocol behind the paywall: schemes, headers, verify/settle.
+  </Card>
+  <Card title="Check revenue" icon="chart-line" href="/docs/agents-guide/check-revenue">
+    Once you're charging, track what you earn.
+  </Card>
+  <Card title="Buy access" icon="cart-shopping" href="/docs/getting-started/ai-agent-purchase">
+    See the buyer side that mints the token your paywall checks.
+  </Card>
+</CardGroup>

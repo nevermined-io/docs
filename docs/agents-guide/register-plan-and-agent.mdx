@@ -1,0 +1,142 @@
+---
+title: "Register a Plan & AI Agent"
+description: "Have an agent publish an AI agent and a priced payment plan on Nevermined — fiat or crypto, fixed credits or time-based — so others can discover and buy it."
+icon: "store"
+---
+
+Before anyone can pay for your service, it has to exist on Nevermined: an **agent** (what you sell) linked to a **plan** (how it's priced). An agent can do this for you in one call — the SDK builds the on-chain price and credits configuration, registers both, and returns the IDs you'll reference everywhere else.
+
+## Useful for
+
+- **Going to market**: publishing a new AI agent or API and pricing access in one step.
+- Choosing a **pricing model** — fixed credits, time-based, pay-as-you-go, or a free trial — without learning the on-chain details.
+- Selling in **fiat or crypto**: priced in USD (Stripe / Braintree / Visa) or in USDC / EURC.
+
+## See it in action
+
+{/* TODO: replace VIDEO_ID with the YouTube video ID once recorded */}
+<Frame caption="An agent registering an AI agent and a payment plan on Nevermined.">
+  <iframe
+    width="100%"
+    height="400"
+    src="https://www.youtube.com/embed/VIDEO_ID"
+    title="Register a plan and AI agent on Nevermined"
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+  ></iframe>
+</Frame>
+
+## Try it yourself
+
+```text
+You are my autonomous payments agent. Register a new AI agent and a payment plan on Nevermined sandbox using the @nevermined-io/payments SDK.
+
+- Agent: "Weather Agent" — description "On-demand weather forecasts", endpoint POST https://my-agent.example.com/forecast
+- Plan: "Weather Starter" — 100 credits for $10, paid by card (fiat, Stripe), 1 credit per request
+- My builder wallet (receives payments): 0xYOUR_WALLET
+- Environment: sandbox (NVM_API_KEY is set)
+
+Use the SDK price/credits helpers to build the config, register the agent and plan together, then print the agentId and planId and confirm both are published. Reference https://nevermined.ai/docs/development-guide if you need the method signatures.
+```
+
+## How it works
+
+<Steps>
+  <Step title="Build the price and credits config">
+    Pick one **price** helper and one **credits** helper — they produce the on-chain config so you don't hand-build it:
+
+    <Tabs>
+      <Tab title="TypeScript">
+        ```typescript
+        // Price: fiat (Stripe/Braintree/Visa) — amount in 6-decimal units ($10.00)
+        const priceConfig = payments.plans.getFiatPriceConfig(10_000_000n, BUILDER_ADDRESS, 'USD')
+        // or crypto: getERC20PriceConfig(10_000_000n, USDC_ADDRESS, BUILDER_ADDRESS)
+
+        // Credits: 100 granted, 1 burned per request
+        const creditsConfig = payments.plans.getFixedCreditsConfig(100n, 1n)
+        // or getExpirableDurationConfig(...) (time-based) · getPayAsYouGoCreditsConfig() (per-call)
+        ```
+      </Tab>
+      <Tab title="Python">
+        ```python
+        # Price: fiat — amount in 6-decimal units ($10.00)
+        price_config = get_fiat_price_config(10_000_000, BUILDER_ADDRESS, "USD")
+        # or crypto: get_erc20_price_config(10_000_000, USDC_ADDRESS, BUILDER_ADDRESS)
+
+        # Credits: 100 granted, 1 burned per request
+        credits_config = get_fixed_credits_config(100, 1)
+        ```
+      </Tab>
+    </Tabs>
+
+    <Note>
+      In TypeScript, plan config amounts are `BigInt` — always pass `…n` (e.g. `10_000_000n`).
+    </Note>
+  </Step>
+
+  <Step title="Register the agent and plan together">
+    One call publishes both and links them:
+
+    <Tabs>
+      <Tab title="TypeScript">
+        ```typescript
+        const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+          { name: 'Weather Agent', description: 'On-demand forecasts', tags: ['weather'], dateCreated: new Date() },
+          { endpoints: [{ POST: 'https://my-agent.example.com/forecast' }] },
+          { name: 'Weather Starter', description: '100 requests for $10', dateCreated: new Date() },
+          priceConfig,
+          creditsConfig,
+        )
+        console.log({ agentId, planId })
+        ```
+      </Tab>
+      <Tab title="Python">
+        ```python
+        result = payments.agents.register_agent_and_plan(
+            agent_metadata={'name': 'Weather Agent', 'description': 'On-demand forecasts', 'tags': ['weather']},
+            agent_api={'endpoints': [{'POST': 'https://my-agent.example.com/forecast'}]},
+            plan_metadata={'name': 'Weather Starter', 'description': '100 requests for $10'},
+            price_config=price_config,
+            credits_config=credits_config,
+        )
+        print(result['agentId'], result['planId'])
+        ```
+      </Tab>
+    </Tabs>
+
+    The `endpoints` are optional — omit them for an open agent, or include them so the platform enforces route-level access on top of your own middleware.
+  </Step>
+
+  <Step title="Confirm it's published">
+    List what you've published to verify the agent and plan are live:
+
+    ```http
+    GET {API_BASE}/protocol/agents
+    Authorization: Bearer <api-key>
+    ```
+
+    Each item is the full record — read the name from `metadata.main.name` and the id from `id`. Then point buyers at your organization's `agentic-instructions.md`, where published plans and agents appear automatically.
+  </Step>
+</Steps>
+
+<Note>
+  Prefer no code? You can register and price everything in the web app — see [Register Agents](/docs/products/nevermined-app/register-agents).
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Add payments to your agent" icon="plug" href="/docs/agents-guide/add-payments">
+    Gate the registered agent's endpoints behind the plan.
+  </Card>
+  <Card title="Register Agents (App)" icon="store" href="/docs/products/nevermined-app/register-agents">
+    The no-code path to publishing agents and plans.
+  </Card>
+  <Card title="Check revenue" icon="chart-line" href="/docs/agents-guide/check-revenue">
+    Track sales once buyers start arriving.
+  </Card>
+  <Card title="Order Plans" icon="cart-shopping" href="/docs/development-guide/order-plans">
+    How buyers purchase the plan you just created.
+  </Card>
+</CardGroup>

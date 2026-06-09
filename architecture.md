@@ -32,6 +32,17 @@ Major documentation reorganization completed:
 - ✅ Core Concepts (`docs/getting-started/core-concepts.mdx`)
 - ✅ AI Agents: Buy Access Autonomously (`docs/getting-started/ai-agent-purchase.mdx`)
 
+#### Agents Guide (Learn → Agents Guide)
+- ✅ Overview (`docs/agents-guide/overview.mdx`)
+- ✅ Buy Access — flow 1 (reuses `docs/getting-started/ai-agent-purchase.mdx`)
+- ✅ Enroll a Card & Delegate (`docs/agents-guide/enroll-card.mdx`)
+- ✅ Get a Nevermined API Key (`docs/agents-guide/get-api-key.mdx`)
+- ✅ Add Payments to Your Agent (`docs/agents-guide/add-payments.mdx`)
+- ✅ Register a Plan & AI Agent (`docs/agents-guide/register-plan-and-agent.mdx`)
+- ✅ Check Your Credits — Buyer (`docs/agents-guide/check-credits.mdx`)
+- ✅ Check Your Revenue — Seller (`docs/agents-guide/check-revenue.mdx`)
+- 🚧 "See it in action" videos — `VIDEO_ID` placeholders pending recording
+
 #### Solutions (Use Cases)
 - ✅ Agent-to-Agent Monetization (`docs/solutions/agent-to-agent-monetization.mdx`)
 - ✅ Access Control & Static Resources (`docs/solutions/access-control-monetization-static-resources.mdx`)
