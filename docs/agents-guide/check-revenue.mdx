@@ -1,15 +1,15 @@
 ---
 title: "Check Your Revenue (Seller)"
-description: "Have an AI agent pull a revenue report for the agents and plans you sell on Nevermined — total revenue, MRR, active subscriptions, and credits consumed per plan."
+description: "Have an AI agent pull a revenue report for the agents and plans you sell on Nevermined — total revenue, MRR, active subscribers, and credits consumed per plan."
 icon: "chart-line"
 ---
 
-If you sell agents or plans, this flow turns "how's it going?" into a report an agent generates on demand: revenue per agent, monthly recurring revenue, active subscriptions, and how many credits buyers are burning. The aggregated numbers come from your organization's analytics; if you're not on a Premium tier, the agent falls back to the always-available building blocks.
+If you sell agents or plans, this flow turns "how's it going?" into a report an agent generates on demand: revenue per agent, monthly recurring revenue, active subscribers, and how many credits buyers are burning. The aggregated numbers come from your organization's analytics; if you're not on a Premium tier, the agent falls back to the always-available building blocks.
 
 ## Useful for
 
 - A **revenue snapshot** — total earnings per agent over any date range.
-- Tracking **MRR and active subscriptions** to see growth at a glance.
+- Tracking **MRR and active subscribers** to see growth at a glance.
 - Seeing **which plans get used** (credits burned, unique users) so you can price and iterate.
 
 ## See it in action
@@ -33,7 +33,7 @@ If you sell agents or plans, this flow turns "how's it going?" into a report an 
 You are my autonomous payments agent. Produce a revenue report for the AI agents and plans I sell on Nevermined sandbox, using my NVM_API_KEY and the REST API:
 
 1. Total revenue per agent for the last 90 days (and the grand total).
-2. My current MRR and number of active subscriptions.
+2. My current MRR and number of active subscribers.
 3. Credits consumed per plan (with unique users).
 
 My org id is <ORG_ID>. The analytics endpoints need a Premium org tier — if I get a 403, fall back to listing my plans and agents (GET /protocol/plans, /protocol/agents) and summarize what's available instead. Base URL: https://api.sandbox.nevermined.app/api/v1 .
@@ -54,7 +54,7 @@ There are two layers: aggregated **organization analytics** (Premium tier) and a
     curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-01-01T00:00:00Z&to=2026-04-01T00:00:00Z"
     # → { items: [ { agentId, agentName, totalRevenue, transactionCount } ], totalRevenue }
 
-    # MRR + active subscriptions
+    # MRR + active subscribers
     curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/mrr"
     # → { mrr, activeSubscriptions }
 
