@@ -82,7 +82,7 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 
 When an agent must act on its own behalf at runtime (buy a plan, enroll a card, check credits/revenue), use the REST API directly with `Authorization: Bearer $NVM_API_KEY` against `https://api.sandbox.nevermined.app` (sandbox) or `https://api.live.nevermined.app` (live). Buy in two calls:
 
-```bash
+```http
 # 1. token
 POST /api/v1/x402/permissions  { "accepted": { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>" }, "delegationConfig": { "delegationId": "<id>" } }  → { accessToken }
 # 2. settle (proof of purchase)

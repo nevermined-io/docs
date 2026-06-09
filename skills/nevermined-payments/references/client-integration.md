@@ -35,7 +35,11 @@ curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applic
 # → { "success": true, "creditsRedeemed": "1", "remainingBalance": "999", "transaction": "0x..." }
 ```
 
-Pay with a card by switching `scheme` to `nvm:card-delegation` and `network` to `stripe` (or `braintree`/`visa`). To call a protected agent directly, skip building `paymentRequired` — send the token as the `payment-signature` header and let the agent settle (its `402` response is your `paymentRequired`). The settle receipt (`creditsRedeemed` / `remainingBalance`) is your proof of purchase. Full runbook with API-key retrieval, card enrollment, and status checks: [`autonomous-operations.md`](autonomous-operations.md).
+- **Card payment:** switch `scheme` to `nvm:card-delegation` and `network` to `stripe` (or `braintree`/`visa`) in both calls.
+- **Calling a protected agent directly:** skip building `paymentRequired` — send the access token as the `payment-signature` header; the agent settles for you and returns the receipt in the `payment-response` header.
+- **Proof of purchase:** `creditsRedeemed > 0` and a `remainingBalance` in the settle response.
+
+Full runbook with API-key retrieval, card enrollment, and status checks: [`autonomous-operations.md`](autonomous-operations.md).
 
 ## Order a Plan and Get a Token
 

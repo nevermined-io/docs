@@ -234,7 +234,7 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
 )
 ```
 
-The raw REST endpoints exist (`POST /api/v1/protocol/plans`, `/api/v1/protocol/agents`, `/api/v1/protocol/agents/plans`) but expect the fully-formed `priceConfig`/`creditsConfig` objects — use the SDK helpers to produce them. Full plan-type matrix and helper reference: [`references/payment-plans.md`](references/payment-plans.md).
+Price helpers: `getERC20PriceConfig`/`getEURCPriceConfig` (crypto), `getFiatPriceConfig` (card). Credits helpers: `getFixedCreditsConfig` (prepaid), `getExpirableDurationConfig` (time-based), `getPayAsYouGoCreditsConfig` (per-call). The raw REST endpoints exist (`POST /api/v1/protocol/plans`, `/api/v1/protocol/agents`, `/api/v1/protocol/agents/plans`) but expect the fully-formed `priceConfig`/`creditsConfig` objects — use the SDK helpers to produce them. Full plan-type matrix and helper reference: [`references/payment-plans.md`](references/payment-plans.md).
 
 ## A7 · Check your agents' status & revenue (as a seller)  *(fully programmatic)*
 

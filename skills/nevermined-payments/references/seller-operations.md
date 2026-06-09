@@ -13,7 +13,11 @@ How an agent (or its operator) checks the **performance of the plans and agents 
 
 ## 1. Organization analytics (Premium)
 
-Base: `https://api.sandbox.nevermined.app/api/v1/organizations/<ORG_ID>/analytics`. Date params are ISO-8601; `from` inclusive, `to` exclusive.
+Set the analytics base once — the `curl`s below reuse `$B` in the same shell session. Date params are ISO-8601; `from` inclusive, `to` exclusive.
+
+```bash
+B="https://api.sandbox.nevermined.app/api/v1/organizations/<ORG_ID>/analytics"
+```
 
 ### Revenue per agent
 
