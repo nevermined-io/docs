@@ -59,7 +59,7 @@ Three HTTP headers carry x402 data: `payment-signature` (client→server, the to
 
 # Track A — Operate as an autonomous agent
 
-This is a **REST runbook**: every step is a plain HTTPS call you can make with `curl` or any HTTP client — **no SDK install required**. Each flow ends with the equivalent SDK one-liner if you prefer typed calls. Full request/response bodies for every call live in [`references/autonomous-operations.md`](references/autonomous-operations.md).
+This is a **REST runbook**: every step is a plain HTTPS call you can make with `curl` or any HTTP client — **no SDK install required**. Each flow ends with the equivalent SDK one-liner if you prefer typed calls. Full request/response bodies for every call live in `references/autonomous-operations.md`.
 
 > **Design principle — minimal human interaction.** A human is needed **exactly twice**, and only the first time:
 > 1. **Get your first API key** (a human signs in once), and
@@ -197,7 +197,7 @@ res = payments.x402.get_x402_access_token(plan_id, agent_id,
     token_options=X402TokenOptions(delegation_config=DelegationConfig(delegation_id=delegation_id)))
 ```
 
-Full crypto + card walkthroughs with every field: [`references/autonomous-operations.md`](references/autonomous-operations.md). Subscriber-side SDK patterns: [`references/client-integration.md`](references/client-integration.md).
+Full crypto + card walkthroughs with every field: `references/autonomous-operations.md`. Subscriber-side SDK patterns: `references/client-integration.md`.
 
 ## A5 · Check your purchases & credits (as a buyer)  *(fully programmatic)*
 
@@ -234,7 +234,7 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
 )
 ```
 
-Price helpers: `getERC20PriceConfig`/`getEURCPriceConfig` (crypto), `getFiatPriceConfig` (card). Credits helpers: `getFixedCreditsConfig` (prepaid), `getExpirableDurationConfig` (time-based), `getPayAsYouGoCreditsConfig` (per-call). The raw REST endpoints exist (`POST /api/v1/protocol/plans`, `/api/v1/protocol/agents`, `/api/v1/protocol/agents/plans`) but expect the fully-formed `priceConfig`/`creditsConfig` objects — use the SDK helpers to produce them. Full plan-type matrix and helper reference: [`references/payment-plans.md`](references/payment-plans.md).
+Price helpers: `getERC20PriceConfig`/`getEURCPriceConfig` (crypto), `getFiatPriceConfig` (card). Credits helpers: `getFixedCreditsConfig` (prepaid), `getExpirableDurationConfig` (time-based), `getPayAsYouGoCreditsConfig` (per-call). The raw REST endpoints exist (`POST /api/v1/protocol/plans`, `/api/v1/protocol/agents`, `/api/v1/protocol/agents/plans`) but expect the fully-formed `priceConfig`/`creditsConfig` objects — use the SDK helpers to produce them. Full plan-type matrix and helper reference: `references/payment-plans.md`.
 
 ## A7 · Check your agents' status & revenue (as a seller)  *(fully programmatic)*
 
@@ -260,7 +260,7 @@ curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/
 curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/api/v1/protocol/agents/<AGENT_ID>/plans  # plans on an agent
 ```
 
-For per-request usage and cost observability (Helicone), see [`references/seller-operations.md`](references/seller-operations.md), which details every seller query and the response shapes.
+For per-request usage and cost observability (Helicone), see `references/seller-operations.md`, which details every seller query and the response shapes.
 
 ## A8 · Receive payments in your own agent
 

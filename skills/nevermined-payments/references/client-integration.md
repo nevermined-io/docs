@@ -39,7 +39,7 @@ curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applic
 - **Calling a protected agent directly:** skip building `paymentRequired` — send the access token as the `payment-signature` header; the agent settles for you and returns the receipt in the `payment-response` header.
 - **Proof of purchase:** `creditsRedeemed > 0` and a `remainingBalance` in the settle response.
 
-Full runbook with API-key retrieval, card enrollment, and status checks: [`autonomous-operations.md`](autonomous-operations.md).
+Full runbook with API-key retrieval, card enrollment, and status checks: `autonomous-operations.md`.
 
 ## Order a Plan and Get a Token
 
