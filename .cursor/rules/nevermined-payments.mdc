@@ -15,7 +15,7 @@ You are building an application that integrates Nevermined payments. Follow thes
 ## Environment Variables
 
 Always use these env vars (never hardcode):
-- `NVM_API_KEY` — Nevermined API key (`nvm:...`)
+- `NVM_API_KEY` — Nevermined API key (`sandbox:...` for sandbox, `live:...` for production)
 - `NVM_ENVIRONMENT` — `sandbox` or `live`
 - `NVM_PLAN_ID` — payment plan ID
 - `NVM_AGENT_ID` — agent ID (when plans have multiple agents)
@@ -102,6 +102,10 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 - Always settle after processing — middleware does this automatically
 - Public routes are those NOT listed in the middleware route config
 
+## Autonomous Operations (REST, no SDK)
+
+When an agent must act on its own behalf at runtime (buy a plan, enroll a card, check credits/revenue), call the REST API directly with `Authorization: Bearer $NVM_API_KEY` against `https://api.sandbox.nevermined.app` (sandbox) or `https://api.live.nevermined.app` (live). Buy in two calls — `POST /api/v1/x402/permissions` (→ `accessToken`) then `POST /api/v1/x402/settle` (→ `creditsRedeemed`, `remainingBalance`). Crypto uses `scheme: "nvm:erc4337"` / `network: "eip155:84532"`; cards use `scheme: "nvm:card-delegation"` / `network: "stripe"`. A human is needed only once (first API key + card enrollment). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
+
 ## Full Skill Reference
 
-For complete patterns, see: `skills/nevermined-payments/SKILL.md`
+For complete patterns, see: `skills/nevermined-payments/SKILL.md` (Track A = operate autonomously via REST; Track B = add payments to your code via SDK)

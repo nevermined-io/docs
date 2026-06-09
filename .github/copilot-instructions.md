@@ -9,7 +9,7 @@ This repository contains documentation for Nevermined, an AI payment infrastruct
 
 ## Required Environment Variables
 
-- `NVM_API_KEY` — Nevermined API key (format: `nvm:...`)
+- `NVM_API_KEY` — Nevermined API key (format: `sandbox:...` for sandbox, `live:...` for production)
 - `NVM_ENVIRONMENT` — `sandbox` or `live`
 - `NVM_PLAN_ID` — payment plan ID from Nevermined
 - `NVM_AGENT_ID` — agent ID (required when plans have multiple agents)
@@ -78,6 +78,19 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 - Middleware handles verify/settle automatically; manual integration requires both calls
 - `buildPaymentRequired()` (TS) / `build_payment_required()` (Python) generates the 402 payload
 
+## Autonomous Operations (REST, no SDK)
+
+When an agent must act on its own behalf at runtime (buy a plan, enroll a card, check credits/revenue), use the REST API directly with `Authorization: Bearer $NVM_API_KEY` against `https://api.sandbox.nevermined.app` (sandbox) or `https://api.live.nevermined.app` (live). Buy in two calls:
+
+```bash
+# 1. token
+POST /api/v1/x402/permissions  { "accepted": { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>" }, "delegationConfig": { "delegationId": "<id>" } }  → { accessToken }
+# 2. settle (proof of purchase)
+POST /api/v1/x402/settle  { "paymentRequired": { "x402Version": 2, "resource": { "url": "<url>" }, "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>", "extra": {} } ], "extensions": {} }, "x402AccessToken": "<token>" }  → { creditsRedeemed, remainingBalance }
+```
+
+Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is needed only once (first API key + card enrollment). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
+
 ## Full Reference
 
-See `skills/nevermined-payments/SKILL.md` for complete integration patterns.
+See `skills/nevermined-payments/SKILL.md` for complete integration patterns (Track A = operate autonomously via REST; Track B = add payments to your code via SDK).

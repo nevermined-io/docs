@@ -1,12 +1,15 @@
 ---
 name: nevermined-payments
-version: "0.3.3"
-lastUpdated: "2026-05-06"
+version: "0.4.0"
+lastUpdated: "2026-06-09"
 description: >
-  Integrates Nevermined payment infrastructure into AI agents, MCP servers,
-  Google A2A agents, and REST APIs. Handles x402 protocol, credit billing,
-  payment plans, and SDK integration for TypeScript (@nevermined-io/payments)
-  and Python (payments-py).
+  Use when an AI agent must operate on Nevermined autonomously — purchase a payment
+  plan via the x402 protocol (crypto or card), enroll a card and create a spending
+  delegation, obtain a Nevermined API key, register a payment plan or AI agent, or
+  check its credits (as a buyer) or revenue (as a seller) — and when adding x402
+  payment protection to a TypeScript or Python agent (Express, FastAPI, MCP, Google
+  A2A, Strands). Covers the @nevermined-io/payments and payments-py SDKs and the
+  Nevermined REST API.
 metadata:
   openclaw:
     primaryEnv: NVM_API_KEY
@@ -24,53 +27,260 @@ metadata:
 
 # Nevermined Payments Integration
 
-> **Skill version**: 0.3.3 | **Last updated**: 2026-05-06
+> **Skill version**: 0.4.0 | **Last updated**: 2026-06-09
 >
-> Verified against `@nevermined-io/payments@1.3.3` and `payments-py@1.5.0`.
+> Verified against `@nevermined-io/payments@1.4.1` and `payments-py@1.5.0`, and against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`).
 
 ## Overview
 
-Nevermined provides financial rails for AI agents — real-time monetization, access control, and payments. This skill gives you everything needed to:
+Nevermined provides financial rails for AI agents — real-time monetization, access control, and payments. This skill covers **two modes**, and most tasks fall cleanly into one:
 
-- Protect API endpoints with the **x402 payment protocol**
-- Charge per-request using **credit-based billing**
-- Integrate with **Express.js**, **FastAPI**, **Strands agents**, **MCP servers**, or **Google A2A agents**
-- Support **subscriber-side** flows (purchase plans, generate tokens, call protected APIs)
-- Enable **agent-to-agent** payments via the Google A2A protocol
+| Mode | You are… | Lead interface | Use when the goal is… |
+|---|---|---|---|
+| **🅐 Operate as an autonomous agent** | an agent **acting on its own behalf** at runtime | **REST** (works with no SDK install) | buy a plan, enroll a card + delegation, get an API key, register a plan/agent, check credits (buyer) or revenue (seller) |
+| **🅑 Add payments to your code** | a developer **wiring payments into an agent** so it can **receive** payments | **SDK** (TypeScript / Python) | protect Express/FastAPI/MCP/A2A/Strands endpoints behind a plan |
 
-The x402 protocol uses HTTP 402 responses to advertise payment requirements. Clients acquire an access token and retry the request. The server verifies permissions, executes the workload, then settles (burns credits).
+If you are an autonomous agent that needs to **pay, enroll, register, or report**, start at **Track A — Operate as an autonomous agent**. If you are building a service that needs to **charge** callers, jump to **Track B — Add payments to your code**.
 
-## Nevermined API Key Prerequisite
+### How payments work (x402 in one minute)
 
-A **Nevermined API Key** (`NVM_API_KEY`) is required for ALL interactions with the Nevermined platform — SDK initialization, REST API calls, CLI usage, and agent registration. Without it, nothing works.
+Nevermined uses the **x402 protocol** (HTTP `402 Payment Required`). A buyer acquires an **access token** authorizing a spend, then **settles** it — which charges the payment method, mints, and burns credits. The same token can be sent to a protected agent in the `payment-signature` header; the agent verifies and settles for you.
 
-**If the developer already has a key**, they can skip this section and set it as an environment variable:
+Two payment **schemes** exist:
+
+| Scheme | Pays with | `network` value |
+|---|---|---|
+| `nvm:erc4337` | Crypto stablecoins (USDC / EURC) via account-abstraction delegation | CAIP-2 chain id — `eip155:84532` (sandbox / Base Sepolia), `eip155:8453` (live / Base Mainnet) |
+| `nvm:card-delegation` | A card on file via Stripe / Braintree / Visa delegation | `stripe`, `braintree`, or `visa` |
+
+Three HTTP headers carry x402 data: `payment-signature` (client→server, the token), `payment-required` (server→client on 402, base64 JSON), `payment-response` (server→client on 200, base64 settlement receipt).
+
+---
+
+# Track A — Operate as an autonomous agent
+
+This is a **REST runbook**: every step is a plain HTTPS call you can make with `curl` or any HTTP client — **no SDK install required**. Each flow ends with the equivalent SDK one-liner if you prefer typed calls. Full request/response bodies for every call live in [`references/autonomous-operations.md`](references/autonomous-operations.md).
+
+> **Design principle — minimal human interaction.** A human is needed **exactly twice**, and only the first time:
+> 1. **Get your first API key** (a human signs in once), and
+> 2. **Enroll a card** (a human enters card details in a browser — required by PCI; not needed at all if you pay with stablecoins).
+>
+> **Everything else is fully programmatic** and reusable: checking payment methods, creating delegations, purchasing, settling, registering plans/agents, and reading buyer/seller status. Store the API key and any `delegationId` and reuse them.
+
+## A0 · Environment
+
+Pick the environment and use its **exact base URL** for every call. State it explicitly to yourself — do not infer it from anything else.
+
+| Environment | API base URL | App (human steps) | Card enrollment UI | Network | API key prefix |
+|---|---|---|---|---|---|
+| **sandbox** (test money) | `https://api.sandbox.nevermined.app` | `https://nevermined.app` | `https://embed.nevermined.app` | Base Sepolia `eip155:84532` | `sandbox:` |
+| **live** (real money) | `https://api.live.nevermined.app` | `https://nevermined.app` | `https://embed.nevermined.app` | Base Mainnet `eip155:8453` | `live:` |
+
+- **Auth:** send your key as `Authorization: Bearer <NVM_API_KEY>` on every call.
+- **Discover the full API surface:** `GET {API_BASE}/api/v1/rest/docs-json` returns the OpenAPI JSON for the environment.
+- **Default to `sandbox`** unless the human explicitly asks for `live` — `live` moves real money.
+
+## A1 · Get a Nevermined API key  *(needs a human once)*
+
+You cannot mint your first key yourself. Two ways — pick whichever fits:
+
+**Option A — embedded login (recommended; the key returns to you automatically).** Host a tiny callback server on `127.0.0.1` (the login page only redirects to `localhost`/`127.0.0.1` callbacks), then ask your human to open:
+
+```
+https://nevermined.app/auth/cli?callback_url=http://127.0.0.1:<port>/callback
+```
+
+After they sign in, the browser is redirected to `http://127.0.0.1:<port>/callback?nvm_api_key=<api-key>` — read `nvm_api_key` off that request. (Keys for `sandbox` start with `sandbox`; for `live`, `live`.)
+
+**Option B — manual paste (works anywhere).** Ask your human to open [nevermined.app](https://nevermined.app), sign in, create an API Key (Settings → Global NVM API Keys → **+ New API Key**), and paste it back. Or, once signed in, open `https://nevermined.app/auth/cli` with no `callback_url` to see the key on screen.
+
+**Store the key and reuse it.** Never fabricate a key; the placeholder is `sandbox:your-api-key`. Full docs: [Get Your API Key](https://nevermined.ai/docs/getting-started/get-your-api-key).
+
+## A2 · Check your payment methods
+
+```bash
+curl -H "Authorization: Bearer $NVM_API_KEY" \
+  https://api.sandbox.nevermined.app/api/v1/payment-methods
+# → [ { id, type, brand, last4, provider, status, ... } ]
+```
+
+- A **stablecoin** payment method (an account-abstraction smart account) exists by default — **fund it** and you can pay immediately, **no human needed**. In `sandbox` it spends test USDC on Base Sepolia; see [stablecoin payments](https://nevermined.ai/docs/integrate/patterns/stablecoin-payments) for funding. Its `id` is your wallet/holder address (used in **A5**).
+- A **card** method appears here only after the one-time enrollment in **A3** below.
+
+SDK: `payments.delegation.listPaymentMethods()` / `payments.delegation.list_payment_methods()`.
+
+## A3 · Enroll a card + create a delegation  *(needs a human once)*
+
+Skip this entirely if you pay with stablecoins. To pay with a card, enroll one through the **embedded flow** (open to any agent with an API key — no organization required):
+
+```bash
+# 1. Mint an embedded session (host a 127.0.0.1 callback first)
+curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"returnUrl":"http://127.0.0.1:<port>/callback"}' \
+  https://api.sandbox.nevermined.app/api/v1/embed/session
+# → { "sessionToken": "...", "userId": "...", "userWallet": "0x...", "expiresAt": "..." }
+```
+
+2. Ask your human to open the card-setup URL in their browser:
+
+```
+https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=http://127.0.0.1:<port>/callback&state=<random>&provider=stripe
+```
+
+3. When they finish, the browser redirects to your `returnUrl` with **`paymentMethodId`** and **`delegationId`** as query params. **Store the `delegationId`** — a delegation authorizes you to spend within a fixed budget and time window, and you reuse it until it is spent or expires.
+
+**Create a delegation explicitly.** `provider` is one of `stripe`, `braintree`, `visa` (card) or `erc4337` (stablecoin). `spendingLimitCents` and `durationSecs` are **required**.
+
+```bash
+# Stablecoin (crypto) — no card, no human. Uses your default smart-account method.
+curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"provider":"erc4337","spendingLimitCents":10000,"durationSecs":604800}' \
+  https://api.sandbox.nevermined.app/api/v1/delegation/create
+
+# Card (Stripe). providerPaymentMethodId is the `id` returned by GET /payment-methods.
+curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"provider":"stripe","providerPaymentMethodId":"pm_...","spendingLimitCents":10000,"durationSecs":604800,"currency":"usd"}' \
+  https://api.sandbox.nevermined.app/api/v1/delegation/create
+# → { "delegationId": "...", "delegationToken": "..." }
+```
+
+SDK: `payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitCents, durationSecs })`.
+
+> **Visa caveat.** Visa delegations are **browser-only** (a WebAuthn ceremony produces `consumerPrompt` + `assuranceData`). Calling `delegation/create` with `provider: "visa"` is rejected (`BCK.VISA.0014`). Ask your human to create a Visa delegation in the webapp and reuse its `delegationId`.
+
+## A4 · Buy access via x402  *(fully programmatic)*
+
+Two calls: get an access token, then settle. Works for crypto and card the same way — only `scheme`/`network` differ.
+
+```bash
+# 1. Get an access token (authorizes the spend against your delegation)
+curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{
+        "accepted": { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<PLAN_ID>" },
+        "delegationConfig": { "delegationId": "<YOUR_DELEGATION_ID>" }
+      }' \
+  https://api.sandbox.nevermined.app/api/v1/x402/permissions
+# → { "accessToken": "..." }
+
+# 2. Settle — charges the method, mints, and burns; this receipt is your proof of purchase
+curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{
+        "paymentRequired": {
+          "x402Version": 2,
+          "resource": { "url": "<PLAN_OR_RESOURCE_URL>" },
+          "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<PLAN_ID>", "extra": {} } ],
+          "extensions": {}
+        },
+        "x402AccessToken": "<accessToken>"
+      }' \
+  https://api.sandbox.nevermined.app/api/v1/x402/settle
+# → { "success": true, "creditsRedeemed": "1", "remainingBalance": "999", "transaction": "0x...", "network": "eip155:84532" }
+```
+
+- **Pay with a card instead:** set `"scheme": "nvm:card-delegation"` and `"network": "stripe"` (or `braintree`/`visa`) in both `accepted` and `accepts[0]`.
+- **`resource.url` for a plan top-up** = the plan's own URL, `{API_BASE}/api/v1/protocol/plans/<PLAN_ID>`.
+- **Which scheme does a plan use?** `GET {API_BASE}/api/v1/protocol/plans/<PLAN_ID>` (public) returns the plan's metadata and pricing so you can pick `nvm:erc4337` vs `nvm:card-delegation` before paying. When buying from a protected agent, its `402` tells you instead.
+- **Note the field rename:** `/permissions` returns `accessToken`; pass that value as `x402AccessToken` in `/settle` and `/verify`.
+- **Dry run first (optional):** `POST /api/v1/x402/verify` with the same `{ paymentRequired, x402AccessToken }` body → `{ "isValid": true }`.
+- **Proof of purchase** = `success: true` with `creditsRedeemed` > 0 and a `remainingBalance` (and, for crypto, an on-chain `transaction`).
+
+**Calling a protected agent directly** (the common case): just send the access token as the `payment-signature` header to the agent's endpoint — the agent's own `402` response **is** your `paymentRequired`, and the agent verifies + settles for you. You only call `/settle` yourself when topping up a plan with no protected endpoint to hit.
+
+SDK shortcut for step 1:
+```typescript
+const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+  delegationConfig: { delegationId }        // or { spendingLimitCents, durationSecs } to auto-create one
+})
+```
+```python
+res = payments.x402.get_x402_access_token(plan_id, agent_id,
+    token_options=X402TokenOptions(delegation_config=DelegationConfig(delegation_id=delegation_id)))
+```
+
+Full crypto + card walkthroughs with every field: [`references/autonomous-operations.md`](references/autonomous-operations.md). Subscriber-side SDK patterns: [`references/client-integration.md`](references/client-integration.md).
+
+## A5 · Check your purchases & credits (as a buyer)  *(fully programmatic)*
+
+```bash
+# Credits left on a plan you hold. YOUR_ADDRESS = your wallet: the `id`/address of your
+# erc4337 payment method from GET /payment-methods (crypto), or the `userWallet` from POST /embed/session.
+curl -H "Authorization: Bearer $NVM_API_KEY" \
+  https://api.sandbox.nevermined.app/api/v1/protocol/plans/<PLAN_ID>/balance/<YOUR_ADDRESS>
+# → { planId, planName, planType, isSubscriber, balance, pricePerCredit, ... }
+
+# Your delegations and remaining budget
+curl -H "Authorization: Bearer $NVM_API_KEY" \
+  https://api.sandbox.nevermined.app/api/v1/delegation
+# → { totalResults, delegations: [ { delegationId, status, spendingLimitCents, amountSpentCents, remainingBudgetCents, expiresAt } ] }
+
+# A delegation's individual charges
+curl -H "Authorization: Bearer $NVM_API_KEY" \
+  https://api.sandbox.nevermined.app/api/v1/delegation/<DELEGATION_ID>/transactions
+```
+
+SDK: `payments.plans.getPlanBalance(planId)` (`PlanBalance.balance` is a `bigint` in TS / `int` in Python). The `creditsRedeemed`/`remainingBalance` you get back from `/settle` (or the decoded `payment-response` header) is also a live proof of your balance after a purchase.
+
+## A6 · Register a plan + agent (as a seller)  *(fully programmatic — SDK-first)*
+
+Registration is the one flow where the **SDK is the recommended path**: the price/credits configs are low-level on-chain structures (amounts, receivers, token addresses, redemption type, nonce) that the SDK helpers build for you.
+
+```typescript
+const { agentId, planId } = await payments.agents.registerAgentAndPlan(
+  { name: 'Weather Agent', description: 'Forecasts on demand', tags: ['weather'], dateCreated: new Date() },
+  { endpoints: [{ POST: 'https://your-api.com/query' }] },   // optional; omit for an open agent
+  { name: 'Starter Plan', description: '100 requests for $10', dateCreated: new Date() },
+  payments.plans.getFiatPriceConfig(2_000_000n, BUILDER_ADDRESS, 'USD'),   // or getERC20PriceConfig(...) for crypto
+  payments.plans.getFixedCreditsConfig(100n, 1n)
+)
+```
+
+The raw REST endpoints exist (`POST /api/v1/protocol/plans`, `/api/v1/protocol/agents`, `/api/v1/protocol/agents/plans`) but expect the fully-formed `priceConfig`/`creditsConfig` objects — use the SDK helpers to produce them. Full plan-type matrix and helper reference: [`references/payment-plans.md`](references/payment-plans.md).
+
+## A7 · Check your agents' status & revenue (as a seller)  *(fully programmatic)*
+
+**Organization analytics** (require an active **Premium** org tier; `403 BCK.ORGANIZATIONS.0022` otherwise). Use your org's `orgId` — read it from your Nevermined account (there is no public REST endpoint to look it up; it's the `org-...` id, the same one in your `…/organizations/<orgId>/agentic-instructions.md`). If you have no org or no Premium tier, skip to the any-tier building blocks below — they need no `orgId`.
+
+```bash
+B=https://api.sandbox.nevermined.app/api/v1/organizations/<ORG_ID>/analytics
+curl -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-01-01T00:00:00Z&to=2026-06-09T00:00:00Z"
+# → { items: [ { agentId, agentName, totalRevenue, transactionCount } ], totalRevenue }
+curl -H "Authorization: Bearer $NVM_API_KEY" "$B/mrr"
+# → { mrr, activeSubscriptions }
+curl -H "Authorization: Bearer $NVM_API_KEY" "$B/usage?from=...&to=..."
+# → { items: [ { planId, planName, creditsBurned, uniqueUsers } ] }
+curl -H "Authorization: Bearer $NVM_API_KEY" "$B/customers?limit=20"
+# → { items: [ { customerId, userId, totalSpent, firstSeenAt, lastActiveAt } ], totalCustomers }
+```
+
+**Any-tier building blocks** (no Premium required) — list what you've published and inspect each:
+
+```bash
+curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/api/v1/protocol/plans     # your plans
+curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/api/v1/protocol/agents    # your agents
+curl https://api.sandbox.nevermined.app/api/v1/protocol/agents/<AGENT_ID>/plans                           # plans on an agent
+```
+
+For per-request usage and cost observability (Helicone), see [`references/seller-operations.md`](references/seller-operations.md), which details every seller query and the response shapes.
+
+## A8 · Receive payments in your own agent
+
+If your goal is to make **your** agent charge its callers (not to buy from others), that is **Track B** below — it shows how to gate Express/FastAPI/MCP/A2A/Strands endpoints behind a plan with `verifyPermissions` / `settlePermissions` or framework middleware.
+
+---
+
+# Track B — Add payments to your code
+
+Use this track to wire Nevermined into an agent or API **so it can receive payments**. This is SDK-first (TypeScript / Python).
+
+## Prerequisite: a Nevermined API Key
+
+All SDK, REST, and CLI calls require an `NVM_API_KEY` (see **A1** for how to obtain one). Set it as an environment variable:
 
 ```bash
 export NVM_API_KEY="sandbox:your-api-key"
 ```
 
-**If the developer does NOT have a key**, guide them through these steps:
-
-1. Open **[nevermined.app](https://nevermined.app)** and sign in
-2. Navigate to **Settings > Global NVM API Keys**
-3. Click **+ New API Key**
-4. Enter a descriptive name, select the required permissions, and click **Generate API Key**
-5. Click **Copy Key** and store it securely as an environment variable (`NVM_API_KEY`)
-
-The key format is `<environment>:<hash>` — for example `sandbox:eyJhbGci...` or `live:eyJhbGci...`.
-
-Full documentation: [Get Your API Key](https://nevermined.ai/docs/getting-started/get-your-api-key)
-
-> **IMPORTANT for AI agents**: If you are generating code that requires `NVM_API_KEY` and the developer has not provided one, you MUST tell them to create one first by following the steps above or visiting [nevermined.app](https://nevermined.app). Never generate placeholder keys that look real. Always use `sandbox:your-api-key` as the placeholder value.
-
-## Quick Start Checklist
-
-1. **Get an API key** — see [Nevermined API Key Prerequisite](#nevermined-api-key-prerequisite) above
-2. **Install the SDK** (`npm install @nevermined-io/payments` or `pip install payments-py`)
-3. **Register your agent and plan** (via the App UI or programmatically — see `references/payment-plans.md`)
-4. **Add payment protection** to your routes/tools (see framework-specific references below)
-5. **Test** — call without token (expect 402), then with token (expect 200)
+> **IMPORTANT for AI agents**: If you are generating code that requires `NVM_API_KEY` and the developer has not provided one, tell them to create one first (see **A1**). Never generate placeholder keys that look real — always use `sandbox:your-api-key` as the placeholder value.
 
 ## Environment Setup
 
@@ -284,12 +494,14 @@ The `payment-required` payload structure:
 ```json
 {
   "x402Version": 2,
+  "resource": { "url": "/api/endpoint" },
   "accepts": [{
     "scheme": "nvm:erc4337",
     "network": "eip155:84532",
     "planId": "<plan-id>",
     "extra": { "agentId": "<agent-id>" }
-  }]
+  }],
+  "extensions": {}
 }
 ```
 
@@ -476,7 +688,7 @@ When a developer asks you to integrate Nevermined payments, gather ALL required 
 1. **Framework**: Express.js, FastAPI, MCP server, Strands agent, Google A2A, or generic HTTP?
 2. **Routes to protect**: Which endpoints need payment protection and how many credits each? (e.g., `POST /chat = 1 credit, POST /generate = 5 credits`)
 3. **Pricing model**: Fixed credits per request, or dynamic pricing based on request/response parameters?
-4. **Nevermined API Key**: Do they already have an `NVM_API_KEY`? If not, direct them to [Get Your API Key](https://nevermined.ai/docs/getting-started/get-your-api-key)
+4. **Nevermined API Key**: Do they already have an `NVM_API_KEY`? If not, direct them to **A1**
 5. **Plan ID**: Do they already have a `NVM_PLAN_ID`? If not, do they need a registration script too?
 6. **Environment**: `sandbox` (testing) or `live` (production)?
 
@@ -598,6 +810,10 @@ curl -X POST http://localhost:3000/chat \
 | Symptom | Cause | Fix |
 |---|---|---|
 | HTTP 402 returned | No `payment-signature` header or invalid/expired token | Generate a fresh token via `getX402AccessToken` with `delegationConfig` |
+| `401 BCK.AUTH.0002` on a REST call | Missing/expired API key | Send `Authorization: Bearer $NVM_API_KEY`; mint a key per **A1** |
+| `403 BCK.ORGANIZATIONS.0022` on analytics | Org is not on Premium tier | Use the any-tier building blocks in **A7**, or upgrade the org |
+| `BCK.VISA.0014` creating a delegation | Visa delegations are browser-only | Create it in the webapp; reuse the `delegationId` |
+| `BCK.X402.0002` Plan not found | Wrong `planId` or wrong environment | Verify the plan ID and that you are calling the matching `sandbox`/`live` base URL |
 | MCP error `-32003` | Payment Required — no token, invalid token, or insufficient credits | Check subscriber has purchased plan and has credits remaining |
 | MCP error `-32002` | Server misconfiguration | Verify `NVM_API_KEY`, `NVM_PLAN_ID`, and `NVM_AGENT_ID` are set correctly |
 | `verification.isValid` is false | Token expired, wrong plan, or insufficient credits | Re-order the plan or generate a new token |
@@ -607,7 +823,10 @@ curl -X POST http://localhost:3000/chat \
 ## Additional Resources
 
 - **Documentation**: [nevermined.ai/docs](https://nevermined.ai/docs)
+- **Autonomous agent purchase guide**: [nevermined.ai/docs/getting-started/ai-agent-purchase](https://nevermined.ai/docs/getting-started/ai-agent-purchase)
+- **Card enrollment & delegation**: [nevermined.ai/docs/solutions/card-delegation](https://nevermined.ai/docs/solutions/card-delegation)
 - **Nevermined App**: [nevermined.app](https://nevermined.app) — register agents, create plans, manage subscriptions
+- **API discovery (per environment)**: `GET {API_BASE}/api/v1/rest/docs-json` (OpenAPI JSON)
 - **MCP Search Server**: `https://docs.nevermined.app/mcp` — search Nevermined docs from any MCP client
 - **Tutorials**: [github.com/nevermined-io/tutorials](https://github.com/nevermined-io/tutorials)
 - **Discord**: [discord.com/invite/GZju2qScKq](https://discord.com/invite/GZju2qScKq)
