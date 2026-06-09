@@ -257,7 +257,7 @@ curl -H "Authorization: Bearer $NVM_API_KEY" "$B/customers?limit=20"
 ```bash
 curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/api/v1/protocol/plans     # your plans
 curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/api/v1/protocol/agents    # your agents
-curl https://api.sandbox.nevermined.app/api/v1/protocol/agents/<AGENT_ID>/plans                           # plans on an agent
+curl -H "Authorization: Bearer $NVM_API_KEY" https://api.sandbox.nevermined.app/api/v1/protocol/agents/<AGENT_ID>/plans  # plans on an agent
 ```
 
 For per-request usage and cost observability (Helicone), see [`references/seller-operations.md`](references/seller-operations.md), which details every seller query and the response shapes.

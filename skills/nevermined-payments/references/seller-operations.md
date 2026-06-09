@@ -79,7 +79,8 @@ curl -s -H "Authorization: Bearer $NVM_API_KEY" \
 # → { total, page, offset, agents: [ { agentId, agentName, description, ... } ] }
 
 # Plans attached to one agent
-curl -s "https://api.sandbox.nevermined.app/api/v1/protocol/agents/<AGENT_ID>/plans"
+curl -s -H "Authorization: Bearer $NVM_API_KEY" \
+  "https://api.sandbox.nevermined.app/api/v1/protocol/agents/<AGENT_ID>/plans"
 
 # Credits a specific holder has on one of your plans
 curl -s -H "Authorization: Bearer $NVM_API_KEY" \

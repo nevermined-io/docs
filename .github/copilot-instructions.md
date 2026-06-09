@@ -89,7 +89,7 @@ POST /api/v1/x402/permissions  { "accepted": { "scheme": "nvm:erc4337", "network
 POST /api/v1/x402/settle  { "paymentRequired": { "x402Version": 2, "resource": { "url": "<url>" }, "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>", "extra": {} } ], "extensions": {} }, "x402AccessToken": "<token>" }  → { creditsRedeemed, remainingBalance }
 ```
 
-Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is needed only once (first API key + card enrollment). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
+Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is needed only for one-time setup — minting the first API key, plus card enrollment if paying by card (the stablecoin path needs neither afterward). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
 
 ## Full Reference
 
