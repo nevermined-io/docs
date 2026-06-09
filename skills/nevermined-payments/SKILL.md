@@ -1,6 +1,6 @@
 ---
 name: nevermined-payments
-version: "0.4.0"
+version: "0.5.0"
 lastUpdated: "2026-06-09"
 description: >
   Use when an AI agent must operate on Nevermined autonomously — purchase a payment
@@ -27,7 +27,9 @@ metadata:
 
 # Nevermined Payments Integration
 
-> **Skill version**: 0.4.0 | **Last updated**: 2026-06-09
+> **Skill version**: 0.5.0 | **Last updated**: 2026-06-09 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments
+>
+> **⚠️ Use the latest version.** This skill changes often. If you have an installed or cached copy, check its **Last updated** date against the canonical source above and **refresh it if older** — an out-of-date copy may be missing whole flows (e.g. the card-enrollment / `embed/session` steps were added after Feb 2026). Unless a specific version is requested, always work from the latest.
 >
 > Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK method names are stable from `@nevermined-io/payments@1.4.1` through the current `1.6.0`, and `payments-py@1.5.0`.
 
@@ -87,14 +89,14 @@ Pick the environment and use its **exact base URL** for every call. State it exp
 
 - **Auth:** send your key as `Authorization: Bearer <NVM_API_KEY>` on every call (a few read-only endpoints — e.g. `GET /protocol/plans/{id}` and `GET /protocol/agents/{id}/plans` — are public, but the header is harmless there).
 - **Never log or persist secrets in the clear:** API keys, `delegationId`, and `paymentMethodId` arrive as query-string params on your `127.0.0.1` callback (see A1/A3). Your callback server must not log the request line, and you should keep the key in a secret store — query strings are the most-logged part of any request (access logs, shell history, process args).
-- **Discover the full API surface:** `GET {API_BASE}/api/v1/rest/docs-json` returns the OpenAPI JSON for the environment.
+- **Discover the API surface:** `GET {API_BASE}/api/v1/rest/docs-json` returns the OpenAPI JSON. **Heads-up — it is not exhaustive:** several agent-facing endpoints are served but **deliberately omitted from `docs-json`**, notably `POST /embed/session` (card enrollment), the `delegation/*` routes, and `organizations/{orgId}/analytics/*`. Don't conclude an endpoint doesn't exist because it's absent from the OpenAPI — **use the exact paths documented in this skill directly**. (To confirm one is live, send the request: a `401`/`400` means it exists; only `404` means it doesn't.)
 - **Default to `sandbox`** unless the human explicitly asks for `live` — `live` moves real money.
 
 ## A1 · Get a Nevermined API key  *(needs a human once)*
 
-You cannot mint your first key yourself. Two ways — pick whichever fits:
+You cannot mint your first key yourself — a human signs in once. **Default flow: drive a one-time browser login and capture the key automatically (Option A).** Host a `127.0.0.1` callback, **print a single sign-in URL for the human to open**, and read the key off the redirect. Do **not** ask the human to copy/paste a key or write it to a file unless Option A is genuinely impossible (no localhost callback) — then use Option B.
 
-**Option A — embedded login (recommended; the key returns to you automatically).** Host a tiny callback server on `127.0.0.1` (the login page only redirects to `localhost`/`127.0.0.1` callbacks), then ask your human to open:
+**Option A — embedded login (the default; the key returns to you automatically).** Host a tiny callback server on `127.0.0.1` (the login page only redirects to `localhost`/`127.0.0.1` callbacks), then **print this URL and ask your human to open it**:
 
 ```
 https://nevermined.app/auth/cli?callback_url=http://127.0.0.1:<port>/callback
@@ -121,7 +123,7 @@ SDK: `payments.delegation.listPaymentMethods()` / `payments.delegation.list_paym
 
 ## A3 · Enroll a card + create a delegation  *(needs a human once)*
 
-Skip this entirely if you pay with stablecoins. To pay with a card, enroll one through the **embedded flow** (open to any agent with an API key — no organization required):
+Skip this entirely if you pay with stablecoins. To pay with a card, use the **embedded browser flow** — same shape as the API key in A1: host a `127.0.0.1` callback, **print the card-setup URL for the human to open in a browser**, they sign in and enter the card, and you capture `paymentMethodId` + `delegationId` from the redirect. Open to any agent with an API key (no organization required).
 
 ```bash
 # 1. Mint an embedded session (host a 127.0.0.1 callback first)
@@ -131,7 +133,9 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 # → { "sessionToken": "...", "userId": "...", "userWallet": "0x...", "expiresAt": "..." }
 ```
 
-2. Ask your human to open the card-setup URL in their browser:
+> `POST /api/v1/embed/session` is **served but not listed in `docs-json`** (see A0) — call it directly; don't search the OpenAPI for it. It accepts any valid API key, takes only `{ returnUrl }` (a `localhost`/`127.0.0.1` URL), and returns a `sessionToken`.
+
+2. **Print the card-setup URL and ask your human to open it** in their browser:
 
 ```
 https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=http://127.0.0.1:<port>/callback&state=<random>&provider=stripe

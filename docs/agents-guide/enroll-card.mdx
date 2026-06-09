@@ -38,7 +38,7 @@ Hand this to your agent. It drives the embedded enrollment handshake, gives you 
 ```text
 You are my autonomous payments agent. Set up a credit card I can use to pay for Nevermined services in the sandbox environment, with a spending limit of $50 over 30 days.
 
-Use the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) for the endpoints and flow.
+Use the **latest** Nevermined `nevermined-payments` skill — fetch the current `SKILL.md` and `references/` from https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments (don't rely on an older installed/cached copy). The card-enrollment endpoints (`POST /embed/session`, the `cards/setup` URL, `delegation/create`) are documented there even though `embed/session` is not in the API's OpenAPI.
 
 Do the work yourself: mint an embedded session with my API key, host a one-shot callback server on 127.0.0.1, and hand me a single card-setup URL to open in my browser. The only thing I should have to do is enter my card. When I'm done, verify the `state` echo, store the `delegationId`, and show me my payment methods and the new delegation's remaining budget.
 ```
