@@ -137,7 +137,7 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=http://127.0.0.1:<port>/callback&state=<random>&provider=stripe
 ```
 
-3. When they finish, the browser redirects to your `returnUrl` with **`paymentMethodId`** and **`delegationId`** as query params. **Store the `delegationId`** — a delegation authorizes you to spend within a fixed budget and time window, and you reuse it until it is spent or expires. To enforce a **specific** spending cap and duration (e.g. $50 over 30 days), create the delegation explicitly with `POST /delegation/create` (below), passing the `paymentMethodId` from this callback.
+3. When they finish, the browser redirects to your `returnUrl` with **`paymentMethodId`** and **`delegationId`** as query params. **Store the `delegationId`** — a delegation authorizes you to spend within a fixed budget and time window, and you reuse it until it is spent or expires. To enforce a **specific** spending cap and duration (e.g. $50 over 30 days), create the delegation explicitly with `POST /delegation/create` (below), passing the callback's `paymentMethodId` as the `providerPaymentMethodId` field.
 
 > Generate `state` as an unguessable random value and **reject the callback unless the returned `state` matches** the one you sent — it binds the response to your request (CSRF guard). And per A0, don't log the callback request line: `paymentMethodId`/`delegationId` ride in the query string.
 
@@ -228,6 +228,7 @@ curl -H "Authorization: Bearer $NVM_API_KEY" \
 curl -H "Authorization: Bearer $NVM_API_KEY" \
   https://api.sandbox.nevermined.app/api/v1/delegation
 # → { totalResults, delegations: [ { delegationId, status, spendingLimitCents, amountSpentCents, remainingBudgetCents, expiresAt } ] }
+# `status` is "Active" | "Expired" | "Exhausted" — flag a delegation when status != "Active", or remainingBudgetCents is at/near 0, or expiresAt is near.
 
 # A delegation's individual charges
 curl -H "Authorization: Bearer $NVM_API_KEY" \

@@ -228,6 +228,7 @@ curl -s -H "Authorization: Bearer $NVM_API_KEY" \
 # → { totalResults, page, offset, delegations: [
 #      { delegationId, provider, status, spendingLimitCents, amountSpentCents,
 #        remainingBudgetCents, currency, transactionCount, expiresAt, createdAt } ] }
+#   `status` is "Active" | "Expired" | "Exhausted".
 
 # One delegation's charges
 curl -s -H "Authorization: Bearer $NVM_API_KEY" \
