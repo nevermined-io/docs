@@ -175,10 +175,12 @@ payments.plans.getFreePriceConfig()
 
 Fiat plans use the `nvm:card-delegation` x402 scheme — subscribers enroll a card via Stripe, Braintree, or the Visa Trusted Agent Protocol, and per-request charges are settled by the configured provider. The active provider per plan is set by the seller's `fiatPaymentProvider` metadata (`'stripe'` | `'braintree'` | `'visa'`).
 
+> **Fiat amount units.** `getFiatPriceConfig` takes the amount in **6-decimal units** (the USDC convention used across the protocol) — `10_000_000n` = $10.00 — **NOT cents**. The server-side minimum is **$1.00** (`1_000_000n`); anything smaller is rejected with `BCK.PROTOCOL.0047`. (This is distinct from `spendingLimitCents` on a *delegation*, which really is in cents.)
+
 ```typescript
 // TypeScript — $10.00 fiat, paid into the builder's wallet/account
 const fiatPriceConfig = payments.plans.getFiatPriceConfig(
-  1000n,              // amount in minor units (cents) → $10.00
+  10_000_000n,        // $10.00 — 6-decimal units (the USDC convention), NOT cents
   process.env.BUILDER_ADDRESS!,
   'USD'               // any ISO 4217 code Stripe accepts (USD, EUR, ...)
 )
@@ -193,7 +195,7 @@ const { planId } = await payments.plans.registerPlan(
 ```python
 # Python
 fiat_price_config = payments.plans.get_fiat_price_config(
-    1000,  # cents → $10.00
+    10_000_000,  # $10.00 — 6-decimal units, NOT cents
     os.environ["BUILDER_ADDRESS"],
     "USD",
 )
