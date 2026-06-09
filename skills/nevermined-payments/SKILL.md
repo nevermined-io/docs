@@ -137,7 +137,7 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=http://127.0.0.1:<port>/callback&state=<random>&provider=stripe
 ```
 
-3. When they finish, the browser redirects to your `returnUrl` with **`paymentMethodId`** and **`delegationId`** as query params. **Store the `delegationId`** — a delegation authorizes you to spend within a fixed budget and time window, and you reuse it until it is spent or expires.
+3. When they finish, the browser redirects to your `returnUrl` with **`paymentMethodId`** and **`delegationId`** as query params. **Store the `delegationId`** — a delegation authorizes you to spend within a fixed budget and time window, and you reuse it until it is spent or expires. To enforce a **specific** spending cap and duration (e.g. $50 over 30 days), create the delegation explicitly with `POST /delegation/create` (below), passing the `paymentMethodId` from this callback.
 
 > Generate `state` as an unguessable random value and **reject the callback unless the returned `state` matches** the one you sent — it binds the response to your request (CSRF guard). And per A0, don't log the callback request line: `paymentMethodId`/`delegationId` ride in the query string.
 
@@ -215,6 +215,8 @@ Full crypto + card walkthroughs with every field: `references/autonomous-operati
 
 ## A5 · Check your purchases & credits (as a buyer)  *(fully programmatic)*
 
+You query a plan you hold by its `<PLAN_ID>`. There is no "list every plan I've purchased" endpoint, so **retain the plan IDs you buy** — each `/x402/settle` receipt identifies the plan, and the plan URL embeds the id. (`GET /protocol/plans` lists plans **you published as a seller**, not ones you bought.)
+
 ```bash
 # Credits left on a plan you hold. YOUR_ADDRESS = your wallet: the `id`/address of your
 # erc4337 payment method from GET /payment-methods (crypto), or the `userWallet` from POST /embed/session.
@@ -243,7 +245,7 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
   { name: 'Weather Agent', description: 'Forecasts on demand', tags: ['weather'], dateCreated: new Date() },
   { endpoints: [{ POST: 'https://your-api.com/query' }] },   // optional; omit for an open agent
   { name: 'Starter Plan', description: '100 requests for $10', dateCreated: new Date() },
-  payments.plans.getFiatPriceConfig(2_000_000n, BUILDER_ADDRESS, 'USD'),   // or getERC20PriceConfig(...) for crypto
+  payments.plans.getFiatPriceConfig(10_000_000n, BUILDER_ADDRESS, 'USD'),  // $10.00 — fiat is 6-decimal units, NOT cents. Or getERC20PriceConfig(...) for crypto
   payments.plans.getFixedCreditsConfig(100n, 1n)
 )
 ```
