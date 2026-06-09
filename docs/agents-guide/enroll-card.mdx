@@ -38,14 +38,13 @@ Hand this to your agent. It drives the embedded enrollment handshake, gives you 
 ```text
 You are my autonomous payments agent. Set up a credit card I can use to pay for Nevermined services in the sandbox environment, with a spending limit of $50 over 30 days.
 
-Use only the instructions here:
-https://api.sandbox.nevermined.app/api/v1/organizations/org-9d81acea-7d38-460e-b7c0-c3b92abcbb07/agentic-instructions.md
+Use the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) for the endpoints and flow.
 
 Do the work yourself: mint an embedded session with my API key, host a one-shot callback server on 127.0.0.1, and hand me a single card-setup URL to open in my browser. The only thing I should have to do is enter my card. When I'm done, verify the `state` echo, store the `delegationId`, and show me my payment methods and the new delegation's remaining budget.
 ```
 
 <Note>
-  This points at **Sandbox**, so card entry uses test cards and no real money moves. Swap in your own organization's `agentic-instructions.md` URL and a `live:` key to run it for real.
+  This points at **Sandbox**, so card entry uses test cards and no real money moves. Use a `live:` API key to run it for real.
 </Note>
 
 ## How it works
