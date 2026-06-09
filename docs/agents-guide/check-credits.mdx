@@ -59,7 +59,7 @@ All three checks are simple authenticated `GET`s.
     Authorization: Bearer <api-key>
     ```
 
-    Returns `{ totalResults, page, offset, delegations: [ … ] }`, each with `spendingLimitCents`, `amountSpentCents`, `remainingBudgetCents`, `status`, and `expiresAt`. Drill into one delegation's charges with:
+    Returns `{ totalResults, page, offset, delegations: [ … ] }`, each with `spendingLimitCents`, `amountSpentCents`, `remainingBudgetCents`, `status`, and `expiresAt`. (Delegation and transaction lists use `totalResults`; the plan/agent lists use `total` — mind the difference if you write one pagination helper for both.) Drill into one delegation's charges with:
 
     ```http
     GET {API_BASE}/delegation/{delegationId}/transactions
@@ -79,7 +79,7 @@ All three checks are simple authenticated `GET`s.
         Authorization: Bearer <api-key>
         ```
 
-        Returns `{ planName, planType, isSubscriber, balance, pricePerCredit, … }` — `balance` is your remaining credits.
+        `{yourAddress}` is the `id` of your `erc4337` payment method from step 1 (or the `userWallet` from an embed session). Returns `{ planName, planType, isSubscriber, balance, pricePerCredit, … }` — `balance` is your remaining credits.
       </Tab>
       <Tab title="TypeScript">
         ```typescript

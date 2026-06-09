@@ -55,14 +55,14 @@ Do the work yourself: mint an embedded session with my API key, host a one-shot 
     With your API key, mint a session bound to a **localhost** return URL — so run a tiny one-shot callback server on `127.0.0.1` first:
 
     ```http
-    POST {API_BASE}/widgets/session/self
+    POST {API_BASE}/embed/session
     Authorization: Bearer <api-key>
     Content-Type: application/json
 
-    { "orgId": "<your-org-id>", "returnUrl": "http://127.0.0.1:<port>/callback" }
+    { "returnUrl": "http://127.0.0.1:<port>/callback" }
     ```
 
-    The response carries a `sessionToken`.
+    The response carries a `sessionToken`. This **open** endpoint needs no organization — it's the autonomous-agent path, and the card attaches to your own account. (Org members, e.g. the `nvm` CLI, can use the org-scoped `POST {API_BASE}/widgets/session/self` with `{ orgId, returnUrl }` instead.)
   </Step>
 
   <Step title="Hand the human a card-setup URL">

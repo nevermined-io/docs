@@ -34,10 +34,10 @@ You are my autonomous payments agent. Register a new AI agent and a payment plan
 
 - Agent: "Weather Agent" — description "On-demand weather forecasts", endpoint POST https://my-agent.example.com/forecast
 - Plan: "Weather Starter" — 100 credits for $10, paid by card (fiat, Stripe), 1 credit per request
-- My builder wallet (receives payments): 0xYOUR_WALLET
+- My builder wallet (receives payments): <your-builder-wallet>
 - Environment: sandbox (NVM_API_KEY is set)
 
-Use the SDK price/credits helpers to build the config, register the agent and plan together, then print the agentId and planId and confirm both are published. Reference https://nevermined.ai/docs/development-guide if you need the method signatures.
+Use the SDK price/credits helpers to build the config, register the agent and plan together, then print the agentId and planId and confirm both are published. Reference https://nevermined.ai/docs/development-guide/registration if you need the method signatures.
 ```
 
 ## How it works
@@ -61,11 +61,11 @@ Use the SDK price/credits helpers to build the config, register the agent and pl
       <Tab title="Python">
         ```python
         # Price: fiat — amount in 6-decimal units ($10.00)
-        price_config = get_fiat_price_config(10_000_000, BUILDER_ADDRESS, "USD")
-        # or crypto: get_erc20_price_config(10_000_000, USDC_ADDRESS, BUILDER_ADDRESS)
+        price_config = payments.plans.get_fiat_price_config(10_000_000, BUILDER_ADDRESS, "USD")
+        # or crypto: payments.plans.get_erc20_price_config(10_000_000, USDC_ADDRESS, BUILDER_ADDRESS)
 
         # Credits: 100 granted, 1 burned per request
-        credits_config = get_fixed_credits_config(100, 1)
+        credits_config = payments.plans.get_fixed_credits_config(100, 1)
         ```
       </Tab>
     </Tabs>
