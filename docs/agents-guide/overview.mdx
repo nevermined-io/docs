@@ -1,0 +1,73 @@
+---
+title: "Agents Guide"
+description: "Give an AI agent a prompt and let it operate on Nevermined autonomously — buy plans, enroll cards, get keys, register agents, and report on credits and revenue."
+icon: "robot"
+---
+
+This guide is for **driving an AI agent to do the work** on Nevermined. Each page takes one task an agent can run on its own — paying for a service, enrolling a card, registering a plan — and gives you a copy‑paste prompt and the detailed flow behind it.
+
+The pattern is always the same: you hand an agent (Claude Code, Cursor, an OpenAI agent, your own) a prompt and a link to Nevermined's agent‑discoverable instructions, and it figures out the rest. A human is needed only for one‑time setup — the first API key, and a card if you pay by card — everything else is programmatic.
+
+<Note>
+  Give your agent the **latest `nevermined-payments` skill** (fetch the current version from the [docs repo](https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) — don't rely on an older installed/cached copy) or point it at your organization's `agentic-instructions.md` (e.g. `https://api.sandbox.nevermined.app/api/v1/organizations/{orgId}/agentic-instructions.md`). Either one teaches the agent every endpoint it needs — the prompts on these pages assume it has one of them.
+</Note>
+
+## The seven flows
+
+<CardGroup cols={2}>
+  <Card title="1. Buy access" icon="cart-shopping" href="/docs/getting-started/ai-agent-purchase">
+    Purchase plan credits autonomously via x402 — with stablecoins or a card.
+  </Card>
+  <Card title="2. Enroll a card & delegate" icon="credit-card" href="/docs/agents-guide/enroll-card">
+    Add a card and grant the agent a capped, time‑boxed spending budget.
+  </Card>
+  <Card title="3. Get an API key" icon="key" href="/docs/agents-guide/get-api-key">
+    Obtain a Nevermined API key with one click from a human, captured automatically.
+  </Card>
+  <Card title="4. Add payments to your agent" icon="plug" href="/docs/agents-guide/add-payments">
+    Make your own agent charge callers per request behind an x402 paywall.
+  </Card>
+  <Card title="5. Register a plan & agent" icon="store" href="/docs/agents-guide/register-plan-and-agent">
+    Publish an AI agent and a priced payment plan so others can buy it.
+  </Card>
+  <Card title="6. Check credits (buyer)" icon="wallet" href="/docs/agents-guide/check-credits">
+    Report remaining credits and delegation budgets across your purchases.
+  </Card>
+  <Card title="7. Check revenue (seller)" icon="chart-line" href="/docs/agents-guide/check-revenue">
+    Pull revenue, MRR, and usage for the agents and plans you sell.
+  </Card>
+</CardGroup>
+
+## What's on each page
+
+Every flow is documented the same way, so you can scan or go deep:
+
+<Steps>
+  <Step title="Useful for">When to reach for this flow, and what the agent does for you.</Step>
+  <Step title="Try it yourself">A battle‑tested prompt to paste into your agent — edit the bracketed values and go.</Step>
+  <Step title="How it works">The step‑by‑step flow (REST and SDK) behind the prompt, for when you want the detail.</Step>
+</Steps>
+
+## Sandbox vs. Live
+
+Develop against **Sandbox** (test money), then switch to **Live**. API keys are environment‑specific — Sandbox keys start with `sandbox:`, Live keys with `live:` — and each only works against its own base URL.
+
+| Environment | Money | API base URL | Web app |
+|-------------|-------|--------------|---------|
+| **Sandbox** | Test only — no real charges | `https://api.sandbox.nevermined.app/api/v1` | [nevermined.app](https://nevermined.app) |
+| **Live**    | Real charges | `https://api.live.nevermined.app/api/v1` | [nevermined.app](https://nevermined.app) |
+
+<Warning>
+  Agents always pay through the **x402 flow** (`verify` → `settle`) — never by calling Stripe or any processor directly. It works the same for cards and stablecoins.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="AI Agents: Buy Access" icon="robot" href="/docs/getting-started/ai-agent-purchase">
+    The end‑to‑end purchase walkthrough (flow 1).
+  </Card>
+  <Card title="Core Concepts" icon="lightbulb" href="/docs/getting-started/core-concepts">
+    Plans, credits, agents, delegations, and x402 in one place.
+  </Card>
+</CardGroup>

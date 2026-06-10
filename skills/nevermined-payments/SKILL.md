@@ -1,6 +1,6 @@
 ---
 name: nevermined-payments
-version: "0.4.0"
+version: "0.5.0"
 lastUpdated: "2026-06-09"
 description: >
   Use when an AI agent must operate on Nevermined autonomously — purchase a payment
@@ -27,7 +27,9 @@ metadata:
 
 # Nevermined Payments Integration
 
-> **Skill version**: 0.4.0 | **Last updated**: 2026-06-09
+> **Skill version**: 0.5.0 | **Last updated**: 2026-06-09 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments
+>
+> **⚠️ Use the latest version.** This skill changes often. If you have an installed or cached copy, check its **Last updated** date against the canonical source above and **refresh it if older** — an out-of-date copy may be missing whole flows (e.g. the card-enrollment / `embed/session` steps were added after Feb 2026). Unless a specific version is requested, always work from the latest.
 >
 > Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK method names are stable from `@nevermined-io/payments@1.4.1` through the current `1.6.0`, and `payments-py@1.5.0`.
 
@@ -59,7 +61,16 @@ Three HTTP headers carry x402 data: `payment-signature` (client→server, the to
 
 # Track A — Operate as an autonomous agent
 
-This is a **REST runbook**: every step is a plain HTTPS call you can make with `curl` or any HTTP client — **no SDK install required**. Each flow ends with the equivalent SDK one-liner if you prefer typed calls. Full request/response bodies for every call live in `references/autonomous-operations.md`.
+This is a **REST runbook**: every step (A1–A8 below) is a plain HTTPS call you can make with `curl` or any HTTP client — **no SDK install required**. Each flow ends with the equivalent SDK one-liner if you prefer typed calls.
+
+**Where the full detail lives.** Every flow is documented inline below (A1–A8). The complete request/response bodies are in the reference files alongside this skill — read the matching one when you need exact payloads:
+
+| You need… | Read |
+|---|---|
+| API keys, **card enrollment + embedded session + delegation**, payment methods, x402 buy/settle, buyer status — full REST bodies | `references/autonomous-operations.md` (card flow = **§3**, x402 buy = **§4**) |
+| Seller revenue / analytics queries (A7) | `references/seller-operations.md` |
+| Plan registration + the plan-type matrix (A6) | `references/payment-plans.md` |
+| Subscriber-side SDK patterns | `references/client-integration.md` |
 
 > **Design principle — minimal human interaction.** A human is needed for **at most two one-time setup steps — often just one**:
 > 1. **Get your first API key** (a human signs in once) — always required, and
@@ -78,14 +89,14 @@ Pick the environment and use its **exact base URL** for every call. State it exp
 
 - **Auth:** send your key as `Authorization: Bearer <NVM_API_KEY>` on every call (a few read-only endpoints — e.g. `GET /protocol/plans/{id}` and `GET /protocol/agents/{id}/plans` — are public, but the header is harmless there).
 - **Never log or persist secrets in the clear:** API keys, `delegationId`, and `paymentMethodId` arrive as query-string params on your `127.0.0.1` callback (see A1/A3). Your callback server must not log the request line, and you should keep the key in a secret store — query strings are the most-logged part of any request (access logs, shell history, process args).
-- **Discover the full API surface:** `GET {API_BASE}/api/v1/rest/docs-json` returns the OpenAPI JSON for the environment.
+- **Discover the API surface:** `GET {API_BASE}/api/v1/rest/docs-json` returns the OpenAPI JSON. **Heads-up — it is not exhaustive:** several agent-facing endpoints are served but **deliberately omitted from `docs-json`**, notably `POST /embed/session` (card enrollment), the `delegation/*` routes, and `organizations/{orgId}/analytics/*`. Don't conclude an endpoint doesn't exist because it's absent from the OpenAPI — **use the exact paths documented in this skill directly**. (To confirm one is live, send the request: a `401`/`400` means it exists; only `404` means it doesn't.)
 - **Default to `sandbox`** unless the human explicitly asks for `live` — `live` moves real money.
 
 ## A1 · Get a Nevermined API key  *(needs a human once)*
 
-You cannot mint your first key yourself. Two ways — pick whichever fits:
+You cannot mint your first key yourself — a human signs in once. **Default flow: drive a one-time browser login and capture the key automatically (Option A).** Host a `127.0.0.1` callback, **print a single sign-in URL for the human to open**, and read the key off the redirect. Do **not** ask the human to copy/paste a key or write it to a file unless Option A is genuinely impossible (no localhost callback) — then use Option B.
 
-**Option A — embedded login (recommended; the key returns to you automatically).** Host a tiny callback server on `127.0.0.1` (the login page only redirects to `localhost`/`127.0.0.1` callbacks), then ask your human to open:
+**Option A — embedded login (the default; the key returns to you automatically).** Host a tiny callback server on `127.0.0.1` (the login page only redirects to `localhost`/`127.0.0.1` callbacks), then **print this URL and ask your human to open it**:
 
 ```
 https://nevermined.app/auth/cli?callback_url=http://127.0.0.1:<port>/callback
@@ -112,7 +123,7 @@ SDK: `payments.delegation.listPaymentMethods()` / `payments.delegation.list_paym
 
 ## A3 · Enroll a card + create a delegation  *(needs a human once)*
 
-Skip this entirely if you pay with stablecoins. To pay with a card, enroll one through the **embedded flow** (open to any agent with an API key — no organization required):
+Skip this entirely if you pay with stablecoins. To pay with a card, use the **embedded browser flow** — same shape as the API key in A1: host a `127.0.0.1` callback, **print the card-setup URL for the human to open in a browser**, they sign in and enter the card, and you capture `paymentMethodId` + `delegationId` from the redirect. Open to any agent with an API key (no organization required).
 
 ```bash
 # 1. Mint an embedded session (host a 127.0.0.1 callback first)
@@ -122,13 +133,15 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 # → { "sessionToken": "...", "userId": "...", "userWallet": "0x...", "expiresAt": "..." }
 ```
 
-2. Ask your human to open the card-setup URL in their browser:
+> `POST /api/v1/embed/session` is **served but not listed in `docs-json`** (see A0) — call it directly; don't search the OpenAPI for it. It accepts any valid API key, takes only `{ returnUrl }` (a `localhost`/`127.0.0.1` URL), and returns a `sessionToken`.
+
+2. **Print the card-setup URL and ask your human to open it** in their browser:
 
 ```
 https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=http://127.0.0.1:<port>/callback&state=<random>&provider=stripe
 ```
 
-3. When they finish, the browser redirects to your `returnUrl` with **`paymentMethodId`** and **`delegationId`** as query params. **Store the `delegationId`** — a delegation authorizes you to spend within a fixed budget and time window, and you reuse it until it is spent or expires.
+3. When they finish, the browser redirects to your `returnUrl` with **`paymentMethodId`** and **`delegationId`** as query params. **Store the `delegationId`** — a delegation authorizes you to spend within a fixed budget and time window, and you reuse it until it is spent or expires. To enforce a **specific** spending cap and duration (e.g. $50 over 30 days), create the delegation explicitly with `POST /delegation/create` (below), passing the callback's `paymentMethodId` as the `providerPaymentMethodId` field.
 
 > Generate `state` as an unguessable random value and **reject the callback unless the returned `state` matches** the one you sent — it binds the response to your request (CSRF guard). And per A0, don't log the callback request line: `paymentMethodId`/`delegationId` ride in the query string.
 
@@ -150,6 +163,8 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 SDK: `payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitCents, durationSecs })`.
 
 > **Visa caveat.** `delegation/create` *does* accept `provider: "visa"`, but only together with a browser-produced `consumerPrompt` + `assuranceData` from a Visa WebAuthn ceremony; omitting them is rejected with `BCK.VISA.0014` ("requires consumerPrompt and assuranceData"). An autonomous agent can't generate `assuranceData`, so in practice have your human create the Visa delegation in the webapp and reuse its `delegationId`.
+
+**Full detail:** the complete embedded card-enrollment handshake (session → card-setup redirect → `delegationId`), the localhost-callback rules, and every `delegation/create` field and response are in `references/autonomous-operations.md` §3.
 
 ## A4 · Buy access via x402  *(fully programmatic)*
 
@@ -204,6 +219,8 @@ Full crypto + card walkthroughs with every field: `references/autonomous-operati
 
 ## A5 · Check your purchases & credits (as a buyer)  *(fully programmatic)*
 
+You query a plan you hold by its `<PLAN_ID>`. There is no "list every plan I've purchased" endpoint, so **retain the plan IDs you buy** — each `/x402/settle` receipt identifies the plan, and the plan URL embeds the id. (`GET /protocol/plans` lists plans **you published as a seller**, not ones you bought.)
+
 ```bash
 # Credits left on a plan you hold. YOUR_ADDRESS = your wallet: the `id`/address of your
 # erc4337 payment method from GET /payment-methods (crypto), or the `userWallet` from POST /embed/session.
@@ -215,6 +232,7 @@ curl -H "Authorization: Bearer $NVM_API_KEY" \
 curl -H "Authorization: Bearer $NVM_API_KEY" \
   https://api.sandbox.nevermined.app/api/v1/delegation
 # → { totalResults, delegations: [ { delegationId, status, spendingLimitCents, amountSpentCents, remainingBudgetCents, expiresAt } ] }
+# `status` is "Active" | "Expired" | "Exhausted" — flag a delegation when status != "Active", or remainingBudgetCents is at/near 0, or expiresAt is near.
 
 # A delegation's individual charges
 curl -H "Authorization: Bearer $NVM_API_KEY" \
@@ -232,7 +250,7 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
   { name: 'Weather Agent', description: 'Forecasts on demand', tags: ['weather'], dateCreated: new Date() },
   { endpoints: [{ POST: 'https://your-api.com/query' }] },   // optional; omit for an open agent
   { name: 'Starter Plan', description: '100 requests for $10', dateCreated: new Date() },
-  payments.plans.getFiatPriceConfig(2_000_000n, BUILDER_ADDRESS, 'USD'),   // or getERC20PriceConfig(...) for crypto
+  payments.plans.getFiatPriceConfig(10_000_000n, BUILDER_ADDRESS, 'USD'),  // $10.00 — fiat is 6-decimal units, NOT cents. Or getERC20PriceConfig(...) for crypto
   payments.plans.getFixedCreditsConfig(100n, 1n)
 )
 ```

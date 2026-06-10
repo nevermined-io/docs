@@ -73,7 +73,9 @@ A **stablecoin** method exists by default (fund it to pay immediately). A **card
 
 ## 3. Enroll a card + create a delegation
 
-Only needed to pay with a card. Two parts: enroll the card (browser, one-time), then you have a delegation.
+Only needed to pay with a card. Two parts: enroll the card (browser, one-time), then you have a delegation. The default flow: host a `127.0.0.1` callback, **print the card-setup URL for the human to open in a browser**, they enter the card, and you capture `paymentMethodId` + `delegationId` from the redirect.
+
+> `POST /api/v1/embed/session` is served but **not** listed in the OpenAPI (`docs-json`) — call it directly; don't search the OpenAPI for it.
 
 ### 3a. Embedded enrollment (recommended)
 
@@ -228,6 +230,7 @@ curl -s -H "Authorization: Bearer $NVM_API_KEY" \
 # → { totalResults, page, offset, delegations: [
 #      { delegationId, provider, status, spendingLimitCents, amountSpentCents,
 #        remainingBudgetCents, currency, transactionCount, expiresAt, createdAt } ] }
+#   `status` is "Active" | "Expired" | "Exhausted".
 
 # One delegation's charges
 curl -s -H "Authorization: Bearer $NVM_API_KEY" \

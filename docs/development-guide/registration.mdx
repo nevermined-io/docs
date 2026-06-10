@@ -90,8 +90,8 @@ You can also create plans priced in EUR (fiat) or EURC (Euro stablecoin):
     ```typescript
     import { Currency, EURC_TOKEN_ADDRESS_TESTNET } from '@nevermined-io/payments'
 
-    // EUR fiat plan (priced in euro cents)
-    const eurPriceConfig = payments.plans.getFiatPriceConfig(2900n, builderAddress, Currency.EUR)
+    // EUR fiat plan — amount in 6-decimal units (€29.00), NOT cents
+    const eurPriceConfig = payments.plans.getFiatPriceConfig(29_000_000n, builderAddress, Currency.EUR)
     const { planId: eurPlanId } = await payments.plans.registerCreditsPlan(
       { name: 'EUR Credits Plan' },
       eurPriceConfig,
@@ -116,8 +116,8 @@ You can also create plans priced in EUR (fiat) or EURC (Euro stablecoin):
     from payments_py.common.types import Currency, EURC_TOKEN_ADDRESS_TESTNET
     from payments_py.plans import PlanMetadata, get_fiat_price_config, get_eurc_price_config, get_fixed_credits_config
 
-    # EUR fiat plan (priced in euro cents)
-    eur_price_config = get_fiat_price_config(2900, builder_address, Currency.EUR)
+    # EUR fiat plan — amount in 6-decimal units (€29.00), NOT cents
+    eur_price_config = get_fiat_price_config(29_000_000, builder_address, Currency.EUR)
     eur_plan = payments_builder.plans.register_credits_plan(
         PlanMetadata(name="EUR Credits Plan"),
         eur_price_config,

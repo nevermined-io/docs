@@ -1,0 +1,83 @@
+---
+title: "Check Your Revenue (Seller)"
+description: "Have an AI agent pull a revenue report for the agents and plans you sell on Nevermined — total revenue, MRR, active subscribers, and credits consumed per plan."
+icon: "chart-line"
+---
+
+If you sell agents or plans, this flow turns "how's it going?" into a report an agent generates on demand: revenue per agent, monthly recurring revenue, active subscribers, and how many credits buyers are burning. The aggregated numbers come from your organization's analytics; if you're not on a Premium tier, the agent falls back to the always-available building blocks.
+
+## Useful for
+
+- A **revenue snapshot** — total earnings per agent over any date range.
+- Tracking **MRR and active subscribers** to see growth at a glance.
+- Seeing **which plans get used** (credits burned, unique users) so you can price and iterate.
+
+## Try it yourself
+
+```text
+You are my autonomous payments agent. Using the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) and my NVM_API_KEY, produce a revenue report for the AI agents and plans I sell on Nevermined sandbox:
+
+1. Total revenue per agent for the last 90 days (and the grand total).
+2. My current MRR and number of active subscribers.
+3. Credits consumed per plan (with unique users).
+
+My org id is <ORG_ID>. The analytics endpoints need a Premium org tier — if I get a 403, fall back to listing my plans and agents (GET /protocol/plans, /protocol/agents) and summarize what's available instead. Base URL: https://api.sandbox.nevermined.app/api/v1 .
+```
+
+## How it works
+
+There are two layers: aggregated **organization analytics** (Premium tier) and always-available **building blocks**.
+
+<Steps>
+  <Step title="Organization analytics (Premium tier)">
+    Set the analytics base once, then pull each metric (`from`/`to` are ISO-8601; `from` inclusive, `to` exclusive):
+
+    ```bash
+    B="{API_BASE}/organizations/<ORG_ID>/analytics"
+
+    # Revenue per agent
+    curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-01-01T00:00:00Z&to=2026-04-01T00:00:00Z"
+    # → { items: [ { agentId, agentName, totalRevenue, transactionCount } ], totalRevenue }
+
+    # MRR + active subscribers
+    curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/mrr"
+    # → { mrr, activeSubscriptions }
+
+    # Credits burned per plan
+    curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/usage?from=...&to=..."
+    # → { items: [ { planId, planName, creditsBurned, uniqueUsers } ] }
+    ```
+
+    Your `orgId` comes from your Nevermined account. Without a Premium tier these return `403 BCK.ORGANIZATIONS.0022` — use the building blocks below.
+  </Step>
+
+  <Step title="Building blocks (any tier)">
+    These need no Premium and no `orgId` — they're scoped to your API key:
+
+    ```http
+    GET {API_BASE}/protocol/plans
+    GET {API_BASE}/protocol/agents
+    Authorization: Bearer <api-key>
+    ```
+
+    Each returns `{ total, page, offset, plans|agents: [ … ] }` where every item is the full record — read the name from `metadata.main.name` and the id from `id`. Combine with per-holder balances (`GET /protocol/plans/{planId}/balance/{address}`) to approximate usage when analytics aren't available.
+  </Step>
+
+  <Step title="Per-request usage (optional)">
+    For token-level usage and cost tracking, the SDK integrates with Helicone via `payments.observability`. See [AI Agents Observability](/docs/solutions/ai-agents-observability) for the full picture.
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Register a plan & agent" icon="store" href="/docs/agents-guide/register-plan-and-agent">
+    Publish the agents and plans this report measures.
+  </Card>
+  <Card title="AI Agents Observability" icon="chart-line" href="/docs/solutions/ai-agents-observability">
+    Usage, cost, and performance tracking for your agents.
+  </Card>
+  <Card title="Add payments to your agent" icon="plug" href="/docs/agents-guide/add-payments">
+    Start charging so there's revenue to report.
+  </Card>
+</CardGroup>

@@ -136,14 +136,14 @@ API keys are environment-specific: Sandbox keys start with `sandbox:`, Live keys
     1. **Mint a session** with your API key:
 
        ```http
-       POST {API_BASE}/widgets/session/self
+       POST {API_BASE}/embed/session
        Authorization: Bearer <api-key>
        Content-Type: application/json
 
-       { "orgId": "<your-org-id>", "returnUrl": "http://127.0.0.1:<port>/callback" }
+       { "returnUrl": "http://127.0.0.1:<port>/callback" }
        ```
 
-       The response carries a `sessionToken`. The self-mint flow only accepts a **localhost** `returnUrl`, so run a tiny one-shot callback server on `127.0.0.1` first.
+       The response carries a `sessionToken`. This open endpoint needs no organization — it's the path for autonomous agents, and the card attaches to your own account. It only accepts a **localhost** `returnUrl`, so run a tiny one-shot callback server on `127.0.0.1` first. (Org members, e.g. the `nvm` CLI, use the org-scoped `POST {API_BASE}/widgets/session/self` with `{ orgId, returnUrl }` instead.)
 
     2. **Hand the human a URL** to complete card setup in their browser:
 
