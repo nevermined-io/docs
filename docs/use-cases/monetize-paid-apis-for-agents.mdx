@@ -1,0 +1,73 @@
+---
+title: "Monetize paid APIs for agents"
+description: "Sell access to your API to autonomous agents with one x402-protected endpoint. The agent pays, you return an API key, your existing metering takes over. Live with Exa."
+icon: "key"
+---
+
+Most APIs already have keys, quotas, and rate limits. What they don't have is a way for an AI agent to buy access **without a human in the loop** — no Stripe Checkout, no signup form, no API console.
+
+This use case wires that missing piece in with a single new endpoint on your side. Agents pay through Nevermined x402, you mint or top up an API key, and the rest of your stack — metering, rate limits, billing analytics — keeps working exactly as it did before.
+
+## What it looks like in production
+
+[**Exa**](https://exa.ai) is the live reference. Agents POST a Nevermined-issued x402 token to `https://admin-api.exa.ai/team-management/nevermined/purchase-key` — \$7 is charged on a delegated card, Exa returns an API key with \$7 of credits, and the agent uses that key against the regular Exa search endpoints. When the key runs out, the agent calls the same purchase endpoint again. Same key, more credits, no human touched it.
+
+The whole integration on Exa's side: one endpoint, zero changes to their existing metering.
+
+- [Exa integration page](https://exa.ai/docs/integrations/nevermined.md) — the live `nevermined.md` agents discover
+- [Exa case study](/docs/use-cases/case-study-exa) — the story, the numbers, what worked
+
+## When to pick this pattern
+
+<CardGroup cols={2}>
+  <Card title="Pick this — Vend-the-key" icon="check">
+    - You already have an API with its own keys, quotas, rate limits
+    - One purchase maps to a fixed unit (e.g. \$7 → 10K requests)
+    - You want integration cost to be a single new endpoint
+    - You'd rather not change how you bill on the hot path
+  </Card>
+  <Card title="Pick the alternative — Full metering" icon="gauge">
+    - You don't have your own metering yet
+    - Per-call settlement with variable cost matches your product
+    - You want Nevermined to handle quota tracking end-to-end
+    - See [Charge credits](/docs/integrate/patterns/charge-credits) and [Validate requests](/docs/integrate/patterns/validate-requests)
+  </Card>
+</CardGroup>
+
+Both patterns ride the same x402 protocol. They differ only in *where* in the request flow the payment happens — at purchase time (this page) or at every call (`http-simple-agent-ts` style).
+
+## Build it
+
+The full technical guide — server-side handler in TypeScript, Python, and raw HTTP, plus the optional middleware variant — lives on the **API Providers** solutions page.
+
+<Card title="API Providers — implementation guide" icon="plug" href="/docs/solutions/api-providers">
+  5-step flow, code samples, idempotency notes, FAQ. Start here when you're ready to wire it up.
+</Card>
+
+For a runnable end-to-end example you can clone today:
+
+<Card title="Tutorial — web-search-paid-api-ts" icon="github" href="https://github.com/nevermined-io/tutorials/tree/main/web-search-paid-api-ts">
+  Express server with `/purchase-key` + `/search` that mirrors the Exa pattern against a stub web-search service. Uses the facilitator API directly (not the middleware) so the verify → settle → provision flow is visible. Ships with a copy-paste `llms.txt` + `nevermined.md` template.
+</Card>
+
+## Make it agent-discoverable
+
+A paid API only works for agents if they can *find* the integration on their own. Convention, lifted from Exa: publish a static `llms.txt` at your docs root that links to a `nevermined.md` integration page. Any LLM that knows the [llms.txt](https://llmstxt.org) convention can then read, understand, and act on the integration without you doing anything else.
+
+<Card title="Agent discoverability" icon="satellite-dish" href="/docs/use-cases/agent-discoverability">
+  How to publish a `llms.txt` + `nevermined.md` that agents will pick up. Includes a copy-paste template.
+</Card>
+
+## A note on the redemption ordering
+
+When you implement the handler, the safe ordering is **verify → settle → provision**. Verify checks the token, settle moves the money, provisioning the key happens *last* because it's local and easy to make idempotent on retry. If settle fails, no key has been issued — the customer is neither charged nor served. Cleaner outcome than provisioning first and then discovering the settle failed.
+
+This isn't a footnote — getting the ordering wrong leaks quota on declined cards. The tutorial linked above implements it correctly; the deeper [solutions page](/docs/solutions/api-providers) walks through the steps in detail.
+
+## Related
+
+- [API Providers — implementation guide](/docs/solutions/api-providers)
+- [Agent discoverability](/docs/use-cases/agent-discoverability)
+- [Case study: Exa](/docs/use-cases/case-study-exa)
+- [Exa's live integration page](https://exa.ai/docs/integrations/nevermined.md)
+- [Nevermined x402 protocol overview](/docs/development-guide/nevermined-x402)

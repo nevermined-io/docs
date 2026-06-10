@@ -1,0 +1,78 @@
+---
+title: "Case study: Exa"
+description: "How Exa shipped autonomous-agent payments with one endpoint, no metering changes, and a static llms.txt entry — and what it means for monetizing any paid API."
+icon: "star"
+---
+
+[Exa](https://exa.ai) is a search API used by AI agents to retrieve content from the web. Their integration with Nevermined is the live reference for the **monetize paid APIs for agents** pattern — and it works because every part of it was designed to need as little new infrastructure as possible.
+
+## What Exa built
+
+One new endpoint. That's the whole server-side delta.
+
+| Field | Value |
+| --- | --- |
+| Endpoint | `POST https://admin-api.exa.ai/team-management/nevermined/purchase-key` |
+| Auth | `payment-signature` header carrying an x402 access token |
+| Price | \$7 per purchase, charged via Nevermined card delegation (`nvm:card-delegation` scheme) |
+| Response | `{ "status": "ok", "apiKey": "...", "expiresAt": null }` |
+| Top-up | Same endpoint, same payer wallet → existing key tops up instead of issuing a new one |
+| When exhausted | Regular Exa endpoints return HTTP 402 + `{ "tag": "NO_MORE_CREDITS" }` |
+
+What \$7 buys, per their integration page:
+
+| Endpoint type | Calls per \$7 |
+| --- | --- |
+| Standard search | ~1,000 |
+| Deep-Lite search | ~700 |
+| Content pages | ~7,000 |
+| Deep-Reasoning | ~466 |
+
+Notice: Exa is doing all the metering. The \$7 from Nevermined is just the trigger that funds an internal balance. Search rate-limits, deep-reasoning quotas, and every other product decision stays inside Exa's existing systems — Nevermined never touches the hot path.
+
+## Why this is strategically interesting for Nevermined
+
+Most of what Nevermined had been doing before this is monetizing **agents** — paywalling the AI service itself, charging per call. Exa flips the angle: now Nevermined is monetizing **what agents pay for to do their job**.
+
+That's a much wider surface. Every agent that runs end-to-end consumes paid services along the way — search, document retrieval, image generation, market data feeds, maps, weather, financial APIs. Each of those is a potential Exa-shaped integration. And because the provider-side cost is so low (one endpoint, no metering changes), the pattern travels well.
+
+> "We're no longer just monetizing the agents themselves — we're monetizing paid services that agents may need to complete their task. And best of all the integration is really simple."
+
+## How agents discover the integration
+
+Exa's [llms.txt](https://exa.ai/docs/llms.txt) lists their Nevermined integration under `## Integrations` — a single line linking to a static [`nevermined.md`](https://exa.ai/docs/integrations/nevermined.md). That's the entire discovery surface. Any agent that reads the `llms.txt` (and most LLM-powered tools that fetch URLs do) follows the link, reads the integration page, and now knows how to pay for and use Exa.
+
+The integration page itself is six sections: intro / buy a key / what \$7 buys / sample request / parameters from Nevermined / when the key runs out / references. Nothing more. The structure is so small that any LLM-class agent can ingest it as part of normal context and act on it without special prompting.
+
+[How to publish your own llms.txt + nevermined.md →](/docs/use-cases/agent-discoverability)
+
+## What this means for other providers
+
+If you're an API provider with existing metering, the takeaways:
+
+<CardGroup cols={2}>
+  <Card title="Integration cost is genuinely small" icon="bolt">
+    One purchase endpoint, no per-call settlement, no SDK on your hot path. The handler is the same shape regardless of which card rail (Stripe / Braintree / Visa Trusted Agent Protocol) the buyer enrolled.
+  </Card>
+  <Card title="You keep your pricing surface" icon="sliders">
+    Exa kept their internal metering, their rate limits, their tier structure. Nevermined just adds a new top-up trigger. You can offer the same product to humans and to agents with no fork in the codebase.
+  </Card>
+  <Card title="Agent discovery is static" icon="satellite-dish">
+    No agent registry to maintain, no API to call. A `llms.txt` + a `nevermined.md` on your existing docs site is the whole thing.
+  </Card>
+  <Card title="The pattern is reusable" icon="copy">
+    Exa's integration page mirrors a structure you can adopt verbatim — same section headings, same fields. Agents that have seen one will navigate yours.
+  </Card>
+</CardGroup>
+
+## Try it yourself
+
+The [`web-search-paid-api-ts`](https://github.com/nevermined-io/tutorials/tree/main/web-search-paid-api-ts) tutorial implements the Exa pattern end-to-end against a stub web-search service. Server, client, llms.txt + nevermined.md templates, README walkthrough. Clone it, point it at a sandbox PAYG plan, and you'll have an agent autonomously buying an API key in under five minutes.
+
+## Related
+
+- [Exa's live integration page](https://exa.ai/docs/integrations/nevermined.md)
+- [Exa's `llms.txt`](https://exa.ai/docs/llms.txt)
+- [Monetize paid APIs for agents](/docs/use-cases/monetize-paid-apis-for-agents) — the pattern this case study ships
+- [Agent discoverability](/docs/use-cases/agent-discoverability) — how to publish your own integration page
+- [API Providers — implementation guide](/docs/solutions/api-providers) — the technical deep-dive

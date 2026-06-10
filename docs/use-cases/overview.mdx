@@ -1,0 +1,27 @@
+---
+title: "Use Cases"
+description: "Productized patterns that monetize what agents do, what they consume, and what they unlock. Start here if you're deciding what to build with Nevermined."
+icon: "compass"
+---
+
+Solutions tell you *what's possible*. Use cases tell you *what someone shipped*. Each page in this section walks through a real, productized pattern — what it monetizes, when to pick it, who's already running it, and the integration cost.
+
+If you're scoping a Nevermined integration and want to know "is this the right shape for what I'm building?", start here.
+
+<CardGroup cols={1}>
+  <Card title="Monetize paid APIs for agents" icon="key" href="/docs/use-cases/monetize-paid-apis-for-agents">
+    One x402-protected endpoint hands out a quota-bearing API key. The provider keeps their own metering, no per-call settlement. Live in production with [Exa](https://exa.ai/docs/integrations/nevermined.md). Best when your service already has API keys with quotas.
+  </Card>
+</CardGroup>
+
+## Why "Use Cases" is a separate section
+
+Nevermined started by monetizing **agents** — letting builders charge for the AI services they expose. But the same primitives also monetize **what agents pay for to get their job done**: third-party APIs, MCP tools, data feeds, anything an agent needs mid-task that a human would have paid for in a browser.
+
+That second class of integration looks different on the wire — often one purchase endpoint and the provider's existing metering everywhere else — and it deserves its own home in the docs. More use cases will land here as the patterns get productized.
+
+## Related
+
+- [Solutions](/docs/solutions/api-providers) — the technical implementation guides behind each use case
+- [Payment patterns](/docs/integrate/patterns/fiat-payments) — the lower-level building blocks
+- [Nevermined x402](/docs/development-guide/nevermined-x402) — the protocol everything sits on
