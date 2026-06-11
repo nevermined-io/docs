@@ -4,7 +4,7 @@ description: "Accept credit cards via Stripe, Braintree, or Visa Agentic Tokens 
 icon: "credit-card"
 ---
 
-Accept credit cards in **USD or EUR**, with no crypto wallet required. Fiat payments are the fastest path to mainstream adoption. Your users can start paying with a card they already have, either through Stripe Checkout (one-time plan purchase) or by enrolling their card via [Nevermined Pay](/docs/products/nvm-pay/overview) for autonomous agent charging.
+Accept credit cards in **USD or EUR**, with no crypto wallet required. Fiat payments are the fastest path to mainstream adoption. Your users can start paying with a card they already have, either through Stripe Checkout (one-time plan purchase) or by enrolling their card via [card delegation](/docs/products/payments/overview) for autonomous agent charging.
 
 ## When to Use Fiat Payments
 
@@ -31,7 +31,7 @@ Accept credit cards in **USD or EUR**, with no crypto wallet required. Fiat paym
 Nevermined supports fiat payments in two scenarios:
 
 - **Human-to-Agent**: A user visits the Nevermined App checkout page and purchases a plan with their credit card. This is the simplest flow for onboarding new customers.
-- **Agent-to-Agent**: An agent owner enrolls a credit card via [Nevermined Pay](/docs/products/nvm-pay/overview) (Visa, Stripe, or Braintree) and creates a spending delegation. The agent can then make autonomous payments on behalf of the owner, charging the card per request within the defined limits.
+- **Agent-to-Agent**: An agent owner enrolls a credit card via [card delegation](/docs/products/payments/overview) (Visa, Stripe, or Braintree) and creates a spending delegation. The agent can then make autonomous payments on behalf of the owner, charging the card per request within the defined limits.
 
 ## Pay-per-request or a bundle of credits
 
@@ -42,7 +42,7 @@ Nevermined offers two distinct fiat payment flows depending on whether you want 
     One-time or recurring payment via Stripe Checkout. The user buys a plan, a webhook confirms the payment, and credits are minted on-chain. Best for human users who want a familiar checkout experience.
   </Card>
 
-  <Card title="Card Delegation via Nevermined Pay" icon="key" href="/docs/products/nvm-pay/overview">
+  <Card title="Card Delegation" icon="key" href="/docs/products/payments/overview">
     Per-request charging via the x402 protocol. The user enrolls a Visa, Stripe, or Braintree card, creates a spending delegation with limits, and the agent charges it for each request. Best for automated workflows and agent-to-agent payments.
   </Card>
 </CardGroup>
@@ -75,11 +75,11 @@ The simplest way to accept fiat. Users complete a standard Stripe Checkout sessi
 
 Both one-time and recurring plan purchases are supported. For recurring plans, Stripe handles rebilling and Nevermined mints fresh credits each billing cycle.
 
-## Agent-to-Agent Purchase Flow (Nevermined Pay)
+## Agent-to-Agent Purchase Flow (Card Delegation)
 
-Fully autonomous agent-to-agent payments in fiat are enabled through [Nevermined Pay](/docs/products/nvm-pay/overview). This allows an agent to charge a user's card on-demand, without the user needing to pre-purchase credits. Instead of buying credits upfront, the user enrolls a card and creates a spending delegation with defined limits.
+Fully autonomous agent-to-agent payments in fiat are enabled through [card delegation](/docs/products/payments/overview). This allows an agent to charge a user's card on-demand, without the user needing to pre-purchase credits. Instead of buying credits upfront, the user enrolls a card and creates a spending delegation with defined limits.
 
-NVM Pay supports three card enrollment providers, all consumed through the unified `nvm:card-delegation` x402 scheme:
+Nevermined supports three card enrollment providers, all consumed through the unified `nvm:card-delegation` x402 scheme:
 
 - **Visa** — Cards tokenized as Visa Agentic Tokens via the VGS Credential Management Platform. Each delegation requires a per-delegation WebAuthn/passkey device-binding ceremony enforced by Visa VTS. Settlement runs through Stripe Connect.
 - **Stripe** — Cards captured via VGS Collect, confirmed against a Stripe SetupIntent, vaulted as `pm_…`. Settlement runs through Stripe PaymentIntents.
@@ -87,24 +87,24 @@ NVM Pay supports three card enrollment providers, all consumed through the unifi
 
 <Steps>
   <Step title="Card Enrollment">
-    The user enrolls a card via the [Nevermined Pay dashboard](https://pay.nevermined.app). Card data is tokenized by the provider (VGS Collect for Visa and Stripe; Braintree Drop-in for Braintree) and NVM Pay never stores raw card numbers. See [Card Enrollment](/docs/products/nvm-pay/card-enrollment) for the full flow.
+    The user enrolls a card via the [Nevermined App](https://nevermined.app). Card data is tokenized by the provider (VGS Collect for Visa and Stripe; Braintree Drop-in for Braintree) and Nevermined never stores raw card numbers. See [Card Enrollment](/docs/products/payments/card-enrollment) for the full flow.
   </Step>
 
   <Step title="Create a spending delegation">
-    The user creates a delegation that defines spending limits: lifetime amount ceiling, max transactions, and duration. Optionally, they can link it to a specific API key for automatic selection. Visa delegations require an additional per-delegation passkey approval (browser-only). See [Delegations](/docs/products/nvm-pay/mandates).
+    The user creates a delegation that defines spending limits: lifetime amount ceiling, max transactions, and duration. Optionally, they can link it to a specific API key for automatic selection. Visa delegations require an additional per-delegation passkey approval (browser-only). See [Delegations](/docs/products/payments/mandates).
   </Step>
 
   <Step title="Agent requests payment">
-    When the agent makes a request, it calls the NVM Pay API with its NVM API key. NVM Pay resolves the right delegation and generates an x402 payment token.
+    When the agent makes a request, it calls the Nevermined API with its NVM API key. Nevermined resolves the right delegation and generates an x402 payment token.
   </Step>
 
   <Step title="Verify and settle">
-    The resource server verifies the payment token, executes the workload, then settles. NVM Pay charges the enrolled card and records the transaction.
+    The resource server verifies the payment token, executes the workload, then settles. Nevermined charges the enrolled card and records the transaction.
   </Step>
 </Steps>
 
 <Note>
-Card delegation is what enables fiat-based agent-to-agent payments. An agent owner enrolls their card and sets spending limits, and the agent can autonomously pay for services from other agents, all settled in fiat. See the [NVM Pay FAQ](/docs/products/nvm-pay/faq) for common questions.
+Card delegation is what enables fiat-based agent-to-agent payments. An agent owner enrolls their card and sets spending limits, and the agent can autonomously pay for services from other agents, all settled in fiat. See the [Payments FAQ](/docs/products/payments/faq) for common questions.
 </Note>
 
 <Warning>
@@ -132,7 +132,7 @@ A delegation moves through a simple lifecycle:
 | **Expired** | The expiration date has passed |
 | **Revoked** | The cardholder manually revoked it |
 
-Once a delegation leaves the **Active** state, a new one must be created to continue charging. See [Delegations](/docs/products/nvm-pay/mandates) for full details on spending controls and the [Delegation Selection](/docs/products/nvm-pay/mandate-selection) algorithm.
+Once a delegation leaves the **Active** state, a new one must be created to continue charging. See [Delegations](/docs/products/payments/mandates) for full details on spending controls and the [Delegation Selection](/docs/products/payments/mandate-selection) algorithm.
 
 ## Security and PCI Compliance
 
@@ -143,7 +143,7 @@ Card data never reaches Nevermined servers. Depending on the provider:
 - **Braintree path** — PAN is captured by the Braintree Drop-in / hosted fields, which post directly to Braintree and return a single-use nonce. The facilitator vaults the nonce as a permanent `paymentMethodToken`.
 
 <Note>
-**Nevermined is PCI compliant** (PCI SAQ D level) and holds ISO 27001 and SOC 2 Type II certifications. Strong Customer Authentication is enforced per-delegation for Visa (WebAuthn/passkey, with email OTP fallback) and at enrollment for Stripe and Braintree (3DS where the issuer requires it). See the [NVM Pay FAQ](/docs/products/nvm-pay/faq) for full security details.
+**Nevermined is PCI compliant** (PCI SAQ D level) and holds ISO 27001 and SOC 2 Type II certifications. Strong Customer Authentication is enforced per-delegation for Visa (WebAuthn/passkey, with email OTP fallback) and at enrollment for Stripe and Braintree (3DS where the issuer requires it). See the [Payments FAQ](/docs/products/payments/faq) for full security details.
 </Note>
 
 
@@ -192,7 +192,7 @@ Fiat payments carry higher fees than stablecoin payments (2% + Stripe fees vs. 1
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Nevermined Pay" icon="credit-card" href="/docs/products/nvm-pay/overview">
+  <Card title="Agent Cards" icon="credit-card" href="/docs/products/payments/overview">
     Enroll Visa, Stripe, or Braintree cards and create spending delegations for agent payments
   </Card>
 

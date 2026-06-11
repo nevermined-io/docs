@@ -6,16 +6,16 @@ icon: "credit-card"
 
 Enroll a Visa, Stripe, or Braintree card. Create a delegation that caps how much can be spent. Your agents charge it directly via x402 — no checkout pages, no human in the loop.
 
-Manage everything at [pay.nevermined.app](https://pay.nevermined.app).
+Manage everything at [nevermined.app](https://nevermined.app).
 
 <CardGroup cols={3}>
-  <Card title="Card Enrollment" icon="credit-card" href="/docs/products/nvm-pay/card-enrollment">
+  <Card title="Card Enrollment" icon="credit-card" href="/docs/products/payments/card-enrollment">
     Enroll Visa, Stripe, or Braintree cards
   </Card>
-  <Card title="Delegations" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+  <Card title="Delegations" icon="shield-check" href="/docs/products/payments/mandates">
     Set spending limits and expiration
   </Card>
-  <Card title="Delegation Selection" icon="route" href="/docs/products/nvm-pay/mandate-selection">
+  <Card title="Delegation Selection" icon="route" href="/docs/products/payments/mandate-selection">
     Auto-resolve which card to charge
   </Card>
 </CardGroup>
@@ -24,13 +24,13 @@ Manage everything at [pay.nevermined.app](https://pay.nevermined.app).
 
 <Steps>
   <Step title="Enroll a card">
-    Add a Visa, Stripe, or Braintree card at [pay.nevermined.app](https://pay.nevermined.app). Card data is tokenized in the browser by the provider's PCI-compliant capture (VGS Collect for Visa and Stripe, Braintree Drop-in for Braintree). NVM Pay never stores raw card numbers.
+    Add a Visa, Stripe, or Braintree card at [nevermined.app](https://nevermined.app). Card data is tokenized in the browser by the provider's PCI-compliant capture (VGS Collect for Visa and Stripe, Braintree Drop-in for Braintree). Nevermined never stores raw card numbers.
   </Step>
   <Step title="Create a delegation">
     Set the spending limit, duration, and (optionally) max transactions. Visa delegations also require a per-delegation passkey approval that binds the limits to your device. Optionally link the delegation to a specific API key for automatic routing.
   </Step>
   <Step title="Agents charge it">
-    Agents call the NVM Pay API with their API key. NVM Pay resolves the right delegation and generates an x402 token. The resource server verifies, executes, and settles.
+    Agents call the Nevermined API with their API key. Nevermined resolves the right delegation and generates an x402 token. The resource server verifies, executes, and settles.
   </Step>
 </Steps>
 
@@ -41,7 +41,7 @@ Agent (no token)
   |
   |-> Resource Server returns 402 + payment-required header
   |
-  |-> Agent calls NVM Pay: POST /api/v1/x402/access-token
+  |-> Agent calls Nevermined: POST /api/v1/x402/permissions
   |     |-> Resolves delegation -> generates x402 token (scheme: nvm:card-delegation)
   |
   |-> Agent retries with payment-signature header
@@ -149,10 +149,10 @@ You need an [NVM API Key](/docs/getting-started/get-your-api-key). Set it as `NV
 ## What's Next?
 
 <CardGroup cols={2}>
-  <Card title="Enroll a Card" icon="plus" href="/docs/products/nvm-pay/card-enrollment">
+  <Card title="Enroll a Card" icon="plus" href="/docs/products/payments/card-enrollment">
     Set up your first payment card
   </Card>
-  <Card title="Create a Delegation" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+  <Card title="Create a Delegation" icon="shield-check" href="/docs/products/payments/mandates">
     Define spending limits, usage caps, and expiration
   </Card>
 </CardGroup>

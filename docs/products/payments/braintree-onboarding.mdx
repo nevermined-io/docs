@@ -1,16 +1,16 @@
 ---
 title: "Braintree Onboarding"
-description: "Connect your Braintree merchant account to Nevermined Pay so buyers can pay your plans by card and receive funds in your supported currencies."
+description: "Connect your Braintree merchant account to Nevermined so buyers can pay your plans by card and receive funds in your supported currencies."
 icon: "store"
 ---
 
 ## Overview
 
-Nevermined Pay supports **Braintree** as a fiat settlement provider alongside Stripe. Sellers who connect a Braintree merchant account can price their plans in Braintree-supported currencies and receive funds directly into their own Braintree gateway, while Nevermined collects the platform fee on the same card transaction.
+Nevermined supports **Braintree** as a fiat settlement provider alongside Stripe. Sellers who connect a Braintree merchant account can price their plans in Braintree-supported currencies and receive funds directly into their own Braintree gateway, while Nevermined collects the platform fee on the same card transaction.
 
 This page covers the seller-side setup: connecting your Braintree account, configuring per-currency merchant accounts, and what to expect at plan creation and settlement time.
 
-If you only need to *pay* for a Braintree-priced plan as a buyer, see [Card Enrollment → Braintree](/docs/products/nvm-pay/card-enrollment) instead.
+If you only need to *pay* for a Braintree-priced plan as a buyer, see [Card Enrollment → Braintree](/docs/products/payments/card-enrollment) instead.
 
 ## Why Braintree?
 
@@ -26,7 +26,7 @@ The choice is per plan, not per seller — `fiatPaymentProvider` is set on each 
 
 ## Prerequisites
 
-Before connecting Braintree to Nevermined Pay, you need:
+Before connecting Braintree to Nevermined, you need:
 
 <Steps>
   <Step title="A Braintree gateway account">
@@ -36,7 +36,7 @@ Before connecting Braintree to Nevermined Pay, you need:
     Each Braintree merchant account is bound to a single currency. To accept USD-priced plans you need a USD merchant account; to accept EUR-priced plans you need an EUR merchant account. Sellers add new currencies in their own Braintree dashboard — Nevermined never creates merchant accounts on your behalf.
   </Step>
   <Step title="Permission to authorize OAuth applications">
-    Nevermined Pay uses Braintree's OAuth Connect (Braintree Auth) to talk to your gateway. The user who authorizes the connection must be able to grant gateway scopes on your account.
+    Nevermined uses Braintree's OAuth Connect (Braintree Auth) to talk to your gateway. The user who authorizes the connection must be able to grant gateway scopes on your account.
   </Step>
 </Steps>
 
@@ -53,19 +53,19 @@ Connection happens once, from your Nevermined profile page:
     Go to your profile in the [Nevermined App](https://nevermined.app) and find the **Payment Provider** section.
   </Step>
   <Step title="Click Connect Braintree">
-    You'll be redirected to Braintree's OAuth consent screen, which lists the gateway scopes Nevermined Pay needs (transaction creation, refunds, settlement management, and merchant account discovery). Approve the connection.
+    You'll be redirected to Braintree's OAuth consent screen, which lists the gateway scopes Nevermined needs (transaction creation, refunds, settlement management, and merchant account discovery). Approve the connection.
   </Step>
   <Step title="Return to Nevermined">
-    Braintree redirects you back to Nevermined Pay. The facilitator stores the OAuth access and refresh tokens server-side, then immediately calls Braintree to enumerate the child merchant accounts on your gateway.
+    Braintree redirects you back to Nevermined. The facilitator stores the OAuth access and refresh tokens server-side, then immediately calls Braintree to enumerate the child merchant accounts on your gateway.
   </Step>
   <Step title="Confirm your supported currencies">
-    Your profile now shows one badge per currency Nevermined Pay can charge on your behalf — for example **USD** and **EUR**. If a currency is missing, add the corresponding child merchant account in your Braintree dashboard, then disconnect and reconnect to re-discover.
+    Your profile now shows one badge per currency Nevermined can charge on your behalf — for example **USD** and **EUR**. If a currency is missing, add the corresponding child merchant account in your Braintree dashboard, then disconnect and reconnect to re-discover.
   </Step>
 </Steps>
 
 ### What gets stored
 
-After connecting, Nevermined Pay holds three pieces of information about your account:
+After connecting, Nevermined holds three pieces of information about your account:
 
 | Stored | Purpose |
 |---|---|
@@ -77,7 +77,7 @@ Raw card data, customer details, and transaction PII never leave Braintree — N
 
 ### Disconnecting
 
-Click **Disconnect Braintree** on your profile to revoke the connection. Nevermined Pay clears all four fields above (access token, refresh token, merchant ID, and the per-currency map). Existing delegations against your account stop being chargeable on the next request.
+Click **Disconnect Braintree** on your profile to revoke the connection. Nevermined clears all four fields above (access token, refresh token, merchant ID, and the per-currency map). Existing delegations against your account stop being chargeable on the next request.
 
 ## Per-Currency Merchant Accounts
 
@@ -87,7 +87,7 @@ This is a Braintree-side requirement, not a Nevermined one. Adding a merchant ac
 
 After adding a new currency in Braintree:
 
-1. Disconnect Nevermined Pay's Braintree connection.
+1. Disconnect Nevermined's Braintree connection.
 2. Reconnect — re-authorization completes in two clicks because Braintree skips the consent screen for the same `client_id`.
 3. The newly available currency badge appears on your profile.
 
@@ -95,16 +95,16 @@ There is no manual "Refresh" button. Currency changes on your side are rare enou
 
 ## Plan Creation: Currency Guard
 
-When you create a plan with `fiatPaymentProvider: 'braintree'`, Nevermined Pay checks the plan's currency against the merchant accounts discovered at connection time:
+When you create a plan with `fiatPaymentProvider: 'braintree'`, Nevermined checks the plan's currency against the merchant accounts discovered at connection time:
 
 - **Currency available** → plan creation succeeds. Buyers can purchase the plan and receive credits.
-- **Currency missing** → plan creation is rejected with `BCK.BRAINTREE.0008`. Add the child merchant account in your Braintree dashboard, then disconnect and reconnect Nevermined Pay before retrying.
+- **Currency missing** → plan creation is rejected with `BCK.BRAINTREE.0008`. Add the child merchant account in your Braintree dashboard, then disconnect and reconnect Nevermined before retrying.
 
 The plan-creation form in the Nevermined App enforces this client-side too: when you select Braintree as the provider, the currency dropdown only shows the currencies your gateway supports, with a tooltip pointing back to your profile if none are available yet.
 
 ## Settlement Model
 
-Once a plan is live, Nevermined Pay settles each fiat charge with a **two-transaction split** on the buyer's vaulted card:
+Once a plan is live, Nevermined settles each fiat charge with a **two-transaction split** on the buyer's vaulted card:
 
 1. **Platform fee** is charged on Nevermined's own Braintree gateway, against Nevermined's per-currency platform merchant account.
 2. **Merchant share** is charged on your OAuth-connected gateway, against your per-currency child merchant account that matches the plan's currency.
@@ -122,20 +122,20 @@ For very small charges where the platform fee would round to zero or negative, N
 
 - **Currencies**: USD and EUR only. Reach out if you need additional currencies; we'll add them when there's a clear use case.
 - **Refresh tokens rotate**: long-lived CI tokens against real Braintree accounts are not feasible. Test integrations should mock the gateway or use a developer's interactive sandbox session.
-- **Re-discovery requires reconnect**: changing your gateway's set of merchant accounts requires disconnecting and reconnecting Nevermined Pay. Currency changes on the seller side are rare enough that this is acceptable; let us know if it becomes a friction point.
+- **Re-discovery requires reconnect**: changing your gateway's set of merchant accounts requires disconnecting and reconnecting Nevermined. Currency changes on the seller side are rare enough that this is acceptable; let us know if it becomes a friction point.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | "No currency-specific merchant accounts found" on your profile | Your Braintree gateway has merchant accounts but they weren't discovered (e.g. legacy OAuth scope, or all accounts are inactive) | Disconnect and reconnect; the OAuth flow re-runs discovery with the latest scope. |
-| Plan creation rejected with `BCK.BRAINTREE.0008` | The chosen currency has no child merchant account on your gateway | Add the merchant account in Braintree, then disconnect and reconnect Nevermined Pay. |
+| Plan creation rejected with `BCK.BRAINTREE.0008` | The chosen currency has no child merchant account on your gateway | Add the merchant account in Braintree, then disconnect and reconnect Nevermined. |
 | x402 charge fails with `BCK.BRAINTREE.0007` at settlement time | Your gateway no longer has a merchant account in the plan's currency (e.g. it was deactivated after plan creation) | Re-add the merchant account in Braintree and reconnect. Existing credit balances on buyers' accounts can still be redeemed; only new card charges are blocked. |
 
 ## Related Pages
 
 <CardGroup cols={2}>
-  <Card title="Card Enrollment (Buyer-Side)" icon="id-card" href="/docs/products/nvm-pay/card-enrollment">
+  <Card title="Card Enrollment (Buyer-Side)" icon="id-card" href="/docs/products/payments/card-enrollment">
     How buyers vault a Braintree card before purchasing your plans.
   </Card>
   <Card title="x402 Card Delegation Spec" icon="key" href="/docs/specs/x402-card-delegation">
