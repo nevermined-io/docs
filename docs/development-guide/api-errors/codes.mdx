@@ -41,7 +41,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
 - [`BCK.WIDGET_SESSION`](#bck-widget_session) — 13 codes
-- [`BCK.X402`](#bck-x402) — 33 codes
+- [`BCK.X402`](#bck-x402) — 41 codes
 
 ## <span id="bck-account_provisioning"></span>`BCK.ACCOUNT_PROVISIONING`
 
@@ -596,4 +596,12 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-x402-0034"></a>`BCK.X402.0034` | 402 | business | ❌ | Unsupported scheme or currency | The requested payment scheme or currency is not supported. Check the plan configured scheme/currency (e.g. Visa delegations support only usd / eur) and resubmit with a supported combination. |
 | <a id="bck-x402-0035"></a>`BCK.X402.0035` | 402 | business | ❌ | No session keys found for delegation | The delegation is owned by the caller and usable, but its linked erc4337 permission is missing session keys (burnSessionKey / orderSessionKey). This is a data-integrity issue — the delegation was likely created without completing session-key provisioning. Create a fresh crypto delegation; if it recurs, report the delegationId for investigation. |
 | <a id="bck-x402-0036"></a>`BCK.X402.0036` | 402 | business | ❌ | Delegation not usable (unknown lifecycle state) | The delegation is in a lifecycle state the server does not recognise as usable. Create a fresh delegation to continue; if this persists, report the delegationId for investigation. |
+| <a id="bck-x402-0037"></a>`BCK.X402.0037` | 403 | business | ❌ | SetupIntent does not belong to the authenticated user | The SetupIntent was created by (or for) a different user. Re-create the SetupIntent under the authenticated account and finalize enrollment with that id. |
+| <a id="bck-x402-0038"></a>`BCK.X402.0038` | 409 | business | ❌ | SetupIntent is not in the expected state | The SetupIntent has not reached status "succeeded" (it may still be processing, or it failed). Confirm the card on the client, wait for "succeeded", then finalize enrollment. |
+| <a id="bck-x402-0039"></a>`BCK.X402.0039` | 422 | business | ❌ | SetupIntent has no associated payment method | The SetupIntent succeeded but carries no payment method. Re-run the card setup so a payment method is attached, then finalize enrollment. |
+| <a id="bck-x402-0040"></a>`BCK.X402.0040` | 404 | business | ❌ | API Key not found for this user | One of the supplied `allowedApiKeyIds` does not belong to this user (the offending skId is in `params`). Remove or correct it and retry. |
+| <a id="bck-x402-0041"></a>`BCK.X402.0041` | 409 | business | ❌ | API Key is not active | One of the supplied `allowedApiKeyIds` is revoked/inactive (the offending skId is in `params`). Use an active key or re-enable it, then retry. |
+| <a id="bck-x402-0042"></a>`BCK.X402.0042` | 500 | internal | ❌ | VGS outbound proxy is misconfigured | Server-side configuration fault (the VGS outbound proxy is unset, not HTTPS, has an invalid URL, or points at a non-VGS host). The caller did nothing wrong. Fix the VGS proxy configuration; if it persists, report the correlationId. |
+| <a id="bck-x402-0043"></a>`BCK.X402.0043` | 502 | integration | ❌ | Card enrollment via VGS failed | The upstream VGS→Stripe card-creation call returned bad data or a non-200 status. Inspect VGS / Stripe logs for the correlationId. Usually invalid card details or a vault-routing issue; retry after correcting the card, or report if it persists. |
+| <a id="bck-x402-0044"></a>`BCK.X402.0044` | 500 | internal | ❌ | Invalid internal identifier format | An internal invariant failed (a userId did not match the expected format for downstream metadata). This is a server-side fault, not a client input error. Report the correlationId for investigation. |
 
