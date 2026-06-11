@@ -1,0 +1,91 @@
+---
+title: "Plans & Billing"
+description: "Compare the Premium and Enterprise organization tiers, upgrade or downgrade anytime, and understand the caps and features each tier unlocks."
+icon: "credit-card"
+---
+
+Organizations come in two paid tiers, **Premium** and **Enterprise**. Each tier sets your resource caps (how many agents, plans, and members you can have) and unlocks platform features. You manage all of this from the **Billing** tab of the organization dashboard.
+
+## Premium vs Enterprise
+
+<CardGroup cols={2}>
+  <Card title="Premium" icon="building">
+    For teams shipping their first Nevermined-powered product.
+
+    - Up to **100 agents**
+    - Up to **50 plans**
+    - Up to **5 team members**
+    - Member invitations
+    - Analytics dashboards
+    - Embeddable widgets
+    - Activity feed
+    - AI instructions + `llms.txt`
+  </Card>
+  <Card title="Enterprise" icon="buildings">
+    For organizations operating at scale across many products and teams.
+
+    - **Everything in Premium**
+    - **Customer management** (CRM)
+    - **Realtime activity stream** (WebSocket)
+    - **Unlimited** agents
+    - **Unlimited** plans
+    - **Unlimited** team members
+  </Card>
+</CardGroup>
+
+<Note>
+  **Customer management** and the **Realtime activity stream** are the two Enterprise-exclusive features — they're the main reasons to move from Premium to Enterprise.
+</Note>
+
+## Pricing
+
+Both tiers are **recurring monthly subscriptions billed in USD** through Stripe. You can switch tiers or cancel anytime from the Billing page; the live price for each tier is shown on the upgrade screen.
+
+<Warning>
+  A subscription applies to **one environment only**. Upgrading your **sandbox** workspace does not upgrade **live**, and vice versa — sandbox uses Stripe test-mode pricing while live uses real charges. Trial a tier on sandbox, then subscribe separately on live when you're ready.
+</Warning>
+
+## Upgrade, downgrade, or cancel
+
+From the **Billing** tab, an Admin can move between tiers at any time:
+
+| Change | What happens |
+|---|---|
+| **Personal → Premium / Enterprise** | Create the organization through Stripe Checkout. |
+| **Premium → Enterprise** | An in-place, prorated upgrade — no re-checkout. Higher caps and the Enterprise features take effect immediately. |
+| **Enterprise → Premium** | A confirmed, in-place downgrade. Make sure your usage fits the Premium caps first. |
+| **Cancel** | Your access continues until the end of the current billing period, then the organization lapses. |
+
+The Billing page also shows your **invoices** (date, amount, period, and status) so you have a record of every charge.
+
+## Caps and entitlements
+
+The Billing page surfaces a live **caps table** showing what you've used versus what your tier allows:
+
+| Resource | Personal | Premium | Enterprise |
+|---|---|---|---|
+| Agents | 20 | 100 | Unlimited |
+| Plans | 10 | 50 | Unlimited |
+| Team members | — | 5 | Unlimited |
+
+Caps are enforced when you create resources. If you hit a cap, registering a new agent or plan is blocked until you remove something or upgrade. Below the caps, a **features list** shows which capabilities your current tier includes (invitations, analytics, widgets, activity feed, customer management, and the realtime stream), with the locked ones clearly marked.
+
+## The Lapsed state
+
+If a subscription is canceled or a payment ultimately fails, the organization becomes **Lapsed**. A lapsed organization keeps its data, but the paid surface is locked:
+
+- Creating new agents and plans is disabled (existing ones remain).
+- Premium and Enterprise features (analytics, widgets, customers, activity, integration surfaces) are switched off.
+
+Reactivate at any time by resubscribing from the Billing page — your agents, plans, members, and customers are all still there waiting.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Workspaces & Members" icon="users" href="/docs/solutions/organizations/workspaces-and-members">
+    Seats and roles within your tier.
+  </Card>
+  <Card title="Customers" icon="address-book" href="/docs/solutions/organizations/customers">
+    The Enterprise-only customer CRM.
+  </Card>
+</CardGroup>

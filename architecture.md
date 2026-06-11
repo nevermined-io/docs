@@ -49,6 +49,17 @@ Major documentation reorganization completed:
 - ✅ MCP Point of Sales (`docs/solutions/mcp-point-of-sales.mdx`)
 - ✅ AI Agents Observability (`docs/solutions/ai-agents-observability.mdx`)
 
+##### Organizations (sub-section)
+- ✅ Overview + demo video (`docs/solutions/organizations/overview.mdx`)
+- ✅ Workspaces & Members (`docs/solutions/organizations/workspaces-and-members.mdx`)
+- ✅ Plans & Billing (`docs/solutions/organizations/plans-and-billing.mdx`)
+- ✅ Customers — Enterprise CRM (`docs/solutions/organizations/customers.mdx`)
+- ✅ Analytics (`docs/solutions/organizations/analytics.mdx`)
+- ✅ Activity & Events (`docs/solutions/organizations/activity-and-events.mdx`)
+- ✅ Platform Partners (`docs/integrations/organizations.mdx`)
+- ✅ Embed Widgets (`docs/integrations/organization-widgets.mdx`)
+- ✅ SDK & Workspaces (`docs/integrate/patterns/organizations.mdx`)
+
 #### Products
 
 ##### x402 Facilitator
