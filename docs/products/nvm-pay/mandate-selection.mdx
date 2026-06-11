@@ -19,6 +19,10 @@ When a subscriber has multiple active delegations across their enrolled cards, t
 
 NVM Pay solves this with a **three-tier selection algorithm** that automatically resolves the right delegation based on priority rules. The algorithm is the same for Visa, Stripe, and Braintree — `apiKeyId` and explicit `delegationId` work identically across all three networks.
 
+<Note>
+The recommended approach is **create-first**: create the delegation with `createDelegation`, then pass its `delegationId` explicitly (Mode 1). This removes all ambiguity and is the only supported path for Visa. Auto-resolution (Modes 2–3) selects among the delegations you've already created; it does **not** create one. Inline create-on-the-fly (passing `spendingLimitCents` instead of a `delegationId`) is deprecated.
+</Note>
+
 ## Three-Tier Resolution
 
 When the SDK or CLI requests an x402 access token, NVM Pay resolves the delegation in this order:
@@ -193,8 +197,8 @@ Content-Type: application/json
 |---|---|---|
 | `planId` | Yes | The plan you're paying for |
 | `agentId` | No | Agent identifier (for plans with multiple agents) |
-| `delegationConfig.delegationId` | No | Explicit delegation ID (Mode 1). Omit to use auto-resolution. **Required for Visa.** |
-| `delegationConfig.spendingLimitCents` + `durationSecs` | No | Auto-create a delegation on the fly (Stripe / Braintree only) |
+| `delegationConfig.delegationId` | Recommended | Explicit delegation ID (Mode 1) — the supported path. Omit to use auto-resolution among your existing delegations. **Required for Visa.** |
+| `delegationConfig.spendingLimitCents` + `durationSecs` | No | **Deprecated** — auto-create a delegation on the fly (Stripe / Braintree only). Create the delegation first with `createDelegation`, then pass `{ delegationId }` instead; the inline form emits a runtime deprecation warning. |
 
 **Response (success):**
 

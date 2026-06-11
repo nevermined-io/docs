@@ -228,13 +228,20 @@ async function purchaseAndQuery() {
   // 2. Get access token
   console.log('Getting access token...')
 
-  // `delegationConfig` is required (both crypto and fiat schemes).
+  // Create the delegation first (provider + currency required), then request
+  // the token by its delegationId. Reuse the delegation for later requests.
+  const delegation = await payments.delegation.createDelegation({
+    provider: 'erc4337',
+    spendingLimitCents: 1000,
+    durationSecs: 86_400,
+    currency: 'usdc',
+  })
   const { accessToken } = await payments.x402.getX402AccessToken(
     process.env.PLAN_ID!,
     process.env.AGENT_ID!,
     {
       scheme: 'nvm:erc4337',
-      delegationConfig: { spendingLimitCents: 1000, durationSecs: 86_400 },
+      delegationConfig: { delegationId: delegation.delegationId },
     },
   )
 

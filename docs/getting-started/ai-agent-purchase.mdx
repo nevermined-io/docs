@@ -168,7 +168,7 @@ API keys are environment-specific: Sandbox keys start with `sandbox:`, Live keys
     Mint an x402 access token for the plan, then send it in the `payment-signature` header. Each plan uses one of two schemes, and you tell the SDK which budget to charge through `delegationConfig`:
 
     - **`nvm:card-delegation`** (your delegated card) — pass `scheme: 'nvm:card-delegation'` and the `delegationId` you stored during enrollment. Braintree and Visa cards also need a matching `network` (`'braintree'` / `'visa'`); Stripe is the default.
-    - **`nvm:erc4337`** (stablecoins) — the default scheme, so you can omit `scheme`. Create a delegation inline from a `spendingLimitCents` + `durationSecs` budget, or reuse one by `delegationId`.
+    - **`nvm:erc4337`** (stablecoins) — the default scheme, so you can omit `scheme`. Create a delegation first with `createDelegation` (`provider: 'erc4337'`, `currency: 'usdc'`, a `spendingLimitCents` + `durationSecs` budget), then request the token by its `delegationId`.
 
     Either way the token charges through the `verify` → `settle` flow.
 
@@ -181,10 +181,13 @@ API keys are environment-specific: Sandbox keys start with `sandbox:`, Live keys
           delegationConfig: { delegationId },
         })
 
-        // Stablecoin (nvm:erc4337, the default scheme): create a delegation inline
-        // from a budget — max spend in cents + lifetime in seconds.
+        // Stablecoin (nvm:erc4337, the default scheme): create a delegation first,
+        // then request the token by its delegationId.
+        // const delegation = await payments.delegation.createDelegation({
+        //   provider: 'erc4337', spendingLimitCents: 10000, durationSecs: 604800, currency: 'usdc', // $100 / 7 days
+        // })
         // const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-        //   delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }, // $100 / 7 days
+        //   delegationConfig: { delegationId: delegation.delegationId },
         // })
 
         // Call the paid agent — x402 endpoints read the token from the payment-signature header
@@ -209,13 +212,16 @@ API keys are environment-specific: Sandbox keys start with `sandbox:`, Live keys
             ),
         )
 
-        # Stablecoin (nvm:erc4337, the default scheme): create a delegation inline
-        # from a budget — max spend in cents + lifetime in seconds.
+        # Stablecoin (nvm:erc4337, the default scheme): create a delegation first,
+        # then request the token by its delegation_id.
+        # delegation = payments.delegation.create_delegation({
+        #     'provider': 'erc4337', 'spendingLimitCents': 10000, 'durationSecs': 604800, 'currency': 'usdc',
+        # })
         # result = payments.x402.get_x402_access_token(
         #     plan_id,
         #     agent_id,
         #     token_options=X402TokenOptions(
-        #         delegation_config=DelegationConfig(spending_limit_cents=10000, duration_secs=604800)
+        #         delegation_config=DelegationConfig(delegation_id=delegation['delegationId'])
         #     ),
         # )
 

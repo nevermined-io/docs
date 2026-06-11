@@ -275,24 +275,33 @@ For developers who need to automate and integrate directly, our SDKs are the per
     const { sessionId, url } = await payments.plans.orderFiatPlan(plan.planId);
     window.location.href = url; // Redirect to Stripe
 
-    // 3. Get X402 access token. `delegationConfig` is required regardless of
-    // scheme; choose the scheme that matches how you paid for the plan.
+    // 3. Get X402 access token. Create the delegation first (provider +
+    // currency required), then request the token by its delegationId.
 
     // Crypto plan (Option A)
+    const delegation = await payments.delegation.createDelegation({
+      provider: 'erc4337',
+      spendingLimitCents: 1000,
+      durationSecs: 86_400,
+      currency: 'usdc',
+    });
     const { accessToken } = await payments.x402.getX402AccessToken(plan.planId, agent.agentId, {
       scheme: 'nvm:erc4337',
-      delegationConfig: { spendingLimitCents: 1000, durationSecs: 86_400 },
+      delegationConfig: { delegationId: delegation.delegationId },
     });
 
-    // Fiat plan (Option B) — provide the enrolled card and a cap
+    // Fiat plan (Option B) — create a card delegation from the enrolled card,
+    // then request the token by its delegationId.
+    // const cardDelegation = await payments.delegation.createDelegation({
+    //   provider: 'stripe',
+    //   providerPaymentMethodId: 'pm_xxx',
+    //   spendingLimitCents: 1000,
+    //   durationSecs: 86_400,
+    //   currency: 'usd',
+    // });
     // const { accessToken } = await payments.x402.getX402AccessToken(plan.planId, agent.agentId, {
     //   scheme: 'nvm:card-delegation',
-    //   delegationConfig: {
-    //     providerPaymentMethodId: 'pm_xxx',
-    //     spendingLimitCents: 1000,
-    //     durationSecs: 86_400,
-    //     currency: 'usd',
-    //   },
+    //   delegationConfig: { delegationId: cardDelegation.delegationId },
     // });
 
     // 4. Query the agent using the access token

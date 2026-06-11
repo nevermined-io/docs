@@ -281,7 +281,7 @@ When the server returns 402 Payment Required, it includes the `payment-required`
 
 ### Step 2 — Build a payment payload
 
-Using Nevermined Payments libraries (Python or TS), you generate an x402 access token. Token generation requires a `delegationConfig` that controls spending limits and duration. You can either auto-create a delegation inline (Pattern A) or create one explicitly and reuse its ID (Pattern B).
+Using Nevermined Payments libraries (Python or TS), you generate an x402 access token. The supported flow is **create-first**: create a delegation once with `createDelegation`, then request access tokens by passing its `delegationId`. A delegation captures the spending limit, duration, `provider`, and `currency`; reuse it for every token request until it expires or is exhausted.
 
 <Tabs>
   <Tab title="TypeScript">
@@ -306,18 +306,18 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
       // Extract planId and agentId from accepts array
       const { planId, agentId } = paymentRequired.accepts[0]
 
-      // Pattern A: Auto-create a delegation inline
-      const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-        delegationConfig: { spendingLimitCents: 10000, durationSecs: 604800 }
-      })
-
-      // Pattern B: Create a delegation explicitly, then reuse its ID
+      // 1. Create a delegation once. `provider` and `currency` are required:
+      //    'usdc' for the crypto (erc4337) scheme, 'usd' for card providers.
       const delegation = await payments.delegation.createDelegation({
         provider: 'erc4337',
         spendingLimitCents: 10000,
-        durationSecs: 604800
+        durationSecs: 604800,
+        currency: 'usdc',
       })
-      const { accessToken: token } = await payments.x402.getX402AccessToken(planId, agentId, {
+
+      // 2. Request a token by delegationId. Reuse this delegation for every
+      //    subsequent token request.
+      const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
         delegationConfig: { delegationId: delegation.delegationId }
       })
     }
@@ -347,18 +347,16 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
         plan_id = payment_required["accepts"][0]["planId"]
         agent_id = payment_required["accepts"][0].get("extra", {}).get("agentId")
 
-        # Pattern A: Auto-create a delegation inline
-        token_res = payments.x402.get_x402_access_token(plan_id, agent_id, {
-            'delegationConfig': { 'spendingLimitCents': 10000, 'durationSecs': 604800 }
-        })
-        access_token = token_res["accessToken"]
-
-        # Pattern B: Create a delegation explicitly, then reuse its ID
+        # 1. Create a delegation once. `provider` and `currency` are required:
+        #    'usdc' for the crypto (erc4337) scheme, 'usd' for card providers.
         delegation = payments.delegation.create_delegation({
             'provider': 'erc4337',
             'spendingLimitCents': 10000,
-            'durationSecs': 604800
+            'durationSecs': 604800,
+            'currency': 'usdc',
         })
+
+        # 2. Request a token by delegationId (reuse it for subsequent requests).
         token_res = payments.x402.get_x402_access_token(plan_id, agent_id, {
             'delegationConfig': { 'delegationId': delegation['delegationId'] }
         })
@@ -370,6 +368,10 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
 <Note>
 The SDK auto-detects the payment scheme from plan metadata. For fiat plans (`isCrypto: false`), use `resolveScheme()` (TypeScript) or `resolve_scheme()` (Python) to determine the correct scheme. For fiat plans, use `provider: 'stripe'` in the delegation; for crypto plans, use `provider: 'erc4337'`. Middleware handles this automatically — see the [Express.js](/docs/integrate/add-to-your-agent/express) and [FastAPI](/docs/integrate/add-to-your-agent/fastapi) integration guides.
 </Note>
+
+<Warning>
+**Inline create-on-the-fly is deprecated.** Passing creation fields (`spendingLimitCents`, `durationSecs`, `providerPaymentMethodId`, `cardId`, `currency`) directly in `delegationConfig` instead of a `delegationId` still works but emits a runtime deprecation warning. Create the delegation first (as above) and pass only `{ delegationId }`. Delegations are **plan-agnostic by default**; pass `planId` on `createDelegation` only to bind a delegation to a single plan. `provider` and `currency` are **required** — there is no silent default.
+</Warning>
 
 ### Step 3 — Submit with HTTP header
 

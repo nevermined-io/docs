@@ -344,15 +344,19 @@ Response:
   // Get your balance about the plan you just ordered
   const balance = await payments.plans.getPlanBalance(PLAN_ID)
 
-  // Generate the x402 access token. `delegationConfig` is required for
-  // both crypto (nvm:erc4337) and fiat (nvm:card-delegation) plans —
-  // omitting it surfaces BCK.X402.0005 at runtime.
+  // Create a delegation first (provider + currency required; 'usdc' for
+  // erc4337), then request the token by its delegationId. `delegationConfig`
+  // is required for both crypto and fiat plans — omitting it surfaces
+  // BCK.X402.0030 at runtime.
+  const delegation = await payments.delegation.createDelegation({
+    provider: 'erc4337',
+    spendingLimitCents: 1000, // $10 cap
+    durationSecs: 86_400, // 1 day
+    currency: 'usdc',
+  })
   const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
     scheme: 'nvm:erc4337',
-    delegationConfig: {
-      spendingLimitCents: 1000, // $10 cap
-      durationSecs: 86_400, // 1 day
-    },
+    delegationConfig: { delegationId: delegation.delegationId },
   })
 
   // Use this token in the next request
@@ -376,15 +380,21 @@ Response:
     # Get your balance about the plan you just ordered
     balance = payments.plans.get_plan_balance(plan_id)
 
-    # Generate the x402 access token (delegation_config is required)
+    # Create a delegation first (provider + currency required), then request
+    # the token by its delegation_id.
+    delegation = payments.delegation.create_delegation({
+        'provider': 'erc4337',
+        'spendingLimitCents': 1000,
+        'durationSecs': 86_400,
+        'currency': 'usdc',
+    })
     token_res = payments.x402.get_x402_access_token(
         plan_id,
         agent_id,
         token_options=X402TokenOptions(
             scheme='nvm:erc4337',
             delegation_config=DelegationConfig(
-                spending_limit_cents=1000,
-                duration_secs=86_400,
+                delegation_id=delegation['delegationId'],
             ),
         ),
     )

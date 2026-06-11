@@ -301,11 +301,14 @@ sequenceDiagram
     facilitator-->>client: Enrollment confirmed
   end
 
-  %% PHASE 1: DELEGATION CREATION
+  %% PHASE 1: DELEGATION CREATION (create-first)
   rect rgb(255, 248, 240)
-    note over client,facilitator: Phase 1: Delegation Creation
-    client->>facilitator: POST /x402/permissions<br/>scheme: nvm:card-delegation<br/>spendingLimitCents, currency, expiry
-    facilitator->>facilitator: Validate customer + payment method<br/>Create delegation record<br/>Sign JWT token
+    note over client,facilitator: Phase 1: Delegation Creation (create-first)
+    client->>facilitator: POST /delegation/create<br/>provider, currency, spendingLimitCents, durationSecs
+    facilitator->>facilitator: Validate customer + payment method<br/>Create delegation record (Active)
+    facilitator-->>client: delegationId
+    client->>facilitator: POST /x402/permissions<br/>scheme: nvm:card-delegation<br/>delegationConfig: { delegationId }
+    facilitator->>facilitator: Validate delegation + sign JWT token
     facilitator-->>client: Base64-encoded PaymentPayload (x402 access token)
   end
 
@@ -416,7 +419,7 @@ Card enrollment only needs to happen once per payment method. A single enrolled 
 
 **Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'stripe'`, `'braintree'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt`, `assuranceData`, and `planId` (see Section 3.4); both extras are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
 
-Alternatively, the client can use `getX402AccessToken` with an inline `delegationConfig` to auto-create a delegation during token generation.
+The supported flow is **create-first**: create the delegation with `createDelegation`, then request the access token by passing only its `delegationId` (shown below). Inline create-on-the-fly (passing creation fields in `delegationConfig` to `getX402AccessToken` instead of a `delegationId`) is **deprecated** and emits a runtime deprecation warning; it remains reachable for backward compatibility but should not be used in new integrations. `provider` and `currency` are required on `createDelegation` (no silent default); a delegation is plan-agnostic unless `planId` is supplied (Visa always requires `planId`).
 
 **Using the `createDelegation` API directly:**
 
@@ -472,7 +475,7 @@ For Visa Trusted Agent Protocol plans, the same payload uses `provider: "visa"`,
 }
 ```
 
-**Using `getX402AccessToken` with inline delegation (combines Steps 9-12):**
+**Requesting the token by `delegationId` (the supported create-first form):**
 
 ```http
 POST /x402/permissions HTTP/1.1
