@@ -72,6 +72,14 @@ Major documentation reorganization completed:
 - ✅ Register Agents (`docs/products/nevermined-app/register-agents.mdx`)
 - ✅ Manage Plans (`docs/products/nevermined-app/manage-plans.mdx`)
 
+##### Payments
+- ✅ Overview (`docs/products/payments/overview.mdx`)
+- ✅ Card Enrollment (`docs/products/payments/card-enrollment.mdx`)
+- ✅ Braintree Onboarding (`docs/products/payments/braintree-onboarding.mdx`)
+- ✅ Delegations (`docs/products/payments/mandates.mdx`)
+- ✅ Delegation Selection (`docs/products/payments/mandate-selection.mdx`)
+- ✅ FAQ (`docs/products/payments/faq.mdx`)
+
 ##### Payment Libraries
 - ✅ Overview (`docs/products/payment-libraries/overview.mdx`)
 - ✅ TypeScript SDK (`docs/products/payment-libraries/typescript.mdx`)
