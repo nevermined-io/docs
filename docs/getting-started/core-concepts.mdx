@@ -33,7 +33,7 @@ A payment plan defines how users pay and what they're entitled to consume:
 
 <CardGroup cols={2}>
   <Card title="Payment Method" icon="credit-card">
-    [**Cards**](/docs/products/nvm-pay/overview) (Visa, Stripe, or Braintree via NVM Pay) or [**Crypto**](/docs/integrate/patterns/stablecoin-payments) (USDC, EURC on-chain).
+    [**Cards**](/docs/products/payments/overview) (Visa, Stripe, or Braintree) or [**Crypto**](/docs/integrate/patterns/stablecoin-payments) (USDC, EURC on-chain).
   </Card>
   <Card title="Pricing Model" icon="sack-dollar">
     **Fixed** (same cost per call) or **Dynamic** (builder-defined per request, or cost+margin).
@@ -56,7 +56,7 @@ A payment plan defines how users pay and what they're entitled to consume:
 <Accordion title="Pay-as-you-go">
   No upfront purchase. Charge the user's card or wallet on each request:
 
-  - **Cards**: agents charge via card delegation ([NVM Pay](/docs/products/nvm-pay/overview))
+  - **Cards**: agents charge via [card delegation](/docs/products/payments/overview)
   - **Crypto**: settle in USDC or EURC on-chain
 </Accordion>
 <Accordion title="Time-limited plans">
@@ -87,7 +87,7 @@ A payment plan defines how users pay and what they're entitled to consume:
     Set payment method, pricing model, and plan type using the Payments SDK.
   </Step>
   <Step title="Users or agents purchase access">
-    Purchase a prepaid or pay-as-you-go plan, paid with card ([NVM Pay](/docs/products/nvm-pay/overview)) or crypto.
+    Purchase a prepaid or pay-as-you-go plan, paid with [card](/docs/products/payments/overview) or crypto.
   </Step>
   <Step title="Validate before delivery">
     Validate entitlement before serving requests or granting access.
@@ -100,8 +100,8 @@ A payment plan defines how users pay and what they're entitled to consume:
 ## Payment Methods
 
 <CardGroup cols={2}>
-  <Card title="Cards" icon="credit-card" href="/docs/products/nvm-pay/overview">
-    Pay with real Visa, Stripe, or Braintree cards via [NVM Pay](/docs/products/nvm-pay/overview). Agents charge against spending delegations with lifetime limits, usage caps, and (for Visa) per-delegation WebAuthn/passkey device binding. No crypto wallet needed.
+  <Card title="Cards" icon="credit-card" href="/docs/products/payments/overview">
+    Pay with real Visa, Stripe, or Braintree cards via [card delegation](/docs/products/payments/overview). Agents charge against spending delegations with lifetime limits, usage caps, and (for Visa) per-delegation WebAuthn/passkey device binding. No crypto wallet needed.
   </Card>
   <Card title="Crypto" icon="coins" href="/docs/integrate/patterns/stablecoin-payments">
     USDC, EURC, or any ERC-20 token on-chain. Lowest fees and full transparency for crypto-native users.

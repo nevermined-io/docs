@@ -5,7 +5,7 @@ icon: "shield-check"
 ---
 
 {/*
-  URL note: this file lives at `/docs/products/nvm-pay/mandates` despite the
+  URL note: this file lives at `/docs/products/payments/mandates` despite the
   "Delegations" title. The slug is kept stable to avoid breaking external
   links that were shared before the VGS Agentic Tokens rollout retired the
   per-network "mandate" object in favour of the unified `nvm:card-delegation`
@@ -37,15 +37,15 @@ All three networks share the same core fields:
 | `currency` | ISO 4217 lowercase (`usd`, `eur`, …) |
 | `planId` | Optional plan binding. Required for Visa (Trusted Agent Protocol). |
 | `merchantAccountId` | PSP-side merchant routing. Stripe Connected Account ID, Braintree per-currency `merchantAccountId`, or seller's Stripe Connect account for Visa settlement. |
-| `apiKeyId` | Optional NVM API key link for [automatic selection](/docs/products/nvm-pay/mandate-selection) |
+| `apiKeyId` | Optional NVM API key link for [automatic selection](/docs/products/payments/mandate-selection) |
 | `consumerPrompt` | **Visa-only**: human-readable approval text shown during device binding |
 | `assuranceData` | **Visa-only**: opaque blob produced by the WebAuthn ceremony |
 
 ## Creating a Delegation
 
-### Via the Nevermined Pay Dashboard
+### Via the Nevermined App
 
-After enrolling a card, create a delegation from the [Nevermined Pay dashboard](https://pay.nevermined.app):
+After enrolling a card, create a delegation from the [Nevermined App](https://nevermined.app):
 
 <Tabs>
   <Tab title="Stripe / Braintree">
@@ -220,15 +220,15 @@ Active -> Exhausted (spending limit or transaction count reached)
   |-> Revoked (manually removed via DELETE)
 ```
 
-Only `Active` delegations can be used for payments. NVM Pay checks status, usage, and expiration on every verify and settle request. Each delegation tracks `amountSpentCents`, `remainingBudgetCents`, and `transactionCount`.
+Only `Active` delegations can be used for payments. Nevermined checks status, usage, and expiration on every verify and settle request. Each delegation tracks `amountSpentCents`, `remainingBudgetCents`, and `transactionCount`.
 
 ## API Key Linking
 
-You can optionally link a delegation to a specific NVM API key. This tells NVM Pay "when this API key is used, charge this delegation."
+You can optionally link a delegation to a specific NVM API key. This tells Nevermined "when this API key is used, charge this delegation."
 
 This is especially useful when you have multiple active delegations and want deterministic routing. Instead of the agent guessing which one to use, the API key determines it automatically. All three networks support API key linking through the same `apiKeyId` field.
 
-See [Delegation Selection](/docs/products/nvm-pay/mandate-selection) for the full resolution algorithm.
+See [Delegation Selection](/docs/products/payments/mandate-selection) for the full resolution algorithm.
 
 ## Transaction History
 
@@ -259,8 +259,8 @@ GET /api/v1/delegation/{delegationId}/transactions?offset=0
 
 ## What's Next?
 
-If you have multiple delegations, learn how NVM Pay decides which one to use for a given payment request.
+If you have multiple delegations, learn how Nevermined decides which one to use for a given payment request.
 
-<Card title="Delegation Selection" icon="route" href="/docs/products/nvm-pay/mandate-selection">
-  How NVM Pay resolves which delegation to charge
+<Card title="Delegation Selection" icon="route" href="/docs/products/payments/mandate-selection">
+  How Nevermined resolves which delegation to charge
 </Card>

@@ -487,7 +487,7 @@ docs/
 ├── integration-guide/        # Step-by-step integration paths
 ├── development-guide/        # Deep SDK documentation
 ├── api-reference/            # API method reference
-├── products/                 # Product-specific docs (NVM Pay, NVM ID)
+├── products/                 # Product-specific docs (Payments, NVM ID)
 └── snippets/                 # Reusable content blocks
 ```
 
@@ -496,7 +496,7 @@ docs/
 - Use **kebab-case** for file names: `getting-started.mdx`, `query-agents.mdx`
 - Use **descriptive, SEO-friendly names** that match page titles
 - Avoid ambiguous names like `guide.mdx` or `integration.mdx`
-- Group related files in subdirectories (e.g., `products/nvm-pay/`)
+- Group related files in subdirectories (e.g., `products/payments/`)
 
 ---
 
