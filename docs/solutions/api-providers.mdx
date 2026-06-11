@@ -425,22 +425,32 @@ What the agent runs to mint a token and call your endpoint:
   </Tab>
   <Tab title="Python">
     ```python
+    from payments_py.x402 import (
+        CreateDelegationPayload,
+        DelegationConfig,
+        X402TokenOptions,
+    )
+
     # Create a card delegation first (provider + currency required), then
     # request the token by its delegation_id.
-    delegation = payments.delegation.create_delegation({
-        'provider': 'stripe',
-        'providerPaymentMethodId': 'pm_...',
-        'spendingLimitCents': 700,
-        'durationSecs': 3600,
-        'currency': 'usd',
-    })
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider='stripe',
+            provider_payment_method_id='pm_...',
+            spending_limit_cents=700,
+            duration_secs=3600,
+            currency='usd',
+        )
+    )
     token_res = payments.x402.get_x402_access_token(
         YOUR_PLAN_ID,
         None,
-        {
-            'scheme': 'nvm:card-delegation',
-            'delegationConfig': { 'delegationId': delegation['delegationId'] },
-        },
+        token_options=X402TokenOptions(
+            scheme='nvm:card-delegation',
+            delegation_config=DelegationConfig(
+                delegation_id=delegation.delegation_id
+            ),
+        ),
     )
     access_token = token_res['accessToken']
 

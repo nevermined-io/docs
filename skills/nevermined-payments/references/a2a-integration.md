@@ -224,9 +224,12 @@ client = payments_subscriber.a2a.get_client(
 // Purchase the plan
 await paymentsSubscriber.plans.orderPlan(planId)
 
-// Get the x402 access token (requires delegationConfig)
+// Create the delegation first (provider + currency required), then get the token by delegationId
+const delegation = await paymentsSubscriber.delegation.createDelegation({
+  provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
+})
 const { accessToken } = await paymentsSubscriber.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
+  delegationConfig: { delegationId: delegation.delegationId }
 })
 
 // Send an A2A message

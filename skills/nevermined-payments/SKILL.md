@@ -160,7 +160,7 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 # → { "delegationId": "...", "delegationToken": "..." }
 ```
 
-SDK: `payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitCents, durationSecs })`.
+SDK: `payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitCents, durationSecs, currency: 'usdc' })`. `provider` and `currency` are **required** (no silent default); the delegation is plan-agnostic unless you pass `planId`.
 
 > **Visa caveat.** `delegation/create` *does* accept `provider: "visa"`, but only together with a browser-produced `consumerPrompt` + `assuranceData` from a Visa WebAuthn ceremony; omitting them is rejected with `BCK.VISA.0014` ("requires consumerPrompt and assuranceData"). An autonomous agent can't generate `assuranceData`, so in practice have your human create the Visa delegation in the webapp and reuse its `delegationId`.
 
@@ -207,7 +207,7 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 SDK shortcut for step 1:
 ```typescript
 const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { delegationId }        // or { spendingLimitCents, durationSecs } to auto-create one
+  delegationConfig: { delegationId }        // create the delegation first via createDelegation, then pass its delegationId
 })
 ```
 ```python
@@ -374,7 +374,7 @@ Every Nevermined payment integration follows this 5-step pattern:
 
 1. **Client sends request** without a payment token
 2. **Server returns 402** with `payment-required` header (base64-encoded JSON with plan info)
-3. **Client acquires x402 token** via `payments.x402.getX402AccessToken(planId, agentId, { delegationConfig })` — requires a delegation (either an existing `delegationId` or `spendingLimitCents` + `durationSecs` to auto-create one)
+3. **Client acquires x402 token** via `payments.x402.getX402AccessToken(planId, agentId, { delegationConfig: { delegationId } })` — create the delegation first with `createDelegation` (`provider` + `currency` required), then pass its `delegationId` (inline create-on-the-fly is deprecated)
 4. **Client retries** with `payment-signature` header containing the token
 5. **Server verifies → executes → settles** (burns credits), returns response with `payment-response` header
 
@@ -422,8 +422,12 @@ await payments.plans.orderPlan(planId)
 const planBalance = await payments.plans.getPlanBalance(planId)
 console.log(`Credits remaining: ${planBalance.balance}`)  // PlanBalance.balance is bigint
 
+// Create the delegation first (provider + currency required), then request the token by delegationId.
+const delegation = await payments.delegation.createDelegation({
+  provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
+})
 const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
+  delegationConfig: { delegationId: delegation.delegationId }
 })
 
 // Server: verify and settle
@@ -453,7 +457,7 @@ await client.sendMessage("Hello", accessToken)
 ### Python (`payments-py`)
 
 ```python
-from payments_py.x402 import DelegationConfig, X402TokenOptions
+from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
 
 # Initialize
 payments = Payments.get_instance(PaymentOptions(nvm_api_key=key, environment="sandbox"))
@@ -474,10 +478,16 @@ result = payments.agents.register_agent_and_plan(
 payments.plans.order_plan(plan_id)
 plan_balance = payments.plans.get_plan_balance(plan_id)
 print(f"Credits remaining: {plan_balance.balance}")  # PlanBalance.balance is int
+# Create the delegation first (provider + currency required), then request the token by delegation_id.
+delegation = payments.delegation.create_delegation(
+    CreateDelegationPayload(
+        provider="erc4337", spending_limit_cents=100, duration_secs=3600, currency="usdc"
+    )
+)
 token_res = payments.x402.get_x402_access_token(
     plan_id, agent_id,
     token_options=X402TokenOptions(
-        delegation_config=DelegationConfig(spending_limit_cents=100, duration_secs=3600)
+        delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
     )
 )
 
@@ -696,8 +706,12 @@ const client = payments.a2a.getClient({
   planId: PLAN_ID,
 })
 
+// Create the delegation first (provider + currency required), then request the token by delegationId.
+const delegation = await payments.delegation.createDelegation({
+  provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
+})
 const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
-  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
+  delegationConfig: { delegationId: delegation.delegationId }
 })
 const response = await client.sendMessage("Analyze this data", accessToken)
 ```

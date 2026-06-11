@@ -18,7 +18,7 @@ As a subscriber (consumer of a paid API/agent), you:
 An autonomous agent can complete the whole subscriber flow with plain HTTP — no SDK install. Send `Authorization: Bearer $NVM_API_KEY` on each call.
 
 ```bash
-# 1. Get an x402 access token (reuse a delegationId, or pass spendingLimitCents+durationSecs to auto-create one)
+# 1. Get an x402 access token (create the delegation first via /delegation/create, then pass its delegationId)
 curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
   -d '{ "accepted": { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<PLAN_ID>" },
         "delegationConfig": { "delegationId": "<DELEGATION_ID>" } }' \
@@ -61,9 +61,12 @@ const planBalance = await payments.plans.getPlanBalance(PLAN_ID)
 console.log(`Credits remaining: ${planBalance.balance}`)        // bigint
 console.log(`Subscriber: ${planBalance.isSubscriber}`)
 
-// Generate x402 access token (requires delegationConfig)
+// Create the delegation first (provider + currency required), then request the token by delegationId.
+const delegation = await payments.delegation.createDelegation({
+  provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
+})
 const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
-  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
+  delegationConfig: { delegationId: delegation.delegationId }
 })
 ```
 
@@ -72,7 +75,7 @@ const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID
 ```python
 import os
 from payments_py import Payments, PaymentOptions
-from payments_py.x402 import DelegationConfig, X402TokenOptions
+from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
 
 payments = Payments.get_instance(
     PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
@@ -86,11 +89,16 @@ plan_balance = payments.plans.get_plan_balance(plan_id)
 print(f"Credits remaining: {plan_balance.balance}")
 print(f"Subscriber: {plan_balance.is_subscriber}")
 
-# Generate x402 access token (requires delegationConfig)
+# Create the delegation first (provider + currency required), then request the token by delegation_id.
+delegation = payments.delegation.create_delegation(
+    CreateDelegationPayload(
+        provider="erc4337", spending_limit_cents=100, duration_secs=3600, currency="usdc"
+    )
+)
 token_res = payments.x402.get_x402_access_token(
     plan_id, agent_id,
     token_options=X402TokenOptions(
-        delegation_config=DelegationConfig(spending_limit_cents=100, duration_secs=3600)
+        delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
     )
 )
 access_token = token_res["accessToken"]
@@ -131,9 +139,12 @@ async function callProtectedAPI() {
     const { planId, extra } = paymentRequired.accepts[0]
     const agentId = extra?.agentId
 
-    // Step 3: Generate x402 token (requires delegationConfig)
+    // Step 3: Create the delegation first, then generate the x402 token by delegationId
+    const delegation = await payments.delegation.createDelegation({
+      provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
+    })
     const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-      delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
+      delegationConfig: { delegationId: delegation.delegationId }
     })
 
     // Step 4: Request with token → 200
@@ -169,7 +180,7 @@ import base64
 import json
 import httpx
 from payments_py import Payments, PaymentOptions
-from payments_py.x402 import DelegationConfig, X402TokenOptions
+from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
 
 payments = Payments.get_instance(
     PaymentOptions(
@@ -199,12 +210,18 @@ def call_protected_api():
             plan_id = payment_required["accepts"][0]["planId"]
             agent_id = payment_required["accepts"][0].get("extra", {}).get("agentId")
 
-            # Step 3: Generate x402 token (requires delegationConfig)
+            # Step 3: Create the delegation first, then generate the token by delegation_id
+            delegation = payments.delegation.create_delegation(
+                CreateDelegationPayload(
+                    provider="erc4337", spending_limit_cents=100,
+                    duration_secs=3600, currency="usdc"
+                )
+            )
             token_result = payments.x402.get_x402_access_token(
                 plan_id, agent_id,
                 token_options=X402TokenOptions(
                     delegation_config=DelegationConfig(
-                        spending_limit_cents=100, duration_secs=3600
+                        delegation_id=delegation.delegation_id
                     )
                 )
             )
@@ -240,8 +257,11 @@ if __name__ == "__main__":
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
 
+const delegation = await payments.delegation.createDelegation({
+  provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
+})
 const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { spendingLimitCents: 100, durationSecs: 3600 }
+  delegationConfig: { delegationId: delegation.delegationId }
 })
 
 const transport = new StreamableHTTPClientTransport(
@@ -267,7 +287,7 @@ const result = await client.callTool({
 ### Python
 
 ```python
-from payments_py.x402 import DelegationConfig, X402TokenOptions
+from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
 from payments_py.x402.strands import extract_payment_required
 from agent import agent, payments
 
@@ -282,12 +302,18 @@ if payment_required:
     plan_id = chosen_plan["planId"]
     agent_id = (chosen_plan.get("extra") or {}).get("agentId")
 
-    # Step 3: Get token (requires delegationConfig)
+    # Step 3: Create the delegation first, then get the token by delegation_id
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337", spending_limit_cents=100,
+            duration_secs=3600, currency="usdc"
+        )
+    )
     token_response = payments.x402.get_x402_access_token(
         plan_id, agent_id,
         token_options=X402TokenOptions(
             delegation_config=DelegationConfig(
-                spending_limit_cents=100, duration_secs=3600
+                delegation_id=delegation.delegation_id
             )
         )
     )

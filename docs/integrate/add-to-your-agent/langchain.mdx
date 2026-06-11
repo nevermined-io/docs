@@ -376,7 +376,11 @@ If the buyer **doesn't** know the plan id / scheme / provider up front, the x402
         create_paid_react_agent,
         requires_payment,
     )
-    from payments_py.x402.types import DelegationConfig, X402TokenOptions
+    from payments_py.x402.types import (
+        CreateDelegationPayload,
+        DelegationConfig,
+        X402TokenOptions,
+    )
 
     @tool
     @requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
@@ -404,13 +408,15 @@ If the buyer **doesn't** know the plan id / scheme / provider up front, the x402
     #    for subsequent token requests.
     pm = next(m for m in payments.delegation.list_payment_methods()
               if m.provider == accept.network)
-    delegation = payments.delegation.create_delegation({
-        "provider": pm.provider,
-        "providerPaymentMethodId": pm.id,
-        "spendingLimitCents": 10000,
-        "durationSecs": 3600,
-        "currency": "usd",
-    })
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider=pm.provider,
+            provider_payment_method_id=pm.id,
+            spending_limit_cents=10000,
+            duration_secs=3600,
+            currency="usd",
+        )
+    )
 
     # 3. Acquire the token against the discovered plan by delegation_id.
     token = payments.x402.get_x402_access_token(
@@ -418,7 +424,7 @@ If the buyer **doesn't** know the plan id / scheme / provider up front, the x402
         token_options=X402TokenOptions(
             scheme=accept.scheme,
             delegation_config=DelegationConfig(
-                delegation_id=delegation["delegationId"],
+                delegation_id=delegation.delegation_id,
             ),
         ),
     )["accessToken"]
