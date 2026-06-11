@@ -1,0 +1,67 @@
+---
+title: "Activity & Events"
+description: "Track everything in your organization: an activity feed, a live WebSocket stream, and outbound webhooks for member, plan, customer, and subscription events."
+icon: "bolt"
+---
+
+Organizations emit a structured stream of **events** for everything that happens inside them — members joining, plans being purchased, customers arriving, subscriptions changing. Nevermined exposes that stream three ways so you can consume it however you need: browse it in the dashboard, stream it live, or push it to your own backend.
+
+## The activity feed
+
+The **Events** tab is a paginated, filterable history of your organization's activity. Each entry shows what happened, who triggered it, what it affected, and when. It's the audit log and the "what did the team do this week" view in one.
+
+<Note>
+  The activity feed is available to every member of a **Premium** or **Enterprise** organization.
+</Note>
+
+Events are grouped into a few families:
+
+| Family | Example events |
+|---|---|
+| **Membership** | `member.invited`, `member.joined`, `member.role_changed`, `member.deactivated`, `member.reactivated`, `member.removed`, `invitation.revoked`, `invitation.expired` |
+| **Resources** | `agent.created`, `plan.created`, `plan.updated`, `plan.purchased` |
+| **Customers** | `customer.added`, `customer.blocked`, `customer.unblocked` |
+| **Subscriptions** | `subscription.upgraded`, `subscription.downgraded`, `subscription.canceled`, `subscription.lapsed` |
+| **Webhook delivery** | `webhook.delivered`, `webhook.failed` |
+| **API keys & credits** | `apikey.created`, `apikey.revoked`, `credits.redeemed` |
+
+You can filter the feed by event type, by the member who triggered an event, and by date range. Each event also carries a structured `subject` describing the resource it's about (an invitation includes the role and email, a subscription includes the tier, and so on).
+
+## Realtime stream
+
+For dashboards and integrations that need events the instant they happen, organizations expose a **realtime WebSocket stream**. Open a connection and every new activity event is pushed to you live, with a replay cursor so you can catch up on anything you missed while disconnected.
+
+<Note>
+  The realtime stream is an **Enterprise** feature. Manage your connection from the **Realtime** tab, which holds the per-member connection secrets and a copy-paste connection guide.
+</Note>
+
+From the Realtime tab you can **create**, **rotate**, and **revoke** per-member WebSocket secrets, and reference the full list of streamable event types. The stream replays recent history from a cursor you provide, then hands off to a live feed — ideal for powering an always-on internal monitor of your organization.
+
+## Webhooks
+
+When you'd rather have events **pushed to your own backend** than hold a socket open, organizations support outbound **webhooks**. You register an HTTPS endpoint, choose which event types to receive (or all of them), and Nevermined delivers each matching event as a signed POST. Deliveries are signed with an HMAC secret so your server can verify they're genuine, and delivery attempts are recorded so you can audit and retry.
+
+<Note>
+  Webhooks are a **Premium+** capability. The in-dashboard webhooks UI is rolling out behind a feature flag; if you don't see a **Webhooks** tab yet, the realtime stream and activity feed cover the same events in the meantime.
+</Note>
+
+## Consume events from code
+
+The activity feed is also part of the Payments SDK. List and filter events, page through history, and build your own monitoring on top — in TypeScript or Python:
+
+<CardGroup cols={1}>
+  <Card title="Read the activity feed from the SDK" icon="code" href="/docs/integrate/patterns/organizations#read-the-organization-activity-feed">
+    `payments.organizations.getOrganizationActivity(...)` with the same event-type and date filters as the dashboard.
+  </Card>
+</CardGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Analytics" icon="chart-line" href="/docs/solutions/organizations/analytics">
+    Aggregate these events into revenue and usage dashboards.
+  </Card>
+  <Card title="Workspaces & Members" icon="users" href="/docs/solutions/organizations/workspaces-and-members">
+    The membership events come from here.
+  </Card>
+</CardGroup>

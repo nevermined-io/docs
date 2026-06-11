@@ -1,0 +1,116 @@
+---
+title: "Workspaces & Members"
+description: "Create an organization, switch between workspaces, and invite your team as Admins or Members. Agents, plans, and API keys are owned by the organization."
+icon: "users"
+---
+
+An organization is a **workspace**: a shared container for agents, plans, API keys, billing, and customers. You can belong to several organizations and switch between them — plus your own Personal account — without logging out. Everything you publish lands in whichever workspace is active.
+
+## Workspaces
+
+Every account has a **Personal** workspace by default. Organizations are additional workspaces you create or get invited into. The **workspace switcher** in the bottom-left of the sidebar lists your Personal account and every organization you're an active member of; selecting one makes it the active context for the whole app.
+
+When an organization is active:
+
+- New agents, plans, and API keys are owned by that organization, not by you personally.
+- The sidebar shows the organization dashboard (Details, Members, Billing, and the rest).
+- Caps and features follow the organization's tier, not your Personal limits.
+
+<Note>
+  Workspaces are environment-specific. The organization you see on **sandbox** and the one on **live** are billed and managed separately — switch environments from the header dropdown.
+</Note>
+
+## Create an organization
+
+<Steps>
+  <Step title="Open the workspace switcher">
+    In the [Nevermined App](https://nevermined.app), click the workspace switcher in the bottom-left of the sidebar and choose **Create organization**.
+  </Step>
+  <Step title="Pick a tier">
+    Organizations are paid workspaces. Choose **Premium** or **Enterprise** on the upgrade screen — see [Plans & Billing](/docs/solutions/organizations/plans-and-billing) for what each tier includes.
+  </Step>
+  <Step title="Complete checkout">
+    Pay with the embedded Stripe form. Your organization is created and becomes your active workspace as soon as the subscription is confirmed.
+  </Step>
+  <Step title="Invite your team">
+    Head to the **Members** tab and invite teammates (see below). They register agents and create plans into the shared workspace automatically.
+  </Step>
+</Steps>
+
+## Members and roles
+
+Members are the people who share an organization. Every member has one of two roles:
+
+<CardGroup cols={2}>
+  <Card title="Admin" icon="user-shield">
+    Full control: invite and manage members, configure billing, set branding, manage widgets and webhooks, plus everything a Member can do.
+  </Card>
+  <Card title="Member" icon="user">
+    Builds in the shared workspace: register agents, create plans, and view the organization's pages. Cannot manage members or billing.
+  </Card>
+</CardGroup>
+
+How many members you can have depends on your tier — **5** on Premium and **unlimited** on Enterprise. Personal accounts can't have members; that's what upgrading to an organization unlocks.
+
+### Invite a member
+
+From the **Members** tab, an Admin clicks **Send invitation** and provides:
+
+- **Name** and **Email** of the invitee.
+- **Role** — Admin or Member.
+
+The invitee receives a magic-link email. When they accept, they sign in (or create an account) with that email and become an active member. Pending invitations appear in the Members tab with a status of **Pending**, **Accepted**, **Revoked**, or **Expired**, and you can **resend** or **revoke** any that are still pending.
+
+<Note>
+  The email on the accepting account must match the email the invitation was sent to — invitations can't be transferred to a different address.
+</Note>
+
+### Manage members
+
+Admins manage existing members from the actions menu on each row:
+
+| Action | Effect |
+|---|---|
+| **Change role** | Promote a Member to Admin, or demote an Admin to Member. |
+| **Deactivate** | Suspend a member's access while keeping them in the list. They can be reactivated later. |
+| **Reactivate** | Restore a previously deactivated member. |
+| **Remove** | Permanently remove the member from the organization. |
+
+<Warning>
+  An organization must always keep at least one active Admin. You can't deactivate, demote, or remove the last remaining Admin — promote someone else first.
+</Warning>
+
+## Which workspace owns what
+
+When you act through the API or SDKs, Nevermined resolves the active workspace for each request in priority order — the first match wins:
+
+<Steps>
+  <Step title="Explicit organization in the route">
+    A request to an org-scoped path (for example `/organizations/{orgId}/...`) targets that organization directly.
+  </Step>
+  <Step title="Workspace pin (header)">
+    The SDK's workspace selection, sent as the `X-Current-Org-Id` header. The backend verifies you're an active member before honoring it.
+  </Step>
+  <Step title="API key scope">
+    If your Nevermined API key was minted for a specific organization, that scope applies.
+  </Step>
+  <Step title="Most-recent membership">
+    A fallback to your most recently active membership, preserving behavior for single-org callers.
+  </Step>
+  <Step title="Personal account">
+    With no active membership, what you publish is owned by your Personal account.
+  </Step>
+</Steps>
+
+To pin a workspace from your own code — or drive your own workspace picker — see the [SDK & Workspaces guide](/docs/integrate/patterns/organizations).
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Plans & Billing" icon="credit-card" href="/docs/solutions/organizations/plans-and-billing">
+    Choose a tier and understand member seat limits.
+  </Card>
+  <Card title="SDK & Workspaces" icon="code" href="/docs/integrate/patterns/organizations">
+    List your memberships and target a workspace programmatically.
+  </Card>
+</CardGroup>
