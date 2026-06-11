@@ -1,14 +1,14 @@
 ---
 title: "Card Enrollment"
-description: "Enroll Visa, Stripe, or Braintree payment cards into NVM Pay with PCI-compliant tokenization."
+description: "Enroll Visa, Stripe, or Braintree payment cards into Nevermined with PCI-compliant tokenization."
 icon: "id-card"
 ---
 
 ## Overview
 
-Before an agent can charge a payment card, the card must be enrolled in NVM Pay. Enrollment tokenizes the card data (NVM Pay never stores raw card numbers) and registers the card with the provider so future delegations can authorize off-session charges.
+Before an agent can charge a payment card, the card must be enrolled in Nevermined. Enrollment tokenizes the card data (Nevermined never stores raw card numbers) and registers the card with the provider so future delegations can authorize off-session charges.
 
-NVM Pay supports three enrollment providers, each available as a separate tab in the [Nevermined Pay dashboard](https://pay.nevermined.app). Which provider you should enroll with depends on the plan you intend to pay for — the plan's `fiatPaymentProvider` metadata determines the required card type:
+Nevermined supports three enrollment providers, each available as a separate tab in the [Nevermined App](https://nevermined.app). Which provider you should enroll with depends on the plan you intend to pay for — the plan's `fiatPaymentProvider` metadata determines the required card type:
 
 - **Stripe-priced plans** require a Stripe-vaulted card.
 - **Braintree-priced plans** require a Braintree-vaulted card.
@@ -30,7 +30,7 @@ NVM Pay supports three enrollment providers, each available as a separate tab in
         The browser sends only the `cardId` (plus BIN-derived `last4`, `brand`, and `expMonth`/`expYear`) to `POST /api/v1/delegation/enroll-visa`. The backend calls VGS Agentic `POST /cards/{cardId}/agentic-tokens` to mint the long-lived Agentic Token (`vat_…`) and persists it as the card's `providerPaymentMethodId`.
       </Step>
       <Step title="Create a delegation">
-        After enrollment, create a [spending delegation](/docs/products/nvm-pay/mandates). Each Visa delegation requires a one-time WebAuthn/passkey device-binding ceremony embedded by Visa VTS — see the Visa tab on the [Delegations](/docs/products/nvm-pay/mandates) page.
+        After enrollment, create a [spending delegation](/docs/products/payments/mandates). Each Visa delegation requires a one-time WebAuthn/passkey device-binding ceremony embedded by Visa VTS — see the Visa tab on the [Delegations](/docs/products/payments/mandates) page.
       </Step>
     </Steps>
 
@@ -78,7 +78,7 @@ NVM Pay supports three enrollment providers, each available as a separate tab in
         The webapp posts the SetupIntent ID to `POST /api/v1/delegation/finalize-enrollment`. The API links the Stripe `pm_…` to the user.
       </Step>
       <Step title="Create a delegation">
-        After enrollment, create a [spending delegation](/docs/products/nvm-pay/mandates) to define how agents can charge this card.
+        After enrollment, create a [spending delegation](/docs/products/payments/mandates) to define how agents can charge this card.
       </Step>
     </Steps>
 
@@ -89,7 +89,7 @@ NVM Pay supports three enrollment providers, each available as a separate tab in
       |
       |-> Card confirmed (VGS Collect -> Stripe tokenization)
       |
-      |-> Enrollment finalized (linked to NVM Pay account)
+      |-> Enrollment finalized (linked to Nevermined account)
       |
       |-> Active -> Delegations can be created
             |
@@ -109,10 +109,10 @@ NVM Pay supports three enrollment providers, each available as a separate tab in
         Enter your card number, expiry, and CVC into the Braintree Drop-in. Card data goes directly to Braintree and never touches the Nevermined backend. Drop-in returns a single-use **payment-method nonce** to the browser.
       </Step>
       <Step title="Vault the card">
-        The browser submits the nonce to `POST /api/v1/delegation/enroll-braintree`. The facilitator looks up (or creates) your Braintree customer record and exchanges the nonce for a permanent **`paymentMethodToken`** by vaulting the card with `verifyCard: true`. From this point on, NVM Pay only ever stores the token — never raw card data.
+        The browser submits the nonce to `POST /api/v1/delegation/enroll-braintree`. The facilitator looks up (or creates) your Braintree customer record and exchanges the nonce for a permanent **`paymentMethodToken`** by vaulting the card with `verifyCard: true`. From this point on, Nevermined only ever stores the token — never raw card data.
       </Step>
       <Step title="Create a delegation">
-        After enrollment, create a [spending delegation](/docs/products/nvm-pay/mandates) backed by the vaulted Braintree token. The delegation can then settle x402 charges against any Braintree-priced plan in the supported currency.
+        After enrollment, create a [spending delegation](/docs/products/payments/mandates) backed by the vaulted Braintree token. The delegation can then settle x402 charges against any Braintree-priced plan in the supported currency.
       </Step>
     </Steps>
 
@@ -133,7 +133,7 @@ NVM Pay supports three enrollment providers, each available as a separate tab in
     ```
 
     <Note>
-      A Braintree-vaulted card can only be charged for plans whose seller has a Braintree merchant account in the card's transaction currency. See [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) for the seller-side per-currency requirements.
+      A Braintree-vaulted card can only be charged for plans whose seller has a Braintree merchant account in the card's transaction currency. See [Braintree onboarding](/docs/products/payments/braintree-onboarding) for the seller-side per-currency requirements.
     </Note>
   </Tab>
 </Tabs>
@@ -167,13 +167,13 @@ For example, if your card has a $10.00 ceiling:
 The default spending ceiling is $10.00 during the pilot phase. Contact the Nevermined team if you need a higher limit.
 </Note>
 
-When you create or update a delegation, NVM Pay validates that the total allocated amount across all active delegations on the card doesn't exceed the ceiling. If it would, the request is rejected with a clear error showing the remaining capacity.
+When you create or update a delegation, Nevermined validates that the total allocated amount across all active delegations on the card doesn't exceed the ceiling. If it would, the request is rejected with a clear error showing the remaining capacity.
 
 ## Managing Cards
 
-### Via the Nevermined Pay Dashboard
+### Via the Nevermined App
 
-The [Nevermined Pay dashboard](https://pay.nevermined.app) provides a visual interface for managing your enrolled cards. Visa, Stripe, and Braintree cards appear in separate tabs:
+The [Nevermined App](https://nevermined.app) provides a visual interface for managing your enrolled cards. Visa, Stripe, and Braintree cards appear in separate tabs:
 
 - View all enrolled cards with their status and spending ceiling
 - See active delegations per card with remaining capacity
@@ -206,6 +206,6 @@ All three providers support the same spending controls (ceilings, usage limits, 
 
 Once your card is enrolled, create a spending delegation to control how agents can charge it.
 
-<Card title="Create a Delegation" icon="shield-check" href="/docs/products/nvm-pay/mandates">
+<Card title="Create a Delegation" icon="shield-check" href="/docs/products/payments/mandates">
   Define spending limits, usage caps, and expiration for agent payments
 </Card>

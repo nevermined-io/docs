@@ -1,6 +1,6 @@
 ---
 title: "FAQ"
-description: "Frequently asked questions about NVM Pay, card delegation, delegation selection, Visa Agentic Tokens, and Stripe / Braintree settlement."
+description: "Frequently asked questions about Nevermined, card delegation, delegation selection, Visa Agentic Tokens, and Stripe / Braintree settlement."
 icon: "question"
 ---
 
@@ -21,7 +21,7 @@ How agents pay with your real card, within limits you control.
 </Accordion>
 
 <Accordion title="How do I revoke an agent's ability to spend?">
-  One click in the [dashboard](https://pay.nevermined.app) or `DELETE /api/v1/delegation/{delegationId}`. Revocation is immediate: no grace period, no cached tokens, and no pending window. The agent loses payment capability the instant you revoke, and any in-flight verify/settle calls fail with `DELEGATION_INACTIVE`.
+  One click in the [dashboard](https://nevermined.app) or `DELETE /api/v1/delegation/{delegationId}`. Revocation is immediate: no grace period, no cached tokens, and no pending window. The agent loses payment capability the instant you revoke, and any in-flight verify/settle calls fail with `DELEGATION_INACTIVE`.
 </Accordion>
 
 <Accordion title="What's the difference between the Visa, Stripe, and Braintree settlement paths?">
@@ -49,7 +49,7 @@ How agents pick which delegation to charge.
   2. **Key-linked** — Link a specific delegation to a specific API key, either when you create the delegation or by revoking and recreating it. The system always routes that key to its linked delegation, even if you have multiple delegations active. Only the linked key can use that delegation.
   3. **Explicit delegation ID** — Pass `delegationId` in `delegationConfig` for full control. This is the only supported mode for Visa.
 
-  See [Delegation Selection](/docs/products/nvm-pay/mandate-selection) for the full resolution algorithm.
+  See [Delegation Selection](/docs/products/payments/mandate-selection) for the full resolution algorithm.
 </Accordion>
 
 <Accordion title="When should I link an API key to a delegation?">

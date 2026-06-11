@@ -61,9 +61,9 @@ Nevermined enables paid access to **services and resources** — agent APIs, MCP
 Nevermined supports both sides of the transaction:
 
 - **Builders** register agents, set pricing, and receive payouts. They add payment validation to their endpoints and Nevermined handles the rest.
-- **Subscribers** pay for access. They can purchase a plan via Stripe checkout or stablecoins, or enroll a card via [Nevermined Pay](/docs/products/nvm-pay/overview) for autonomous agent-to-agent payments.
+- **Subscribers** pay for access. They can purchase a plan via Stripe checkout or stablecoins, or set up [card delegation](/docs/products/payments/overview) for autonomous agent-to-agent payments.
 
-Card delegation via NVM Pay is what makes agent-to-agent fiat payments possible. Instead of a human clicking through checkout each time, the subscriber enrolls a Visa, Stripe, or Braintree card, sets spending limits, and the agent charges it directly within those bounds.
+Card delegation is what makes agent-to-agent fiat payments possible. Instead of a human clicking through checkout each time, the subscriber enrolls a Visa, Stripe, or Braintree card, sets spending limits, and the agent charges it directly within those bounds.
 
 ## Payment Settlement Options
 
@@ -74,7 +74,7 @@ Card delegation via NVM Pay is what makes agent-to-agent fiat payments possible.
     Use the x402 standard for payment-required requests. The facilitator handles verification and settlement using credits or stablecoins.
   </Card>
 
-  <Card title="Card Delegation (NVM Pay)" icon="credit-card" href="/docs/products/nvm-pay/overview">
+  <Card title="Card Delegation" icon="credit-card" href="/docs/products/payments/overview">
     **Direct card charging**
 
     Subscribers enroll a Visa, Stripe, or Braintree card and set spending delegations. Agents charge the card directly via x402 with lifetime limits, usage caps, and per-delegation device binding for Visa.
@@ -85,7 +85,7 @@ Card delegation via NVM Pay is what makes agent-to-agent fiat payments possible.
 
 | Concern            | Nevermined Handles                               |
 | ------------------ | ------------------------------------------------ |
-| Payment processing | Crypto (stablecoins), fiat (Stripe), and card delegation ([NVM Pay](/docs/products/nvm-pay/overview)) |
+| Payment processing | Crypto (stablecoins), fiat (Stripe), and [card delegation](/docs/products/payments/overview) |
 | Access control     | Entitlement validation (plans/tokens/x402)       |
 | Usage metering     | Credits redemption or per-request settlement     |
 | Settlement         | Payouts to providers                             |

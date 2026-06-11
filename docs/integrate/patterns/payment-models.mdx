@@ -334,7 +334,7 @@ const usdtConfig = getERC20PriceConfig(
 
 ### Fiat (Stripe, Braintree, or Visa)
 
-Accept credit card payments via Stripe, Braintree, or the Visa Trusted Agent Protocol. The active provider is selected per plan via the seller's `fiatPaymentProvider` metadata at registration time; all three providers settle x402 charges through the same `nvm:card-delegation` scheme. Visa delegations add a per-delegation WebAuthn/passkey approval enforced by Visa VTS and settle through Stripe Connect — see the [Visa subsection](/docs/products/nvm-pay/card-enrollment) on the card enrollment page.
+Accept credit card payments via Stripe, Braintree, or the Visa Trusted Agent Protocol. The active provider is selected per plan via the seller's `fiatPaymentProvider` metadata at registration time; all three providers settle x402 charges through the same `nvm:card-delegation` scheme. Visa delegations add a per-delegation WebAuthn/passkey approval enforced by Visa VTS and settle through Stripe Connect — see the [Visa subsection](/docs/products/payments/card-enrollment) on the card enrollment page.
 
 ```typescript
 const fiatConfig = await payments.plans.getFiatPriceConfig({
@@ -348,7 +348,7 @@ const { url } = await payments.plans.orderFiatPlan(planId)
 ```
 
 <Note>
-`orderFiatPlan` returns a Stripe checkout URL and is only available for Stripe-priced plans. Braintree-priced plans are purchased through the Nevermined App's Braintree Drop-in checkout. Both Stripe and Braintree plans support per-request x402 settlement against credit-card delegations — see [Braintree onboarding](/docs/products/nvm-pay/braintree-onboarding) for the seller-side requirements (per-currency merchant accounts).
+`orderFiatPlan` returns a Stripe checkout URL and is only available for Stripe-priced plans. Braintree-priced plans are purchased through the Nevermined App's Braintree Drop-in checkout. Both Stripe and Braintree plans support per-request x402 settlement against credit-card delegations — see [Braintree onboarding](/docs/products/payments/braintree-onboarding) for the seller-side requirements (per-currency merchant accounts).
 </Note>
 
 ## Choosing the Right Model

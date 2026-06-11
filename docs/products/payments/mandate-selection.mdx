@@ -1,11 +1,11 @@
 ---
 title: "Delegation Selection"
-description: "How NVM Pay automatically resolves which delegation to charge when an agent makes a payment request. Three-tier priority with explicit, key-linked, and fallback modes."
+description: "How Nevermined automatically resolves which delegation to charge when an agent makes a payment request. Three-tier priority with explicit, key-linked, and fallback modes."
 icon: "route"
 ---
 
 {/*
-  URL note: this file lives at `/docs/products/nvm-pay/mandate-selection`
+  URL note: this file lives at `/docs/products/payments/mandate-selection`
   despite the "Delegation Selection" title. The slug is kept stable to
   preserve external links shared before the VGS Agentic Tokens rollout
   retired the per-network "mandate" object (see PR #176). Rename to
@@ -17,15 +17,15 @@ icon: "route"
 
 When a subscriber has multiple active delegations across their enrolled cards, the agent needs to know which one to use. Should it charge the $5 Visa delegation on Card A or the $10 Stripe delegation on Card B?
 
-NVM Pay solves this with a **three-tier selection algorithm** that automatically resolves the right delegation based on priority rules. The algorithm is the same for Visa, Stripe, and Braintree — `apiKeyId` and explicit `delegationId` work identically across all three networks.
+Nevermined solves this with a **three-tier selection algorithm** that automatically resolves the right delegation based on priority rules. The algorithm is the same for Visa, Stripe, and Braintree — `apiKeyId` and explicit `delegationId` work identically across all three networks.
 
 ## Three-Tier Resolution
 
-When the SDK or CLI requests an x402 access token, NVM Pay resolves the delegation in this order:
+When the SDK or CLI requests an x402 access token, Nevermined resolves the delegation in this order:
 
 <Steps>
   <Step title="Mode 1: Explicit Delegation ID">
-    If the caller passes a `delegationId` in `delegationConfig`, NVM Pay uses that delegation directly. No ambiguity, the caller knows exactly which authorization it wants.
+    If the caller passes a `delegationId` in `delegationConfig`, Nevermined uses that delegation directly. No ambiguity, the caller knows exactly which authorization it wants.
 
     <Tabs>
       <Tab title="TypeScript">
@@ -57,25 +57,25 @@ When the SDK or CLI requests an x402 access token, NVM Pay resolves the delegati
       </Tab>
     </Tabs>
 
-    NVM Pay validates:
+    Nevermined validates:
     - The delegation exists and is `Active` (not expired, exhausted, or revoked)
     - The delegation has remaining budget and remaining transactions
     - If the delegation is linked to an API key, it must match the calling key
     - The associated card is active and belongs to the authenticated user
 
     <Note>
-      This is the **only** supported mode for Visa delegations. Auto-creation from the SDK requires `consumerPrompt` + `assuranceData`, which the SDK cannot produce — see the [Visa enrollment notes](/docs/products/nvm-pay/card-enrollment).
+      This is the **only** supported mode for Visa delegations. Auto-creation from the SDK requires `consumerPrompt` + `assuranceData`, which the SDK cannot produce — see the [Visa enrollment notes](/docs/products/payments/card-enrollment).
     </Note>
   </Step>
   <Step title="Mode 2: Key-Linked Delegation">
-    If no `delegationId` is passed, NVM Pay checks if any delegation is **linked to the calling API key**. If exactly one key-linked delegation matches, it's selected automatically.
+    If no `delegationId` is passed, Nevermined checks if any delegation is **linked to the calling API key**. If exactly one key-linked delegation matches, it's selected automatically.
 
     This is the recommended approach for production setups with multiple delegations. Link each API key to a specific delegation and the routing is deterministic.
 
-    NVM Pay collects all delegations where `delegation.apiKeyId === calling_key.skId`, then filters for `Active`, with remaining budget, remaining transactions, and a non-expired duration. Key-linked delegations **always take priority** over unlinked ones.
+    Nevermined collects all delegations where `delegation.apiKeyId === calling_key.skId`, then filters for `Active`, with remaining budget, remaining transactions, and a non-expired duration. Key-linked delegations **always take priority** over unlinked ones.
   </Step>
   <Step title="Mode 3: Unlinked Fallback">
-    If no key-linked delegations exist, NVM Pay falls back to **unlinked delegations** (delegations with no `apiKeyId` set). If exactly one unlinked delegation matches, it's selected.
+    If no key-linked delegations exist, Nevermined falls back to **unlinked delegations** (delegations with no `apiKeyId` set). If exactly one unlinked delegation matches, it's selected.
 
     This mode is convenient when you only have one delegation. You don't need to link anything.
   </Step>
@@ -127,14 +127,14 @@ API key linking works the same way for Visa, Stripe, and Braintree delegations t
 
 ### When Creating
 
-In the [Nevermined Pay dashboard](https://pay.nevermined.app), open the Create Delegation dialog and select an API key from the dropdown. Only active, non-browser API keys that aren't already linked to another delegation are shown.
+In the [Nevermined App](https://nevermined.app), open the Create Delegation dialog and select an API key from the dropdown. Only active, non-browser API keys that aren't already linked to another delegation are shown.
 
 ### When Updating
 
 Delegations cannot be updated in place. To change the linked API key, revoke the existing delegation and create a new one with the desired `apiKeyId`. For Visa, this requires a fresh device-binding ceremony.
 
 <Note>
-Linking an API key is optional but recommended when you have two or more active delegations. Without it, NVM Pay can't automatically determine which one to use and will return an error.
+Linking an API key is optional but recommended when you have two or more active delegations. Without it, Nevermined can't automatically determine which one to use and will return an error.
 </Note>
 
 ## Error Handling
@@ -172,7 +172,7 @@ Linking an API key is optional but recommended when you have two or more active 
 ### Generate Access Token
 
 ```bash
-POST /api/v1/x402/access-token
+POST /api/v1/x402/permissions
 Authorization: Bearer <NVM_API_KEY>
 Content-Type: application/json
 ```
