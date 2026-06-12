@@ -81,6 +81,7 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 ## Autonomous Operations (REST, no SDK)
 
 When an agent must act on its own behalf at runtime (buy a plan, enroll a card, check credits/revenue), use the REST API directly with `Authorization: Bearer $NVM_API_KEY` against `https://api.sandbox.nevermined.app` (sandbox) or `https://api.live.nevermined.app` (live). Buy in two calls:
+- Pin the API version on direct REST calls: `Nevermined-Version: <MAJOR.MINOR>` (discover via `GET /api/v1/meta/versions`; SDKs send it automatically). Never silently change an API key's stored version pin.
 
 ```http
 # 1. token

@@ -1,0 +1,111 @@
+---
+title: "API Versioning"
+description: "How Nevermined versions its API with the platform release MAJOR.MINOR, how to pin a version per API key or per request, and what the compatibility guarantees are."
+---
+
+The Nevermined API is versioned with the platform's own semantic version: **the API version identifier is the release `MAJOR.MINOR`** (for example `1.0`). There is no separate date-based scheme. When platform `X.Y.Z` ships, the API it serves natively is version `X.Y` — patch releases never change the API contract.
+
+Your integration keeps working across platform releases because every request resolves to a pinned version, and the platform reshapes requests and responses so that pin keeps seeing the wire format it was built against.
+
+## How a request's version is resolved
+
+Each request resolves its **effective version** in this order:
+
+1. **`Nevermined-Version` request header** — overrides everything for that single request.
+2. **The API key's pinned version** — every key stores a default pin, visible and editable on the key's details page in the dashboard (API Keys → key → *API Version*). Keys created before versioning existed are pinned to the `1.0` floor; new keys are pinned to the current version at creation time.
+3. **The floor (`1.0`)** — used when neither is present (unauthenticated requests without a header).
+
+Every response echoes what was applied:
+
+```http
+Nevermined-Version: 1.0
+Nevermined-Version-Resolved-From: apiKey
+```
+
+`Nevermined-Version-Resolved-From` is one of `header`, `apiKey` or `fallback` — useful when debugging why you got a particular shape.
+
+## The header
+
+```http
+GET /api/v1/x402/permissions HTTP/1.1
+Authorization: Bearer <your-api-key>
+Nevermined-Version: 1.0
+```
+
+- Accepted forms: `1.0`, `v1.0`, or a full `1.0.7` — everything normalises to `MAJOR.MINOR`. The patch segment is ignored by design: patches never change the API.
+- An unknown or out-of-range value is rejected with `400` and the stable error code `BCK.VERSION.0001`.
+
+## Discovering the supported range
+
+Call the discovery endpoint with any API key (it is itself exempt from versioning — it always answers in its latest schema):
+
+```bash
+curl -H "Authorization: Bearer $NVM_API_KEY" \
+  https://api.live.nevermined.app/api/v1/meta/versions
+```
+
+```json
+{
+  "current": "1.1",
+  "floor": "1.0",
+  "gatedVersions": ["1.1"],
+  "yourPinnedVersion": "1.0",
+  "yourEffectiveVersion": "1.0",
+  "yourVersionResolvedFrom": "apiKey"
+}
+```
+
+- `current` — the newest version this deployment serves natively.
+- `floor` — the oldest version still supported. The floor is supported indefinitely; there are no forced sunsets.
+- `gatedVersions` — the versions that introduced at least one wire-shape change. A release that changed nothing in the API simply does not appear here: pinning to it behaves exactly like the previous version.
+- `yourPinnedVersion` — the default stored on the key you called with.
+
+The full list of what changed in each version is in the [API Changelog](/docs/development-guide/api-changelog).
+
+## Compatibility guarantees
+
+- **Any change to the API interface ships as a minor or major platform release — never a patch.** A client pinned to `X.Y` always receives the latest `X.Y.z` behavior.
+- **Breaking changes are gated.** When a field is renamed, removed or restructured, clients pinned below the version that introduced the change keep receiving the old shape. Your integration only sees the new shape when you move your pin (or send a newer header).
+- **Additive changes are not gated.** New endpoints, new optional response fields and new enum values can appear at any minor version. Ignore fields you don't recognise.
+- The floor (`1.0`) is the wire shape that shipped with platform v0.5.22, frozen.
+
+## Pinning from the SDKs
+
+`@nevermined-io/payments` and `payments-py` send `Nevermined-Version` automatically, pinned to the backend version each SDK release was built and tested against (`LOCKED_API_VERSION`). You can override it per instance:
+
+<CodeGroup>
+
+```typescript TypeScript
+import { Payments } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'live',
+  // Optional: pin a different backend API version (defaults to LOCKED_API_VERSION)
+  version: '1.0',
+})
+```
+
+```python Python
+from payments_py import Payments
+from payments_py.common.types import PaymentOptions
+
+payments = Payments(
+    PaymentOptions(
+        nvm_api_key=os.environ["NVM_API_KEY"],
+        environment="live",
+        # Optional: pin a different backend API version
+        api_version="1.0",
+    )
+)
+```
+
+</CodeGroup>
+
+## Upgrading your pin
+
+1. Read the [API Changelog](/docs/development-guide/api-changelog) entries between your pin and the target version.
+2. Test your integration against the target by sending `Nevermined-Version: <target>` on requests (no stored change needed).
+3. When everything works, move the key's default pin on its details page in the dashboard — or rotate to a newly created key, which pins to current automatically.
+
+Never change a pin you don't own: pinning is a deliberate, per-integration decision.
