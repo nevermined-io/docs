@@ -18,6 +18,14 @@ This document provides comprehensive guidelines for AI agents to write and maint
 
 **Key Audience**: AI builders, developers integrating Nevermined SDKs, and enterprises monetizing AI services.
 
+### Generated files — never edit by hand
+
+- `docs/development-guide/api-errors/codes.mdx` — mirrored from nvm-monorepo (`sync-errors-docs.yml`).
+- `docs/development-guide/api-changelog.mdx` — mirrored from nvm-monorepo's version-gate registry (`sync-api-changelog-docs.yml`). Fix content at the source (`apps/api/src/api-versioning/registry.ts` gate descriptions) and let the sync regenerate it.
+- `docs/api-reference/*` subtrees synced from payments / payments-py / cli / openclaw stay source-owned as before.
+
+`docs/development-guide/api-versioning.mdx` is AUTHORED here (not generated) — edit it normally.
+
 ### AI Coding Skill
 
 This repository includes a **Nevermined AI Skill** at `skills/nevermined-payments/SKILL.md` with 7 reference files. This skill provides AI coding assistants (Claude Code, Cursor, Copilot, ChatGPT) with SDK patterns and integration knowledge. When updating SDK code examples, framework integrations, or x402 protocol documentation, also update the corresponding skill reference files in `skills/nevermined-payments/references/` to keep them in sync. IDE-specific files (`.cursorrules`, `.cursor/rules/`, `.github/copilot-instructions.md`) contain condensed versions of the skill and should be updated when core patterns change.

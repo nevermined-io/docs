@@ -70,6 +70,18 @@ Nevermined offers two environments:
   </Tab>
 </Tabs>
 
+## API Versioning
+
+Every request resolves to a pinned API version (the platform release `MAJOR.MINOR`), so your integration keeps working across releases. The pin comes from your API key (editable in the dashboard) or, per request, from the optional `Nevermined-Version` header:
+
+```bash
+curl -X GET "https://api.sandbox.nevermined.app/api/v1/protocol/agents" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Nevermined-Version: 1.0"
+```
+
+See [API Versioning](/docs/development-guide/api-versioning) for the resolution rules and compatibility guarantees, and the [API Changelog](/docs/development-guide/api-changelog) for what changed in each version.
+
 ## Next Steps
 
 <CardGroup cols={2}>
