@@ -4,7 +4,7 @@ description: "The x402 facilitator tops up a subscriber's credits automatically 
 icon: "arrows-rotate"
 ---
 
-Autonomous agents shouldn't have to babysit a credit balance. Once a **delegation** is in place, you can stop calling `orderPlan()` in a loop: the x402 facilitator **tops up** the subscriber's credits automatically — at settlement, the moment a paid request would otherwise fail for lack of credits — bounded by the spending limit you authorized.
+Autonomous agents shouldn't have to babysit a credit balance. Once a **delegation** is in place, you can stop calling `orderPlan()` in a loop. The x402 facilitator **tops up** the subscriber's credits automatically at settlement — the moment a paid request would otherwise fail for lack of credits — bounded by the spending limit you authorized.
 
 This is a built-in capability of the x402 flow. Many builders don't know it exists, so they write fragile balance-check-then-order loops by hand. You don't need to.
 
@@ -121,19 +121,19 @@ For card-delegation plans the top-up is built in: there's no extra parameter to 
 
 ## When top-ups stop
 
-A top-up is only attempted while the delegation can cover it. When it can't, settlement fails and the request returns a `402`.
+A top-up only happens while the delegation authorizes it **and** the funding source can cover it. The two kinds of failure surface differently:
 
-| Condition | What happens |
+| Condition | Result |
 |---|---|
-| `spendingLimitCents` exhausted | Top-up is rejected; the request fails with a payment error. |
-| Delegation expired (`durationSecs` elapsed) | The delegation is invalid; settlement fails. |
-| Wallet has insufficient token balance (crypto) | The on-chain order can't execute; settlement fails. |
-| Card declined (fiat) | The charge can't complete; settlement fails. |
+| `spendingLimitCents` exhausted | The delegation can't authorize the spend → **`402`** (`BCK.X402.0005`). |
+| Delegation expired (`durationSecs` elapsed) | The delegation is no longer valid → **`402`** (`BCK.X402.0005`). |
+| Wallet has insufficient token balance (crypto) | The on-chain `order` reverts → server-side **`500`** (`BCK.X402.0008`, "Failed to order crypto plan"). |
+| Card declined (fiat) | The off-session charge fails → server-side **`500`** (`BCK.X402.0009`, "Failed to redeem credits"). |
 
-To resume, the subscriber creates a fresh delegation with new limits.
+A `402` means the delegation itself is the blocker — create a fresh delegation with new limits to resume. A `500` means the delegation was valid but the underlying payment couldn't execute: top up the wallet (crypto) or fix the card (fiat).
 
 <Warning>
-In A2A pipelines, handle settlement failures explicitly. When a delegation is exhausted or expired, surface a clear payment error to the orchestrator instead of retrying indefinitely.
+In A2A pipelines, branch on the error `code`, not just the HTTP status. A declined card or an under-funded wallet surfaces as a server-side `500` — not a `402` — so don't treat every failure as an exhausted delegation, and don't retry indefinitely.
 </Warning>
 
 ## Next steps
