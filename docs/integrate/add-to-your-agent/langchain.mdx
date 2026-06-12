@@ -446,7 +446,9 @@ If the buyer **doesn't** know the plan id / scheme / provider up front, the x402
   `delegationId` is deprecated and emits a runtime warning — see the x402
   Protocol module reference ([TypeScript](/docs/api-reference/typescript/x402) ·
   [Python](/docs/api-reference/python/x402-module)) for the full token-options
-  surface.
+  surface. This discovery flow covers Stripe and Braintree. For **Visa**-priced
+  plans, `createDelegation` from the SDK is rejected (`BCK.VISA.0014`) — create
+  the Visa delegation in the Nevermined app and reuse its `delegationId` here.
 </Note>
 
 <Note>

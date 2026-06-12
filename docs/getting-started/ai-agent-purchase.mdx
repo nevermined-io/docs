@@ -200,8 +200,7 @@ API keys are environment-specific: Sandbox keys start with `sandbox:`, Live keys
       <Tab title="Python">
         ```python
         import requests
-        from payments_py import X402TokenOptions, DelegationConfig
-        from payments_py.x402 import CreateDelegationPayload
+        from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
 
         # Card (nvm:card-delegation): reuse the delegation you created during enrollment.
         result = payments.x402.get_x402_access_token(

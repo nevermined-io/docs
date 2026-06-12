@@ -83,7 +83,8 @@ Delegations are created via the SDK before generating an x402 access token:
 const delegation = await payments.delegation.createDelegation({
   provider: 'erc4337',
   spendingLimitCents: 10000,
-  durationSecs: 604800  // 7 days
+  durationSecs: 604800, // 7 days
+  currency: 'usdc',
 })
 ```
 
