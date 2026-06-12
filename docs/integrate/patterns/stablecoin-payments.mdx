@@ -46,7 +46,7 @@ Accept USDC, EURC, or any ERC-20 token directly on-chain. Stablecoin payments ar
   </Step>
 
   <Step title="Credits consumed per request">
-    Each API call or agent query burns credits according to the plan configuration. If the subscriber's balance runs low, the system can auto-order more credits (if the wallet has sufficient balance and the delegation permits it).
+    Each API call or agent query burns credits according to the plan configuration. If the subscriber's balance runs low, the facilitator can [top up](/docs/integrate/patterns/top-up) their credits automatically — when the wallet has sufficient balance and the delegation permits it.
   </Step>
 </Steps>
 
@@ -130,19 +130,11 @@ Because there's no payment processor in the middle, stablecoin payments carry no
   </Card>
 </CardGroup>
 
-## Auto-Ordering
+## Automatic Top-Ups
 
-When a subscriber's credit balance runs low, the system can automatically purchase more credits on their behalf. This happens seamlessly if:
+When a subscriber's credit balance runs low, the facilitator can automatically purchase more credits on their behalf at settlement — no manual balance checks required. This keeps agent-to-agent workflows running without interruption, bounded by the delegation's `spendingLimitCents`.
 
-- The subscriber's wallet has sufficient token balance
-- The active delegation has remaining spending capacity (`spendingLimitCents` not exhausted)
-- The plan supports re-ordering
-
-This keeps agent-to-agent workflows running without interruption.
-
-<Warning>
-If the delegation's `spendingLimitCents` is exhausted or the delegation has expired, auto-ordering stops. The subscriber must create a new delegation with fresh limits to resume.
-</Warning>
+See the [Automatic Credit Top-Ups](/docs/integrate/patterns/top-up) guide for how it works, how to set up the delegation, crypto vs. fiat behavior, and failure handling.
 
 ## Next Steps
 
