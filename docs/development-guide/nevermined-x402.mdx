@@ -386,6 +386,10 @@ The SDK auto-detects the payment scheme from plan metadata. For fiat plans (`isC
 **Inline create-on-the-fly is deprecated.** Passing creation fields (`spendingLimitCents`, `durationSecs`, `providerPaymentMethodId`, `cardId`, `currency`) directly in `delegationConfig` instead of a `delegationId` still works but emits a runtime deprecation warning. Create the delegation first (as above) and pass only `{ delegationId }`. Delegations are **plan-agnostic by default**; pass `planId` on `createDelegation` only to bind a delegation to a single plan. `provider` and `currency` are **required** — there is no silent default.
 </Warning>
 
+<Tip>
+With a delegation in place you can skip the manual `order_plan()` / `orderPlan()` step entirely. If the subscriber's balance is short when a request settles, the facilitator tops up their credits automatically, up to the delegation's limit. See [Automatic Credit Top-Ups](/docs/integrate/patterns/top-up).
+</Tip>
+
 ### Step 3 — Submit with HTTP header
 
 Clients include the x402 access token in the `payment-signature` header:

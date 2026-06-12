@@ -104,6 +104,19 @@ token_res = payments.x402.get_x402_access_token(
 access_token = token_res["accessToken"]
 ```
 
+## Automatic Credit Top-Ups
+
+When the access token carries a `delegationConfig`, the facilitator tops up the subscriber's credits automatically — no manual balance-check-then-`orderPlan` loop.
+
+- The top-up fires at **settlement** (when a paid request is consumed), **not** when `getX402AccessToken` is called. Generating the token only pre-authorizes the spend; no credits are bought until the balance is actually short.
+- **Crypto (`nvm:erc4337`)**: the facilitator executes an on-chain `order` against the subscriber's smart account.
+- **Fiat (`nvm:card-delegation`)**: the facilitator charges the enrolled card off-session — built into the card delegation, no extra parameter.
+- Every top-up is bounded by the delegation's `spendingLimitCents`. When that's exhausted or the delegation expires, settlement fails and the request returns `402`.
+- Create the delegation first and reuse it by passing `delegationConfig.delegationId` (passing `spendingLimitCents` + `durationSecs` inline still works but is deprecated and emits a runtime warning).
+- In A2A pipelines, handle `402`/settlement failures explicitly — surface a clear payment error rather than retrying indefinitely.
+
+Full guide: [Automatic Credit Top-Ups](https://nevermined.ai/docs/integrate/patterns/top-up).
+
 ## Call a Protected HTTP API
 
 ### TypeScript

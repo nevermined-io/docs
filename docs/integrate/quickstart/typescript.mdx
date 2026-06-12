@@ -221,7 +221,7 @@ const payments = Payments.getInstance({
 })
 
 async function purchaseAndQuery() {
-  // 1. Order the plan
+  // 1. Order the plan (buys credits up front)
   console.log('Purchasing plan...')
   await payments.plans.orderPlan(process.env.PLAN_ID!)
 
@@ -262,6 +262,10 @@ async function purchaseAndQuery() {
 
 purchaseAndQuery()
 ```
+
+<Tip>
+For agents that run continuously, set up a delegation when generating the access token — the facilitator tops up credits automatically when the balance runs out, with no manual `orderPlan()` loop needed. See [Automatic Credit Top-Ups](/docs/integrate/patterns/top-up).
+</Tip>
 
 ## Project Structure
 

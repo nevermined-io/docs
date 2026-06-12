@@ -1,0 +1,154 @@
+---
+title: "Automatic Credit Top-Ups"
+description: "The x402 facilitator tops up a subscriber's credits automatically at settlement — pre-authorized once via a delegation, no manual order_plan loop."
+icon: "arrows-rotate"
+---
+
+Autonomous agents shouldn't have to babysit a credit balance. Once a **delegation** is in place, you can stop calling `orderPlan()` in a loop. The x402 facilitator **tops up** the subscriber's credits automatically at settlement — the moment a paid request would otherwise fail for lack of credits — bounded by the spending limit you authorized.
+
+This is a built-in capability of the x402 flow. Many builders don't know it exists, so they write fragile balance-check-then-order loops by hand. You don't need to.
+
+## The problem it solves
+
+Without a delegation, a subscriber has to manage credits themselves: check the balance, order more when it runs low, wait for the order to confirm, and only then make the request. In an agent-to-agent (A2A) pipeline that runs unattended, that polling loop is brittle — a mis-timed check or a slow confirmation stalls the whole workflow.
+
+```python
+# What builders write by hand — and shouldn't have to
+balance = payments.plans.get_plan_balance(plan_id)
+if balance.balance <= 0:
+    payments.plans.order_plan(plan_id)
+    time.sleep(5)  # hope the on-chain order confirmed by now
+token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+```
+
+## How top-ups work
+
+The key idea: **generating the access token doesn't buy anything — it authorizes a future top-up.** The purchase happens later, at settlement, and only if it's actually needed.
+
+1. **Authorize once.** You create a delegation once and reference it by `delegationId` when generating the access token (`getX402AccessToken` / `get_x402_access_token`). This mints a signed token that lets the facilitator spend on the subscriber's behalf, up to the delegation's limit. No credits are bought at this point.
+2. **Spend normally.** The agent sends the token in the `payment-signature` header on each paid request.
+3. **Top up at settlement.** When the facilitator settles a request, it checks the subscriber's credit balance. If there are enough credits, it simply burns them. If there aren't, it **tops up first** — buying exactly the credits the request needs — then settles.
+   - **Crypto (`nvm:erc4337`):** the facilitator executes an on-chain `order` against the subscriber's smart account to mint credits.
+   - **Fiat (`nvm:card-delegation`):** the facilitator charges the enrolled card off-session to mint credits.
+4. **Stay within the limit.** Every top-up counts against the delegation's `spendingLimitCents`. Once that budget is exhausted or the delegation expires, top-ups stop and the request fails with a `402`.
+
+<Note>
+The top-up fires at **settlement**, not when you call `getX402AccessToken`. Generating the token only pre-authorizes the spend — no money moves until the agent consumes a paid request and the balance comes up short.
+</Note>
+
+## Manual flow vs. top-ups
+
+The difference is that the `orderPlan` / `order_plan` loop disappears:
+
+- **Without a delegation**, you babysit the balance — check it, order more credits when it's low, wait for the order to confirm, then make your request (the snippet above).
+- **With a delegation**, you authorize spending once (see below) and just make requests. There's no balance check and no explicit order: if credits run short when a request settles, the facilitator tops up automatically, within the delegation's limit.
+
+## Set up the delegation
+
+A delegation authorizes the facilitator to spend on the subscriber's behalf. Create it once with `createDelegation` / `create_delegation`, then reference it by `delegationId` when you generate access tokens — spending is tracked cumulatively against the same limit:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    // Create the delegation once
+    const delegation = await payments.delegation.createDelegation({
+      provider: 'erc4337',
+      spendingLimitCents: 50000, // $500 total budget
+      durationSecs: 2592000,     // 30 days
+      currency: 'usdc',          // 'usdc' for crypto (erc4337), 'usd' for card providers
+    })
+
+    // Reference it by id on every request
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      delegationConfig: { delegationId: delegation.delegationId },
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
+
+    # Create the delegation once
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337",
+            spending_limit_cents=50000,  # $500 total budget
+            duration_secs=2592000,       # 30 days
+            currency="usdc",             # 'usdc' for crypto (erc4337), 'usd' for card providers
+        )
+    )
+
+    # Reference it by id on every request
+    token_res = payments.x402.get_x402_access_token(
+        plan_id,
+        agent_id,
+        token_options=X402TokenOptions(
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+        ),
+    )
+    access_token = token_res["accessToken"]
+    ```
+  </Tab>
+</Tabs>
+
+The two fields that scope a delegation:
+
+| Field | Description |
+|---|---|
+| `spendingLimitCents` | Total spending cap for the delegation's lifetime, in cents. `10000` = $100. |
+| `durationSecs` | How long the delegation stays valid, in seconds. `604800` = 7 days. |
+
+`provider` and `currency` are required — there's no silent default. Delegations are plan-agnostic by default; pass `planId` on `createDelegation` only to bind one to a single plan.
+
+<Warning>
+Passing creation fields (`spendingLimitCents`, `durationSecs`, `currency`, …) inline in `delegationConfig` instead of a `delegationId` still works but is **deprecated** and emits a runtime warning. Create the delegation first and pass only `{ delegationId }`.
+</Warning>
+
+<Tip>
+Run this in `sandbox` first. A delegation grants pre-authorized spending up to `spendingLimitCents` for `durationSecs` — start with a small budget (for example `100` cents over `3600` seconds) and raise it per use case after review.
+</Tip>
+
+## Crypto vs. fiat
+
+Top-ups work the same way from your code regardless of how the plan is paid for — only the settlement mechanism differs:
+
+| Scheme | How a top-up settles | What bounds it |
+|---|---|---|
+| `nvm:erc4337` (crypto) | On-chain `order` against the subscriber's smart account, funded from their wallet | `spendingLimitCents` and the wallet's token balance |
+| `nvm:card-delegation` (fiat) | Off-session card charge through the configured provider (Stripe, Braintree, or Visa) | `spendingLimitCents` on the card delegation |
+
+For card-delegation plans the top-up is built in: there's no extra parameter to pass — enroll a card, set its spending limit, and the facilitator charges it when a request would otherwise run dry. See [Fiat Payments](/docs/integrate/patterns/fiat-payments) for card enrollment.
+
+## When top-ups stop
+
+A top-up only happens while the delegation authorizes it **and** the funding source can cover it. The two kinds of failure surface differently:
+
+| Condition | Result |
+|---|---|
+| `spendingLimitCents` exhausted | The delegation can't authorize the spend → **`402`** (`BCK.X402.0005`). |
+| Delegation expired (`durationSecs` elapsed) | The delegation is no longer valid → **`402`** (`BCK.X402.0005`). |
+| Wallet has insufficient token balance (crypto) | The on-chain `order` reverts → server-side **`500`** (`BCK.X402.0008`, "Failed to order crypto plan"). |
+| Card declined (fiat) | The off-session charge fails → server-side **`500`** (`BCK.X402.0009`, "Failed to redeem credits"). |
+
+A `402` means the delegation itself is the blocker — create a fresh delegation with new limits to resume. A `500` means the delegation was valid but the underlying payment couldn't execute: top up the wallet (crypto) or fix the card (fiat).
+
+<Warning>
+In A2A pipelines, branch on the error `code`, not just the HTTP status. A declined card or an under-funded wallet surfaces as a server-side `500` — not a `402` — so don't treat every failure as an exhausted delegation, and don't retry indefinitely.
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Stablecoin Payments" icon="coins" href="/docs/integrate/patterns/stablecoin-payments">
+    How crypto delegations and on-chain settlement work.
+  </Card>
+  <Card title="Fiat Payments" icon="credit-card" href="/docs/integrate/patterns/fiat-payments">
+    Enroll a card and pay per request via Stripe, Braintree, or Visa.
+  </Card>
+  <Card title="Nevermined x402" icon="handshake" href="/docs/development-guide/nevermined-x402">
+    The x402 protocol, access tokens, and the settlement flow in depth.
+  </Card>
+  <Card title="Agent-to-Agent Monetization" icon="robot" href="/docs/solutions/agent-to-agent-monetization">
+    Build autonomous agent pipelines with built-in payment rails.
+  </Card>
+</CardGroup>
