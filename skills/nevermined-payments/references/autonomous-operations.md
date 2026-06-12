@@ -113,12 +113,12 @@ On completion the browser redirects to your `returnUrl` with `paymentMethodId` a
 
 ### 3b. Create a delegation explicitly
 
-`provider` is one of `stripe`, `braintree`, `visa` (card) or `erc4337` (stablecoin). `spendingLimitCents` and `durationSecs` are **required**; `providerPaymentMethodId` is the `id` from `GET /payment-methods` (omit it for the default stablecoin smart account).
+`provider`, `currency`, `spendingLimitCents`, and `durationSecs` are all **required** (no silent default for `provider` or `currency`). Use `currency: "usdc"` for `erc4337`, `"usd"` for card providers. `providerPaymentMethodId` is the `id` from `GET /payment-methods` (omit it for the default stablecoin smart account). The delegation is **plan-agnostic** unless you pass `planId`.
 
 ```bash
 # Stablecoin / crypto — fully programmatic, no card, no human.
 curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
-  -d '{ "provider": "erc4337", "spendingLimitCents": 10000, "durationSecs": 604800 }' \
+  -d '{ "provider": "erc4337", "spendingLimitCents": 10000, "durationSecs": 604800, "currency": "usdc" }' \
   https://api.sandbox.nevermined.app/api/v1/delegation/create
 
 # Card (set a fresh budget on an already-enrolled card)
@@ -160,7 +160,7 @@ curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applic
 ```
 
 - **Card:** `"scheme": "nvm:card-delegation"`, `"network": "stripe"` (or `braintree`/`visa`).
-- **Auto-create a delegation instead of reusing one:** replace `delegationConfig` with `{ "spendingLimitCents": 1000, "durationSecs": 86400 }` (crypto) or add `"providerPaymentMethodId": "pm_...", "currency": "usd"` (card).
+- **Create-first only:** always create the delegation via `/delegation/create` (step 3b) and pass its `delegationId` here. Inline create-on-the-fly (a `delegationConfig` without a `delegationId`) is **deprecated** and emits a runtime deprecation warning.
 - **Field rename:** the response field is `accessToken`; pass that value as `x402AccessToken` in `/settle` and `/verify` below.
 - **Don't know the plan's scheme?** `GET {API_BASE}/api/v1/protocol/plans/<PLAN_ID>` (public) returns the plan's metadata and pricing.
 

@@ -339,22 +339,26 @@ If the buyer **doesn't** know the plan id / scheme / provider up front, the x402
       // accept.planId  → which plan to acquire a token against
     }
 
-    // 2. Pick a payment method matching the discovered network.
+    // 2. Pick a payment method matching the discovered network and create a
+    //    delegation once (provider + currency required). Reuse its delegationId
+    //    for subsequent token requests.
     const methods = await payments.delegation.listPaymentMethods()
     const pm = methods.find((m) => m.provider === accept.network)!
+    const delegation = await payments.delegation.createDelegation({
+      provider: pm.provider!,
+      providerPaymentMethodId: pm.id,
+      spendingLimitCents: 10000,
+      durationSecs: 3600,
+      currency: 'usd',
+    })
 
-    // 3. Acquire the token against the discovered plan.
+    // 3. Acquire the token against the discovered plan by delegationId.
     const { accessToken } = await payments.x402.getX402AccessToken(
       accept.planId,
       undefined,
       {
         scheme: accept.scheme,
-        delegationConfig: {
-          providerPaymentMethodId: pm.id,
-          spendingLimitCents: 10000,
-          durationSecs: 3600,
-          currency: 'usd',
-        },
+        delegationConfig: { delegationId: delegation.delegationId },
       },
     )
 
@@ -372,7 +376,11 @@ If the buyer **doesn't** know the plan id / scheme / provider up front, the x402
         create_paid_react_agent,
         requires_payment,
     )
-    from payments_py.x402.types import DelegationConfig, X402TokenOptions
+    from payments_py.x402.types import (
+        CreateDelegationPayload,
+        DelegationConfig,
+        X402TokenOptions,
+    )
 
     @tool
     @requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
@@ -395,20 +403,28 @@ If the buyer **doesn't** know the plan id / scheme / provider up front, the x402
         # accept.network   → CAIP-2 chain or provider name (stripe, braintree, …)
         # accept.plan_id   → which plan to acquire a token against
 
-    # 2. Pick a payment method matching the discovered network.
+    # 2. Pick a payment method matching the discovered network and create a
+    #    delegation once (provider + currency required). Reuse its delegation_id
+    #    for subsequent token requests.
     pm = next(m for m in payments.delegation.list_payment_methods()
               if m.provider == accept.network)
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider=pm.provider,
+            provider_payment_method_id=pm.id,
+            spending_limit_cents=10000,
+            duration_secs=3600,
+            currency="usd",
+        )
+    )
 
-    # 3. Acquire the token against the discovered plan.
+    # 3. Acquire the token against the discovered plan by delegation_id.
     token = payments.x402.get_x402_access_token(
         accept.plan_id,
         token_options=X402TokenOptions(
             scheme=accept.scheme,
             delegation_config=DelegationConfig(
-                provider_payment_method_id=pm.id,
-                spending_limit_cents=10000,
-                duration_secs=3600,
-                currency="usd",
+                delegation_id=delegation.delegation_id,
             ),
         ),
     )["accessToken"]
@@ -423,12 +439,16 @@ If the buyer **doesn't** know the plan id / scheme / provider up front, the x402
 </Tabs>
 
 <Note>
-  For card-delegation plans the SDK needs a delegation config so it can
-  auto-create the Stripe / Braintree delegation that backs the payment
-  signature. Crypto plans (`nvm:erc4337`) need the same — see the x402 Protocol
-  module reference ([TypeScript](/docs/api-reference/typescript/x402) ·
+  Create the delegation that backs the payment signature **first** (with
+  `createDelegation`), then pass its `delegationId` in the token's
+  `delegationConfig`. This applies to both card-delegation and crypto
+  (`nvm:erc4337`) plans. Passing creation fields inline instead of a
+  `delegationId` is deprecated and emits a runtime warning — see the x402
+  Protocol module reference ([TypeScript](/docs/api-reference/typescript/x402) ·
   [Python](/docs/api-reference/python/x402-module)) for the full token-options
-  surface.
+  surface. This discovery flow covers Stripe and Braintree. For **Visa**-priced
+  plans, `createDelegation` from the SDK is rejected (`BCK.VISA.0014`) — create
+  the Visa delegation in the Nevermined app and reuse its `delegationId` here.
 </Note>
 
 <Note>

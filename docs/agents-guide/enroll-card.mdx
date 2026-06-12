@@ -83,7 +83,7 @@ Do the work yourself: mint an embedded session with my API key, host a one-shot 
       "spendingLimitCents": 5000, "durationSecs": 2592000, "currency": "usd" }
     ```
 
-    `spendingLimitCents` and `durationSecs` are required. The response carries a new `delegationId`.
+    `provider`, `currency`, `spendingLimitCents`, and `durationSecs` are all required — there is no silent default for `provider` or `currency`. The response carries a new `delegationId`. The delegation is **plan-agnostic** unless you pass a `planId`.
 
     <Note>
       **Visa** is the exception: `provider: "visa"` needs a browser-produced `consumerPrompt` + `assuranceData` from a WebAuthn ceremony, which an agent can't generate — so create Visa delegations in the app and reuse the `delegationId`.

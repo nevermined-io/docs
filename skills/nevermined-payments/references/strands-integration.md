@@ -67,7 +67,7 @@ In Strands, the LLM sees the error and relays it to the user in natural language
 
 ```python
 from payments_py import Payments, PaymentOptions
-from payments_py.x402 import DelegationConfig, X402TokenOptions
+from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
 from payments_py.x402.strands import extract_payment_required
 from agent import agent, payments
 
@@ -83,12 +83,19 @@ if payment_required:
     plan_id = chosen_plan["planId"]
     agent_id = (chosen_plan.get("extra") or {}).get("agentId")
 
+    # Create the delegation first (provider + currency required), then acquire the token by delegation_id
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337", spending_limit_cents=100,
+            duration_secs=3600, currency="usdc"
+        )
+    )
     token_response = payments.x402.get_x402_access_token(
         plan_id=plan_id,
         agent_id=agent_id,
         token_options=X402TokenOptions(
             delegation_config=DelegationConfig(
-                spending_limit_cents=100, duration_secs=3600
+                delegation_id=delegation.delegation_id
             )
         ),
     )

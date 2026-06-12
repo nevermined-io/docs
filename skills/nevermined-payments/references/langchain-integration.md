@@ -52,7 +52,11 @@ The decorator automatically:
 
 ```python
 from payments_py.x402.langchain import PaymentRequiredError
-from payments_py.x402.types import DelegationConfig, X402TokenOptions
+from payments_py.x402.types import (
+    CreateDelegationPayload,
+    DelegationConfig,
+    X402TokenOptions,
+)
 
 # Step 1: call the agent without a token to discover requirements
 try:
@@ -63,22 +67,29 @@ except PaymentRequiredError as err:
     # accept.network   → CAIP-2 chain or provider name (stripe, braintree, visa)
     # accept.plan_id   → which plan to acquire a token against
 
-# Step 2: pick a payment method matching the discovered network
+# Step 2: pick a payment method matching the discovered network and create a
+# delegation once (provider + currency required); reuse its delegation_id later.
 pm = next(
     m for m in payments.delegation.list_payment_methods()
     if m.provider == accept.network
 )
+delegation = payments.delegation.create_delegation(
+    CreateDelegationPayload(
+        provider=pm.provider,
+        provider_payment_method_id=pm.id,
+        spending_limit_cents=10000,  # $100 cap per delegation
+        duration_secs=3600,          # 1 hour TTL
+        currency="usd",
+    )
+)
 
-# Step 3: acquire a token against the discovered plan
+# Step 3: acquire a token against the discovered plan by delegation_id
 token = payments.x402.get_x402_access_token(
     accept.plan_id,
     token_options=X402TokenOptions(
         scheme=accept.scheme,
         delegation_config=DelegationConfig(
-            provider_payment_method_id=pm.id,
-            spending_limit_cents=10000,  # $100 cap per delegation
-            duration_secs=3600,          # 1 hour TTL
-            currency="usd",
+            delegation_id=delegation.delegation_id,
         ),
     ),
 )["accessToken"]
@@ -276,22 +287,25 @@ try {
   accept = err.paymentRequired!.accepts[0] // .scheme / .network / .planId
 }
 
-// 2. Pick a payment method matching the discovered network.
+// 2. Pick a payment method matching the discovered network and create a
+//    delegation once (provider + currency required); reuse its delegationId.
 const methods = await payments.delegation.listPaymentMethods()
 const pm = methods.find((m) => m.provider === accept.network)!
+const delegation = await payments.delegation.createDelegation({
+  provider: pm.provider!,
+  providerPaymentMethodId: pm.id,
+  spendingLimitCents: 10000, // $100 cap per delegation
+  durationSecs: 3600, // 1 hour TTL
+  currency: 'usd',
+})
 
-// 3. Acquire a token against the discovered plan.
+// 3. Acquire a token against the discovered plan by delegationId.
 const { accessToken } = await payments.x402.getX402AccessToken(
   accept.planId,
   undefined,
   {
     scheme: accept.scheme,
-    delegationConfig: {
-      providerPaymentMethodId: pm.id,
-      spendingLimitCents: 10000, // $100 cap per delegation
-      durationSecs: 3600, // 1 hour TTL
-      currency: 'usd',
-    },
+    delegationConfig: { delegationId: delegation.delegationId },
   },
 )
 

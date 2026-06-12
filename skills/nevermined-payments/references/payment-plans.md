@@ -201,18 +201,20 @@ fiat_price_config = payments.plans.get_fiat_price_config(
 )
 ```
 
-When subscribers fetch an x402 token for a fiat plan, they pass `--payment-type fiat` (CLI) or one of two `delegationConfig` shapes (SDK):
+When subscribers fetch an x402 token for a fiat plan, the supported flow is **create-first**: create the delegation, then reuse it by `delegationId`.
 
-- **Reuse an existing delegation** (works for all networks, including Visa):
+- **Create the delegation** (`provider` + `currency` required), e.g. for Stripe / Braintree:
   ```ts
-  delegationConfig: { delegationId: 'deleg-…' }
+  const delegation = await payments.delegation.createDelegation({
+    provider: 'stripe', providerPaymentMethodId: 'pm_…', spendingLimitCents: 1000, durationSecs: 86400, currency: 'usd'
+  })
   ```
-- **Auto-create a new delegation** (Stripe / Braintree only — Visa rejects with `BCK.VISA.0014`):
+- **Reuse it by `delegationId`** (works for all networks, including Visa):
   ```ts
-  delegationConfig: { providerPaymentMethodId: 'pm_…', spendingLimitCents: 1000, durationSecs: 86400 }
+  delegationConfig: { delegationId: delegation.delegationId }
   ```
 
-`providerPaymentMethodId` alone is not enough — the backend requires `spendingLimitCents` + `durationSecs` to mint the delegation. The SDK auto-resolves `nvm:card-delegation` from the plan's `priceConfig`. For **Visa** plans, only the first shape works — Visa delegations must be created in the Nevermined webapp (browser-only WebAuthn ceremony) and reused from the SDK by ID. Attempting `create_delegation(provider='visa', ...)` from the SDK is rejected with `BCK.VISA.0014` because the required `consumerPrompt` and `assuranceData` blobs can only be produced in-browser.
+The SDK auto-resolves `nvm:card-delegation` from the plan's `priceConfig`. Passing the creation fields inline in `delegationConfig` (a `delegationConfig` without `delegationId`) is **deprecated** and emits a runtime deprecation warning — create the delegation first. For **Visa** plans, only the reuse path works — Visa delegations must be created in the Nevermined webapp (browser-only WebAuthn ceremony) and reused from the SDK by ID. Attempting `create_delegation(provider='visa', ...)` from the SDK is rejected with `BCK.VISA.0014` because the required `consumerPrompt` and `assuranceData` blobs can only be produced in-browser.
 
 ## Pay-As-You-Go Plans
 
