@@ -3,6 +3,8 @@
 How an AI agent operates on Nevermined **on its own behalf** using the REST API — get an API key, enroll a card, create a delegation, purchase plans via x402, and check status. Every call here is plain HTTPS; no SDK install is required. This is the heavy-detail companion to **Track A** in `SKILL.md`.
 
 > All bodies and response shapes below are verified against the live sandbox OpenAPI (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`). Send `Authorization: Bearer $NVM_API_KEY` on every call unless noted.
+>
+> Also send `Nevermined-Version: <MAJOR.MINOR>` on every call to pin the wire shape across platform releases — discover the supported range with `GET /api/v1/meta/versions` and default to its `current`. Never silently change a key's stored pin.
 
 ## Environments
 
