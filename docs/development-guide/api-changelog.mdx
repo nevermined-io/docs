@@ -1,0 +1,26 @@
+---
+title: "API Changelog"
+description: "Every wire-shape change between supported Nevermined API versions. The version identifier is the platform release MAJOR.MINOR."
+---
+
+{/* GENERATED FILE — DO NOT EDIT. */}
+{/* Source of truth: nvm-monorepo apps/api/src/api-versioning/registry.ts. */}
+{/* Synced by the sync-api-changelog-docs workflow. */}
+
+Clients pin an API version per API key (editable in the dashboard) or per request
+via the `Nevermined-Version` header; the platform reshapes requests and responses so
+every supported pin keeps working. See the [versioning guide](/docs/development-guide/api-versioning).
+
+- **Floor (oldest supported version):** `1.0`
+- **Live current version:** `GET /api/v1/meta/versions`
+
+## 1.1
+
+_Changes relative to `1.0`:_
+
+- **Remove the legacy creditsConfig.proofRequired request alias — the canonical key is onchainMirror (clients below 1.1 keep the alias)** (`request`)
+  - `POST /api/v1/protocol/plans`
+  - `POST /api/v1/protocol/agents/plans`
+- **Remove the deprecated always-null permission slots orderLimit/planCost/creditsPerOrder from responses (clients below 1.1 keep receiving them as null)** (`response`)
+  - `GET /api/v1/x402/permissions`
+  - `GET /api/v1/x402/permissions/:permissionHash`
