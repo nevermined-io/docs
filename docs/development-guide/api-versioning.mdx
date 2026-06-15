@@ -33,7 +33,7 @@ Nevermined-Version: 1.0
 ```
 
 - Accepted forms: `1.0`, `v1.0`, or a full `1.0.7` — everything normalises to `MAJOR.MINOR`. The patch segment is ignored by design: patches never change the API.
-- An unknown or out-of-range value is rejected with `400` and the stable error code `BCK.VERSION.0001`.
+- An unknown or out-of-range value is rejected with `400` and a stable, machine-readable [API error code](/docs/development-guide/api-errors/overview) (`BCK.VERSION.0001`).
 
 ## Discovering the supported range
 
@@ -81,21 +81,22 @@ import { Payments } from '@nevermined-io/payments'
 const payments = Payments.getInstance({
   nvmApiKey: process.env.NVM_API_KEY!,
   environment: 'live',
-  // Optional: pin a different backend API version (defaults to LOCKED_API_VERSION)
-  version: '1.0',
+  // Optional: pin the backend API version (MAJOR.MINOR) via `version`.
+  // Defaults to the version this SDK release targets; omit to track it.
+  version: '1.1',
 })
 ```
 
 ```python Python
-from payments_py import Payments
-from payments_py.common.types import PaymentOptions
+from payments_py import Payments, PaymentOptions
 
 payments = Payments(
     PaymentOptions(
         nvm_api_key=os.environ["NVM_API_KEY"],
         environment="live",
-        # Optional: pin a different backend API version
-        api_version="1.0",
+        # Optional: pin the backend API version (MAJOR.MINOR) via `api_version`.
+        # Defaults to the version this SDK release targets; omit to track it.
+        api_version="1.1",
     )
 )
 ```
