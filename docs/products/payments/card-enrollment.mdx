@@ -202,6 +202,29 @@ The payment-methods endpoint is heterogeneous: it lists enrolled cards across al
 
 All three providers support the same spending controls (ceilings, usage limits, expiration) and API key linking. The right enrollment provider for a given plan is determined by the plan's `fiatPaymentProvider` metadata: a Braintree-priced plan can only be paid by a Braintree-vaulted card; a Visa Trusted Agent plan can only be paid by a Visa Agentic Token.
 
+Don't guess — read the plan's provider before you enroll. `resolveNetwork()` / `resolve_network()` returns the plan's card provider (`stripe`, `braintree`, or `visa`), or `undefined`/`None` for a crypto plan:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { resolveNetwork } from '@nevermined-io/payments'
+
+    const provider = await resolveNetwork(payments, planId)
+    // 'stripe' | 'braintree' | 'visa' for fiat plans; undefined for crypto plans
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402.resolve_scheme import resolve_network
+
+    provider = resolve_network(payments, plan_id)
+    # 'stripe' | 'braintree' | 'visa' for fiat plans; None for crypto plans
+    ```
+  </Tab>
+</Tabs>
+
+Enroll with that provider, then [create a delegation](/docs/products/payments/mandates) from the enrolled card. If `resolveNetwork` returns nothing, the plan is crypto — fund a smart account instead of enrolling a card.
+
 ## What's Next?
 
 Once your card is enrolled, create a spending delegation to control how agents can charge it.

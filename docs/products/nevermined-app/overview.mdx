@@ -134,9 +134,17 @@ const agent = await payments.agents.getAgent('did:nv:your-agent-id')
 await payments.plans.orderPlan(agent.plans[0].planId)
 
 // Credentials work the same way
+// Create a delegation once, then reuse its id to mint tokens.
+const { delegationId } = await payments.delegation.createDelegation({
+  provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+  spendingLimitCents: 10000, // $100 budget
+  durationSecs: 604800,      // 7 days
+  currency: 'usdc',          // 'usd' for fiat plans
+})
 const { accessToken } = await payments.x402.getX402AccessToken(
   planId,
-  agentId
+  agentId,
+  { delegationConfig: { delegationId } }
 )
 ```
 

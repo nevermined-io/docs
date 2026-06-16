@@ -44,3 +44,16 @@ If you want to test the payments functionality in the "sandbox" environment, you
 
 - **Cryptocurrency**: You can use the [Circle USDC Faucet](https://faucet.circle.com/) to get some test USDC tokens. These tokens can be used to test payments in the "sandbox" environment.
 - **Fiat**: You can use the [Stripe Test Cards](https://stripe.com/docs/testing#international-cards) to test payments in the "sandbox" environment. Just use any of the test cards provided by Stripe when making a payment. The payments will be processed as if they were real payments, but no actual money will be charged.
+
+#### How do I fix a payment-method mismatch?
+
+A plan is either **crypto** (`nvm:erc4337`) or **fiat** (`nvm:card-delegation`) — never both — and the buyer's setup has to match the plan. Most rejections come from that mismatch. First [detect the plan's type](/docs/development-guide/order-plans#which-payment-type-does-this-plan-need), then:
+
+| What you see | Likely cause | Fix |
+|---|---|---|
+| `BCK.X402.0027` — "No accessible payment method found…" (or CLI "No enrolled card found") | Fiat plan, but no card is enrolled | [Enroll a card](/docs/products/payments/card-enrollment) with the plan's provider, create a card delegation, then retry |
+| `BCK.PROTOCOL.0050` — "Fiat plans cannot be ordered through this endpoint" | Tried to `orderPlan()` a fiat plan via the crypto path | Use `orderFiatPlan()` (Stripe) or the card-delegation settle flow (`POST /api/v1/x402/settle`) |
+| Token mints fine, but a fiat plan won't settle | `getX402AccessToken` defaulted to `nvm:erc4337` (crypto) | Pass `scheme: 'nvm:card-delegation'` — the direct token call does not auto-detect the scheme |
+| `402` when settling a crypto plan | Wallet low on USDC/EURC, or the delegation limit is exhausted or expired | Fund the smart account, or create a fresh delegation |
+
+See [Automatic Credit Top-Ups](/docs/integrate/patterns/top-up#when-top-ups-stop) for how funding and delegation-limit failures surface (402 vs 500).

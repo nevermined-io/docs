@@ -289,7 +289,9 @@ def handler(event, context=None):
 
 ```python filename="client.py"
 import os
+import requests
 from payments_py import Payments, PaymentOptions
+from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 
 # Initialize Payments as subscriber
 payments = Payments.get_instance(
@@ -307,15 +309,25 @@ balance = payments.plans.get_plan_balance(plan_id=PLAN_ID)
 print(f"Balance: {balance.balance} credits")
 
 # Step 2: Get x402 access token
+# Create a delegation once, then reuse its id to mint tokens.
+delegation = payments.delegation.create_delegation(
+    CreateDelegationPayload(
+        provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+        spending_limit_cents=10000,  # $100 budget
+        duration_secs=604800,  # 7 days
+        currency="usdc",  # "usd" for fiat plans
+    )
+)
 token_result = payments.x402.get_x402_access_token(
     plan_id=PLAN_ID,
     agent_id=AGENT_ID,
+    token_options=X402TokenOptions(
+        delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+    ),
 )
 access_token = token_result["accessToken"]
 
 # Step 3: Call the agent with the token in payment-signature header
-import requests
-
 response = requests.post(
     "https://your-agent-endpoint.amazonaws.com/mcp",
     headers={

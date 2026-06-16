@@ -40,7 +40,7 @@ The fastest path for end-users and the natural fit when your users are already a
     In the Nevermined App, navigate to **Settings > Payment Methods**. This is the dashboard for every card you have enrolled and every active delegation.
   </Step>
   <Step title="Enroll a card">
-    Click **Enroll card** and pick a provider tab: **Stripe**, **Braintree**, or **Visa**. Card data is captured in a PCI-compliant iframe and tokenized before submission — Nevermined never stores the raw card number.
+    Click **Enroll card** and pick a provider tab: **Stripe**, **Braintree**, or **Visa**. Card data is captured in a PCI-compliant iframe and tokenized before submission — Nevermined never stores the raw card number. The provider must match the plan you intend to pay — [check it first with `resolveNetwork()` / `resolve_network()`](/docs/products/payments/card-enrollment#choosing-a-provider).
 
     See [Card Enrollment](/docs/products/payments/card-enrollment) for the per-provider differences (Visa requires a passkey or OTP, Braintree supports PayPal alongside cards, Stripe needs 3DS where the issuer requires it).
   </Step>
