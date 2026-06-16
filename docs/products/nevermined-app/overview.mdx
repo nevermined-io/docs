@@ -128,10 +128,12 @@ The App works seamlessly with the Payment Libraries:
 
 ```typescript
 // Agents registered in the App can be accessed via SDK
-const agent = await payments.agents.getAgent('did:nv:your-agent-id')
+const agentId = 'did:nv:your-agent-id'
+const agent = await payments.agents.getAgent(agentId)
+const planId = agent.plans[0].planId
 
 // Plans created in the App work with SDK ordering
-await payments.plans.orderPlan(agent.plans[0].planId)
+await payments.plans.orderPlan(planId)
 
 // Credentials work the same way
 // Create a delegation once, then reuse its id to mint tokens.
