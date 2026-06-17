@@ -1,0 +1,95 @@
+name: Publish skill to ClawHub
+
+# Publishes the `nevermined-payments` skill to ClawHub under the `nevermined-io`
+# publisher — https://clawhub.ai/skills/nevermined — the same org used for the
+# OpenClaw plugin. Runs on demand and whenever the skill changes on `main`.
+#
+# Required repository secret:
+#   CLAWHUB_TOKEN — a ClawHub API token belonging to a user who owns the
+#   `nevermined-io` publisher (create at https://clawhub.ai, `clawhub token`).
+#
+# Versioning: the CLI auto-increments from the latest published version (the
+# push trigger is path-filtered, so it only runs when the skill actually
+# changes). To publish an explicit version, add `--version <x.y.z>` below.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'skills/nevermined-payments/**'
+      - '.github/workflows/publish-skill-clawhub.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clawhub-publish-nevermined
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish nevermined skill to ClawHub
+    runs-on: ubuntu-latest
+    env:
+      SKILL_PATH: skills/nevermined-payments
+      OWNER: nevermined-io
+      SLUG: nevermined
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Install ClawHub CLI
+        run: npm install -g clawhub@^0.22
+
+      - name: Authenticate with ClawHub
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          if [ -z "$CLAWHUB_TOKEN" ]; then
+            echo "::error::CLAWHUB_TOKEN secret is not configured. Add a token of a '${OWNER}' publisher owner in repo or org settings."
+            exit 1
+          fi
+          clawhub login --token "$CLAWHUB_TOKEN"
+          clawhub whoami
+
+      - name: Dry-run publish
+        env:
+          SOURCE_REPO: ${{ github.repository }}
+          SOURCE_COMMIT: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          clawhub --no-input skill publish "$SKILL_PATH" \
+            --owner "$OWNER" --slug "$SLUG" --name "Nevermined Payments" \
+            --source-repo "$SOURCE_REPO" --source-commit "$SOURCE_COMMIT" \
+            --source-ref "$SOURCE_REF" --source-path "$SKILL_PATH" \
+            --dry-run --json
+
+      - name: Publish to ClawHub
+        env:
+          SOURCE_REPO: ${{ github.repository }}
+          SOURCE_COMMIT: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          set +e
+          OUT=$(clawhub --no-input skill publish "$SKILL_PATH" \
+            --owner "$OWNER" --slug "$SLUG" --name "Nevermined Payments" \
+            --source-repo "$SOURCE_REPO" --source-commit "$SOURCE_COMMIT" \
+            --source-ref "$SOURCE_REF" --source-path "$SKILL_PATH" \
+            --json 2>&1)
+          STATUS=$?
+          set -e
+          echo "$OUT"
+          if [ $STATUS -ne 0 ]; then
+            # Idempotent: an unchanged version is a no-op, not a failure.
+            if echo "$OUT" | grep -qi "already published"; then
+              echo "Version already published — nothing to do."
+              exit 0
+            fi
+            echo "::error::ClawHub skill publish failed (see output above)."
+            exit $STATUS
+          fi
+          echo "Published $OWNER/$SLUG to ClawHub: https://clawhub.ai/skills/$SLUG"
