@@ -403,6 +403,7 @@ After [purchasing access to the payment plan](/docs/development-guide/order-plan
     })
     // Get the X402 access token associated to the agent and plan
     const { accessToken } = await paymentsSubscriber.x402.getX402AccessToken(planId, agentId, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
       delegationConfig: { delegationId },
     })
 

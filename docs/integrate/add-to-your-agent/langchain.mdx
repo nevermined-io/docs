@@ -180,6 +180,7 @@ sequenceDiagram
       currency: 'usdc',          // 'usd' for fiat plans
     })
     const token = await subscriber.x402.getX402AccessToken(PLAN_ID, undefined, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
       delegationConfig: { delegationId },
     })
     const accessToken = token.accessToken
@@ -213,6 +214,7 @@ sequenceDiagram
     token = subscriber.x402.get_x402_access_token(
         plan_id=PLAN_ID,
         token_options=X402TokenOptions(
+            scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
             delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
         ),
     )
@@ -966,6 +968,7 @@ The HTTP app, middleware, and route handlers are identical to the LangChain vers
       currency: 'usdc',          // 'usd' for fiat plans
     })
     const token = await payments.x402.getX402AccessToken(PLAN_ID, undefined, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
       delegationConfig: { delegationId },
     })
     const accessToken = token.accessToken
@@ -1029,6 +1032,7 @@ The HTTP app, middleware, and route handlers are identical to the LangChain vers
         token = payments.x402.get_x402_access_token(
             plan_id=PLAN_ID,
             token_options=X402TokenOptions(
+                scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
                 delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
             ),
         )

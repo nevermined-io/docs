@@ -232,7 +232,8 @@ const { delegationId } = await paymentsClient.delegation.createDelegation({
 const { accessToken } = await paymentsClient.x402.getX402AccessToken(
   planId,   // The plan they subscribed to
   agentId,  // Your MCP server's agent ID
-  { delegationConfig: { delegationId } }
+  // scheme defaults to 'nvm:erc4337'; pass 'nvm:card-delegation' for fiat plans
+  { scheme: 'nvm:erc4337', delegationConfig: { delegationId } }
 )
 ```
 

@@ -322,6 +322,7 @@ token_result = payments.x402.get_x402_access_token(
     plan_id=PLAN_ID,
     agent_id=AGENT_ID,
     token_options=X402TokenOptions(
+        scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
         delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
     ),
 )

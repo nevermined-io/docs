@@ -28,6 +28,7 @@ When a user wants to query an AI Agent, they need to send a request with the acc
       currency: 'usdc',          // 'usd' for fiat plans
     })
     const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
       delegationConfig: { delegationId },
     })
 
@@ -72,6 +73,7 @@ When a user wants to query an AI Agent, they need to send a request with the acc
         plan_id,
         agent_id,
         token_options=X402TokenOptions(
+            scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
             delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
         ),
     )

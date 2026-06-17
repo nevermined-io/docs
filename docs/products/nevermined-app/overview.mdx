@@ -146,7 +146,8 @@ const { delegationId } = await payments.delegation.createDelegation({
 const { accessToken } = await payments.x402.getX402AccessToken(
   planId,
   agentId,
-  { delegationConfig: { delegationId } }
+  // scheme defaults to 'nvm:erc4337'; pass 'nvm:card-delegation' for fiat plans
+  { scheme: 'nvm:erc4337', delegationConfig: { delegationId } }
 )
 ```
 

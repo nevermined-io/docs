@@ -141,6 +141,7 @@ if payment_required:
         plan_id=plan_id,
         agent_id=agent_id,
         token_options=X402TokenOptions(
+            scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
             delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
         ),
     )
