@@ -382,64 +382,85 @@ async function fetchAlerts() {
 | `credits` | `bigint` or `function` | Credits to consume per call |
 | `planId` | `string` | Optional override for the plan ID (otherwise inferred from token) |
 | `maxAmount` | `bigint` | Max credits to verify during authentication (default: `1n`) |
-| `onRedeemError` | `string` | `'ignore'` (default) or `'propagate'` to throw on redemption failure |
+| `onRedeemError` | `string` | On post-execution settlement failure: `'ignore'` (default) returns the in-band payment error; `'propagate'` throws a JSON-RPC error. Tool content is always suppressed either way (a paid result is never delivered without settlement). |
 
-## Response Metadata (`_meta`)
+## In-band x402 signaling (`_meta`)
 
-After each paywall-protected call, the SDK injects a `_meta` field into the response following the [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18/basic). This field is always present regardless of whether credit redemption succeeded or failed:
+The MCP transport follows the [x402 v2 MCP transport spec](https://github.com/coinbase/x402/blob/main/specs/transports-v2/mcp.md): payments are signaled **in band** through the MCP tool-call machinery, not via HTTP status codes or headers.
+
+### Request — payment payload
+
+The client sends the x402 `PaymentPayload` in the request params `_meta["x402/payment"]` (plain JSON). For backwards compatibility an `Authorization: Bearer <token>` header is still accepted as a **deprecated fallback** when `_meta["x402/payment"]` is absent.
 
 ```typescript
-// Successful redemption
-{
-  content: [{ type: 'text', text: 'result' }],
-  _meta: {
-    success: true,
-    txHash: '0xabc...',
-    creditsRedeemed: '5',
-    remainingBalance: '95',
-    planId: 'plan-123',
-    subscriberAddress: '0x123...',
-  }
-}
+import { decodeAccessToken } from '@nevermined-io/payments'
 
-// Failed redemption
+const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+
+await client.callTool({
+  name: 'get_weather',
+  arguments: { city: 'Madrid' },
+  // Carry the payment in band (the spec-defined transport):
+  _meta: { 'x402/payment': decodeAccessToken(accessToken) },
+})
+```
+
+### Response — settlement receipt
+
+On a successful paid call, the SDK injects the settlement receipt under `_meta["x402/payment-response"]` (the spec key), and Nevermined-specific observability under a namespaced `_meta["nevermined/credits"]` key:
+
+```typescript
 {
   content: [{ type: 'text', text: 'result' }],
   _meta: {
-    success: false,
-    creditsRedeemed: '0',
-    planId: 'plan-123',
-    subscriberAddress: '0x123...',
-    errorReason: 'Insufficient credits',
+    // Spec-defined settlement receipt (x402 v2 MCP transport)
+    'x402/payment-response': {
+      success: true,
+      transaction: '0xabc...',
+      network: 'eip155:84532',
+      payer: '0x123...',
+      creditsRedeemed: '5',
+      remainingBalance: '95',
+    },
+    // Nevermined-namespaced observability (NOT part of the x402 spec)
+    'nevermined/credits': {
+      success: true,
+      txHash: '0xabc...',
+      creditsRedeemed: '5',
+      planId: 'plan-123',
+      subscriberAddress: '0x123...',
+    },
   }
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `success` | `boolean` | Whether credit redemption succeeded |
-| `txHash` | `string` | Blockchain transaction hash (only on success) |
-| `creditsRedeemed` | `string` | Number of credits burned (`'0'` on failure) |
-| `remainingBalance` | `string` | Credits remaining after redemption |
-| `planId` | `string` | Plan used for the operation |
-| `subscriberAddress` | `string` | Subscriber's wallet address |
-| `errorReason` | `string` | Error message (only on failure) |
+Free / no-credit calls omit the `x402/payment-response` key (no settlement occurred); `nevermined/credits` is still attached with `creditsRedeemed: '0'`.
+
+### Payment required
+
+When payment is required (missing/invalid token, or no subscription), the tool returns an **error tool result** carrying the x402 `PaymentRequired` object — there is no HTTP `402` on `/mcp`:
+
+```typescript
+{
+  isError: true,
+  structuredContent: { x402Version: 2, error: 'payment required', resource: { /* ... */ }, accepts: [ /* ... */ ] },
+  content: [{ type: 'text', text: '<JSON-stringified PaymentRequired>' }],
+}
+```
+
+Both `structuredContent` (the object) and `content[0].text` (its JSON string) are populated, per spec. This applies to **tools** only — resources and prompts raise a JSON-RPC error instead (they have no tool-result error channel).
 
 ## Error Handling
 
-The paywall automatically returns 402 errors for invalid/missing tokens:
+Payment-required is signaled **in band** as an error tool result (see above) — there is no HTTP `402` on `/mcp`. OAuth and payment-required live at different layers and never collide: OAuth rejects at the HTTP layer (`401`), while payment-required is an MCP tool-call result. The in-band shape inherently disambiguates the two.
+
+`onRedeemError` controls only the _error type_ surfaced when settlement fails **after** the tool executed — it no longer controls whether content is returned. Per the spec, a paid result is never delivered without settlement landing, so the executed tool's content is always suppressed on settlement failure. `'ignore'` (default) surfaces the in-band payment error; `'propagate'` throws a JSON-RPC misconfiguration error.
 
 ```typescript
-// Automatic 402 handling - no code needed
-payments.mcp.registerTool(
-  'premium_tool',
-  toolConfig,
-  handler,
-  {
-    credits: 5n,
-    onRedeemError: 'propagate',  // Propagate credit errors (default: 'ignore')
-  }
-)
+payments.mcp.registerTool('premium_tool', toolConfig, handler, {
+  credits: 5n,
+  onRedeemError: 'propagate', // throw a JSON-RPC error on settlement failure (default: 'ignore')
+})
 ```
 
 ## Advanced: Custom Express App

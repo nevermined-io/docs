@@ -230,28 +230,31 @@ const { accessToken } = await paymentsClient.x402.getX402AccessToken(
 
 **Step 2: Connect with MCP Client**
 
+Payment is carried **in band** in the tool-call `_meta["x402/payment"]` field, per the [x402 v2 MCP transport spec](https://github.com/coinbase/x402/blob/main/specs/transports-v2/mcp.md). Decode the access token into its `PaymentPayload` object and attach it to each paid call:
+
 ```typescript
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
+import { decodeAccessToken } from "@nevermined-io/payments"
 
 const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp"),
-  {
-    requestInit: {
-      headers: { 'payment-signature': accessToken }
-    }
-  }
+  new URL("http://localhost:3000/mcp")
 )
 
 const client = new Client({ name: "my-client" })
 await client.connect(transport)
 
-// Call tool
+// Carry the payment in band on each paid tool call
 const result = await client.callTool({
   name: "weather.today",
-  arguments: { city: "Madrid" }
+  arguments: { city: "Madrid" },
+  _meta: { "x402/payment": decodeAccessToken(accessToken) }
 })
 ```
+
+<Note>
+For backwards compatibility the server still accepts an `Authorization: Bearer <accessToken>` header as a **deprecated fallback** when `_meta["x402/payment"]` is absent. New integrations should use the in-band `_meta` field.
+</Note>
 
 **Step 3: Use in Claude Desktop**
 
@@ -573,7 +576,8 @@ const transport = new StreamableHTTPClientTransport(
 const client = new Client({ name: "my-client", version: "1.0.0" })
 await client.connect(transport)
 
-// Use tools
+// Use tools — for PAID tools, carry the payment in band (see "Client Usage" above):
+//   _meta: { "x402/payment": decodeAccessToken(accessToken) }
 const result = await client.callTool({
   name: "weather.today",
   arguments: { city: "Madrid" }
@@ -718,6 +722,8 @@ For custom Express servers, you can use `payments.mcp.createApp()`:
 ---
 
 ## Error Handling
+
+Payment-required is signaled **in band**, not as an HTTP `402`. For **tools**, a missing/invalid token (or unmet subscription) returns an **error tool result** — `isError: true` with the `PaymentRequired` object in `structuredContent` and its JSON string in `content[0].text` — rather than throwing. **Resources and prompts** have no tool-result error channel, so they raise a JSON-RPC error with the codes below (`-32003` is also exposed on the error object for tools).
 
 | Error Code | Description |
 |------------|-------------|
