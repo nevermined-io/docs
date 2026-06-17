@@ -71,9 +71,9 @@ The two roles need different setup — knowing which you are saves a lot of conf
 | **Register an agent** | Yes | No |
 | **Protected endpoints** | Yes | No |
 | **Create a plan** | Yes (sets the price) | No (buys an existing plan) |
-| **Core flow** | register agent + plan → add x402 to your endpoints → get paid | get API key + payment method → `getX402AccessToken` → call |
+| **Core flow** | register agent + plan → add x402 to your endpoints → get paid | get API key + payment method + spending delegation → `getX402AccessToken` → call |
 
-Being a buyer means **no registration**, not **no setup**: a subscriber still needs a Nevermined API key and a payment method (a funded wallet or an enrolled card) — they just skip registering an agent, exposing endpoints, and creating plans. See [Buy & Call a Paid Agent](/docs/getting-started/ai-agent-purchase) for the subscriber path and [Register Plans & Agents](/docs/development-guide/registration) for the seller path.
+Being a buyer means **no registration**, not **no setup**: a subscriber still needs a Nevermined API key, a payment method (a funded wallet or an enrolled card), and a spending delegation that caps what the agent can charge (minting an x402 token requires it) — they just skip registering an agent, exposing endpoints, and creating plans. See [Buy & Call a Paid Agent](/docs/getting-started/ai-agent-purchase) for the subscriber path and [Register Plans & Agents](/docs/development-guide/registration) for the seller path.
 
 Card delegation is what makes agent-to-agent fiat payments possible. Instead of a human clicking through checkout each time, the subscriber enrolls a Visa, Stripe, or Braintree card, sets spending limits, and the agent charges it directly within those bounds.
 
