@@ -1,10 +1,14 @@
 ---
-title: "AI Agents: Buy Access Autonomously"
-description: "How an autonomous AI agent goes from zero to a paid x402 purchase on Nevermined: get an API key, enroll a card, delegate a budget, and buy plan credits."
-icon: "robot"
+title: "Buy & Call a Paid Agent"
+description: "The subscriber path on Nevermined: buy and use a paid agent without registering anything. Get an API key, add a payment method, buy plan credits, and call the agent via x402 — as a human or an autonomous agent."
+icon: "cart-shopping"
 ---
 
-This is the end-to-end path for an **autonomous AI agent** — Claude Code, an OpenAI agent, or your own — to discover a Nevermined-monetized service and pay for it on its own. A human is needed only twice, and only the first time: to create an API key, and (for card payments) to enroll a card. Everything after that is programmatic and reusable.
+This is the **subscriber path** — how you, or an autonomous agent acting for you, discover a Nevermined-monetized service and pay for it. It runs the same whether a human clicks through or a coding agent like Claude Code does it end to end. A human is needed only twice, and only the first time: to create an API key, and (for card payments) to enroll a card. Everything after that is programmatic and reusable.
+
+<Note>
+  **Buying a service? You don't register anything.** Registering an agent, exposing protected endpoints, and creating a plan are all *seller* tasks — skip them. As a subscriber you need just three things: a **Nevermined API key** (created once via a one-time human sign-in — an agent can [capture it automatically via a localhost callback](/docs/agents-guide/get-api-key) — then stored and reused), a **payment method** (a funded stablecoin wallet or an enrolled card), and the **plan ID** you want to buy. Publishing an agent *for sale* instead? See [Register a plan & agent](/docs/agents-guide/register-plan-and-agent).
+</Note>
 
 <Warning>
   **Always pay through the x402 flow** (`verify` → `settle`). Never call Stripe or any other payment processor directly. x402 is the only supported payment path, and it works the same whether you pay with a card or with stablecoins.
