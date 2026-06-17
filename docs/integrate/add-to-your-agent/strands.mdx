@@ -112,6 +112,7 @@ Clients discover payment requirements by calling the agent without a token, then
 
 ```python filename="client.py"
 from payments_py import Payments, PaymentOptions
+from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 from payments_py.x402.strands import extract_payment_required
 from agent import agent, payments
 
@@ -127,9 +128,22 @@ if payment_required:
     plan_id = chosen_plan["planId"]
     agent_id = (chosen_plan.get("extra") or {}).get("agentId")
 
+    # Create a delegation once, then reuse its id to mint tokens.
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+            spending_limit_cents=10000,  # $100 budget
+            duration_secs=604800,  # 7 days
+            currency="usdc",  # "usd" for fiat plans
+        )
+    )
     token_response = payments.x402.get_x402_access_token(
         plan_id=plan_id,
         agent_id=agent_id,
+        token_options=X402TokenOptions(
+            scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+        ),
     )
     access_token = token_response["accessToken"]
 

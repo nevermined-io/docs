@@ -328,6 +328,7 @@ For developers who need to automate and integrate directly, our SDKs are the per
   <Tab title="Python">
     ```python
     import requests
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 
     # 1. Discover the agent and its plans
     agent = payments.agents.get_agent('AGENT_ID')
@@ -342,12 +343,47 @@ For developers who need to automate and integrate directly, our SDKs are the per
     fiat_result = payments.plans.order_fiat_plan(plan['planId'])
     print(f'Stripe checkout URL: {fiat_result["url"]}')
 
-    # 3. Get X402 access token
+    # 3. Get X402 access token. Create the delegation first (provider +
+    # currency required), then request the token by its delegationId.
+
+    # Crypto plan (Option A)
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+            spending_limit_cents=1000,
+            duration_secs=86_400,
+            currency="usdc",  # "usd" for fiat plans
+        )
+    )
     token_response = payments.x402.get_x402_access_token(
         plan['planId'],
-        agent['agentId']
+        agent['agentId'],
+        token_options=X402TokenOptions(
+            scheme="nvm:erc4337",
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id),
+        ),
     )
     access_token = token_response['accessToken']
+
+    # Fiat plan (Option B) — create a card delegation from the enrolled card,
+    # then request the token by its delegationId.
+    # card_delegation = payments.delegation.create_delegation(
+    #     CreateDelegationPayload(
+    #         provider="stripe",
+    #         provider_payment_method_id="pm_xxx",
+    #         spending_limit_cents=1000,
+    #         duration_secs=86_400,
+    #         currency="usd",
+    #     )
+    # )
+    # token_response = payments.x402.get_x402_access_token(
+    #     plan['planId'],
+    #     agent['agentId'],
+    #     token_options=X402TokenOptions(
+    #         scheme="nvm:card-delegation",
+    #         delegation_config=DelegationConfig(delegation_id=card_delegation.delegation_id),
+    #     ),
+    # )
 
     # 4. Query the agent using the access token
     # Extract URL from endpoint object (endpoints have HTTP method as key)

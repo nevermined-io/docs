@@ -222,9 +222,18 @@ Users need to subscribe to your agent's plan and obtain an access token:
 
 ```typescript
 // As a subscriber
+// Create a delegation once, then reuse its id to mint tokens.
+const { delegationId } = await paymentsClient.delegation.createDelegation({
+  provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+  spendingLimitCents: 10000, // $100 budget
+  durationSecs: 604800,      // 7 days
+  currency: 'usdc',          // 'usd' for fiat plans
+})
 const { accessToken } = await paymentsClient.x402.getX402AccessToken(
   planId,   // The plan they subscribed to
-  agentId   // Your MCP server's agent ID
+  agentId,  // Your MCP server's agent ID
+  // scheme defaults to 'nvm:erc4337'; pass 'nvm:card-delegation' for fiat plans
+  { scheme: 'nvm:erc4337', delegationConfig: { delegationId } }
 )
 ```
 

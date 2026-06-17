@@ -385,13 +385,27 @@ sequenceDiagram
 
 After [purchasing access to the payment plan](/docs/development-guide/order-plans) associated with the AI agent, a client [can generate an access token](/docs/development-guide/query-agents) and start sending tasks:
 
+<Note>
+  The TypeScript example below targets a **crypto** plan. For a **fiat** plan, create the delegation with the card provider (`provider: 'stripe'`, `currency: 'usd'`) and pass `scheme: 'nvm:card-delegation'` to `getX402AccessToken` — or use the `PaymentsClient` (Python tab), which resolves the scheme for you. See [Which payment type does this plan need?](/docs/development-guide/order-plans#which-payment-type-does-this-plan-need).
+</Note>
+
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
     // Purchase the Plan
     const orderResult = await paymentsSubscriber.plans.orderPlan(planId)
+    // Create a delegation once, then reuse its id to mint tokens.
+    const { delegationId } = await paymentsSubscriber.delegation.createDelegation({
+      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      spendingLimitCents: 10000, // $100 budget
+      durationSecs: 604800,      // 7 days
+      currency: 'usdc',          // 'usd' for fiat plans
+    })
     // Get the X402 access token associated to the agent and plan
-    const { accessToken } = await paymentsSubscriber.x402.getX402AccessToken(planId, agentId)
+    const { accessToken } = await paymentsSubscriber.x402.getX402AccessToken(planId, agentId, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
+      delegationConfig: { delegationId },
+    })
 
 
     // Test sending an A2A message with correct format

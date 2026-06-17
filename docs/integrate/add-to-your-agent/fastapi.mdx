@@ -440,6 +440,7 @@ import base64
 import json
 import httpx
 from payments_py import Payments, PaymentOptions
+from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 
 payments = Payments.get_instance(
     PaymentOptions(
@@ -469,8 +470,24 @@ def call_protected_api():
             plan_id = payment_required["accepts"][0]["planId"]
             agent_id = payment_required["accepts"][0].get("extra", {}).get("agentId")
 
-            # Step 3: Generate x402 token
-            token_result = payments.x402.get_x402_access_token(plan_id, agent_id)
+            # Step 3: Generate x402 token. Create the delegation first (provider +
+            # currency required), then request the token by its delegationId.
+            delegation = payments.delegation.create_delegation(
+                CreateDelegationPayload(
+                    provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+                    spending_limit_cents=1000,
+                    duration_secs=86_400,
+                    currency="usdc",  # "usd" for fiat plans
+                )
+            )
+            token_result = payments.x402.get_x402_access_token(
+                plan_id,
+                agent_id,
+                token_options=X402TokenOptions(
+                    scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+                    delegation_config=DelegationConfig(delegation_id=delegation.delegation_id),
+                ),
+            )
             access_token = token_result["accessToken"]
 
             # Step 4: Request with token → 200

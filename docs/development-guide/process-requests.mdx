@@ -12,12 +12,25 @@ To ensure AI agents only authorize valid requests (users with credits), we provi
 
 When a user wants to query an AI Agent, they need to send a request with the access token received when purchasing the Payment Plan. This token is used to validate that the user has access to the AI Agent and that they have enough credits.
 
+<Note>
+  The access token is minted against a **delegation** — create it once with `createDelegation` / `create_delegation`, then reuse its `delegationId`. The direct call defaults to crypto (`nvm:erc4337`); for **fiat** (card) plans pass `scheme: 'nvm:card-delegation'`. See [Query Agents](/docs/development-guide/query-agents) for the full buyer flow and [Order Plans](/docs/development-guide/order-plans#which-payment-type-does-this-plan-need) for detecting a plan's payment type.
+</Note>
+
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
 
-    // After purchasing a Payment Plan, let's generate the X402 access token
-    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+    // After purchasing a Payment Plan, create a delegation once, then mint the access token against it
+    const { delegationId } = await payments.delegation.createDelegation({
+      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      spendingLimitCents: 10000, // $100 budget
+      durationSecs: 604800,      // 7 days
+      currency: 'usdc',          // 'usd' for fiat plans
+    })
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
+      delegationConfig: { delegationId },
+    })
 
     //// OUTPUT: accessToken is a JWT string containing X402 v2 payment credentials
 
@@ -45,9 +58,25 @@ When a user wants to query an AI Agent, they need to send a request with the acc
   <Tab title="Python">
     ```python
     import requests
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 
-    # Get X402 access token for the given plan and agent
-    token_response = payments.x402.get_x402_access_token(plan_id, agent_id)
+    # Create a delegation once, then mint the X402 access token against it
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337",          # 'stripe' | 'braintree' | 'visa' for fiat plans
+            spending_limit_cents=10000,  # $100 budget
+            duration_secs=604800,        # 7 days
+            currency="usdc",             # 'usd' for fiat plans
+        )
+    )
+    token_response = payments.x402.get_x402_access_token(
+        plan_id,
+        agent_id,
+        token_options=X402TokenOptions(
+            scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+        ),
+    )
     access_token = token_response['accessToken']
     # OUTPUT: access_token is a JWT string containing X402 v2 payment credentials
 
