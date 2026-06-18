@@ -6,7 +6,7 @@ How an agent (or its operator) checks the **performance of the plans and agents 
 
 ## Two layers
 
-1. **Organization analytics** — aggregated revenue/MRR/usage/customers. **Requires an active Premium organization tier** (`403 BCK.ORGANIZATIONS.0022` otherwise). Needs your `orgId`.
+1. **Organization analytics** — aggregated revenue/MRR/usage/customers. **Requires an active Premium organization tier.** Needs your `orgId` (discover it from `.orgId` on your plan/agent records — see §2). Failure modes: `403 BCK.ORGANIZATIONS.0022` (not Premium), `403 BCK.AUTH.0004` (not an admin of that org), or a **silent `200`-of-zeros** for a malformed/placeholder `orgId`.
 2. **Protocol building blocks** — list your plans/agents and read individual balances. **Any tier**, no `orgId` needed (user-scoped to your API key).
 
 ---
@@ -33,7 +33,7 @@ curl -s -H "Authorization: Bearer $NVM_API_KEY" \
   "totalRevenue": "125000"
 }
 ```
-`totalRevenue` is a stringified integer in the plan's smallest currency unit.
+`totalRevenue` is a stringified integer in 6-decimal token units (divide by 1,000,000 for USD). Rows are keyed by `agentId`/`agentName` but are actually grouped **by plan**.
 
 ### Monthly recurring revenue + active subscriptions
 
@@ -59,7 +59,7 @@ curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/customers?limit=20"
 #      "totalCustomers": 128 }
 ```
 
-> Finding your `orgId`: it's the `org-...` identifier for your organization in your Nevermined account (the same id used in `…/organizations/<orgId>/agentic-instructions.md`). If you don't operate under an org, use the building blocks below.
+> **Finding your `orgId`:** discover it from your own records — every item in `GET /protocol/plans` and `/protocol/agents` (§2) carries `.orgId` + `.organizationName`; take the most common non-null `.orgId` (it's the `org-...` id, also used in `…/organizations/<orgId>/agentic-instructions.md`). Only call analytics with an id matching `^org-[0-9a-f-]+$` — a malformed one returns a deceptive `200`-of-zeros. If you don't operate under an org, use the building blocks below.
 
 ---
 

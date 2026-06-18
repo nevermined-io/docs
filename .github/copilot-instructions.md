@@ -86,11 +86,11 @@ When an agent must act on its own behalf at runtime (buy a plan, enroll a card, 
 ```http
 # 1. token
 POST /api/v1/x402/permissions  { "accepted": { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>" }, "delegationConfig": { "delegationId": "<id>" } }  → { accessToken }
-# 2. settle (proof of purchase)
+# 2. settle (CARD purchase, or a redemption when calling a protected agent)
 POST /api/v1/x402/settle  { "paymentRequired": { "x402Version": 2, "resource": { "url": "<url>" }, "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>", "extra": {} } ], "extensions": {} }, "x402AccessToken": "<token>" }  → { creditsRedeemed, remainingBalance }
 ```
 
-Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is needed only for one-time setup — minting the first API key, plus card enrollment if paying by card (the stablecoin path needs neither afterward). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
+**Stablecoin buy/top-up = `POST /api/v1/protocol/plans/<id>/order`** (body `{}`, no token/delegation; on-chain mint). Settle on a crypto plan **redeems** a held credit — it doesn't buy. The `permissions`+`settle` flow above is the **card** buy path (and how redemptions settle at protected agents). Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is needed only for one-time setup — minting the first API key, plus card enrollment if paying by card (the stablecoin path needs neither afterward). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
 
 ## Full Reference
 
