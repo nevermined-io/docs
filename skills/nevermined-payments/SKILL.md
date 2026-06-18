@@ -168,60 +168,46 @@ SDK: `payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitC
 
 **Full detail:** the complete embedded card-enrollment handshake (session → card-setup redirect → `delegationId`), the localhost-callback rules, and every `delegation/create` field and response are in `references/autonomous-operations.md` §3.
 
-## A4 · Buy access  *(fully programmatic)*
+## A4 · Buy access via x402  *(fully programmatic)*
 
-**The buy path depends on the plan's rail.** Detect it from `GET {API_BASE}/api/v1/protocol/plans/<PLAN_ID>` (public): `metadata.plan.x402Scheme` (`nvm:erc4337` = stablecoin, `nvm:card-delegation` = card), or `registry.price.isCrypto`.
-
-### Stablecoin plan (`nvm:erc4337`) → order it on-chain
-
-Buy or top up a crypto plan with a single call — **no token, no delegation needed**. The smart account derived from your API key pays on-chain and the credit grant mints to it:
+Two calls: get an access token, then settle. **x402 is the default buy flow for both rails — crypto and card work the same way, only `scheme`/`network` differ.** The facilitator charges the right method (on-chain against your delegation for crypto, the card for fiat), mints, and burns.
 
 ```bash
-curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
-  -d '{}' \
-  https://api.sandbox.nevermined.app/api/v1/protocol/plans/<PLAN_ID>/order
-# → { "txHash": "0x...", "success": true }
-```
-
-**Proof of purchase = a real on-chain `txHash` AND your balance increased by the plan's credit grant** (verify with the A5 balance endpoint). Errors: `402 BCK.PROTOCOL.0011` = the smart account lacks USDC (fund it — see A2); `400 BCK.PROTOCOL.0050` = this is a fiat plan, use the card path. SDK: `payments.plans.orderPlan(planId)` / `payments.plans.order_plan(plan_id)`.
-
-> **To top up a stablecoin plan, use `/order` — not `/x402/settle`.** Settling against a crypto plan you already hold credits in **redeems/burns a held credit** (balance goes *down*, `transaction` is a synthetic `tid-…`). A delegation-backed settle only auto-buys (an on-chain `order`, bounded by the delegation) when your balance is **short** — so settle is unreliable as a deliberate top-up. `/order` always buys.
-
-### Card plan (`nvm:card-delegation`) → pay via x402
-
-For a card plan the x402 `permissions` → `settle` two-call flow **is** the buy: it charges the delegated card (Stripe/Braintree/Visa), then mints credits. You need a card delegation first (A3).
-
-```bash
-# 1. Get an access token (authorizes the spend against your card delegation)
+# 1. Get an access token (authorizes the spend against your delegation)
 curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
   -d '{
-        "accepted": { "scheme": "nvm:card-delegation", "network": "stripe", "planId": "<PLAN_ID>" },
+        "accepted": { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<PLAN_ID>" },
         "delegationConfig": { "delegationId": "<YOUR_DELEGATION_ID>" }
       }' \
   https://api.sandbox.nevermined.app/api/v1/x402/permissions
 # → { "accessToken": "..." }
 
-# 2. Settle — charges the card, mints, and burns; this receipt is your proof of purchase
+# 2. Settle — charges the method, mints, and burns; this receipt is your proof of purchase
 curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
   -d '{
         "paymentRequired": {
           "x402Version": 2,
-          "resource": { "url": "<API_BASE>/api/v1/protocol/plans/<PLAN_ID>" },
-          "accepts": [ { "scheme": "nvm:card-delegation", "network": "stripe", "planId": "<PLAN_ID>", "extra": {} } ],
+          "resource": { "url": "<PLAN_OR_RESOURCE_URL>" },
+          "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<PLAN_ID>", "extra": {} } ],
           "extensions": {}
         },
         "x402AccessToken": "<accessToken>"
       }' \
   https://api.sandbox.nevermined.app/api/v1/x402/settle
-# → { "success": true, "creditsRedeemed": "10", "remainingBalance": "990" }
+# → { "success": true, "creditsRedeemed": "1", "remainingBalance": "999", "transaction": "0x...", "network": "eip155:84532" }
 ```
 
-- Use `"network": "braintree"` or `"visa"` for those providers. **Proof = `success: true` with `creditsRedeemed` > 0 and a `remainingBalance`.**
-- **Field rename:** `/permissions` returns `accessToken`; pass that value as `x402AccessToken` in `/settle` and `/verify`.
+- **Pay with a card instead:** set `"scheme": "nvm:card-delegation"` and `"network": "stripe"` (or `braintree`/`visa`) in both `accepted` and `accepts[0]`.
+- **`resource.url` for a plan top-up** = the plan's own URL, `{API_BASE}/api/v1/protocol/plans/<PLAN_ID>`.
+- **Which scheme does a plan use?** `GET {API_BASE}/api/v1/protocol/plans/<PLAN_ID>` (public) returns the plan's metadata and pricing so you can pick `nvm:erc4337` vs `nvm:card-delegation` before paying. When buying from a protected agent, its `402` tells you instead.
+- **Note the field rename:** `/permissions` returns `accessToken`; pass that value as `x402AccessToken` in `/settle` and `/verify`.
 - **Dry run first (optional):** `POST /api/v1/x402/verify` with the same `{ paymentRequired, x402AccessToken }` body → `{ "isValid": true }`.
-- **Card budget caveat:** a card settle may not immediately move the delegation's `amountSpentCents`/`remainingBudgetCents` — use the settle receipt + the A5 plan balance as the source of truth for spend, not the delegation budget.
+- **Proof of purchase** = `success: true` with `creditsRedeemed` > 0 and a `remainingBalance` (and, for crypto, an on-chain `transaction`).
+- **Card budget caveat:** a card settle may not immediately move the delegation's `amountSpentCents`/`remainingBudgetCents` — use the settle receipt + the A5 plan balance as the source of truth for card spend, not the delegation budget.
 
-**Calling a protected agent directly** (either rail — the common case): send the access token as the `payment-signature` header to the agent's endpoint — the agent's own `402` response **is** your `paymentRequired`, and the agent verifies + settles for you. For a **crypto** plan the credits must already be held (buy via `/order` first); for a **card** plan each call settles against the card. You only call `/settle` yourself for a card top-up with no protected endpoint to hit.
+**Calling a protected agent directly** (the common case): just send the access token as the `payment-signature` header to the agent's endpoint — the agent's own `402` response **is** your `paymentRequired`, and the agent verifies + settles for you. You only call `/settle` yourself when topping up a plan with no protected endpoint to hit.
+
+> A dedicated `orderPlan` / `POST /protocol/plans/{id}/order` endpoint exists for an explicit, upfront stablecoin purchase, but **x402 above is the default for both rails — use `/order` only when specifically requested.**
 
 SDK shortcut for step 1:
 ```typescript
@@ -874,7 +860,6 @@ curl -X POST http://localhost:3000/chat \
 | HTTP 402 returned | No `payment-signature` header or invalid/expired token | Generate a fresh token via `getX402AccessToken` with `delegationConfig` |
 | `401 BCK.AUTH.0002` on a REST call | Missing/expired API key | Send `Authorization: Bearer $NVM_API_KEY`; mint a key per **A1** |
 | `403` on analytics — `BCK.ORGANIZATIONS.0022` (not Premium) or `BCK.AUTH.0004` (not an admin of that org) | Wrong tier, not your org, or a malformed `orgId` (which instead returns a **silent 200-of-zeros**) | Discover the real `orgId` from `.orgId` on your plan/agent records; use the any-tier building blocks in **A7**, or upgrade the org |
-| Stablecoin plan balance went **down** after "buying", or the receipt has a `tid-…` not an `0x` tx | Used `/x402/settle` to top up a crypto plan — that **redeems** a held credit, it doesn't buy | Buy/top-up stablecoin plans with `POST /protocol/plans/{id}/order` (see **A4**); x402 `permissions`+`settle` is the buy path for **card** plans only |
 | `BCK.VISA.0014` creating a delegation | `provider:"visa"` sent without the browser-produced `consumerPrompt` + `assuranceData` | An agent can't produce `assuranceData` — create the Visa delegation in the webapp; reuse the `delegationId` |
 | `BCK.X402.0002` Plan not found | Wrong `planId` or wrong environment | Verify the plan ID and that you are calling the matching `sandbox`/`live` base URL |
 | MCP error `-32003` | Payment Required — no token, invalid token, or insufficient credits | Check subscriber has purchased plan and has credits remaining |

@@ -145,14 +145,9 @@ Response:
 
 ---
 
-## 4. Buy access
+## 4. Buy access via x402
 
-**The buy path depends on the plan's rail** (detect it from `metadata.plan.x402Scheme` / `registry.price.isCrypto` on `GET …/protocol/plans/<PLAN_ID>`):
-
-- **Stablecoin (`nvm:erc4337`) → order on-chain.** Buy/top-up with one call, no token or delegation: `POST {API_BASE}/api/v1/protocol/plans/<PLAN_ID>/order` (body `{}`) → `{ "txHash": "0x...", "success": true }`. Proof = the on-chain `txHash` + a balance increase. SDK: `payments.plans.orderPlan(planId)`. (`402 BCK.PROTOCOL.0011` = the smart account has no USDC; `400 BCK.PROTOCOL.0050` = it's a fiat plan.) For a deliberate top-up prefer `/order`: the `permissions`/`settle` flow below **redeems/burns** a held credit when you already have a balance (it only auto-buys, bounded by the delegation, when the balance is short).
-- **Card (`nvm:card-delegation`) → pay via x402** with the two calls below (charges the delegated card, then mints credits).
-
-The `permissions` → `settle` flow below is the **card** buy path, and is also how a redemption settles when you call a protected agent (either rail).
+Two calls. **x402 is the default buy flow for both rails** — crypto and card are identical except `scheme`/`network`; the facilitator charges the right method (on-chain against your delegation for crypto, the card for fiat).
 
 ### 4a. Get an access token
 
@@ -171,7 +166,7 @@ curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applic
 - **Field rename:** the response field is `accessToken`; pass that value as `x402AccessToken` in `/settle` and `/verify` below.
 - **Don't know the plan's scheme?** `GET {API_BASE}/api/v1/protocol/plans/<PLAN_ID>` (public) returns the plan's metadata and pricing.
 
-### 4b. Settle (card purchase / redemption)
+### 4b. Settle (the proof of purchase)
 
 ```bash
 curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
@@ -200,7 +195,7 @@ Response (`X402SettleResponseDto`):
 }
 ```
 
-`success: true` with `creditsRedeemed > 0` and a `remainingBalance` is your settle proof — for a **card** purchase, or for a **redemption** when you call a protected agent (either rail). For a **card** top-up with no protected endpoint, set `resource.url` to the plan's own URL — `{API_BASE}/api/v1/protocol/plans/<PLAN_ID>`. **For a stablecoin top-up, use `/order` (§4 intro), not settle** — settle on a crypto plan redeems a held credit, it doesn't buy.
+`success: true` with `creditsRedeemed > 0` and a `remainingBalance` is your proof. For a plan top-up with no protected endpoint, set `resource.url` to the plan's own URL — `{API_BASE}/api/v1/protocol/plans/<PLAN_ID>`.
 
 ### 4c. Dry-run (optional)
 

@@ -25,8 +25,7 @@ curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applic
   https://api.sandbox.nevermined.app/api/v1/x402/permissions
 # → { "accessToken": "..." }
 
-# 2. Settle — a CARD purchase, or a redemption when calling a protected agent.
-#    (To BUY/top-up a STABLECOIN plan, use POST /protocol/plans/<id>/order or orderPlan — see below — NOT settle, which redeems a held credit.)
+# 2. Settle (proof of purchase). For a plan top-up, resource.url is the plan URL.
 curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
   -d '{ "paymentRequired": { "x402Version": 2, "resource": { "url": "<PLAN_OR_RESOURCE_URL>" },
           "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<PLAN_ID>", "extra": {} } ],
@@ -38,7 +37,7 @@ curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applic
 
 - **Card payment:** switch `scheme` to `nvm:card-delegation` and `network` to `stripe` (or `braintree`/`visa`) in both calls.
 - **Calling a protected agent directly:** skip building `paymentRequired` — send the access token as the `payment-signature` header; the agent settles for you and returns the receipt in the `payment-response` header.
-- **Proof:** `creditsRedeemed > 0` and a `remainingBalance` in the settle response — a card purchase, or (for crypto) a redemption of a held credit. To deliberately buy stablecoin credits, use `orderPlan` / `POST …/plans/<id>/order` (next section).
+- **Proof of purchase:** `creditsRedeemed > 0` and a `remainingBalance` in the settle response.
 
 Full runbook with API-key retrieval, card enrollment, and status checks: `autonomous-operations.md`.
 
