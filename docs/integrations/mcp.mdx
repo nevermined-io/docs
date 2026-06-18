@@ -582,9 +582,11 @@ Add to your Cursor MCP config file:
 ```typescript
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
+import { decodeAccessToken } from "@nevermined-io/payments"
 
 // The MCP session is an OAuth-protected resource: authenticate it with the
-// access token (without it, `initialize` returns 401).
+// access token (without it, `initialize` returns 401). See "Client Usage" above
+// for how to obtain `accessToken`.
 const transport = new StreamableHTTPClientTransport(
   new URL("http://localhost:3000/mcp"),
   { requestInit: { headers: { Authorization: `Bearer ${accessToken}` } } }
@@ -593,11 +595,11 @@ const transport = new StreamableHTTPClientTransport(
 const client = new Client({ name: "my-client", version: "1.0.0" })
 await client.connect(transport)
 
-// Use tools — for PAID tools, carry the payment in band (see "Client Usage" above):
-//   _meta: { "x402/payment": decodeAccessToken(accessToken) }
+// For PAID tools, carry the payment in band on each call.
 const result = await client.callTool({
   name: "weather.today",
-  arguments: { city: "Madrid" }
+  arguments: { city: "Madrid" },
+  _meta: { "x402/payment": decodeAccessToken(accessToken) }
 })
 
 console.log(result)
