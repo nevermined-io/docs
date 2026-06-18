@@ -104,7 +104,8 @@ Here's how to create a complete, production-ready MCP server with OAuth authenti
     // 3. Start everything (MCP Server + Express + OAuth)
     const { info, stop } = await payments.mcp.start({
       port: 3000,
-      agentId: process.env.NVM_AGENT_ID!,
+      planId: process.env.NVM_PLAN_ID!,    // required
+      agentId: process.env.NVM_AGENT_ID,   // optional — informational only
       serverName: "my-weather-server",
       version: "1.0.0",
       description: "Weather MCP server with OAuth authentication"
@@ -145,7 +146,8 @@ Here's how to create a complete, production-ready MCP server with OAuth authenti
     # 3. Start with Nevermined paywall
     payments.mcp.start(
         fastmcp=fastmcp,
-        agent_id=os.environ["NVM_AGENT_ID"],
+        plan_id=os.environ["NVM_PLAN_ID"],      # required
+        agent_id=os.environ.get("NVM_AGENT_ID"),  # optional — informational only
         port=3000
     )
     ```
@@ -230,8 +232,8 @@ const { delegationId } = await paymentsClient.delegation.createDelegation({
   currency: 'usdc',          // 'usd' for fiat plans
 })
 const { accessToken } = await paymentsClient.x402.getX402AccessToken(
-  planId,   // The plan they subscribed to
-  agentId,  // Your MCP server's agent ID
+  planId,    // The plan they subscribed to
+  undefined, // agentId is optional — informational only
   // scheme defaults to 'nvm:erc4337'; pass 'nvm:card-delegation' for fiat plans
   { scheme: 'nvm:erc4337', delegationConfig: { delegationId } }
 )
@@ -239,28 +241,35 @@ const { accessToken } = await paymentsClient.x402.getX402AccessToken(
 
 **Step 2: Connect with MCP Client**
 
+Payment is carried **in band** in the tool-call `_meta["x402/payment"]` field, per the [x402 v2 MCP transport spec](https://github.com/coinbase/x402/blob/main/specs/transports-v2/mcp.md). Decode the access token into its `PaymentPayload` object and attach it to each paid call:
+
 ```typescript
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
+import { decodeAccessToken } from "@nevermined-io/payments"
 
 const transport = new StreamableHTTPClientTransport(
   new URL("http://localhost:3000/mcp"),
-  {
-    requestInit: {
-      headers: { 'payment-signature': accessToken }
-    }
-  }
+  // The MCP session is an OAuth-protected resource: authenticate it with the
+  // access token (without it, `initialize` returns 401). The per-call payment
+  // is sent in band via `_meta` below.
+  { requestInit: { headers: { Authorization: `Bearer ${accessToken}` } } }
 )
 
 const client = new Client({ name: "my-client" })
 await client.connect(transport)
 
-// Call tool
+// Carry the payment in band on each paid tool call
 const result = await client.callTool({
   name: "weather.today",
-  arguments: { city: "Madrid" }
+  arguments: { city: "Madrid" },
+  _meta: { "x402/payment": decodeAccessToken(accessToken) }
 })
 ```
+
+<Note>
+The `Authorization: Bearer <accessToken>` header authenticates the MCP **session** (it's an OAuth-protected resource — `initialize` returns `401` without it), which is why it's set on the transport above. The **payment** is sent separately, in band, via `_meta["x402/payment"]`. For backwards compatibility the server also reads the payment from the header alone (no `_meta`) as a **deprecated fallback** for one release; new integrations should use the in-band `_meta` field.
+</Note>
 
 **Step 3: Use in Claude Desktop**
 
@@ -573,19 +582,24 @@ Add to your Cursor MCP config file:
 ```typescript
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
+import { decodeAccessToken } from "@nevermined-io/payments"
 
-// Simple connection - no auth headers needed
+// The MCP session is an OAuth-protected resource: authenticate it with the
+// access token (without it, `initialize` returns 401). See "Client Usage" above
+// for how to obtain `accessToken`.
 const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp")
+  new URL("http://localhost:3000/mcp"),
+  { requestInit: { headers: { Authorization: `Bearer ${accessToken}` } } }
 )
 
 const client = new Client({ name: "my-client", version: "1.0.0" })
 await client.connect(transport)
 
-// Use tools
+// For PAID tools, carry the payment in band on each call.
 const result = await client.callTool({
   name: "weather.today",
-  arguments: { city: "Madrid" }
+  arguments: { city: "Madrid" },
+  _meta: { "x402/payment": decodeAccessToken(accessToken) }
 })
 
 console.log(result)
@@ -616,7 +630,7 @@ The methods below are for advanced use cases requiring custom server setup. For 
 
 ### Using `withPaywall` for Custom Servers
 
-If you're building a custom MCP server and want granular control, use `withPaywall`:
+If you're building a custom MCP server and want granular control, use `withPaywall`. Call `payments.mcp.configure({ planId })` first — `withPaywall` (and `attach`) require a `planId` and throw at registration time if none is set:
 
 ```typescript
 const protectedHandler = payments.mcp.withPaywall(
@@ -663,11 +677,13 @@ For custom Express servers, you can use `payments.mcp.createApp()`:
     })
 
     payments.mcp.configure({
-      agentId: process.env.NVM_AGENT_ID!,
-      serverName: "custom-server"
+      planId: process.env.NVM_PLAN_ID!,    // required
+      serverName: "custom-server",
+      agentId: process.env.NVM_AGENT_ID,   // optional — informational only
     })
 
     const app = payments.mcp.createApp({
+      planId: process.env.NVM_PLAN_ID!,    // required
       baseUrl: "http://localhost:3000",
       serverName: "custom-server",
       tools: ["weather.today"]
@@ -727,6 +743,8 @@ For custom Express servers, you can use `payments.mcp.createApp()`:
 ---
 
 ## Error Handling
+
+Payment-required is signaled **in band**, not as an HTTP `402`. For **tools**, a missing/invalid token (or unmet subscription) returns an **error tool result** — `isError: true` with the `PaymentRequired` object in `structuredContent` and its JSON string in `content[0].text` — rather than throwing. **Resources and prompts** have no tool-result error channel, so they raise a JSON-RPC error with the codes below (`-32003` is also exposed on the error object for tools).
 
 | Error Code | Description |
 |------------|-------------|
