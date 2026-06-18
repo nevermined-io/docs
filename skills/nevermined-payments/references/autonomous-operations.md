@@ -147,7 +147,7 @@ Response:
 
 ## 4. Buy access via x402
 
-Two calls. Crypto and card are identical except `scheme`/`network`.
+Two calls. **x402 is the default buy flow for both rails** — crypto and card are identical except `scheme`/`network`; the facilitator charges the right method (on-chain against your delegation for crypto, the card for fiat).
 
 ### 4a. Get an access token
 

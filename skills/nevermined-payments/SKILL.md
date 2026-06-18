@@ -1,7 +1,7 @@
 ---
 name: nevermined-payments
-version: "0.5.0"
-lastUpdated: "2026-06-09"
+version: "0.5.1"
+lastUpdated: "2026-06-18"
 description: >
   Use when an AI agent must operate on Nevermined autonomously — purchase a payment
   plan via the x402 protocol (crypto or card), enroll a card and create a spending
@@ -27,11 +27,11 @@ metadata:
 
 # Nevermined Payments Integration
 
-> **Skill version**: 0.5.0 | **Last updated**: 2026-06-09 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments
+> **Skill version**: 0.5.1 | **Last updated**: 2026-06-18 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments
 >
 > **⚠️ Use the latest version.** This skill changes often. If you have an installed or cached copy, check its **Last updated** date against the canonical source above and **refresh it if older** — an out-of-date copy may be missing whole flows (e.g. the card-enrollment / `embed/session` steps were added after Feb 2026). Unless a specific version is requested, always work from the latest.
 >
-> Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK method names are stable from `@nevermined-io/payments@1.4.1` through the current `1.6.0`, and `payments-py@1.5.0`.
+> Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK method names are stable from `@nevermined-io/payments@1.4.1` through the current `1.9.0`, and `payments-py@1.15.1`.
 
 ## Overview
 
@@ -119,6 +119,7 @@ curl -H "Authorization: Bearer $NVM_API_KEY" \
 
 - A **stablecoin** payment method (an account-abstraction smart account) exists by default — **fund it** and you can pay immediately, **no human needed**. In `sandbox` it spends test USDC on Base Sepolia; see [stablecoin payments](https://nevermined.ai/docs/integrate/patterns/stablecoin-payments) for funding. Its `id` is your wallet/holder address (used in **A5**).
 - A **card** method appears here only after the one-time enrollment in **A3** below.
+- **Field shapes:** `status` is **capitalized** (`"Active"`, `"Revoked"`) and the `erc4337` method's `type` is `"crypto_wallet"`. (In A5, delegation cents fields like `spendingLimitCents` come back as **strings**, not numbers.)
 
 SDK: `payments.delegation.listPaymentMethods()` / `payments.delegation.list_payment_methods()`.
 
@@ -169,7 +170,7 @@ SDK: `payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitC
 
 ## A4 · Buy access via x402  *(fully programmatic)*
 
-Two calls: get an access token, then settle. Works for crypto and card the same way — only `scheme`/`network` differ.
+Two calls: get an access token, then settle. **x402 is the default buy flow for both rails — crypto and card work the same way, only `scheme`/`network` differ.** The facilitator charges the right method (on-chain against your delegation for crypto, the card for fiat), mints, and burns.
 
 ```bash
 # 1. Get an access token (authorizes the spend against your delegation)
@@ -202,8 +203,11 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 - **Note the field rename:** `/permissions` returns `accessToken`; pass that value as `x402AccessToken` in `/settle` and `/verify`.
 - **Dry run first (optional):** `POST /api/v1/x402/verify` with the same `{ paymentRequired, x402AccessToken }` body → `{ "isValid": true }`.
 - **Proof of purchase** = `success: true` with `creditsRedeemed` > 0 and a `remainingBalance` (and, for crypto, an on-chain `transaction`).
+- **Card budget caveat:** a card settle may not immediately move the delegation's `amountSpentCents`/`remainingBudgetCents` — use the settle receipt + the A5 plan balance as the source of truth for card spend, not the delegation budget.
 
 **Calling a protected agent directly** (the common case): just send the access token as the `payment-signature` header to the agent's endpoint — the agent's own `402` response **is** your `paymentRequired`, and the agent verifies + settles for you. You only call `/settle` yourself when topping up a plan with no protected endpoint to hit.
+
+> A dedicated `orderPlan` / `POST /protocol/plans/{id}/order` endpoint exists for an explicit, upfront stablecoin purchase, but **x402 above is the default for both rails — use `/order` only when specifically requested.**
 
 SDK shortcut for step 1:
 ```typescript
@@ -234,6 +238,7 @@ curl -H "Authorization: Bearer $NVM_API_KEY" \
   https://api.sandbox.nevermined.app/api/v1/delegation
 # → { totalResults, delegations: [ { delegationId, status, spendingLimitCents, amountSpentCents, remainingBudgetCents, expiresAt } ] }
 # `status` is "Active" | "Expired" | "Exhausted" — flag a delegation when status != "Active", or remainingBudgetCents is at/near 0, or expiresAt is near.
+# Caveat: a CARD delegation's budget may not reflect a card settle immediately (amountSpentCents can stay 0) — for cards, treat the settle receipt + plan balance as the spend source of truth, not the delegation budget.
 
 # A delegation's individual charges
 curl -H "Authorization: Bearer $NVM_API_KEY" \
@@ -260,11 +265,14 @@ Price helpers: `getERC20PriceConfig`/`getEURCPriceConfig` (crypto), `getFiatPric
 
 ## A7 · Check your agents' status & revenue (as a seller)  *(fully programmatic)*
 
-**Organization analytics** (require an active **Premium** org tier; `403 BCK.ORGANIZATIONS.0022` otherwise). Use your org's `orgId` — read it from your Nevermined account (there is no public REST endpoint to look it up; it's the `org-...` id, the same one in your `…/organizations/<orgId>/agentic-instructions.md`). If you have no org or no Premium tier, skip to the any-tier building blocks below — they need no `orgId`.
+**Organization analytics** (require an active **Premium** org tier). **Discover your `orgId` from your own records** — every item in `GET /protocol/plans` and `/protocol/agents` carries `.orgId` + `.organizationName`; take the most common non-null `.orgId` across your published items (it's the `org-...` id, also in your `…/organizations/<orgId>/agentic-instructions.md`). Only call analytics with an id matching `^org-[0-9a-f-]+$`. Failure modes to handle (fall back to the any-tier building blocks below on any of them):
+- a **foreign / non-admin** org → `403 BCK.AUTH.0004` ("Organisation admin privileges required");
+- a **non-Premium** org → `403 BCK.ORGANIZATIONS.0022`;
+- a **malformed / placeholder** org id → a **silent `200` of all-zeros** — never report that as real revenue; if you have published plans but analytics returns zeros, treat it as a failure.
 
 ```bash
 B=https://api.sandbox.nevermined.app/api/v1/organizations/<ORG_ID>/analytics
-curl -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-01-01T00:00:00Z&to=2026-06-09T00:00:00Z"
+curl -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-03-20T00:00:00Z&to=2026-06-18T00:00:00Z"
 # → { items: [ { agentId, agentName, totalRevenue, transactionCount } ], totalRevenue }
 curl -H "Authorization: Bearer $NVM_API_KEY" "$B/mrr"
 # → { mrr, activeSubscriptions }
@@ -273,6 +281,8 @@ curl -H "Authorization: Bearer $NVM_API_KEY" "$B/usage?from=...&to=..."
 curl -H "Authorization: Bearer $NVM_API_KEY" "$B/customers?limit=20"
 # → { items: [ { customerId, userId, totalSpent, firstSeenAt, lastActiveAt } ], totalCustomers }
 ```
+
+> **Reading the analytics rows:** they're labelled `agentId`/`agentName` but are grouped **by plan**; `totalRevenue`/`totalSpent` are stringified integers in 6-decimal token units (divide by 1,000,000 for USD), while `creditsBurned` is a plain count. `mrr` is legitimately `0` when sales were one-off credit purchases rather than recurring subscriptions.
 
 **Any-tier building blocks** (no Premium required) — list what you've published and inspect each:
 
@@ -849,7 +859,7 @@ curl -X POST http://localhost:3000/chat \
 |---|---|---|
 | HTTP 402 returned | No `payment-signature` header or invalid/expired token | Generate a fresh token via `getX402AccessToken` with `delegationConfig` |
 | `401 BCK.AUTH.0002` on a REST call | Missing/expired API key | Send `Authorization: Bearer $NVM_API_KEY`; mint a key per **A1** |
-| `403 BCK.ORGANIZATIONS.0022` on analytics | Org is not on Premium tier | Use the any-tier building blocks in **A7**, or upgrade the org |
+| `403` on analytics — `BCK.ORGANIZATIONS.0022` (not Premium) or `BCK.AUTH.0004` (not an admin of that org) | Wrong tier, not your org, or a malformed `orgId` (which instead returns a **silent 200-of-zeros**) | Discover the real `orgId` from `.orgId` on your plan/agent records; use the any-tier building blocks in **A7**, or upgrade the org |
 | `BCK.VISA.0014` creating a delegation | `provider:"visa"` sent without the browser-produced `consumerPrompt` + `assuranceData` | An agent can't produce `assuranceData` — create the Visa delegation in the webapp; reuse the `delegationId` |
 | `BCK.X402.0002` Plan not found | Wrong `planId` or wrong environment | Verify the plan ID and that you are calling the matching `sandbox`/`live` base URL |
 | MCP error `-32003` | Payment Required — no token, invalid token, or insufficient credits | Check subscriber has purchased plan and has credits remaining |

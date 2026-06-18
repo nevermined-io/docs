@@ -15,13 +15,15 @@ An agent that pays for services should know where it stands: how many credits ar
 ## Try it yourself
 
 ```text
-You are my autonomous payments agent. Using the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) and my NVM_API_KEY, give me a status report of my Nevermined buyer account in sandbox:
+You are my autonomous payments agent. Use the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) (Track A, sections A2 and A5) and my NVM_API_KEY. Base URL: https://api.sandbox.nevermined.app/api/v1. Authenticate every call with `Authorization: Bearer $NVM_API_KEY`. Give me a buyer-account status report for sandbox:
 
-1. My payment methods (card and stablecoin), and which are active.
-2. My delegations — for each, the spending limit, amount spent, remaining budget, and expiry.
-3. For each plan I hold, my remaining credit balance.
+1) PAYMENT METHODS — GET /payment-methods. List each method's type (card vs crypto_wallet/stablecoin), brand+last4, provider, and status. Note that `status` is capitalized (e.g. "Active", "Revoked"). Tell me which are active and usable, and call out any revoked one (it cannot back a delegation).
 
-Flag anything that's expired, exhausted, or close to running out, and tell me what I'd need to do to top up. Base URL: https://api.sandbox.nevermined.app/api/v1 .
+2) DELEGATIONS — GET /delegation. For each, report spendingLimitCents, amountSpentCents, remainingBudgetCents, expiresAt, and status, formatting the cents fields (they come back as STRINGS) as dollars. Flag a delegation if status != "Active", OR remainingBudgetCents is at/below 20% of spendingLimitCents, OR it expires within 48 hours. Report `status` verbatim — note that a delegation can show "Exhausted" even when amountSpent is 0 (it just means expired-and-closed), so describe what the API says rather than guessing the cause. If a delegation has charges, you may inspect them via GET /delegation/{id}/transactions.
+
+3) PLANS I HOLD + CREDIT BALANCE — there is NO endpoint that lists the plans a buyer has purchased. (GET /protocol/plans only returns plans I AUTHORED as a seller, so it will NOT surface plans I merely bought — don't rely on it to find my purchases.) So you need the plan ids to check: use the ones I give you, the ids I retained from past purchases, or the plans advertised in the agentic-instructions.md / llms.txt of any org I've bought from. For EACH such plan id, call GET /protocol/plans/{planId}/balance/{myAddress} — myAddress is the `id` of my erc4337/crypto_wallet payment method from step 1 (it covers both card- and crypto-bought plans) — and report planName, planType, balance (remaining credits), and isSubscriber (true = I hold it). Flag any held plan with a low balance (under 50 credits). If you have no plan ids to check, say so plainly rather than reporting "no plans held".
+
+Then give me a short "action needed" section: anything expired/exhausted/revoked/low, and exactly what I'd do to top up — to restore spending, create a fresh delegation via POST /delegation/create (provider "erc4337" for crypto, or "stripe" with providerPaymentMethodId = my active card's id for card); to add plan credits, run the x402 buy+settle flow (skill A4) against the plan id using a live delegation. Keep all secrets masked in your output.
 ```
 
 ## How it works

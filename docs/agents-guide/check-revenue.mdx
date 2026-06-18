@@ -15,13 +15,34 @@ If you sell agents or plans, this flow turns "how's it going?" into a report an 
 ## Try it yourself
 
 ```text
-You are my autonomous payments agent. Using the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) and my NVM_API_KEY, produce a revenue report for the AI agents and plans I sell on Nevermined sandbox:
+You are my autonomous payments agent. Using the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) (Track A, A7 + references/seller-operations.md) and my NVM_API_KEY, produce a revenue report for the AI agents and plans I sell on Nevermined sandbox. Base URL: https://api.sandbox.nevermined.app/api/v1 . Send `Authorization: Bearer $NVM_API_KEY` on every call. Never print, echo, or persist the key.
 
-1. Total revenue per agent for the last 90 days (and the grand total).
-2. My current MRR and number of active subscribers.
-3. Credits consumed per plan (with unique users).
+STEP 1 — Inventory + discover my org id (always do this first; it never needs Premium):
+- GET /protocol/plans?page=1&offset=50 and GET /protocol/agents?page=1&offset=50.
+- These return { total, page, offset, plans|agents: [ <full record> ] }. For each item read:
+    name        = metadata.main.name
+    price       = SUM of registry.price.amounts  (each is a STRING in 6-decimal token units; the array splits across builder + a platform-fee receiver — contract-default 1% for crypto, 2% for fiat, and an org-level crypto fee can add a third receiver — so always SUM the array, never read index 0; then divide by 1,000,000 for USD/USDC; e.g. fiat ["9800000","200000"] => 10000000 = $10.00)
+    paymentType = registry.price.isCrypto ? "crypto (USDC/EURC)" : "fiat (card)"
+    credits     = registry.credits.amount ; durationSecs (0 = non-expiring fixed credits; >0 = time-based)
+    org id      = item.orgId  and  item.organizationName   <-- this is how you discover my org id
+- Summarize every plan and agent: name, type, price, credits, owning org. This summary is the baseline report and must always be produced.
+- Pick MY_ORG_ID = the most common non-null .orgId across my plans/agents. If none is non-null, skip STEP 2 entirely and report "no org-level analytics available; inventory only".
 
-My org id is <ORG_ID>. The analytics endpoints need a Premium org tier — if I get a 403, fall back to listing my plans and agents (GET /protocol/plans, /protocol/agents) and summarize what's available instead. Base URL: https://api.sandbox.nevermined.app/api/v1 .
+STEP 2 — Org analytics enrichment (only if MY_ORG_ID matches ^org-[0-9a-f-]+$):
+Call, with from/to spanning the last 90 days (from = today-90d, to = today, ISO-8601 Z):
+  GET /organizations/{MY_ORG_ID}/analytics/revenue?from=&to=
+  GET /organizations/{MY_ORG_ID}/analytics/mrr
+  GET /organizations/{MY_ORG_ID}/analytics/usage?from=&to=
+  GET /organizations/{MY_ORG_ID}/analytics/customers?limit=50
+Treat analytics as VALID only if you get HTTP 200 AND a validly-shaped org id was used. Note these real failure modes and fall back to the STEP 1 inventory summary if any occur:
+  - 403 BCK.AUTH.0004 ("Organisation admin privileges required") — the org isn't mine / not Premium-admin. (The skill mentions BCK.ORGANIZATIONS.0022; the live code may instead return BCK.AUTH.0004 — treat any 403 the same.)
+  - A 200 response that is all zeros/empty ({"mrr":"0"}, totalRevenue "0", items []) while STEP 1 shows I have published plans — this is the silent failure you get from a bad/placeholder org id. Do NOT report it as real; fall back.
+Report from the analytics data:
+  1. Revenue per row (the API labels rows agentId/agentName but actually groups by PLAN — report them as plans/offerings), last 90 days, plus the grand total. Convert all *Revenue/*Spent integer strings to USD by dividing by 1,000,000.
+  2. MRR and active subscribers (mrr, activeSubscriptions). Note that MRR can legitimately be 0 if my sales were one-off credit purchases rather than recurring subscriptions.
+  3. Credits consumed per plan with unique users (creditsBurned, uniqueUsers).
+
+Output: the inventory summary (always), then the analytics numbers if STEP 2 succeeded, clearly stating which path produced the figures and the exact date window used.
 ```
 
 ## How it works
@@ -36,7 +57,7 @@ There are two layers: aggregated **organization analytics** (Premium tier) and a
     B="{API_BASE}/organizations/<ORG_ID>/analytics"
 
     # Revenue per agent
-    curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-01-01T00:00:00Z&to=2026-04-01T00:00:00Z"
+    curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-03-20T00:00:00Z&to=2026-06-18T00:00:00Z"
     # → { items: [ { agentId, agentName, totalRevenue, transactionCount } ], totalRevenue }
 
     # MRR + active subscribers
@@ -48,7 +69,15 @@ There are two layers: aggregated **organization analytics** (Premium tier) and a
     # → { items: [ { planId, planName, creditsBurned, uniqueUsers } ] }
     ```
 
-    Your `orgId` comes from your Nevermined account. Without a Premium tier these return `403 BCK.ORGANIZATIONS.0022` — use the building blocks below.
+    **Discover your `orgId` from the records themselves** — every item in `GET /protocol/plans` and `/protocol/agents` carries `.orgId` and `.organizationName`; take the most common non-null `.orgId` across your published items (no separate lookup endpoint exists). Only call analytics if it matches `^org-[0-9a-f-]+$`. Three failure modes to handle:
+
+    - A **foreign / non-admin** org returns `403 BCK.AUTH.0004` ("Organisation admin privileges required").
+    - A **non-Premium** org returns `403 BCK.ORGANIZATIONS.0022`.
+    - A **malformed or placeholder** org id (e.g. an unsubstituted `<ORG_ID>`) returns a **silent `200` of all-zeros** — never report that as real revenue. Validate the id shape first, and treat a zero result while you *have* published plans as a failure: fall back to the building blocks below.
+
+    <Note>
+      The `revenue`/`usage` rows are labelled `agentId`/`agentName` but are actually grouped **by plan**. Money fields like `totalRevenue` are stringified integers in 6-decimal token units — divide by 1,000,000 for USD. (`creditsBurned` is a plain credit count, not money.)
+    </Note>
   </Step>
 
   <Step title="Building blocks (any tier)">

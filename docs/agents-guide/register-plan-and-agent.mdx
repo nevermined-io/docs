@@ -19,14 +19,23 @@ Before anyone can pay for your service, it has to exist on Nevermined: an **agen
 ## Try it yourself
 
 ```text
-You are my autonomous payments agent. Register a new AI agent and a payment plan on Nevermined sandbox using the @nevermined-io/payments SDK.
+You are my autonomous payments agent. Register a new AI agent and a payment plan on Nevermined sandbox using the @nevermined-io/payments SDK. Follow the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) (section A6) for method signatures.
 
 - Agent: "Weather Agent" — description "On-demand weather forecasts", endpoint POST https://my-agent.example.com/forecast
-- Plan: "Weather Starter" — 100 credits for $10, paid by card (fiat, Stripe), 1 credit per request
+- Plan: "Weather Starter" — 100 credits for $10, paid by card (fiat, Stripe default), 1 credit per request
 - My builder wallet (receives payments): <your-builder-wallet>
-- Environment: sandbox (NVM_API_KEY is set)
+- Environment: sandbox (NVM_API_KEY is set — never print it)
 
-Use the SDK price/credits helpers to build the config, register the agent and plan together, then print the agentId and planId and confirm both are published. Follow the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) for the method signatures.
+Build the config with the SDK helpers, then call payments.agents.registerAgentAndPlan(agentMetadata, agentApi, planMetadata, priceConfig, creditsConfig):
+- Price: payments.plans.getFiatPriceConfig(amount, builderAddress, 'USD'). The fiat amount is in 6-decimal units (USDC convention), NOT cents — so $10 = 10_000_000n. Arg order is (amount, receiver, currency). All helper numeric args are BigInt — use the n suffix.
+- Credits: payments.plans.getFixedCreditsConfig(100n, 1n) (100 granted, 1 per request).
+- agentApi = { endpoints: [{ POST: 'https://my-agent.example.com/forecast' }] }.
+
+Print the agentId and planId, then confirm with real REST calls:
+1. GET /api/v1/protocol/plans/{planId} (public) → check metadata.curation.isListed === true, registry.price.isCrypto === false (fiat), registry.credits.amount === "100", and that the SUM of registry.price.amounts equals "10000000" ($10). Note: Nevermined takes a ~2% platform fee, so the array splits into ["9800000","200000"] across two receivers — verify the sum, not index 0; index 0 (9800000) is your wallet's net.
+2. GET /api/v1/protocol/agents/{agentId}/plans (public) → confirm the plan id appears in plans[] (the plan is linked to the agent).
+
+Report both IDs and the confirmation results. (Fiat provider defaults to Stripe and is not echoed in the plan JSON, so you can only confirm "fiat" via isCrypto:false, not "Stripe" specifically.)
 ```
 
 ## How it works

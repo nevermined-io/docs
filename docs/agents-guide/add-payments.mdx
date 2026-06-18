@@ -17,14 +17,16 @@ This flow is the other side of the market: instead of paying, your agent **gets 
 Run this in your project with a coding agent that can read and edit your files:
 
 ```text
-My project is an Express (TypeScript) AI agent with an endpoint `POST /ask`. Add Nevermined payments so callers must pay 1 credit per request via the x402 protocol.
+My project is an Express (TypeScript, ESM) AI agent with an endpoint `POST /ask`. Add Nevermined payments so callers must pay 1 credit per request via the x402 protocol, using the @nevermined-io/payments SDK (pin ^1.8.0) and following the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) — its Track B + references/express-integration.md and references/client-integration.md cover the details.
 
-Use the @nevermined-io/payments SDK, following the Nevermined `nevermined-payments` skill (https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments) — its Track B and `references/` cover each framework. Produce:
-1. A registration script that publishes my agent and a "Starter" plan granting 100 credits for $10 in USDC (my builder wallet: <your-builder-wallet>), printing the agentId and planId.
-2. The payment middleware wiring that gates `POST /ask` at 1 credit, reading NVM_API_KEY, NVM_PLAN_ID, NVM_AGENT_ID from env.
-3. A short test that calls `POST /ask` with no token (expect 402), then with a fresh x402 token (expect 200), in the sandbox environment.
+Project setup: package.json must have "type":"module" (required for the @nevermined-io/payments/express subpath import); local TS imports use .js extensions; run with `npx tsx <file>.ts`. Keep my existing POST /ask handler logic completely intact — add payments only as a front layer (the paymentMiddleware), never inside the handler.
 
-Keep my existing handler logic intact. Use payment-signature / verifyPermissions / settlePermissions (not the deprecated isValidRequest).
+Produce three files:
+1. register.ts — publishes my agent and a "Starter" plan granting 100 credits for $10 in USDC on sandbox, then prints agentId and planId. Build configs with payments.plans.getERC20PriceConfig(10_000_000n, '0x036CbD53842c5426634e7929541eC2318f3dCF7e', '<your-builder-wallet>') (10 USDC = 10_000_000n, 6 decimals; all numeric helper args are BigInt — note the n) and payments.plans.getFixedCreditsConfig(100n, 1n), then payments.agents.registerAgentAndPlan(...). (The price helper splits payment into builder + platform-fee receivers, so the builder nets slightly under $10 — expected.)
+2. server.ts — wire the middleware: app.use(paymentMiddleware(payments, { 'POST /ask': { planId: NVM_PLAN_ID, agentId: NVM_AGENT_ID, credits: 1 } })), reading NVM_API_KEY, NVM_PLAN_ID, NVM_AGENT_ID from env. Mount express.json() first; keep the existing app.post('/ask', askHandler) unchanged. The middleware auto-returns 402 + payment-required, verifies, runs the handler, then settles/burns and adds payment-response — no manual verify/settle.
+3. test.ts — start the server, call POST /ask with no payment-signature (expect 402; decode the base64 payment-required header), then do the TWO-STEP token mint (the inline auto-create `delegationConfig` — passing `spendingLimitCents`/`durationSecs` without a `delegationId` — is deprecated since SDK 1.8.0: it emits a runtime deprecation warning, so use the explicit two-step): first `const { delegationId } = await payments.delegation.createDelegation({ provider: 'erc4337', spendingLimitCents: 10000, durationSecs: 604800, currency: 'usdc' })`, then `const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, { delegationConfig: { delegationId } })`, and retry POST /ask with header `payment-signature: <accessToken>` (expect 200; decode the base64 payment-response receipt — creditsRedeemed/remainingBalance). Run in the sandbox environment.
+
+Use the modern payment-signature header and X402_HEADERS from @nevermined-io/payments/express; the middleware calls verifyPermissions/settlePermissions internally — do NOT use the deprecated isValidRequest or X-402.
 ```
 
 <Note>
