@@ -32,7 +32,7 @@ These endpoints are generated automatically—no manual configuration required.
 
 ## Configure MCP
 
-Initialize the MCP integration with your agent details:
+Initialize the MCP integration with your plan details:
 
 ```typescript
 import { Payments, EnvironmentName } from '@nevermined-io/payments'
@@ -44,8 +44,9 @@ const payments = Payments.getInstance({
 
 // Configure MCP integration
 payments.mcp.configure({
-  agentId: process.env.NVM_AGENT_ID!,
+  planId: process.env.NVM_PLAN_ID!,    // required
   serverName: 'my-mcp-server',
+  agentId: process.env.NVM_AGENT_ID,   // optional — informational only
 })
 ```
 
@@ -176,8 +177,9 @@ const payments = Payments.getInstance({
 
 // Configure
 payments.mcp.configure({
-  agentId: process.env.NVM_AGENT_ID!,
+  planId: process.env.NVM_PLAN_ID!,    // required
   serverName: 'weather-server',
+  agentId: process.env.NVM_AGENT_ID,   // optional — informational only
 })
 
 // Register tools
@@ -200,7 +202,8 @@ payments.mcp.registerTool(
 const { info, stop } = await payments.mcp.start({
   port: 5001,
   host: process.env.MCP_HOST ?? '127.0.0.1',
-  agentId: process.env.NVM_AGENT_ID!,
+  planId: process.env.NVM_PLAN_ID!,    // required
+  agentId: process.env.NVM_AGENT_ID,   // optional — informational only
   serverName: 'weather-server',
   version: '1.0.0',
 })
@@ -277,8 +280,9 @@ const payments = Payments.getInstance({
 
 // Configure MCP
 payments.mcp.configure({
-  agentId: process.env.NVM_AGENT_ID!,
+  planId: process.env.NVM_PLAN_ID!,    // required
   serverName: 'weather-agent',
+  agentId: process.env.NVM_AGENT_ID,   // optional — informational only
 })
 
 // Register multiple tools
@@ -345,7 +349,8 @@ payments.mcp.registerResource(
 const { info, stop } = await payments.mcp.start({
   port: 5001,
   host: process.env.MCP_HOST ?? '127.0.0.1',
-  agentId: process.env.NVM_AGENT_ID!,
+  planId: process.env.NVM_PLAN_ID!,    // required
+  agentId: process.env.NVM_AGENT_ID,   // optional — informational only
   serverName: 'weather-agent',
   version: '1.0.0',
 })
@@ -380,7 +385,7 @@ async function fetchAlerts() {
 | Option | Type | Description |
 |--------|------|-------------|
 | `credits` | `bigint` or `function` | Credits to consume per call |
-| `planId` | `string` | Optional override for the plan ID (otherwise inferred from token) |
+| `planId` | `string` | Per-handler plan ID override. A server-level `planId` (set via `configure`/`start`) is required; set this only to charge a different plan for this handler. |
 | `maxAmount` | `bigint` | Max credits to verify during authentication (default: `1n`) |
 | `onRedeemError` | `string` | On post-execution settlement failure: `'ignore'` (default) returns the in-band payment error; `'propagate'` throws a JSON-RPC error. Tool content is always suppressed either way (a paid result is never delivered without settlement). |
 
@@ -395,7 +400,7 @@ The client sends the x402 `PaymentPayload` in the request params `_meta["x402/pa
 ```typescript
 import { decodeAccessToken } from '@nevermined-io/payments'
 
-const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+const { accessToken } = await payments.x402.getX402AccessToken(planId) // agentId is optional
 
 await client.callTool({
   name: 'get_weather',
@@ -475,16 +480,18 @@ const app = express()
 const payments = Payments.getInstance({...})
 
 payments.mcp.configure({
-  agentId: process.env.NVM_AGENT_ID!,
+  planId: process.env.NVM_PLAN_ID!,    // required
   serverName: 'my-server',
+  agentId: process.env.NVM_AGENT_ID,   // optional — informational only
 })
 
 // Register tools...
 
 // Create MCP router
 const mcpRouter = payments.mcp.createRouter({
-  agentId: process.env.NVM_AGENT_ID!,
+  planId: process.env.NVM_PLAN_ID!,    // required
   serverName: 'my-server',
+  agentId: process.env.NVM_AGENT_ID,   // optional — informational only
 })
 
 // Mount router

@@ -124,8 +124,9 @@ async def main():
     # Start the MCP server
     result = await payments.mcp.start({
         "port": 5001,
-        "agentId": "your-agent-id",
+        "planId": "your-plan-id",        # required
         "serverName": "my-mcp-server",
+        "agentId": "your-agent-id",      # optional — informational only
         "version": "1.0.0",
         "description": "My MCP server with Nevermined payments"
     })
@@ -148,8 +149,9 @@ For more control, use the advanced API:
 ```python
 # Configure shared options
 payments.mcp.configure({
-    "agentId": "your-agent-id",
-    "serverName": "my-mcp-server"
+    "planId": "your-plan-id",        # required
+    "serverName": "my-mcp-server",
+    "agentId": "your-agent-id"       # optional — informational only
 })
 
 # Wrap a handler with paywall
@@ -288,8 +290,9 @@ payments.mcp.register_prompt(
 async def main():
     result = await payments.mcp.start({
         "port": 5001,
-        "agentId": "agent-123",
+        "planId": "plan-123",            # required
         "serverName": "code-assistant-mcp",
+        "agentId": "agent-123",          # optional — informational only
         "version": "1.0.0"
     })
 
@@ -313,8 +316,9 @@ asyncio.run(main())
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
 | `port` | `int` | Yes | Server port |
-| `agentId` | `str` | Yes | Nevermined agent DID |
+| `planId` | `str` | Yes | Nevermined plan ID to charge against |
 | `serverName` | `str` | Yes | Human-readable name |
+| `agentId` | `str` | No | Nevermined agent DID — optional, informational only (used as the OAuth `client_id` when present; otherwise one is generated) |
 | `baseUrl` | `str` | No | Base URL (default: localhost) |
 | `version` | `str` | No | Server version |
 | `description` | `str` | No | Server description |
@@ -324,7 +328,7 @@ asyncio.run(main())
 | Option | Type | Description |
 |--------|------|-------------|
 | `credits` | `int` or `callable` | Credits to consume per call |
-| `planId` | `str` | Optional override for the plan ID (otherwise inferred from token) |
+| `planId` | `str` | Per-handler plan ID override. A server-level `planId` (set via `configure`/`start`) is required; set this only to charge a different plan for this handler. |
 | `maxAmount` | `int` | Max credits to verify during authentication (default: `1`) |
 | `onRedeemError` | `str` | On post-execution settlement failure: `"ignore"` (default) returns the in-band payment error; `"propagate"` raises a JSON-RPC error. Tool content is always suppressed either way (a paid result is never delivered without settlement). |
 
@@ -339,7 +343,7 @@ The client sends the x402 `PaymentPayload` as plain JSON in the tool-call reques
 ```python
 from payments_py.x402.token import decode_access_token
 
-access_token = payments.x402.get_x402_access_token(plan_id, agent_id)["accessToken"]
+access_token = payments.x402.get_x402_access_token(plan_id)["accessToken"]  # agent_id is optional
 
 await session.call_tool(
     "get_weather",
