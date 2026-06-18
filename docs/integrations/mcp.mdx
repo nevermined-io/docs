@@ -240,7 +240,11 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { decodeAccessToken } from "@nevermined-io/payments"
 
 const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp")
+  new URL("http://localhost:3000/mcp"),
+  // The MCP session is an OAuth-protected resource: authenticate it with the
+  // access token (without it, `initialize` returns 401). The per-call payment
+  // is sent in band via `_meta` below.
+  { requestInit: { headers: { Authorization: `Bearer ${accessToken}` } } }
 )
 
 const client = new Client({ name: "my-client" })
@@ -255,7 +259,7 @@ const result = await client.callTool({
 ```
 
 <Note>
-For backwards compatibility the server still accepts an `Authorization: Bearer <accessToken>` header as a **deprecated fallback** when `_meta["x402/payment"]` is absent. New integrations should use the in-band `_meta` field.
+The `Authorization: Bearer <accessToken>` header authenticates the MCP **session** (it's an OAuth-protected resource — `initialize` returns `401` without it), which is why it's set on the transport above. The **payment** is sent separately, in band, via `_meta["x402/payment"]`. For backwards compatibility the server also reads the payment from the header alone (no `_meta`) as a **deprecated fallback** for one release; new integrations should use the in-band `_meta` field.
 </Note>
 
 **Step 3: Use in Claude Desktop**
@@ -570,9 +574,11 @@ Add to your Cursor MCP config file:
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
 
-// Simple connection - no auth headers needed
+// The MCP session is an OAuth-protected resource: authenticate it with the
+// access token (without it, `initialize` returns 401).
 const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp")
+  new URL("http://localhost:3000/mcp"),
+  { requestInit: { headers: { Authorization: `Bearer ${accessToken}` } } }
 )
 
 const client = new Client({ name: "my-client", version: "1.0.0" })

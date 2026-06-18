@@ -338,7 +338,7 @@ The MCP transport follows the [x402 v2 MCP transport spec](https://github.com/co
 
 ### Request — payment payload
 
-The client sends the x402 `PaymentPayload` as plain JSON in the tool-call request params under `_meta["x402/payment"]`. For backward compatibility the server still falls back to reading the access token from the `Authorization: Bearer` header when `_meta["x402/payment"]` is absent, but that path is **deprecated** under the x402 v2 MCP transport.
+The client sends the x402 `PaymentPayload` as plain JSON in the tool-call request params under `_meta["x402/payment"]`. This is the **payment** channel — separate from session auth: the MCP session is an OAuth-protected resource, so the client must also send an `Authorization: Bearer <access_token>` header when opening the transport to establish the session (`initialize` returns `401` without it). For backward compatibility the server also reads the payment from that header alone (no `_meta`) as a **deprecated** fallback for one release.
 
 ```python
 from payments_py.x402.token import decode_access_token

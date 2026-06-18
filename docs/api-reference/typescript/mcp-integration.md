@@ -395,7 +395,7 @@ The MCP transport follows the [x402 v2 MCP transport spec](https://github.com/co
 
 ### Request — payment payload
 
-The client sends the x402 `PaymentPayload` in the request params `_meta["x402/payment"]` (plain JSON). For backwards compatibility an `Authorization: Bearer <token>` header is still accepted as a **deprecated fallback** when `_meta["x402/payment"]` is absent.
+The client sends the x402 `PaymentPayload` in the request params `_meta["x402/payment"]` (plain JSON). Note this is the **payment** channel — separate from session auth: the MCP session is an OAuth-protected resource, so the client must also send an `Authorization: Bearer <accessToken>` header on the transport to establish the session (`initialize` returns `401` without it). For backwards compatibility the server also reads the payment from that header alone (no `_meta`) as a **deprecated fallback** for one release.
 
 ```typescript
 import { decodeAccessToken } from '@nevermined-io/payments'
