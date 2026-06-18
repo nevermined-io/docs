@@ -23,7 +23,7 @@ B="https://api.sandbox.nevermined.app/api/v1/organizations/<ORG_ID>/analytics"
 
 ```bash
 curl -s -H "Authorization: Bearer $NVM_API_KEY" \
-  "$B/revenue?from=2026-01-01T00:00:00Z&to=2026-06-09T00:00:00Z"
+  "$B/revenue?from=2026-03-20T00:00:00Z&to=2026-06-18T00:00:00Z"
 ```
 ```json
 {

@@ -92,6 +92,9 @@ POST /api/v1/x402/settle  { "paymentRequired": { "x402Version": 2, "resource": {
 
 Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is needed only for one-time setup — minting the first API key, plus card enrollment if paying by card (the stablecoin path needs neither afterward). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
 
+- **Delegation first:** create a spending delegation (`POST /delegation/create` with `provider` + `currency` + `spendingLimitCents` + `durationSecs`, or SDK `createDelegation`) and reuse its `delegationId`. The inline create-on-the-fly `delegationConfig` (passing limits without a `delegationId`) is **deprecated since `@nevermined-io/payments` 1.8.0** — it only emits a runtime warning now; always pass an explicit `delegationId`.
+- **Seller analytics:** discover your `orgId` from `.orgId` on `GET /protocol/plans` / `/protocol/agents` records (no separate lookup endpoint). A malformed/placeholder `orgId` returns a silent 200-of-zeros; a non-Premium org returns `403 BCK.ORGANIZATIONS.0022`; a non-admin org returns `403 BCK.AUTH.0004`.
+
 ## Full Reference
 
 See `skills/nevermined-payments/SKILL.md` for complete integration patterns (Track A = operate autonomously via REST; Track B = add payments to your code via SDK).

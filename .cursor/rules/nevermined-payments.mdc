@@ -106,6 +106,8 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 
 When an agent must act on its own behalf at runtime (buy a plan, enroll a card, check credits/revenue), call the REST API directly with `Authorization: Bearer $NVM_API_KEY` against `https://api.sandbox.nevermined.app` (sandbox) or `https://api.live.nevermined.app` (live). Buy in two calls — `POST /api/v1/x402/permissions` (→ `accessToken`) then `POST /api/v1/x402/settle` (→ `creditsRedeemed`, `remainingBalance`). Crypto uses `scheme: "nvm:erc4337"` / `network: "eip155:84532"`; cards use `scheme: "nvm:card-delegation"` / `network: "stripe"`. A human is needed only for one-time setup — minting the first API key, plus card enrollment if paying by card (the stablecoin path needs neither afterward). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
 - Pin the API version on direct REST calls: `Nevermined-Version: <MAJOR.MINOR>` (discover via `GET /api/v1/meta/versions`; SDKs send it automatically). Never silently change an API key's stored version pin.
+- Delegation first: create a spending delegation (`POST /delegation/create` with `provider` + `currency` + `spendingLimitCents` + `durationSecs`, or SDK `createDelegation`) and reuse its `delegationId`. The inline create-on-the-fly `delegationConfig` (limits without a `delegationId`) is **deprecated since `@nevermined-io/payments` 1.8.0** — it only emits a runtime warning; always pass an explicit `delegationId`.
+- Seller analytics: discover your `orgId` from `.orgId` on `GET /protocol/plans` / `/protocol/agents` records. A malformed/placeholder `orgId` returns a silent 200-of-zeros; non-Premium → `403 BCK.ORGANIZATIONS.0022`; non-admin → `403 BCK.AUTH.0004`.
 
 ## Full Skill Reference
 

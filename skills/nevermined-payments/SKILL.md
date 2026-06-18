@@ -31,7 +31,7 @@ metadata:
 >
 > **⚠️ Use the latest version.** This skill changes often. If you have an installed or cached copy, check its **Last updated** date against the canonical source above and **refresh it if older** — an out-of-date copy may be missing whole flows (e.g. the card-enrollment / `embed/session` steps were added after Feb 2026). Unless a specific version is requested, always work from the latest.
 >
-> Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK method names are stable from `@nevermined-io/payments@1.4.1` through the current `1.9.0`, and `payments-py@1.5.0`.
+> Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK method names are stable from `@nevermined-io/payments@1.4.1` through the current `1.9.0`, and `payments-py@1.15.1`.
 
 ## Overview
 
@@ -272,7 +272,7 @@ Price helpers: `getERC20PriceConfig`/`getEURCPriceConfig` (crypto), `getFiatPric
 
 ```bash
 B=https://api.sandbox.nevermined.app/api/v1/organizations/<ORG_ID>/analytics
-curl -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-01-01T00:00:00Z&to=2026-06-09T00:00:00Z"
+curl -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-03-20T00:00:00Z&to=2026-06-18T00:00:00Z"
 # → { items: [ { agentId, agentName, totalRevenue, transactionCount } ], totalRevenue }
 curl -H "Authorization: Bearer $NVM_API_KEY" "$B/mrr"
 # → { mrr, activeSubscriptions }

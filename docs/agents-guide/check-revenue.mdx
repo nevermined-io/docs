@@ -21,7 +21,7 @@ STEP 1 — Inventory + discover my org id (always do this first; it never needs 
 - GET /protocol/plans?page=1&offset=50 and GET /protocol/agents?page=1&offset=50.
 - These return { total, page, offset, plans|agents: [ <full record> ] }. For each item read:
     name        = metadata.main.name
-    price       = SUM of registry.price.amounts  (each is a STRING in 6-decimal token units; the array splits across builder + ~2% platform-fee receivers, so SUM it — don't read index 0 — then divide by 1,000,000 for USD/USDC; e.g. ["9800000","200000"] => 10000000 = $10.00)
+    price       = SUM of registry.price.amounts  (each is a STRING in 6-decimal token units; the array splits across builder + a platform-fee receiver — contract-default 1% for crypto, 2% for fiat, and an org-level crypto fee can add a third receiver — so always SUM the array, never read index 0; then divide by 1,000,000 for USD/USDC; e.g. fiat ["9800000","200000"] => 10000000 = $10.00)
     paymentType = registry.price.isCrypto ? "crypto (USDC/EURC)" : "fiat (card)"
     credits     = registry.credits.amount ; durationSecs (0 = non-expiring fixed credits; >0 = time-based)
     org id      = item.orgId  and  item.organizationName   <-- this is how you discover my org id
@@ -57,7 +57,7 @@ There are two layers: aggregated **organization analytics** (Premium tier) and a
     B="{API_BASE}/organizations/<ORG_ID>/analytics"
 
     # Revenue per agent
-    curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-01-01T00:00:00Z&to=2026-04-01T00:00:00Z"
+    curl -s -H "Authorization: Bearer $NVM_API_KEY" "$B/revenue?from=2026-03-20T00:00:00Z&to=2026-06-18T00:00:00Z"
     # → { items: [ { agentId, agentName, totalRevenue, transactionCount } ], totalRevenue }
 
     # MRR + active subscribers
