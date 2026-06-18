@@ -21,7 +21,7 @@ STEP 1 — Inventory + discover my org id (always do this first; it never needs 
 - GET /protocol/plans?page=1&offset=50 and GET /protocol/agents?page=1&offset=50.
 - These return { total, page, offset, plans|agents: [ <full record> ] }. For each item read:
     name        = metadata.main.name
-    price       = registry.price.amounts[0]  (a STRING in 6-decimal token units; divide by 1,000,000 for USD/USDC; e.g. "10000000" = $10.00)
+    price       = SUM of registry.price.amounts  (each is a STRING in 6-decimal token units; the array splits across builder + ~2% platform-fee receivers, so SUM it — don't read index 0 — then divide by 1,000,000 for USD/USDC; e.g. ["9800000","200000"] => 10000000 = $10.00)
     paymentType = registry.price.isCrypto ? "crypto (USDC/EURC)" : "fiat (card)"
     credits     = registry.credits.amount ; durationSecs (0 = non-expiring fixed credits; >0 = time-based)
     org id      = item.orgId  and  item.organizationName   <-- this is how you discover my org id
