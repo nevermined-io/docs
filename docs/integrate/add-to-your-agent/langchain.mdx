@@ -172,7 +172,17 @@ sequenceDiagram
       environment: process.env.NVM_ENVIRONMENT || 'sandbox',
     })
 
-    const token = await subscriber.x402.getX402AccessToken(PLAN_ID)
+    // Create a delegation once, then reuse its id to mint tokens.
+    const { delegationId } = await subscriber.delegation.createDelegation({
+      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      spendingLimitCents: 10000, // $100 budget
+      durationSecs: 604800,      // 7 days
+      currency: 'usdc',          // 'usd' for fiat plans
+    })
+    const token = await subscriber.x402.getX402AccessToken(PLAN_ID, undefined, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
+      delegationConfig: { delegationId },
+    })
     const accessToken = token.accessToken
 
     // Invoke tool directly
@@ -185,6 +195,7 @@ sequenceDiagram
   <Tab title="Python">
     ```python filename="client.py"
     from payments_py import Payments, PaymentOptions
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 
     # Subscriber side — acquire token
     subscriber = Payments.get_instance(
@@ -194,7 +205,19 @@ sequenceDiagram
         )
     )
 
-    token = subscriber.x402.get_x402_access_token(plan_id=PLAN_ID)
+    # Create a delegation once, then reuse its id to mint tokens.
+    delegation = subscriber.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337", spending_limit_cents=10000, duration_secs=604800, currency="usdc",
+        )
+    )
+    token = subscriber.x402.get_x402_access_token(
+        plan_id=PLAN_ID,
+        token_options=X402TokenOptions(
+            scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+        ),
+    )
     access_token = token["accessToken"]
 
     # Invoke tool directly
@@ -937,7 +960,17 @@ The HTTP app, middleware, and route handlers are identical to the LangChain vers
     console.log(`Plan: ${pr.accepts[0].planId}`)
 
     // Step 3: Acquire x402 token
-    const token = await payments.x402.getX402AccessToken(PLAN_ID)
+    // Create a delegation once, then reuse its id to mint tokens.
+    const { delegationId } = await payments.delegation.createDelegation({
+      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      spendingLimitCents: 10000, // $100 budget
+      durationSecs: 604800,      // 7 days
+      currency: 'usdc',          // 'usd' for fiat plans
+    })
+    const token = await payments.x402.getX402AccessToken(PLAN_ID, undefined, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
+      delegationConfig: { delegationId },
+    })
     const accessToken = token.accessToken
 
     // Step 4: Request with token → 200
@@ -968,6 +1001,7 @@ The HTTP app, middleware, and route handlers are identical to the LangChain vers
     import os
     import httpx
     from payments_py import Payments, PaymentOptions
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 
     SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:8000")
     PLAN_ID = os.environ["NVM_PLAN_ID"]
@@ -989,7 +1023,19 @@ The HTTP app, middleware, and route handlers are identical to the LangChain vers
         print(f"Plan: {pr['accepts'][0]['planId']}")
 
         # Step 3: Acquire x402 token
-        token = payments.x402.get_x402_access_token(plan_id=PLAN_ID)
+        # Create a delegation once, then reuse its id to mint tokens.
+        delegation = payments.delegation.create_delegation(
+            CreateDelegationPayload(
+                provider="erc4337", spending_limit_cents=10000, duration_secs=604800, currency="usdc",
+            )
+        )
+        token = payments.x402.get_x402_access_token(
+            plan_id=PLAN_ID,
+            token_options=X402TokenOptions(
+                scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+                delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+            ),
+        )
         access_token = token["accessToken"]
 
         # Step 4: Request with token → 200

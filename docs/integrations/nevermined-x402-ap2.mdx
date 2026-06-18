@@ -86,7 +86,24 @@ uv --directory=python/examples/adk-demo run adk web --port=8000
 - Session token generation (subscriber):
 
 ```python
-token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
+
+# Create a delegation once, then reuse its id to mint tokens.
+delegation = payments.delegation.create_delegation(
+    CreateDelegationPayload(
+        provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+        spending_limit_cents=10000,  # $100 budget
+        duration_secs=604800,  # 7 days
+        currency="usdc",  # "usd" for fiat plans
+    )
+)
+token_res = payments.x402.get_x402_access_token(
+    plan_id,
+    agent_id,
+    token_options=X402TokenOptions(
+        delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+    ),
+)
 session_key = token_res["accessToken"]
 ```
 

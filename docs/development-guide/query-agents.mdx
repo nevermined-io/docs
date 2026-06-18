@@ -16,22 +16,57 @@ Once a user is a subscriber, sending a request is quite simple.
 
 ## Get the AI Agent or Service Access Token
 
+The access token is minted against a **delegation** — a one-time authorization that lets the facilitator spend on the subscriber's behalf, up to a limit. Create the delegation once with `createDelegation` / `create_delegation`, then reference it by `delegationId` whenever you mint a token.
+
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+    // Create a delegation once — it authorizes spend up to a limit, reusable across tokens.
+    const { delegationId } = await payments.delegation.createDelegation({
+      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      spendingLimitCents: 10000, // $100 budget
+      durationSecs: 604800,      // 7 days
+      currency: 'usdc',          // 'usd' for fiat plans
+    })
+
+    const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
+      delegationConfig: { delegationId },
+    })
     // OUTPUT: accessToken is a JWT string containing X402 v2 payment credentials
     ```
   </Tab>
   <Tab title="Python">
     ```python
-    # Get X402 access token for the given plan and agent
-    token_response = payments.x402.get_x402_access_token(plan_id, agent_id)
-    access_token = token_response['accessToken']
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
+
+    # Create a delegation once — it authorizes spend up to a limit, reusable across tokens.
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337",          # 'stripe' | 'braintree' | 'visa' for fiat plans
+            spending_limit_cents=10000,  # $100 budget
+            duration_secs=604800,        # 7 days
+            currency="usdc",             # 'usd' for fiat plans
+        )
+    )
+
+    token_response = payments.x402.get_x402_access_token(
+        plan_id,
+        agent_id,
+        token_options=X402TokenOptions(
+            scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+        ),
+    )
+    access_token = token_response["accessToken"]
     # OUTPUT: access_token is a JWT string containing X402 v2 payment credentials
     ```
   </Tab>
 </Tabs>
+
+<Note>
+  Is this a **fiat** plan or a **crypto** plan? It determines the `provider`/`currency` above and whether you must pass a `scheme`. The direct `getX402AccessToken` call defaults to crypto (`nvm:erc4337`) — for card plans pass `scheme: 'nvm:card-delegation'`. See [Order Plans](/docs/development-guide/order-plans#which-payment-type-does-this-plan-need) for how to detect a plan's type before you pay.
+</Note>
 
 ## Sending a query to the AI Agent
 
@@ -120,10 +155,13 @@ Here's a complete example showing the full flow from getting access tokens to qu
 <Tabs>
   <Tab title="TypeScript">
     ```typescript
-    async function queryAIAgent(planId: string, agentId: string, query: string) {
+    async function queryAIAgent(planId: string, agentId: string, delegationId: string, query: string) {
       try {
-        // Step 1: Get X402 access token
-        const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId)
+        // Step 1: Mint an X402 access token against a delegation you created once
+        const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, {
+          scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
+          delegationConfig: { delegationId },
+        })
 
         if (!accessToken) {
           throw new Error('No access token received - check if plan is valid and has balance')
@@ -169,8 +207,11 @@ Here's a complete example showing the full flow from getting access tokens to qu
       }
     }
 
-    // Usage
-    const result = await queryAIAgent(planId, agentId, "Explain quantum computing")
+    // Usage — create the delegation once, then reuse its id across queries
+    const { delegationId } = await payments.delegation.createDelegation({
+      provider: 'erc4337', spendingLimitCents: 10000, durationSecs: 604800, currency: 'usdc',
+    })
+    const result = await queryAIAgent(planId, agentId, delegationId, "Explain quantum computing")
     console.log('AI Response:', result)
     ```
   </Tab>
@@ -178,11 +219,19 @@ Here's a complete example showing the full flow from getting access tokens to qu
     ```python
     import requests
     import json
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 
-    def query_ai_agent(plan_id, agent_id, query):
+    def query_ai_agent(plan_id, agent_id, delegation_id, query):
         try:
-            # Step 1: Get X402 access token
-            token_response = payments.x402.get_x402_access_token(plan_id, agent_id)
+            # Step 1: Mint an X402 access token against a delegation you created once
+            token_response = payments.x402.get_x402_access_token(
+                plan_id,
+                agent_id,
+                token_options=X402TokenOptions(
+                    scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+                    delegation_config=DelegationConfig(delegation_id=delegation_id)
+                ),
+            )
             access_token = token_response.get('accessToken')
 
             if not access_token:
@@ -226,8 +275,13 @@ Here's a complete example showing the full flow from getting access tokens to qu
             print(f'Query failed: {error}')
             raise error
 
-    # Usage
-    result = query_ai_agent(plan_id, agent_id, "Explain quantum computing")
+    # Usage — create the delegation once, then reuse its id across queries
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337", spending_limit_cents=10000, duration_secs=604800, currency="usdc",
+        )
+    )
+    result = query_ai_agent(plan_id, agent_id, delegation.delegation_id, "Explain quantum computing")
     print('AI Response:', result)
     ```
   </Tab>

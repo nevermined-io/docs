@@ -379,7 +379,12 @@ Using Nevermined Payments libraries (Python or TS), you generate an x402 access 
 </Tabs>
 
 <Note>
-The SDK auto-detects the payment scheme from plan metadata. For fiat plans (`isCrypto: false`), use `resolveScheme()` (TypeScript) or `resolve_scheme()` (Python) to determine the correct scheme. For fiat plans, use `provider: 'stripe'` in the delegation; for crypto plans, use `provider: 'erc4337'`. Middleware handles this automatically — see the [Express.js](/docs/integrate/add-to-your-agent/express) and [FastAPI](/docs/integrate/add-to-your-agent/fastapi) integration guides.
+  **The buyer-side `getX402AccessToken` / `get_x402_access_token` call does not auto-detect the scheme — it defaults to `nvm:erc4337` (crypto).** For a **fiat** plan (`isCrypto: false`) you must resolve and pass the scheme, and create the delegation with the matching card provider:
+
+  - Detect the scheme with `resolveScheme()` (TypeScript) / `resolve_scheme()` (Python), then pass `scheme: 'nvm:card-delegation'` to the token call.
+  - Use `provider: 'stripe'` (or `'braintree'` / `'visa'`) with `currency: 'usd'` in the delegation; for crypto plans use `provider: 'erc4337'` with `currency: 'usdc'`.
+
+  Server-side **middleware** (Express, FastAPI) and the **A2A clients** resolve the scheme for you automatically — see the [Express.js](/docs/integrate/add-to-your-agent/express) and [FastAPI](/docs/integrate/add-to-your-agent/fastapi) guides, and [Which payment type does this plan need?](/docs/development-guide/order-plans#which-payment-type-does-this-plan-need).
 </Note>
 
 <Warning>

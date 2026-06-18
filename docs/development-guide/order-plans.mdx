@@ -8,6 +8,40 @@ With the Payments Library it's easy for users and AI agents to buy Payment Plans
 
 Payment Plans can also be purchased in fiat (via Stripe or Braintree). The fiat checkout flow requires a credit card and is fully integrated into the Nevermined Web App. The active payment provider is selected per plan via the seller's `fiatPaymentProvider` metadata at registration time. Nevermined likes to recommend stablecoin payments — that way the payment and fetching of credits associated with the Payment Plan can be done in a single step.
 
+## Which payment type does this plan need?
+
+Every plan is paid for in **one** of two ways, and the two need different setup — so check the type *before* you pay rather than discovering it when a payment fails:
+
+| Plan type | x402 scheme | What you need as a buyer |
+|---|---|---|
+| **Crypto** | `nvm:erc4337` | A smart account funded with the plan's token (USDC, EURC, …) |
+| **Fiat** | `nvm:card-delegation` | An [enrolled card](/docs/products/payments/card-enrollment) with the plan's provider (Stripe, Braintree, or Visa) |
+
+A plan is strictly one type or the other — there are no dual crypto-and-fiat plans. The type comes from the plan's pricing config: `registry.price.isCrypto` (and, for fiat, `metadata.plan.fiatPaymentProvider` names the provider). Rather than read that metadata yourself, let the SDK resolve it — `resolveScheme()` / `resolve_scheme()` fetches the plan (cached for 5 minutes) and returns the scheme:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments, resolveScheme } from '@nevermined-io/payments'
+
+    const scheme = await resolveScheme(payments, planId)
+    // 'nvm:erc4337' (crypto) or 'nvm:card-delegation' (fiat)
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402.resolve_scheme import resolve_scheme
+
+    scheme = resolve_scheme(payments, plan_id)
+    # 'nvm:erc4337' (crypto) or 'nvm:card-delegation' (fiat)
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  Server-side middleware (Express, FastAPI) and the A2A clients resolve the scheme for you. The direct `getX402AccessToken` / `get_x402_access_token` call does **not** — it defaults to `nvm:erc4337`. For a fiat plan you must pass `scheme: 'nvm:card-delegation'` and have a card enrolled with the matching provider. See [Core Concepts](/docs/getting-started/core-concepts#fiat-vs-crypto-what-each-plan-needs) for the full prerequisites and [Payment method mismatch](/docs/development-guide/integration-faq#how-do-i-fix-a-payment-method-mismatch) if a payment is rejected.
+</Note>
+
 ## Buying a Plan
 
 <Tabs>

@@ -108,6 +108,20 @@ A payment plan defines how users pay and what they're entitled to consume:
   </Card>
 </CardGroup>
 
+### Fiat vs crypto: what each plan needs
+
+A plan is paid for in **one** of two ways — fiat (card) or crypto — and each needs different setup before you can pay. A plan is never both. Check the type up front, so you don't enroll a card for a crypto plan or try to pay a card plan from a wallet:
+
+| | **Fiat plan** (`nvm:card-delegation`) | **Crypto plan** (`nvm:erc4337`) |
+|---|---|---|
+| **What the buyer needs** | An enrolled card with the plan's provider | A smart account funded with the plan's token |
+| **Set up** | [Enroll a card](/docs/products/payments/card-enrollment) — Stripe, Braintree, or Visa | Fund the account with USDC / EURC |
+| **Delegation** | `provider: 'stripe'` (or `braintree` / `visa`), `currency: 'usd'` | `provider: 'erc4337'`, `currency: 'usdc'` |
+| **Token scheme** | pass `scheme: 'nvm:card-delegation'` | `scheme: 'nvm:erc4337'` (the default) |
+| **Detect in code** | `resolveScheme()` / `resolve_scheme()` → `nvm:card-delegation` | → `nvm:erc4337` |
+
+Not sure which a plan uses? See [Which payment type does this plan need?](/docs/development-guide/order-plans#which-payment-type-does-this-plan-need) to detect it in code before you pay.
+
 ## Merchant Onboarding
 
 <CardGroup cols={2}>

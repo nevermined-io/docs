@@ -220,6 +220,7 @@ curl -X POST http://localhost:8000/query \
 import os
 import requests
 from payments_py import Payments, PaymentOptions
+from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
 
 payments = Payments.get_instance(
     PaymentOptions(
@@ -238,7 +239,25 @@ def purchase_and_query():
 
     # 2. Get access token
     print('Getting access token...')
-    token_res = payments.x402.get_x402_access_token(plan_id, agent_id)
+
+    # Create the delegation first (provider + currency required), then request
+    # the token by its delegationId. Reuse the delegation for later requests.
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+            spending_limit_cents=1000,
+            duration_secs=86_400,
+            currency="usdc",  # "usd" for fiat plans
+        )
+    )
+    token_res = payments.x402.get_x402_access_token(
+        plan_id,
+        agent_id,
+        token_options=X402TokenOptions(
+            scheme="nvm:erc4337",
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id),
+        ),
+    )
     access_token = token_res['accessToken']
 
     # 3. Query the agent
