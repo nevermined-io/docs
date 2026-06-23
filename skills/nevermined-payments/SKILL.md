@@ -812,23 +812,23 @@ result = payments.agents.register_agent_and_plan(
 npm install -g @nevermined-io/cli
 
 # 2. Configure (use sandbox for testing)
-nvm config init --api-key "$NVM_API_KEY" --environment sandbox
+nevermined config init --api-key "$NVM_API_KEY" --environment sandbox
 
 # 3. Build the helper-shaped configs and register
 #    The --price-config / --credits-config flags expect the JSON shape
 #    produced by Plans.getERC20PriceConfig and Plans.getFixedCreditsConfig —
 #    the helper subcommands below emit exactly that shape with --format json.
-PRICE=$(nvm plans get-erc20-price-config \
+PRICE=$(nevermined plans get-erc20-price-config \
   --amount 10000000 \
   --token-address 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
   --receiver $BUILDER_ADDRESS \
   --format json)
-CREDITS=$(nvm plans get-fixed-credits-config \
+CREDITS=$(nevermined plans get-fixed-credits-config \
   --credits-granted 100 \
   --credits-per-request 1 \
   --format json)
 
-nvm agents register-agent-and-plan \
+nevermined agents register-agent-and-plan \
   --agent-metadata '{"name":"My Agent","description":"AI service"}' \
   --agent-api '{"endpoints":[{"POST":"https://your-api.com/query"}]}' \
   --plan-metadata '{"name":"Starter Plan","description":"100 requests"}' \
@@ -836,12 +836,12 @@ nvm agents register-agent-and-plan \
   --credits-config "$CREDITS"
 
 # 4. List your plans
-nvm plans get-plans
+nevermined plans get-plans
 
 # 5. As a subscriber: order a plan and get an x402 token
 #    For fiat plans, pass --payment-type fiat (defaults to crypto).
-nvm plans order-plan $PLAN_ID
-nvm x402token get-x402-access-token $PLAN_ID \
+nevermined plans order-plan $PLAN_ID
+nevermined x402token get-x402-access-token $PLAN_ID \
   --agent-id $AGENT_ID \
   --spending-limit-cents 10000 \
   --delegation-duration-secs 604800

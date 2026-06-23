@@ -21,13 +21,13 @@ AI agents are services that users can access by purchasing payment plans. Agents
 Get the list of plans that can be ordered to access an agent:
 
 ```bash
-nvm agents get-agent-plans <agent-id>
+nevermined agents get-agent-plans <agent-id>
 
 # With pagination
-nvm agents get-agent-plans <agent-id> --pagination '{"page": 1, "offset": 10}'
+nevermined agents get-agent-plans <agent-id> --pagination '{"page": 1, "offset": 10}'
 
 # JSON output
-nvm agents get-agent-plans <agent-id> --format json
+nevermined agents get-agent-plans <agent-id> --format json
 ```
 
 ## Getting Agent Details
@@ -35,13 +35,13 @@ nvm agents get-agent-plans <agent-id> --format json
 Retrieve detailed information about a specific agent:
 
 ```bash
-nvm agents get-agent <agent-id>
+nevermined agents get-agent <agent-id>
 ```
 
 Example:
 
 ```bash
-nvm agents get-agent "did:nvm:abc123"
+nevermined agents get-agent "did:nvm:abc123"
 ```
 
 Output includes:
@@ -56,7 +56,7 @@ Output includes:
 Register a new AI agent and associate it with one or more existing payment plans:
 
 ```bash
-nvm agents register-agent \
+nevermined agents register-agent \
   --agent-metadata agent-metadata.json \
   --agent-api "https://api.example.com/v1/agent" \
   --payment-plans "plan-id-1,plan-id-2"
@@ -84,7 +84,7 @@ nvm agents register-agent \
 Register a new AI agent and create a payment plan for it in a single command:
 
 ```bash
-nvm agents register-agent-and-plan \
+nevermined agents register-agent-and-plan \
   --agent-metadata agent-metadata.json \
   --agent-api "https://api.example.com/v1/agent" \
   --plan-metadata plan-metadata.json \
@@ -133,7 +133,7 @@ Optional flags:
 Modify agent name, description, API endpoint, or other metadata:
 
 ```bash
-nvm agents update-agent-metadata <agent-id> \
+nevermined agents update-agent-metadata <agent-id> \
   --agent-metadata updated-metadata.json \
   --agent-api "https://api-v2.example.com/agent"
 ```
@@ -158,13 +158,13 @@ Both `--agent-metadata` and `--agent-api` are required.
 Associate an existing payment plan with an agent:
 
 ```bash
-nvm agents add-plan-to-agent <plan-id> --agent-id <agent-id>
+nevermined agents add-plan-to-agent <plan-id> --agent-id <agent-id>
 ```
 
 Example:
 
 ```bash
-nvm agents add-plan-to-agent "did:nvm:plan123" --agent-id "did:nvm:agent456"
+nevermined agents add-plan-to-agent "did:nvm:plan123" --agent-id "did:nvm:agent456"
 ```
 
 ### Remove Payment Plan from Agent
@@ -172,13 +172,13 @@ nvm agents add-plan-to-agent "did:nvm:plan123" --agent-id "did:nvm:agent456"
 Disassociate a payment plan from an agent:
 
 ```bash
-nvm agents remove-plan-from-agent <plan-id> --agent-id <agent-id>
+nevermined agents remove-plan-from-agent <plan-id> --agent-id <agent-id>
 ```
 
 Example:
 
 ```bash
-nvm agents remove-plan-from-agent "did:nvm:plan123" --agent-id "did:nvm:agent456"
+nevermined agents remove-plan-from-agent "did:nvm:plan123" --agent-id "did:nvm:agent456"
 ```
 
 ### List Plans Associated with Agent
@@ -186,7 +186,7 @@ nvm agents remove-plan-from-agent "did:nvm:plan123" --agent-id "did:nvm:agent456
 See which plans give access to an agent:
 
 ```bash
-nvm agents get-agent-plans <agent-id>
+nevermined agents get-agent-plans <agent-id>
 ```
 
 ## Integration Examples
@@ -200,7 +200,7 @@ Complete workflow to register and configure an AI agent:
 # Complete agent setup script
 
 # 1. Create a payment plan first
-PLAN_ID=$(nvm plans register-credits-plan \
+PLAN_ID=$(nevermined plans register-credits-plan \
   --plan-metadata plan.json \
   --price-config price.json \
   --credits-config credits.json \
@@ -209,7 +209,7 @@ PLAN_ID=$(nvm plans register-credits-plan \
 echo "Created plan: $PLAN_ID"
 
 # 2. Register the agent with the plan
-AGENT_ID=$(nvm agents register-agent \
+AGENT_ID=$(nevermined agents register-agent \
   --agent-metadata agent.json \
   --agent-api "https://api.example.com/agent" \
   --payment-plans "$PLAN_ID" \
@@ -218,12 +218,12 @@ AGENT_ID=$(nvm agents register-agent \
 echo "Registered agent: $AGENT_ID"
 
 # 3. Update agent metadata if needed
-nvm agents update-agent-metadata $AGENT_ID \
+nevermined agents update-agent-metadata $AGENT_ID \
   --agent-metadata updated-agent.json \
   --agent-api "https://api.example.com/agent"
 
 # 4. Verify agent is accessible
-nvm agents get-agent $AGENT_ID
+nevermined agents get-agent $AGENT_ID
 
 echo "Agent setup complete!"
 ```
@@ -233,7 +233,7 @@ echo "Agent setup complete!"
 Register an agent and its payment plan in a single command:
 
 ```bash
-nvm agents register-agent-and-plan \
+nevermined agents register-agent-and-plan \
   --agent-metadata agent.json \
   --agent-api "https://api.example.com/agent" \
   --plan-metadata plan.json \
@@ -247,21 +247,21 @@ Register an agent with multiple pricing tiers:
 
 ```bash
 # Create basic plan
-BASIC_PLAN=$(nvm plans register-credits-plan \
+BASIC_PLAN=$(nevermined plans register-credits-plan \
   --plan-metadata basic-plan.json \
   --price-config basic-price.json \
   --credits-config basic-credits.json \
   --format json | jq -r '.planId')
 
 # Create premium plan
-PREMIUM_PLAN=$(nvm plans register-credits-plan \
+PREMIUM_PLAN=$(nevermined plans register-credits-plan \
   --plan-metadata premium-plan.json \
   --price-config premium-price.json \
   --credits-config premium-credits.json \
   --format json | jq -r '.planId')
 
 # Register agent with both plans
-nvm agents register-agent \
+nevermined agents register-agent \
   --agent-metadata agent.json \
   --agent-api "https://api.example.com" \
   --payment-plans "$BASIC_PLAN,$PREMIUM_PLAN"
@@ -273,7 +273,7 @@ Use `--format json` to integrate with other tools:
 
 ```bash
 # Get agent data
-AGENT=$(nvm agents get-agent "did:nvm:agent123" --format json)
+AGENT=$(nevermined agents get-agent "did:nvm:agent123" --format json)
 
 # Extract fields
 NAME=$(echo $AGENT | jq -r '.name')
@@ -311,16 +311,16 @@ Always test agents in sandbox environment:
 
 ```bash
 # Register in sandbox
-nvm --profile sandbox agents register-agent \
+nevermined --profile sandbox agents register-agent \
   --agent-metadata agent.json \
   --agent-api "https://staging-api.example.com" \
   --payment-plans "$STAGING_PLAN_ID"
 
 # Test the agent
-nvm --profile sandbox agents get-agent $STAGING_AGENT_ID
+nevermined --profile sandbox agents get-agent $STAGING_AGENT_ID
 
 # Once verified, deploy to production
-nvm --profile production agents register-agent \
+nevermined --profile production agents register-agent \
   --agent-metadata agent.json \
   --agent-api "https://api.example.com" \
   --payment-plans "$PROD_PLAN_ID"
@@ -334,10 +334,10 @@ Verify the payment plan exists and you're using the correct plan ID:
 
 ```bash
 # List all your plans
-nvm plans get-plans
+nevermined plans get-plans
 
 # Verify specific plan
-nvm plans get-plan <plan-id>
+nevermined plans get-plan <plan-id>
 ```
 
 ### "Insufficient permissions"
@@ -346,10 +346,10 @@ Ensure you're the agent owner or have proper permissions:
 
 ```bash
 # Check agent details
-nvm agents get-agent <agent-id>
+nevermined agents get-agent <agent-id>
 
 # Verify you're using the correct profile
-nvm config show
+nevermined config show
 ```
 
 ## Next Steps

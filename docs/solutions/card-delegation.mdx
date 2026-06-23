@@ -21,7 +21,7 @@ Nevermined ships **three ways** to drive that flow, all built on the same backen
 </CardGroup>
 
 <Note>
-Only the **embedded widgets** (option 3, iframe) are organization-scoped — they need an active [Nevermined organization](/docs/integrations/organizations) with a widget key. Options **1** and **2** work for **anyone**: option 1 for any signed-in user, and option 2 for any holder of an NVM API key. The redirect flow has an **open path for autonomous agents** (`POST /api/v1/embed/session`, no organization required) and an org-scoped path (`POST /api/v1/widgets/session/self`) used by the `nvm` CLI and org members.
+Only the **embedded widgets** (option 3, iframe) are organization-scoped — they need an active [Nevermined organization](/docs/integrations/organizations) with a widget key. Options **1** and **2** work for **anyone**: option 1 for any signed-in user, and option 2 for any holder of an NVM API key. The redirect flow has an **open path for autonomous agents** (`POST /api/v1/embed/session`, no organization required) and an org-scoped path (`POST /api/v1/widgets/session/self`) used by the `nevermined` CLI and org members.
 </Note>
 
 <Tip>
@@ -61,13 +61,13 @@ The fastest path for end-users and the natural fit when your users are already a
 
 ## 2. White-label redirect (CLI / top-level tab)
 
-For tools that run **outside the browser** — CLIs, terminal-based agents, desktop apps — but still need to authorize a card. The pattern mirrors `nvm login`: print a URL, the user clicks it, the browser handles the chromeless card setup, and your process receives the result at a localhost callback.
+For tools that run **outside the browser** — CLIs, terminal-based agents, desktop apps — but still need to authorize a card. The pattern mirrors `nevermined login`: print a URL, the user clicks it, the browser handles the chromeless card setup, and your process receives the result at a localhost callback.
 
 <Note>
 This flow works **with or without an organization**, depending on which session you mint:
 
 - **Autonomous agents / buyers (no org):** mint an open embedded session with `POST /api/v1/embed/session` — any valid NVM API key, no organization needed. This is the path for AI agents purchasing on a user's behalf.
-- **Org members (e.g. the `nvm` CLI):** mint an org-scoped session with `POST /api/v1/widgets/session/self`, which requires membership in the target organization.
+- **Org members (e.g. the `nevermined` CLI):** mint an org-scoped session with `POST /api/v1/widgets/session/self`, which requires membership in the target organization.
 
 Both produce a `sessionToken` of the same shape that the embed app accepts; what differs is **who can mint it** and **what the card/delegation attach to** — your own Nevermined account via the embedded path, or the organization via the widget path. See [Platform Partners](/docs/integrations/organizations) for the organization features.
 </Note>
@@ -108,7 +108,7 @@ Agent / CLI            Nevermined API          Embed app (browser)    Local call
  │ → resolve, close         │                     │                       │
 ```
 
-Org members (e.g. the `nvm` CLI) mint the session with `POST /api/v1/widgets/session/self` (`{ orgId, returnUrl }`) instead — same handshake, but it requires membership in the target organization.
+Org members (e.g. the `nevermined` CLI) mint the session with `POST /api/v1/widgets/session/self` (`{ orgId, returnUrl }`) instead — same handshake, but it requires membership in the target organization.
 
 ### The shortest possible integration
 
@@ -116,13 +116,13 @@ The Nevermined Payments CLI ships ready-made commands for this flow:
 
 ```bash
 # Combined: enroll a card AND create a delegation. Returns both IDs.
-nvm cards setup [--org <id>] [--provider stripe|braintree|visa]
+nevermined cards setup [--org <id>] [--provider stripe|braintree|visa]
 
 # Single-purpose: only enroll a card.
-nvm cards enroll [--org <id>] [--provider …]
+nevermined cards enroll [--org <id>] [--provider …]
 
 # Single-purpose: only create a delegation against an already-enrolled card.
-nvm cards delegate --card <paymentMethodId> [--org <id>]
+nevermined cards delegate --card <paymentMethodId> [--org <id>]
 ```
 
 Each command opens the browser at `{embed}/cards/<route>?…` — the standalone embed app (`embed.nevermined.app` for live, `embed.nevermined.dev` for staging), not the old webapp `/embed/*` routes — waits up to 5 minutes for the user to complete the flow, then exits cleanly with the resulting IDs. `--no-browser` prints the URL instead of opening it — useful over SSH or in CI.
@@ -165,11 +165,11 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
     | HTTP | Meaning |
     |------|---------|
     | 400 | `returnUrl` is not a valid `http`/`https` URL (DTO validation). |
-    | 401 `BCK.APIKEY.0004` | The NVM API key is invalid or expired — run `nvm login` again. |
+    | 401 `BCK.APIKEY.0004` | The NVM API key is invalid or expired — run `nevermined login` again. |
     | 429 | Rate limited — the endpoint allows 30 mint calls per minute. Back off and retry. |
 
     <Accordion title="Org-scoped alternative: POST /api/v1/widgets/session/self">
-      Org members (and the `nvm` CLI) can instead mint an **org-scoped** session. It returns the same `sessionToken` shape, but requires membership in the target organization and takes an `orgId`:
+      Org members (and the `nevermined` CLI) can instead mint an **org-scoped** session. It returns the same `sessionToken` shape, but requires membership in the target organization and takes an `orgId`:
 
       ```http
       POST {api}/api/v1/widgets/session/self
@@ -216,7 +216,7 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
     3. Respond `200 OK` with a friendly "you can close this tab" HTML page.
     4. Close the server.
 
-    Recommended overall timeout: **5 minutes**. Match the `nvm login` flow — users may switch contexts between the terminal and the browser.
+    Recommended overall timeout: **5 minutes**. Match the `nevermined login` flow — users may switch contexts between the terminal and the browser.
   </Step>
 </Steps>
 
