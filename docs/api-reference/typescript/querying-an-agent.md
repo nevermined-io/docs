@@ -131,22 +131,22 @@ const { accessToken } = await subscriberPayments.x402.getX402AccessToken(
 
 ```bash
 # Crypto (default)
-nevermined x402token get-x402-access-token <planId>
+nvm x402token get-x402-access-token <planId>
 
 # Fiat with auto-selected card
-nevermined x402token get-x402-access-token <planId> --payment-type fiat
+nvm x402token get-x402-access-token <planId> --payment-type fiat
 
 # Fiat with specific card and limits
-nevermined x402token get-x402-access-token <planId> --payment-type fiat \
+nvm x402token get-x402-access-token <planId> --payment-type fiat \
     --payment-method-id pm_1AbCdEfGhIjKlM \
     --spending-limit-cents 5000 \
     --delegation-duration-secs 7200
 
 # Auto-detect scheme from plan metadata
-nevermined x402token get-x402-access-token <planId> --auto-resolve-scheme
+nvm x402token get-x402-access-token <planId> --auto-resolve-scheme
 
 # List enrolled payment methods
-nevermined delegation list-payment-methods
+nvm delegation list-payment-methods
 ```
 
 ### Basic Example

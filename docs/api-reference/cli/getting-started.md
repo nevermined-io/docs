@@ -24,7 +24,7 @@ To interact with the Nevermined API, you need an API key. Follow the [Get Your A
 
 ### Option 1: Global Installation (Recommended)
 
-Install the CLI globally to use the `nevermined` command from anywhere:
+Install the CLI globally to use the `nvm` command from anywhere:
 
 ```bash
 npm install -g @nevermined-io/cli
@@ -33,7 +33,7 @@ npm install -g @nevermined-io/cli
 Verify installation:
 
 ```bash
-nevermined --version
+nvm --version
 ```
 
 ### Option 2: Using npx (No Installation)
@@ -72,7 +72,7 @@ pnpm build:manifest
 The quickest way to authenticate:
 
 ```bash
-nevermined login
+nvm login
 ```
 
 This opens your browser to sign in with Google, X, or email. After login,
@@ -86,9 +86,9 @@ Options:
 Examples:
 
 ```bash
-nevermined login --environment live
-nevermined login --profile production --environment live
-nevermined login --no-browser
+nvm login --environment live
+nvm login --profile production --environment live
+nvm login --no-browser
 ```
 
 ### Logout
@@ -96,9 +96,9 @@ nevermined login --no-browser
 Remove your API key from the CLI config:
 
 ```bash
-nevermined logout
-nevermined logout --profile production
-nevermined logout --all-profiles
+nvm logout
+nvm logout --profile production
+nvm logout --all-profiles
 ```
 
 ## Configuration
@@ -108,7 +108,7 @@ nevermined logout --all-profiles
 The easiest way to configure the CLI is using the interactive setup:
 
 ```bash
-nevermined config init
+nvm config init
 ```
 
 This will prompt you for:
@@ -120,7 +120,7 @@ This will prompt you for:
 Example:
 
 ```bash
-$ nevermined config init
+$ nvm config init
 
 ? Enter your NVM API Key: sandbox:eyJxxxxaaaabbbbbbbb
 ? Select environment: sandbox
@@ -150,20 +150,20 @@ Create multiple profiles for different environments or accounts:
 
 ```bash
 # Initialize with default profile
-nevermined config init
+nvm config init
 
 # Create a production profile
-nevermined config set profiles.production.nvmApiKey nvm-yyyyyyyy...
-nevermined config set profiles.production.environment live
+nvm config set profiles.production.nvmApiKey nvm-yyyyyyyy...
+nvm config set profiles.production.environment live
 
 # Switch active profile
-nevermined config set activeProfile production
+nvm config set activeProfile production
 ```
 
 Use a specific profile for a command:
 
 ```bash
-nevermined --profile production plans get-plans
+nvm --profile production plans get-plans
 ```
 
 ### Environment Variables
@@ -178,7 +178,7 @@ export NVM_API_KEY=sandbox:eyJxxxxaaaabbbbbbbb
 export NVM_ENVIRONMENT=sandbox
 
 # Run commands
-nevermined plans get-plans
+nvm plans get-plans
 ```
 
 This is useful for:
@@ -191,7 +191,7 @@ This is useful for:
 Display your current configuration:
 
 ```bash
-nevermined config show
+nvm config show
 ```
 
 Output:
@@ -209,7 +209,7 @@ API Key:        live:eyJxxxxaaaabbbbbbbb (truncated)
 Test your configuration by listing available plans:
 
 ```bash
-nevermined plans get-plans
+nvm plans get-plans
 ```
 
 If configured correctly, you should see a table of available payment plans.
@@ -227,9 +227,9 @@ Choose the right environment for your use case:
 
 ## Common Issues
 
-### "Command not found: nevermined"
+### "Command not found: nvm"
 
-After global installation, if `nevermined` command is not found:
+After global installation, if `nvm` command is not found:
 
 1. Verify installation: `npm list -g @nevermined-io/cli`
 2. Check your PATH includes npm global bin directory
@@ -242,10 +242,10 @@ If you get an API key error:
 
 ```bash
 # Browser login (recommended)
-nevermined login
+nvm login
 
 # Or initialize configuration manually
-nevermined config init
+nvm config init
 
 # Or set environment variable
 export NVM_API_KEY=your-api-key-here
@@ -277,13 +277,13 @@ Get help for any command:
 
 ```bash
 # General help
-nevermined --help
+nvm --help
 
 # Topic help
-nevermined plans --help
+nvm plans --help
 
 # Command help
-nevermined plans get-plan --help
+nvm plans get-plan --help
 ```
 
 For support:

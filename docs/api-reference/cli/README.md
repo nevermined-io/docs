@@ -1,6 +1,6 @@
 # Nevermined Payments CLI Documentation
 
-Complete documentation for the Nevermined Payments CLI (`nevermined`).
+Complete documentation for the Nevermined Payments CLI (`nvm`).
 
 ## Overview
 
@@ -95,57 +95,57 @@ npx @nevermined-io/cli --help
 
 ```bash
 # Authenticate via browser (recommended)
-nevermined login
+nvm login
 
 # Or initialize configuration manually
-nevermined config init
+nvm config init
 
 # List available plans
-nevermined plans get-plans
+nvm plans get-plans
 
 # Get plan details
-nevermined plans get-plan <plan-id>
+nvm plans get-plan <plan-id>
 
 # Order a plan
-nevermined plans order-plan <plan-id>
+nvm plans order-plan <plan-id>
 
 # Get access token
-nevermined x402token get-x402-access-token <plan-id>
+nvm x402token get-x402-access-token <plan-id>
 ```
 
 ### Common Commands
 
 ```bash
 # Authentication
-nevermined login                    # Authenticate via browser
-nevermined logout                   # Remove API key from config
+nvm login                    # Authenticate via browser
+nvm logout                   # Remove API key from config
 
 # Configuration
-nevermined config init              # Initialize configuration
-nevermined config show              # Display current config
-nevermined config set <key> <value> # Update configuration
+nvm config init              # Initialize configuration
+nvm config show              # Display current config
+nvm config set <key> <value> # Update configuration
 
 # Plans
-nevermined plans get-plans                          # List all plans
-nevermined plans get-plan <plan-id>            # Get plan details
-nevermined plans get-plan-balance <plan-id>    # Check balance
-nevermined plans order-plan <plan-id>          # Purchase plan
+nvm plans get-plans                          # List all plans
+nvm plans get-plan <plan-id>            # Get plan details
+nvm plans get-plan-balance <plan-id>    # Check balance
+nvm plans order-plan <plan-id>          # Purchase plan
 
 # Agents
-nevermined agents get-agent <agent-id>         # Get agent details
-nevermined agents get-agent-plans <agent-id>   # List agent's plans
-nevermined agents register-agent \             # Register new agent
+nvm agents get-agent <agent-id>         # Get agent details
+nvm agents get-agent-plans <agent-id>   # List agent's plans
+nvm agents register-agent \             # Register new agent
   --agent-metadata metadata.json \
   --agent-api "https://api.example.com" \
   --payment-plans "plan-id-1,plan-id-2"
 
 # X402 Tokens
-nevermined x402token get-x402-access-token <plan-id>  # Get access token
+nvm x402token get-x402-access-token <plan-id>  # Get access token
 
 # Organizations
-nevermined organizations get-members                          # List members
-nevermined organizations create-member <user-id>              # Add member
-nevermined organizations connect-stripe-account \             # Connect Stripe
+nvm organizations get-members                          # List members
+nvm organizations create-member <user-id>              # Add member
+nvm organizations connect-stripe-account \             # Connect Stripe
   --user-email "user@example.com" \
   --user-country-code "US" \
   --return-url "https://yourapp.com/callback"
@@ -167,7 +167,7 @@ All commands support these global flags:
 Human-readable table output for interactive use:
 
 ```bash
-nevermined plans get-plans
+nvm plans get-plans
 ```
 
 ### JSON
@@ -175,7 +175,7 @@ nevermined plans get-plans
 Machine-readable JSON for scripting:
 
 ```bash
-nevermined plans get-plans --format json
+nvm plans get-plans --format json
 ```
 
 ### Quiet
@@ -183,7 +183,7 @@ nevermined plans get-plans --format json
 Minimal output for automation:
 
 ```bash
-nevermined plans get-plans --format quiet
+nvm plans get-plans --format quiet
 ```
 
 ## Configuration Profiles
@@ -192,14 +192,14 @@ Use profiles to manage multiple environments:
 
 ```bash
 # Create production profile
-nevermined config set profiles.production.nvmApiKey live:eyJxxxxaaaabbbbbbbb
-nevermined config set profiles.production.environment live
+nvm config set profiles.production.nvmApiKey live:eyJxxxxaaaabbbbbbbb
+nvm config set profiles.production.environment live
 
 # Use production profile
-nevermined --profile production plans get-plans
+nvm --profile production plans get-plans
 
 # Switch active profile
-nevermined config set activeProfile production
+nvm config set activeProfile production
 ```
 
 ## Environment Guide
@@ -218,23 +218,23 @@ nevermined config set activeProfile production
 # Complete workflow: Setup -> Purchase -> Query
 
 # 1. Initialize configuration
-nevermined config init
+nvm config init
 
 # 2. List available plans
-nevermined plans get-plans
+nvm plans get-plans
 
 # 3. Get plan details
 PLAN_ID="123456789012345678"
-nevermined plans get-plan $PLAN_ID
+nvm plans get-plan $PLAN_ID
 
 # 4. Purchase plan
-nevermined plans order-plan $PLAN_ID
+nvm plans order-plan $PLAN_ID
 
 # 5. Check balance
-nevermined plans get-plan-balance $PLAN_ID
+nvm plans get-plan-balance $PLAN_ID
 
 # 6. Get access token
-TOKEN=$(nevermined x402token get-x402-access-token $PLAN_ID --format json | jq -r '.token')
+TOKEN=$(nvm x402token get-x402-access-token $PLAN_ID --format json | jq -r '.token')
 
 # 7. Query agent
 curl -H "payment-signature: $TOKEN" https://agent-api.example.com/query
@@ -247,21 +247,21 @@ curl -H "payment-signature: $TOKEN" https://agent-api.example.com/query
 # Register an AI agent with payment plan
 
 # 1. Create payment plan
-PLAN_ID=$(nevermined plans register-credits-plan \
+PLAN_ID=$(nvm plans register-credits-plan \
   --plan-metadata plan.json \
   --price-config price.json \
   --credits-config credits.json \
   --format json | jq -r '.planId')
 
 # 2. Register agent with plan
-AGENT_ID=$(nevermined agents register-agent \
+AGENT_ID=$(nvm agents register-agent \
   --agent-metadata agent.json \
   --agent-api "https://api.example.com" \
   --payment-plans "$PLAN_ID" \
   --format json | jq -r '.agentId')
 
 # 3. Verify agent is accessible
-nevermined agents get-agent $AGENT_ID
+nvm agents get-agent $AGENT_ID
 ```
 
 ## Getting Help
@@ -270,14 +270,14 @@ nevermined agents get-agent $AGENT_ID
 
 ```bash
 # General help
-nevermined --help
+nvm --help
 
 # Topic help
-nevermined plans --help
-nevermined agents --help
+nvm plans --help
+nvm agents --help
 
 # Command help
-nevermined plans get-plan --help
+nvm plans get-plan --help
 ```
 
 ### Documentation
@@ -303,7 +303,7 @@ The CLI is designed for automation:
 0 */6 * * * /path/to/check-credits.sh
 
 # CI/CD integration
-- run: nevermined agents register-agent --agent-metadata agent.json
+- run: nvm agents register-agent --agent-metadata agent.json
 ```
 
 ### Scripting
@@ -312,12 +312,12 @@ Use JSON output for scripting:
 
 ```bash
 # Extract data with jq
-BALANCE=$(nevermined plans get-plan-balance $PLAN_ID --format json | jq -r '.balance')
+BALANCE=$(nvm plans get-plan-balance $PLAN_ID --format json | jq -r '.balance')
 
 # Loop over plans
-PLANS=$(nevermined plans get-plans --format json | jq -r '.[].id')
+PLANS=$(nvm plans get-plans --format json | jq -r '.[].id')
 for PLAN in $PLANS; do
-  nevermined plans get-plan $PLAN
+  nvm plans get-plan $PLAN
 done
 ```
 
@@ -327,10 +327,10 @@ Integrate with other tools:
 
 ```bash
 # Export to CSV
-nevermined plans get-plans --format json | jq -r '.[] | [.id, .name, .price] | @csv' > plans.csv
+nvm plans get-plans --format json | jq -r '.[] | [.id, .name, .price] | @csv' > plans.csv
 
 # Send to monitoring
-BALANCE=$(nevermined plans get-plan-balance $PLAN_ID --format json)
+BALANCE=$(nvm plans get-plan-balance $PLAN_ID --format json)
 curl -X POST monitoring-api.com/metrics -d "$BALANCE"
 ```
 
@@ -352,10 +352,10 @@ npm install -g @nevermined-io/cli
 
 ```bash
 # Browser login (recommended)
-nevermined login
+nvm login
 
 # Or initialize configuration manually
-nevermined config init
+nvm config init
 
 # Or set environment variable
 export NVM_API_KEY=your-api-key
@@ -391,7 +391,7 @@ Current version: 1.0.2
 Check your version:
 
 ```bash
-nevermined --version
+nvm --version
 ```
 
 Update to latest:
