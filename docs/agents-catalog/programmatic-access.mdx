@@ -1,0 +1,145 @@
+---
+title: "Programmatic access"
+description: "Discover catalog agents with the public read API or the ARD feed, then call any of them through the Nevermined Router — pay per call from a spending Delegation."
+icon: "code"
+---
+
+Using the catalog programmatically is two phases: **discover** agents (public, no auth), then **call** them through the [Router](/docs/agents-catalog/overview#the-router) (needs an API key + a spending Delegation). If you are wiring this into an autonomous agent, hand it the [agent instructions](/docs/agents-catalog/agent-instructions) file — it is the same flow condensed into a copy-pasteable playbook.
+
+Examples use the **live** API base `https://api.live.nevermined.app`. For test/sandbox, swap in `https://api.sandbox.nevermined.app`.
+
+## 1. Discover
+
+### The read API
+
+The catalog read endpoints are **public** — no API key required.
+
+<CodeGroup>
+```bash List services
+# Free-text search + filter by category and protocol; paginated.
+curl "https://api.live.nevermined.app/api/v1/catalog/services?search=weather&protocol=x402&page=1&offset=12"
+```
+
+```bash One service
+curl "https://api.live.nevermined.app/api/v1/catalog/services/weather-oracle"
+```
+
+```bash Categories
+curl "https://api.live.nevermined.app/api/v1/catalog/categories"
+```
+</CodeGroup>
+
+`GET /catalog/services` returns a paginated envelope; each service carries the fields you need to call it — its `protocol`, its `targetUrl`, whether it is `routerPayable`, its `priceLabel`, and its `endpoints`:
+
+```json
+{
+  "total": 42,
+  "page": 1,
+  "offset": 12,
+  "services": [
+    {
+      "slug": "weather-oracle",
+      "title": "Weather Oracle",
+      "protocol": "x402",
+      "targetUrl": "https://weather.example/x402",
+      "priceLabel": "$0.001",
+      "network": "Base",
+      "category": "Weather",
+      "shortDescription": "Current conditions and forecasts.",
+      "endpoints": [{ "method": "GET", "path": "/current", "priceLabel": "$0.001" }]
+    }
+  ]
+}
+```
+
+| Query param | Description |
+| --- | --- |
+| `search` | Free-text over title and description. |
+| `category` | Exact category (see `GET /catalog/categories`). |
+| `protocol` | `x402` · `mpp` · `a2a` · `rest`. |
+| `page` / `offset` | 1-based page and page size. |
+
+### The ARD feed
+
+The whole catalog is also published as a **Google Agentic Resource Discovery** document, so crawlers and autonomous agents can discover services without scraping the UI:
+
+```bash
+curl "https://api.live.nevermined.app/.well-known/agent-services-catalog.json"
+```
+
+Each entry carries an `x-nevermined-catalog` metadata block (protocol, Router `targetUrl`, `routerPayable`, endpoints, discovery pointers) — enough to route a call without a second lookup.
+
+## 2. Call an agent through the Router
+
+The [Router](https://api.live.nevermined.app/api/v1/router/docs) pays **any** payment-enabled agent from your budget and relays the response. Two prerequisites, then one call.
+
+<Steps>
+  <Step title="Get a Nevermined API key">
+    Every Router route authenticates with `Authorization: Bearer <NVM_API_KEY>`. Create a key in the [Nevermined App](https://nevermined.app/) and add a payment method. See [Card delegation](/docs/solutions/card-delegation).
+  </Step>
+  <Step title="Create a spending Delegation">
+    A **Delegation** is the budget every routed call draws from — created once, with a hard cap and an expiry.
+
+    ```bash
+    curl -X POST "https://api.live.nevermined.app/api/v1/delegation/create" \
+      -H "Authorization: Bearer $NVM_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "provider": "erc4337", "spendingLimitCents": 500, "durationSecs": 86400 }'
+    # → { "id": "5e7481c3-…" }  ← your $NVM_DELEGATION_ID
+    ```
+  </Step>
+  <Step title="Route the request">
+    Hand the Router the request you want made. It probes the agent's `402`, pays it from your Delegation, and relays the reply in one call.
+
+    ```bash
+    curl -X POST "https://api.live.nevermined.app/api/v1/router/route" \
+      -H "Authorization: Bearer $NVM_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "delegationId": "'"$NVM_DELEGATION_ID"'",
+        "url": "https://weather.example/x402/current",
+        "method": "GET",
+        "requestId": "'"$(uuidgen)"'"
+      }'
+    # → { "status": 200, "body": { … }, "payment": { "paymentId": "…", "status": "Settled" } }
+    ```
+
+    `requestId` is required — the Router pays automatically, so it must be idempotency-keyed (a retry re-uses the original payment instead of paying twice).
+  </Step>
+</Steps>
+
+### Three ways to pay
+
+| Endpoint | When to use it |
+| --- | --- |
+| `POST /api/v1/router/route` | **Recommended.** The Router calls the agent, pays the `402`, and returns a structured `{ status, body, payment }`. |
+| `ALL /api/v1/router/proxy` | Transparent streaming proxy — point any HTTP client at it with `X-Router-Target-Url`, `X-Router-Delegation-Id`, and `X-Router-Request-Id` headers; the response streams back with payment metadata in `X-Router-Payment-*` response headers. Use for large or streamed bodies. |
+| `POST /api/v1/router/payments` | Mode A — mint a signed x402 credential and attach it to **your own** request to the agent, instead of having the Router make the call. |
+
+The transparent proxy (drop-in for an existing HTTP client):
+
+```bash
+curl "https://api.live.nevermined.app/api/v1/router/proxy" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "X-Router-Target-Url: https://weather.example/x402/current" \
+  -H "X-Router-Delegation-Id: $NVM_DELEGATION_ID" \
+  -H "X-Router-Request-Id: $(uuidgen)"
+```
+
+<Info>
+  Your call to the Router is **not** itself an x402 request — it is an authenticated Router call. The Router performs the x402 handshake for you: it reads the agent's `402`, signs and pays an x402 `exact` (EIP-3009) payment from your Delegation, and relays the agent's response. You only supply your API key and a Delegation id.
+</Info>
+
+## 3. Track spend
+
+Every routed payment across every agent is in one record — the unified audit trail:
+
+```bash
+# JSON (add ?format=csv for a download; filter with ?delegationId=&from=&to=)
+curl "https://api.live.nevermined.app/api/v1/router/payments" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+## Full reference
+
+The complete Router contract — request/response schemas, error codes, and every field — is in the **[Router API Swagger](https://api.live.nevermined.app/api/v1/router/docs)** (sandbox: [`api.sandbox.nevermined.app/api/v1/router/docs`](https://api.sandbox.nevermined.app/api/v1/router/docs)).
