@@ -29,7 +29,7 @@ curl "https://api.live.nevermined.app/api/v1/catalog/categories"
 ```
 </CodeGroup>
 
-`GET /catalog/services` returns a paginated envelope; each service carries the fields you need to call it — its `protocol`, its `targetUrl`, whether it is `routerPayable`, its `priceLabel`, and its `endpoints`:
+`GET /catalog/services` returns a paginated envelope; each service carries the fields you need to call it — its `protocol`, its `targetUrl`, its `priceLabel`, and its `endpoints`. A service is payable through the Router when its `protocol` is `x402` or `mpp` (the [ARD feed](#the-ard-feed) exposes this directly as `routerPayable`):
 
 ```json
 {
@@ -84,8 +84,9 @@ The [Router](https://api.live.nevermined.app/api/v1/router/docs) pays **any** pa
     curl -X POST "https://api.live.nevermined.app/api/v1/delegation/create" \
       -H "Authorization: Bearer $NVM_API_KEY" \
       -H "Content-Type: application/json" \
-      -d '{ "provider": "erc4337", "spendingLimitCents": 500, "durationSecs": 86400 }'
-    # → { "id": "5e7481c3-…" }  ← your $NVM_DELEGATION_ID
+      -d '{ "provider": "erc4337", "currency": "usdc", "spendingLimitCents": 500, "durationSecs": 86400 }'
+    # → { "delegationId": "5e7481c3-…", "status": "Active" }  ← delegationId is your $NVM_DELEGATION_ID
+    # (fiat providers also return a signed delegationToken; erc4337 omits it)
     ```
   </Step>
   <Step title="Route the request">

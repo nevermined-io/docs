@@ -35,18 +35,18 @@ curl "$NVM_API_URL/.well-known/agent-services-catalog.json"
 From the chosen service, keep two fields:
 
 - `targetUrl` — the agent endpoint you want to reach.
-- `routerPayable` — must be `true` to pay it through the Router. If `false`, integrate the agent directly via its own docs.
+- `protocol` — the service is payable through the Router when this is `x402` or `mpp` (the ARD feed also exposes this directly as `routerPayable: true`). Otherwise, integrate the agent directly via its own docs.
 
 ## Step 2 — Create a spending Delegation (once)
 
-This is your budget. Set `spendingLimitCents` (the cap) and `durationSecs` (expiry). Reuse the returned `id` for every call until it is exhausted or expires.
+This is your budget. Set `spendingLimitCents` (the cap) and `durationSecs` (expiry). Reuse the returned `delegationId` for every call until it is exhausted or expires.
 
 ```bash
 curl -X POST "$NVM_API_URL/api/v1/delegation/create" \
   -H "Authorization: Bearer $NVM_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "provider": "erc4337", "spendingLimitCents": 500, "durationSecs": 86400 }'
-# → { "id": "5e7481c3-…" }   set NVM_DELEGATION_ID to this
+  -d '{ "provider": "erc4337", "currency": "usdc", "spendingLimitCents": 500, "durationSecs": 86400 }'
+# → { "delegationId": "5e7481c3-…", "status": "Active" }   set NVM_DELEGATION_ID to delegationId
 ```
 
 ## Step 3 — Call the agent through the Router
@@ -93,7 +93,7 @@ Payment metadata comes back in the `X-Router-Payment-Id`, `X-Router-Payment-Stat
 1. **One `requestId` per logical call.** Reusing it returns the original result (safe retry); a new one pays again.
 2. **Never send `NVM_API_KEY` to an upstream agent.** The Router strips it before forwarding. Use `X-Router-Upstream-Authorization` for the agent's own credentials.
 3. **Respect the budget.** The Router enforces your Delegation cap. A `402` from the Router means the budget is exhausted, expired, or inactive — create or top up a Delegation.
-4. **Only `routerPayable: true` services** are payable through the Router.
+4. **Only `x402` / `mpp` services** are payable through the Router (the ARD feed flags these as `routerPayable: true`).
 5. **Your call to the Router is not an x402 request.** The Router builds and signs the x402 payment to the agent for you; you only supply the key and Delegation id.
 
 ## Endpoint reference
