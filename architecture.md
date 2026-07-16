@@ -78,7 +78,8 @@ Major documentation reorganization completed:
 - ✅ Braintree Onboarding (`docs/products/payments/braintree-onboarding.mdx`)
 - ✅ Delegations (`docs/products/payments/mandates.mdx`)
 - ✅ Delegation Selection (`docs/products/payments/mandate-selection.mdx`)
-- ✅ FAQ (`docs/products/payments/faq.mdx`)
+- ✅ FAQ (`docs/products/payments/faq.mdx`) — file lives here; surfaced under **Guides > Learn** in `docs.json`
+- ✅ Certifications (`docs/products/payments/certifications.mdx`) — file lives here; surfaced under **Guides > Learn** in `docs.json`
 
 ##### Payment Libraries
 - ✅ Overview (`docs/products/payment-libraries/overview.mdx`)

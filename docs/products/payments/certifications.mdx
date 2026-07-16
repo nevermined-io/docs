@@ -1,0 +1,83 @@
+---
+title: "Certifications"
+description: "Nevermined's security certifications — SOC 2 Type II, ISO/IEC 27001:2022, and PCI SAQ-D — and how to access the reports through the Trust Center."
+icon: "shield-check"
+---
+
+When an agent spends money without a human in the loop, the guardrails around it are only as trustworthy as the infrastructure enforcing them. Nevermined is independently audited so you don't have to take that on trust.
+
+<CardGroup cols={2}>
+  <Card title="SOC 2 Type II" icon="file-shield">
+    An attestation report covering how our security controls **operated over time**, not just how they were designed.
+  </Card>
+  <Card title="ISO/IEC 27001:2022" icon="certificate">
+    Certification of our information security management system (ISMS) against the current 2022 revision.
+  </Card>
+</CardGroup>
+
+All reports and certificates are available through the [Nevermined Trust Center](https://trustcenter.nevermined.ai). The control list is public; the reports themselves are released under NDA — see [Access the reports](#access-the-reports).
+
+## What each one covers
+
+The two are often mentioned together, but they answer different questions.
+
+**ISO/IEC 27001:2022** certifies the *system*. It asks whether you run a real information security management system: risk assessments, defined ownership, policies that exist and are followed, and a loop that catches problems and closes them. It's issued by an accredited certification body.
+
+**SOC 2 Type II** attests to the *evidence*. It asks whether the controls you claim to have actually operated across a window of time, with proof for each one. Strictly speaking it's an attestation report from auditors rather than a certification.
+
+<Note>
+  SOC 2 comes in two types, and the difference matters. **Type I** evaluates whether controls are designed correctly at a single point in time. **Type II** evaluates whether they operated effectively over a period. Nevermined holds **Type II**.
+</Note>
+
+## Card data and PCI
+
+Card payments add a further requirement on top of the two above.
+
+Nevermined operates at **PCI SAQ-D** level. Raw card numbers are captured by a PCI-compliant vault and tokenized before they reach our systems — VGS Collect for the Visa and Stripe paths, Braintree Drop-in for Braintree. Nevermined never sees or stores the raw PAN.
+
+See [Card Enrollment](/docs/products/payments/card-enrollment) for how tokenization works in each path.
+
+## Controls
+
+The Trust Center publishes **67 controls** under continuous monitoring, grouped into five categories:
+
+| Category | What it covers |
+| --- | --- |
+| Infrastructure security | Production authentication, encryption key access, account controls |
+| Organizational security | Code of Conduct, confidentiality agreements, anti-malware |
+| Product security | Data transmission encryption, vulnerability and system monitoring |
+| Internal security procedures | Continuity and disaster recovery, configuration management |
+| Data and privacy | Data retention, data classification, customer data deletion |
+
+Monitoring is continuous rather than annual, so control drift surfaces when it happens rather than at the next audit window. Each control's current status is visible on the Trust Center before you talk to anyone.
+
+## Access the reports
+
+<Steps>
+  <Step title="Open the Trust Center">
+    Go to [trustcenter.nevermined.ai](https://trustcenter.nevermined.ai). The control list and the engagement letter are public.
+  </Step>
+  <Step title="Request access">
+    Click **Request access** to view the gated documents — the SOC 2 Type II report, the ISO/IEC 27001:2022 certificate, and the Data Management Policy.
+  </Step>
+  <Step title="Review under NDA">
+    Gated documents are released under NDA. Access is typically granted within one business day.
+  </Step>
+</Steps>
+
+## For security reviews
+
+If you're completing a vendor security assessment, the Trust Center is the fastest path: it carries the certifications, the control list, and the policies most questionnaires ask for.
+
+For questions it doesn't answer — a bespoke questionnaire, a DPA, or scope specifics — [contact the Nevermined team](https://www.nevermined.ai/contact-us/).
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="FAQ" icon="question" href="/docs/products/payments/faq">
+    Common questions on certifications, card delegation, and settlement.
+  </Card>
+  <Card title="Card Enrollment" icon="credit-card" href="/docs/products/payments/card-enrollment">
+    How card data is tokenized before it reaches Nevermined.
+  </Card>
+</CardGroup>
