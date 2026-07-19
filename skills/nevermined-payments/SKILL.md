@@ -91,7 +91,7 @@ Pick the environment and use its **exact base URL** for every call. State it exp
 - **Never log or persist secrets in the clear:** API keys, `delegationId`, and `paymentMethodId` arrive as query-string params on your `127.0.0.1` callback (see A1/A3). Your callback server must not log the request line, and you should keep the key in a secret store — query strings are the most-logged part of any request (access logs, shell history, process args).
 - **Discover the API surface:** `GET {API_BASE}/api/v1/rest/docs-json` returns the OpenAPI JSON. **Heads-up — it is not exhaustive:** several agent-facing endpoints are served but **deliberately omitted from `docs-json`**, notably `POST /embed/session` (card enrollment), the `delegation/*` routes, and `organizations/{orgId}/analytics/*`. Don't conclude an endpoint doesn't exist because it's absent from the OpenAPI — **use the exact paths documented in this skill directly**. (To confirm one is live, send the request: a `401`/`400` means it exists; only `404` means it doesn't.)
 - **Default to `sandbox`** unless the human explicitly asks for `live` — `live` moves real money.
-- **Pin the API version:** send `Nevermined-Version: <MAJOR.MINOR>` on every direct REST call so platform releases can't change the wire shape under you. Discover the supported range with `GET {API_BASE}/api/v1/meta/versions` (authenticated; returns `current`, `floor`, `gatedVersions`, and the pin of YOUR key) and default to its `current`. Without the header, requests use the key's stored pin (editable by the key owner in the dashboard). The SDKs send the header automatically (`LOCKED_API_VERSION`). **Never silently change a key's stored pin** — pinning is the integration owner's deliberate decision. Changelog: [docs.nevermined.app/docs/development-guide/api-changelog](https://docs.nevermined.app/docs/development-guide/api-changelog).
+- **Pin the API version:** send `Nevermined-Version: <MAJOR.MINOR>` on every direct REST call so platform releases can't change the wire shape under you. Discover the supported range with `GET {API_BASE}/api/v1/meta/versions` (authenticated; returns `current`, `floor`, `gatedVersions`, and the pin of YOUR key) and default to its `current`. Without the header, requests use the key's stored pin (editable by the key owner in the dashboard). The SDKs send the header automatically (`LOCKED_API_VERSION`). **Never silently change a key's stored pin** — pinning is the integration owner's deliberate decision. Changelog: https://docs.nevermined.app/docs/development-guide/api-changelog
 
 ## A1 · Get a Nevermined API key  *(needs a human once)*
 
@@ -107,7 +107,7 @@ After they sign in, the browser is redirected to `http://127.0.0.1:<port>/callba
 
 **Option B — manual paste (works anywhere).** Ask your human to open [nevermined.app](https://nevermined.app), sign in, create an API Key (Settings → Global NVM API Keys → **+ New API Key**), and paste it back. Or, once signed in, open `https://nevermined.app/auth/cli` with no `callback_url` to see the key on screen.
 
-**Store the key and reuse it.** Never fabricate a key; the placeholder is `sandbox:your-api-key`. Full docs: [Get Your API Key](https://nevermined.ai/docs/getting-started/get-your-api-key).
+**Store the key and reuse it.** Never fabricate a key; the placeholder is `sandbox:your-api-key`. Full docs: https://nevermined.ai/docs/getting-started/get-your-api-key
 
 ## A2 · Check your payment methods
 
