@@ -22,6 +22,14 @@
  * Deliberately NOT here: RB2B (docs readers are product-led, not
  * outbound targets — decision on record in #191).
  *
+ * Consent (added 2026-07-20): this file now also injects CookieYes
+ * (docs previously had no CMP) and gates PostHog on the authoritative
+ * consent state — granted fires, anything else waits, fail closed.
+ * The nvm_o decorator stays ungated (functional attribution, no
+ * storage on this host). GA4 via docs.json integrations.ga4 is
+ * untouched here; its consent posture rides on CookieYes auto-blocking
+ * (verify in the CookieYes dashboard).
+ *
  * GA4 is loaded separately via docs.json integrations.ga4 — untouched.
  */
 (function () {
@@ -39,9 +47,83 @@
   if (window.__nvmDocsAnalytics) return;
   window.__nvmDocsAnalytics = true;
 
-  /* ---------------- 1. PostHog (EU, anonymous mode) ---------------- */
+  /* ---------------- 0. CookieYes CMP (added 2026-07-20) ---------------- */
+  /* Docs previously had NO consent banner - EU docs-only visitors could
+     never consent, so under the consent architecture nothing would ever
+     fire for them. Same account as site + blog: one shared consent
+     state across every nevermined surface. */
 
-  if (!(window.posthog && window.posthog.__loaded)) {
+  if (!document.getElementById("cookieyes")) {
+    var cky = document.createElement("script");
+    cky.id = "cookieyes";
+    cky.src = "https://cdn-cookieyes.com/client_data/1d897eaaf322a6d6e1a1b9c07f3ba7b8/script.js";
+    document.head.appendChild(cky);
+  }
+
+  /* ---------------- consent gate (authoritative, fail closed) ---------------- */
+  /* Line-for-line port of the site's lib/consent-client and the blog
+     loader's gate: granted fires; unknown/denied wait on the
+     consent_update event + poll; pre-decision default reads as unknown.
+     No timeout inference. */
+
+  function consentState() {
+    try {
+      var api = window.getCkyConsent && window.getCkyConsent();
+      if (api && api.categories) {
+        if (api.categories.analytics === true) return "granted";
+        if (api.isUserActionCompleted === true && api.categories.analytics === false) return "denied";
+      }
+    } catch (e) { /* fall through to cookie */ }
+    var m = document.cookie.match(/(?:^|; )cookieyes-consent=([^;]+)/);
+    if (!m) return "unknown";
+    var v;
+    try { v = decodeURIComponent(m[1]); } catch (e) { v = m[1]; }
+    if (/(?:^|,)analytics:yes/.test(v)) return "granted";
+    if (/(?:^|,)analytics:no/.test(v) && /(?:^|,)action:yes/.test(v)) return "denied";
+    return "unknown";
+  }
+
+  function whenConsented(fn) {
+    var done = false;
+    var timer = null;
+    function fire() {
+      if (done) return;
+      done = true;
+      document.removeEventListener("cookieyes_consent_update", check);
+      if (timer) clearInterval(timer);
+      fn();
+    }
+    function check() {
+      if (consentState() === "granted") fire();
+    }
+    document.addEventListener("cookieyes_consent_update", check);
+    timer = setInterval(check, 500);
+    check();
+  }
+
+  /* Capture-on-consent recovery: only on the proxied domain, where
+     /api/consent-touch is same-origin and the middleware's deferred
+     first-touch can be recovered. Direct docs.nevermined.app visits
+     have no middleware cookies either way. */
+  if (host === "nevermined.ai" || host === "www.nevermined.ai") {
+    whenConsented(function consentTouch() {
+      if (document.cookie.indexOf("nvm_ft=") !== -1) return;
+      fetch("/api/consent-touch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          referrer: document.referrer,
+          page: window.location.pathname,
+          search: window.location.search
+        })
+      }).catch(function () { /* best effort */ });
+    });
+  }
+
+  /* ---------------- 1. PostHog (EU, anonymous mode) - consent-gated ---------------- */
+
+  function loadPostHog() {
+    if (window.posthog && window.posthog.__loaded) return;
     /* PostHog snippet (current official loader, 2026 method surface,
        assets-host delivery, crossOrigin) */
     !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="Ji Yi init fn mn Ur pn bn cn capture calculateEventProperties Sn register register_once register_for_session unregister unregister_for_session Tn getFeatureFlag getFeatureFlagPayload getFeatureFlagResult getAllFeatureFlags isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync Mn identify setPersonProperties unsetPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset shutdown setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException addExceptionStep captureLog startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty Cn xn createPersonProfile setInternalOrTestUser In hn Pn opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing debug Vr Rt getPageViewId captureTraceFeedback captureTraceMetric an".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
@@ -61,6 +143,8 @@
       session_recording: { maskAllInputs: true }
     });
   }
+
+  whenConsented(loadPostHog);
 
   /* ------- 2. nvm_o decorator + app_handoff_click ------- */
 
