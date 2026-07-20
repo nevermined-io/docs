@@ -122,7 +122,7 @@
 
   /* ---------------- 1. PostHog (EU, anonymous mode) - consent-gated ---------------- */
 
-  function loadPostHog() {
+  function loadPostHog(full) {
     if (window.posthog && window.posthog.__loaded) return;
     /* PostHog snippet (current official loader, 2026 method surface,
        assets-host delivery, crossOrigin) */
@@ -138,38 +138,59 @@
       // Curated set v1: $pageview + replay ONLY (no $pageleave).
       capture_pageleave: false,
       person_profiles: "identified_only",
-      persistence: "localStorage",
+      persistence: full ? "localStorage" : "memory",
+      disable_session_recording: !full,
       disable_surveys: true,
       session_recording: { maskAllInputs: true }
     });
   }
 
-  /* Policy split (Robin, 2026-07-20): PostHog = anonymous audience
-     measurement - default-on under legitimate interest; explicit
-     Reject opts out (incl. retroactive). */
-  loadPostHog();
-  (function watchDenial() {
-    var denied = consentState() === "denied";
-    function apply() {
-      if (!window.posthog) return;
-      if (denied && window.posthog.opt_out_capturing) window.posthog.opt_out_capturing();
-      if (!denied && window.posthog.has_opted_out_capturing && window.posthog.has_opted_out_capturing() && window.posthog.opt_in_capturing) window.posthog.opt_in_capturing();
+  /* PostHog consent controller (Option B matrix, 2026-07-20):
+     denied = never load / opt out; undecided = memory-mode pageviews
+     only (no device storage, no replay); granted = full, upgrading a
+     limited start in place. Same semantics as the site + blog. */
+  var phUpgraded = false;
+  function applyPostHogConsent() {
+    var s = consentState();
+    if (s === "denied") {
+      if (window.posthog && window.posthog.__loaded && window.posthog.opt_out_capturing) {
+        window.posthog.opt_out_capturing();
+      }
+      return;
     }
-    if (denied) apply();
-    function check() {
-      var s = consentState();
-      if (s === "denied" && !denied) { denied = true; apply(); }
-      else if (s === "granted" && denied) { denied = false; apply(); }
+    if (!(window.posthog && window.posthog.__loaded)) {
+      loadPostHog(s === "granted");
+      phUpgraded = s === "granted";
+      return;
     }
-    document.addEventListener("cookieyes_consent_update", check);
-    setInterval(check, 1000);
-  })();
+    if (s === "granted" && !phUpgraded) {
+      phUpgraded = true;
+      if (window.posthog.set_config) window.posthog.set_config({ persistence: "localStorage" });
+      if (window.posthog.startSessionRecording) window.posthog.startSessionRecording();
+    }
+  }
+  document.addEventListener("cookieyes_consent_update", applyPostHogConsent);
+  setInterval(applyPostHogConsent, 1000);
+  applyPostHogConsent();
 
   /* ------- 2. nvm_o decorator + app_handoff_click ------- */
 
   function readCookie(name) {
     var m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
-    return m ? decodeURIComponent(m[1]) : null;
+    if (!m) return null;
+    try { return decodeURIComponent(m[1]); } catch (e) { return null; }
+  }
+
+  function unwrapTouch(value) {
+    if (!value) return null;
+    if (value.indexOf("v1.") !== 0) return value;
+    var parts = value.split(".");
+    if (parts.length !== 3) return null;
+    try {
+      return atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    } catch (e) {
+      return null;
+    }
   }
   function b64url(s) {
     var bytes = new TextEncoder().encode(s);
@@ -204,8 +225,8 @@
       return;
     }
     if (!isAppHost(url.hostname)) return;
-    var ft = parseTouch(readCookie("nvm_ft"));
-    var lt = parseTouch(readCookie("nvm_lt"));
+    var ft = parseTouch(unwrapTouch(readCookie("nvm_ft")));
+    var lt = parseTouch(unwrapTouch(readCookie("nvm_lt")));
     var payload = {};
     if (ft) payload.ft = ft;
     if (lt) payload.lt = lt;
