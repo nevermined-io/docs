@@ -144,7 +144,26 @@
     });
   }
 
-  whenConsented(loadPostHog);
+  /* Policy split (Robin, 2026-07-20): PostHog = anonymous audience
+     measurement - default-on under legitimate interest; explicit
+     Reject opts out (incl. retroactive). */
+  loadPostHog();
+  (function watchDenial() {
+    var denied = consentState() === "denied";
+    function apply() {
+      if (!window.posthog) return;
+      if (denied && window.posthog.opt_out_capturing) window.posthog.opt_out_capturing();
+      if (!denied && window.posthog.has_opted_out_capturing && window.posthog.has_opted_out_capturing() && window.posthog.opt_in_capturing) window.posthog.opt_in_capturing();
+    }
+    if (denied) apply();
+    function check() {
+      var s = consentState();
+      if (s === "denied" && !denied) { denied = true; apply(); }
+      else if (s === "granted" && denied) { denied = false; apply(); }
+    }
+    document.addEventListener("cookieyes_consent_update", check);
+    setInterval(check, 1000);
+  })();
 
   /* ------- 2. nvm_o decorator + app_handoff_click ------- */
 
