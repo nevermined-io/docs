@@ -2644,30 +2644,31 @@
             "example": "2026-02-13T10:30:00Z"
           },
           "apiKeyId": {
-            "type": "object",
+            "type": "string",
             "example": "sk-abc123",
             "nullable": true,
             "description": "NVM API Key ID restricted to this delegation. Null = any key can use it."
           },
           "planId": {
-            "type": "object",
+            "type": "string",
             "example": "123456789",
             "nullable": true
           },
           "merchantAccountId": {
-            "type": "object",
+            "type": "string",
             "example": "acct_1Abc2Def3Ghi",
             "nullable": true
           },
           "maxTransactions": {
-            "type": "object",
+            "type": "integer",
             "example": 50,
             "nullable": true
           },
           "lastUsedAt": {
-            "type": "object",
+            "type": "string",
             "example": "2026-02-13T14:00:00Z",
-            "nullable": true
+            "nullable": true,
+            "format": "date-time"
           }
         },
         "required": [
@@ -2795,17 +2796,17 @@
             "example": "visa"
           },
           "expMonth": {
-            "type": "object",
+            "type": "integer",
             "example": 12,
             "nullable": true
           },
           "expYear": {
-            "type": "object",
+            "type": "integer",
             "example": 2027,
             "nullable": true
           },
           "alias": {
-            "type": "object",
+            "type": "string",
             "example": "My Card",
             "nullable": true
           },
@@ -2829,16 +2830,19 @@
             ]
           },
           "allowedApiKeyIds": {
-            "type": "object",
+            "type": "array",
             "example": [
               "sk-abc123",
               "sk-def456"
             ],
             "nullable": true,
-            "description": "NVM API Key IDs allowed to use this card. Null = any key can use it."
+            "description": "NVM API Key IDs allowed to use this card. Null = any key can use it.",
+            "items": {
+              "type": "string"
+            }
           },
           "orgId": {
-            "type": "object",
+            "type": "string",
             "description": "Organization this card belongs to (null = personal).",
             "nullable": true
           }
@@ -2883,7 +2887,7 @@
             "example": "succeeded"
           },
           "failureReason": {
-            "type": "object",
+            "type": "string",
             "example": null,
             "nullable": true
           },
@@ -3044,7 +3048,7 @@
             }
           },
           "orgId": {
-            "type": "object",
+            "type": "string",
             "description": "Move the card to an org (a valid orgId) or to personal (null). Omit to leave unchanged.",
             "nullable": true
           }
@@ -3106,7 +3110,7 @@
             "example": "2026-02-13T10:30:00Z"
           },
           "apiKeyId": {
-            "type": "object",
+            "type": "string",
             "example": "sk-abc123",
             "nullable": true,
             "description": "NVM API Key ID restricted to this delegation. Null = any key can use it."
