@@ -51,7 +51,9 @@
         "summary": "Register Agent",
         "description": "Creates a new AI agent with API configuration.",
         "operationId": "registerAgent",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "requestBody": {
           "description": "Agent configuration",
           "required": true,
@@ -63,8 +65,15 @@
               "example": {
                 "name": "Legal Assistant",
                 "description": "AI-powered legal document analysis",
-                "tags": ["legal", "ai"],
-                "endpoints": [{"POST": "https://your-api.com/query"}],
+                "tags": [
+                  "legal",
+                  "ai"
+                ],
+                "endpoints": [
+                  {
+                    "POST": "https://your-api.com/query"
+                  }
+                ],
                 "agentDefinitionUrl": "https://your-api.com/openapi.json"
               }
             }
@@ -100,7 +109,9 @@
         "summary": "List Agents",
         "description": "Get paginated list of agents for the current user.",
         "operationId": "listAgents",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "parameters": [
           {
             "name": "page",
@@ -135,7 +146,10 @@
             "description": "Sort direction",
             "schema": {
               "type": "string",
-              "enum": ["asc", "desc"],
+              "enum": [
+                "asc",
+                "desc"
+              ],
               "default": "desc"
             }
           }
@@ -162,7 +176,9 @@
         "summary": "Get Agent",
         "description": "Retrieves agent configuration and associated plans.",
         "operationId": "getAgent",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "parameters": [
           {
             "name": "agentId",
@@ -194,7 +210,9 @@
         "summary": "Update Agent",
         "description": "Modifies agent configuration and metadata.",
         "operationId": "updateAgent",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "parameters": [
           {
             "name": "agentId",
@@ -242,7 +260,9 @@
         "summary": "Register Agent and Plan",
         "description": "Creates both an agent and associated payment plan in a single request.",
         "operationId": "registerAgentAndPlan",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "requestBody": {
           "description": "Agent and plan configuration",
           "required": true,
@@ -255,10 +275,17 @@
                 "agentMetadata": {
                   "name": "Legal Assistant",
                   "description": "AI-powered legal analysis",
-                  "tags": ["legal", "ai"]
+                  "tags": [
+                    "legal",
+                    "ai"
+                  ]
                 },
                 "agentApi": {
-                  "endpoints": [{"POST": "https://your-api.com/query"}],
+                  "endpoints": [
+                    {
+                      "POST": "https://your-api.com/query"
+                    }
+                  ],
                   "agentDefinitionUrl": "https://your-api.com/openapi.json"
                 },
                 "planMetadata": {
@@ -268,8 +295,12 @@
                 "priceConfig": {
                   "priceType": "FIXED_PRICE",
                   "tokenAddress": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-                  "amounts": [10000000],
-                  "receivers": ["0xYourWalletAddress"]
+                  "amounts": [
+                    10000000
+                  ],
+                  "receivers": [
+                    "0xYourWalletAddress"
+                  ]
                 },
                 "creditsConfig": {
                   "creditsType": "FIXED",
@@ -306,7 +337,9 @@
         "summary": "Activate/Deactivate Agent",
         "description": "Controls the agent's public listing status.",
         "operationId": "toggleAgentListing",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "parameters": [
           {
             "name": "agentId",
@@ -352,7 +385,9 @@
         "summary": "Add Plan to Agent",
         "description": "Associates an existing payment plan with an agent.",
         "operationId": "addPlanToAgent",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "parameters": [
           {
             "name": "agentId",
@@ -396,7 +431,9 @@
         "summary": "Remove Plan from Agent",
         "description": "Disassociates a payment plan from an agent.",
         "operationId": "removePlanFromAgent",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "parameters": [
           {
             "name": "agentId",
@@ -442,7 +479,9 @@
         "summary": "Get Agent Plans",
         "description": "Lists all payment plans associated with an agent.",
         "operationId": "getAgentPlans",
-        "tags": ["Protocol - Agents"],
+        "tags": [
+          "Protocol - Agents"
+        ],
         "parameters": [
           {
             "name": "agentId",
@@ -492,7 +531,9 @@
         "summary": "Initialize Agent Request",
         "description": "Validates access and initializes an agent request session.",
         "operationId": "initializeAgentRequest",
-        "tags": ["Protocol - Access"],
+        "tags": [
+          "Protocol - Access"
+        ],
         "parameters": [
           {
             "name": "agentId",
@@ -540,7 +581,9 @@
         "summary": "Track Agent Sub Task",
         "description": "Records task completion and credit consumption for complex agent workflows.",
         "operationId": "trackAgentSubTask",
-        "tags": ["Protocol - Access"],
+        "tags": [
+          "Protocol - Access"
+        ],
         "requestBody": {
           "description": "Sub-task tracking data",
           "required": true,
@@ -574,7 +617,9 @@
         "summary": "Register Plan",
         "description": "Creates a new payment plan with pricing and credit configuration.",
         "operationId": "registerPlan",
-        "tags": ["Protocol - Plans"],
+        "tags": [
+          "Protocol - Plans"
+        ],
         "requestBody": {
           "description": "Plan configuration",
           "required": true,
@@ -589,8 +634,12 @@
                 "priceConfig": {
                   "priceType": "FIXED_PRICE",
                   "tokenAddress": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-                  "amounts": [50000000],
-                  "receivers": ["0xYourWalletAddress"]
+                  "amounts": [
+                    50000000
+                  ],
+                  "receivers": [
+                    "0xYourWalletAddress"
+                  ]
                 },
                 "creditsConfig": {
                   "creditsType": "FIXED",
@@ -624,7 +673,9 @@
         "summary": "List Plans",
         "description": "Get paginated list of payment plans for the current user.",
         "operationId": "listPlans",
-        "tags": ["Protocol - Plans"],
+        "tags": [
+          "Protocol - Plans"
+        ],
         "parameters": [
           {
             "name": "page",
@@ -655,7 +706,10 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["asc", "desc"],
+              "enum": [
+                "asc",
+                "desc"
+              ],
               "default": "desc"
             }
           }
@@ -682,7 +736,9 @@
         "summary": "Get Plan",
         "description": "Retrieves details about a specific payment plan.",
         "operationId": "getPlan",
-        "tags": ["Protocol - Plans"],
+        "tags": [
+          "Protocol - Plans"
+        ],
         "parameters": [
           {
             "name": "planId",
@@ -714,7 +770,9 @@
         "summary": "Update Plan",
         "description": "Modifies plan metadata.",
         "operationId": "updatePlan",
-        "tags": ["Protocol - Plans"],
+        "tags": [
+          "Protocol - Plans"
+        ],
         "parameters": [
           {
             "name": "planId",
@@ -762,7 +820,9 @@
         "summary": "Activate/Deactivate Plan",
         "description": "Controls the plan's public listing status.",
         "operationId": "togglePlanListing",
-        "tags": ["Protocol - Plans"],
+        "tags": [
+          "Protocol - Plans"
+        ],
         "parameters": [
           {
             "name": "planId",
@@ -808,7 +868,9 @@
         "summary": "Order Plan",
         "description": "Purchases a payment plan. Credits are issued immediately.",
         "operationId": "orderPlan",
-        "tags": ["Protocol - Plans"],
+        "tags": [
+          "Protocol - Plans"
+        ],
         "parameters": [
           {
             "name": "planId",
@@ -848,7 +910,9 @@
         "summary": "Get Plan Balance",
         "description": "Retrieves credit balance for a specific account on a plan.",
         "operationId": "getPlanBalance",
-        "tags": ["Protocol - Plans"],
+        "tags": [
+          "Protocol - Plans"
+        ],
         "parameters": [
           {
             "name": "planId",
@@ -891,7 +955,9 @@
         "summary": "Get Plan Agents",
         "description": "Lists all agents associated with a payment plan.",
         "operationId": "getPlanAgents",
-        "tags": ["Protocol - Plans"],
+        "tags": [
+          "Protocol - Plans"
+        ],
         "parameters": [
           {
             "name": "planId",
@@ -941,7 +1007,9 @@
         "summary": "Get Access Token",
         "description": "Generates access credentials for agent-plan interaction.",
         "operationId": "getAccessToken",
-        "tags": ["Protocol - Access"],
+        "tags": [
+          "Protocol - Access"
+        ],
         "parameters": [
           {
             "name": "planId",
@@ -990,7 +1058,9 @@
         "summary": "Mint Credits",
         "description": "Adds credits to a plan account. Builder-only operation.",
         "operationId": "mintCredits",
-        "tags": ["Protocol - Credits"],
+        "tags": [
+          "Protocol - Credits"
+        ],
         "requestBody": {
           "description": "Mint request",
           "required": true,
@@ -1032,7 +1102,9 @@
         "summary": "Mint Expirable Credits",
         "description": "Adds time-limited credits to a plan account.",
         "operationId": "mintExpirableCredits",
-        "tags": ["Protocol - Credits"],
+        "tags": [
+          "Protocol - Credits"
+        ],
         "requestBody": {
           "description": "Mint expirable request",
           "required": true,
@@ -1069,7 +1141,9 @@
         "summary": "Redeem Credits",
         "description": "Consumes credits from a plan account after processing a request.",
         "operationId": "redeemCredits",
-        "tags": ["Protocol - Credits"],
+        "tags": [
+          "Protocol - Credits"
+        ],
         "requestBody": {
           "description": "Redeem request",
           "required": true,
@@ -1112,7 +1186,9 @@
         "summary": "Create Permission",
         "description": "Creates a delegated permission and generates an x402 access token.",
         "operationId": "createPermission",
-        "tags": ["X402 - Permissions"],
+        "tags": [
+          "X402 - Permissions"
+        ],
         "requestBody": {
           "description": "Permission configuration",
           "required": true,
@@ -1152,7 +1228,9 @@
         "summary": "List Permissions",
         "description": "Retrieves paginated list of your delegated permissions.",
         "operationId": "listPermissions",
-        "tags": ["X402 - Permissions"],
+        "tags": [
+          "X402 - Permissions"
+        ],
         "parameters": [
           {
             "name": "page",
@@ -1193,7 +1271,9 @@
         "summary": "Get Permission",
         "description": "Retrieves complete information about a specific permission.",
         "operationId": "getPermission",
-        "tags": ["X402 - Permissions"],
+        "tags": [
+          "X402 - Permissions"
+        ],
         "parameters": [
           {
             "name": "permissionHash",
@@ -1228,7 +1308,9 @@
         "summary": "Revoke Permission",
         "description": "Invalidates a delegated permission, preventing further use.",
         "operationId": "revokePermission",
-        "tags": ["X402 - Permissions"],
+        "tags": [
+          "X402 - Permissions"
+        ],
         "parameters": [
           {
             "name": "permissionHash",
@@ -1265,7 +1347,9 @@
         "summary": "Verify Permission",
         "description": "Validates a delegated permission before processing a request.",
         "operationId": "verifyPermission",
-        "tags": ["X402 - Permissions"],
+        "tags": [
+          "X402 - Permissions"
+        ],
         "requestBody": {
           "description": "Verification request",
           "required": true,
@@ -1301,7 +1385,9 @@
         "summary": "Settle Permission",
         "description": "Finalizes and records delegated permission usage after service delivery.",
         "operationId": "settlePermission",
-        "tags": ["X402 - Permissions"],
+        "tags": [
+          "X402 - Permissions"
+        ],
         "requestBody": {
           "description": "Settlement request",
           "required": true,
@@ -1334,6 +1420,420 @@
           }
         }
       }
+    },
+    "/delegation/create": {
+      "post": {
+        "description": "Creates a spending delegation for the authenticated user against a previously enrolled payment method. For fiat-backed delegations (stripe/braintree/visa) the response includes a signed JWT (`delegationToken`); for crypto (erc4337) flows the token is held client-side and omitted. Requires a Nevermined API key.",
+        "operationId": "DelegationController_createDelegation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDelegationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created delegation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDelegationResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "Create a spending delegation and return a signed JWT token",
+        "tags": [
+          "Delegation"
+        ]
+      }
+    },
+    "/delegation": {
+      "get": {
+        "description": "Returns a paginated list of the authenticated user's spending delegations. Use `accessible=true` to return only delegations the requesting API key may spend against. Requires a Nevermined API key.",
+        "operationId": "DelegationController_listDelegations",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (1-based). Defaults to 1.",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page. Defaults to 10.",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "accessible",
+            "required": false,
+            "in": "query",
+            "description": "When \"true\", return only delegations accessible to the requesting API key (filters by apiKeyId, Active status, expiry, and remaining budget)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegationListDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "List all delegations for the authenticated user",
+        "tags": [
+          "Delegation"
+        ]
+      }
+    },
+    "/delegation/{delegationId}": {
+      "get": {
+        "description": "Returns the full details of a single delegation owned by the authenticated user, including remaining budget and last-used timestamp. Requires a Nevermined API key.",
+        "operationId": "DelegationController_getDelegation",
+        "parameters": [
+          {
+            "name": "delegationId",
+            "required": true,
+            "in": "path",
+            "description": "UUID v4 of the delegation to fetch.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegationDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Delegation not found"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "Get delegation details including remaining budget",
+        "tags": [
+          "Delegation"
+        ]
+      },
+      "delete": {
+        "description": "Revokes a delegation owned by the authenticated user and cascade-revokes its linked permissions. For Visa delegations the linked VGS intent is cancelled best-effort. Requires a Nevermined API key.",
+        "operationId": "DelegationController_revokeDelegation",
+        "parameters": [
+          {
+            "name": "delegationId",
+            "required": true,
+            "in": "path",
+            "description": "UUID v4 of the delegation to revoke.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The revoke result (`{ success: true }`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_NvmAPIResultDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Delegation not found"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "Revoke a delegation",
+        "tags": [
+          "Delegation"
+        ]
+      }
+    },
+    "/delegation/{delegationId}/transactions": {
+      "get": {
+        "description": "Returns a paginated list of charge transactions recorded against a delegation owned by the authenticated user. Requires a Nevermined API key.",
+        "operationId": "DelegationController_getTransactions",
+        "parameters": [
+          {
+            "name": "delegationId",
+            "required": true,
+            "in": "path",
+            "description": "UUID v4 of the delegation whose transactions are listed.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (1-based). Defaults to 1.",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page. Defaults to 10.",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegationTransactionListDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Delegation not found"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "List transactions for a delegation",
+        "tags": [
+          "Delegation"
+        ]
+      }
+    },
+    "/payment-methods": {
+      "get": {
+        "description": "Returns the saved payment methods for the authenticated user. Requires a Nevermined API key.",
+        "operationId": "PaymentMethodsController_listPaymentMethods",
+        "parameters": [
+          {
+            "name": "accessible",
+            "required": false,
+            "in": "query",
+            "description": "When \"true\", return only payment methods accessible to the requesting API key (filters by allowedApiKeyIds and Active status).",
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "required": false,
+            "in": "query",
+            "description": "When set, return only payment methods backed by this provider. Omit to return methods from every provider (default).",
+            "schema": {
+              "enum": [
+                "stripe",
+                "braintree",
+                "erc4337",
+                "visa",
+                "vgs"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of saved payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentMethodSummaryDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Unknown provider value"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "List saved payment methods",
+        "tags": [
+          "Payment Methods"
+        ]
+      }
+    },
+    "/payment-methods/{paymentMethodId}": {
+      "patch": {
+        "description": "Updates a saved payment method, changing its friendly alias and/or the set of NVM API keys allowed to use it. Requires a Nevermined API key.",
+        "operationId": "PaymentMethodsController_updatePaymentMethod",
+        "parameters": [
+          {
+            "name": "paymentMethodId",
+            "required": true,
+            "in": "path",
+            "description": "Identifier of the payment method to update",
+            "schema": {
+              "example": "pm_1Abc2Def3Ghi4Jkl",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePaymentMethodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated payment method",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodSummaryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Not Found - Payment method does not exist"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "Update a payment method",
+        "tags": [
+          "Payment Methods"
+        ]
+      },
+      "delete": {
+        "description": "Revokes (detaches) a saved payment method so it can no longer be used for delegated payments. Requires a Nevermined API key.",
+        "operationId": "PaymentMethodsController_revokePaymentMethod",
+        "parameters": [
+          {
+            "name": "paymentMethodId",
+            "required": true,
+            "in": "path",
+            "description": "Identifier of the payment method to revoke",
+            "schema": {
+              "example": "pm_1Abc2Def3Ghi4Jkl",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment method revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing API key"
+          },
+          "404": {
+            "description": "Not Found - Payment method does not exist"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "Revoke a payment method",
+        "tags": [
+          "Payment Methods"
+        ]
+      }
     }
   },
   "components": {
@@ -1364,7 +1864,11 @@
       },
       "RegisterAgentRequest": {
         "type": "object",
-        "required": ["name", "endpoints", "agentDefinitionUrl"],
+        "required": [
+          "name",
+          "endpoints",
+          "agentDefinitionUrl"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -1445,7 +1949,13 @@
       },
       "RegisterAgentAndPlanRequest": {
         "type": "object",
-        "required": ["agentMetadata", "agentApi", "planMetadata", "priceConfig", "creditsConfig"],
+        "required": [
+          "agentMetadata",
+          "agentApi",
+          "planMetadata",
+          "priceConfig",
+          "creditsConfig"
+        ],
         "properties": {
           "agentMetadata": {
             "type": "object",
@@ -1497,7 +2007,10 @@
           },
           "accessLimit": {
             "type": "string",
-            "enum": ["credits", "time"]
+            "enum": [
+              "credits",
+              "time"
+            ]
           }
         }
       },
@@ -1572,7 +2085,11 @@
       },
       "RegisterPlanRequest": {
         "type": "object",
-        "required": ["name", "priceConfig", "creditsConfig"],
+        "required": [
+          "name",
+          "priceConfig",
+          "creditsConfig"
+        ],
         "properties": {
           "name": {
             "type": "string"
@@ -1661,7 +2178,10 @@
         "properties": {
           "priceType": {
             "type": "string",
-            "enum": ["FIXED_PRICE", "FREE"]
+            "enum": [
+              "FIXED_PRICE",
+              "FREE"
+            ]
           },
           "tokenAddress": {
             "type": "string",
@@ -1688,7 +2208,10 @@
         "properties": {
           "creditsType": {
             "type": "string",
-            "enum": ["FIXED", "EXPIRABLE"]
+            "enum": [
+              "FIXED",
+              "EXPIRABLE"
+            ]
           },
           "amount": {
             "type": "integer",
@@ -1801,7 +2324,11 @@
       },
       "MintCreditsRequest": {
         "type": "object",
-        "required": ["planId", "holderAddress", "amount"],
+        "required": [
+          "planId",
+          "holderAddress",
+          "amount"
+        ],
         "properties": {
           "planId": {
             "type": "string"
@@ -1816,7 +2343,12 @@
       },
       "MintExpirableCreditsRequest": {
         "type": "object",
-        "required": ["planId", "holderAddress", "amount", "expirationBlock"],
+        "required": [
+          "planId",
+          "holderAddress",
+          "amount",
+          "expirationBlock"
+        ],
         "properties": {
           "planId": {
             "type": "string"
@@ -1845,7 +2377,12 @@
       },
       "RedeemCreditsRequest": {
         "type": "object",
-        "required": ["planId", "holderAddress", "amount", "proof"],
+        "required": [
+          "planId",
+          "holderAddress",
+          "amount",
+          "proof"
+        ],
         "properties": {
           "planId": {
             "type": "string"
@@ -1877,7 +2414,10 @@
       },
       "CreatePermissionRequest": {
         "type": "object",
-        "required": ["planId", "maxCredits"],
+        "required": [
+          "planId",
+          "maxCredits"
+        ],
         "properties": {
           "planId": {
             "type": "string"
@@ -2006,7 +2546,11 @@
       },
       "VerifyPermissionRequest": {
         "type": "object",
-        "required": ["accessToken", "agentId", "creditsRequested"],
+        "required": [
+          "accessToken",
+          "agentId",
+          "creditsRequested"
+        ],
         "properties": {
           "accessToken": {
             "type": "string"
@@ -2044,7 +2588,11 @@
       },
       "SettlePermissionRequest": {
         "type": "object",
-        "required": ["accessToken", "agentId", "creditsUsed"],
+        "required": [
+          "accessToken",
+          "agentId",
+          "creditsUsed"
+        ],
         "properties": {
           "accessToken": {
             "type": "string"
@@ -2079,6 +2627,544 @@
             "type": "string"
           }
         }
+      },
+      "DelegationDetailsDto": {
+        "type": "object",
+        "properties": {
+          "delegationId": {
+            "type": "string",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "provider": {
+            "type": "string",
+            "example": "stripe"
+          },
+          "providerPaymentMethodId": {
+            "type": "string",
+            "example": "pm_1Abc2Def3Ghi4Jkl"
+          },
+          "status": {
+            "type": "string",
+            "example": "Active",
+            "enum": [
+              "Active",
+              "Revoked",
+              "Expired",
+              "Exhausted"
+            ]
+          },
+          "spendingLimitCents": {
+            "type": "string",
+            "example": "10000"
+          },
+          "amountSpentCents": {
+            "type": "string",
+            "example": "2500"
+          },
+          "remainingBudgetCents": {
+            "type": "string",
+            "example": "7500"
+          },
+          "currency": {
+            "type": "string",
+            "example": "usd"
+          },
+          "transactionCount": {
+            "type": "number",
+            "example": 12
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-02-20T00:00:00Z"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-02-13T10:30:00Z"
+          },
+          "apiKeyId": {
+            "type": "object",
+            "example": "sk-abc123",
+            "nullable": true,
+            "description": "NVM API Key ID restricted to this delegation. Null = any key can use it."
+          },
+          "planId": {
+            "type": "object",
+            "example": "123456789",
+            "nullable": true
+          },
+          "merchantAccountId": {
+            "type": "object",
+            "example": "acct_1Abc2Def3Ghi",
+            "nullable": true
+          },
+          "maxTransactions": {
+            "type": "object",
+            "example": 50,
+            "nullable": true
+          },
+          "lastUsedAt": {
+            "type": "object",
+            "example": "2026-02-13T14:00:00Z",
+            "nullable": true
+          }
+        },
+        "required": [
+          "delegationId",
+          "provider",
+          "providerPaymentMethodId",
+          "status",
+          "spendingLimitCents",
+          "amountSpentCents",
+          "remainingBudgetCents",
+          "currency",
+          "transactionCount",
+          "expiresAt",
+          "createdAt",
+          "planId",
+          "merchantAccountId",
+          "maxTransactions",
+          "lastUsedAt"
+        ]
+      },
+      "DelegationTransactionListDto": {
+        "type": "object",
+        "properties": {
+          "totalResults": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegationTransactionDto"
+            }
+          }
+        },
+        "required": [
+          "totalResults",
+          "page",
+          "offset",
+          "transactions"
+        ]
+      },
+      "_NvmAPIResultDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true,
+            "description": "Indicates whether the API call was successful"
+          },
+          "message": {
+            "type": "string",
+            "example": "Successfully minted",
+            "description": "Message describing the result of the API call"
+          },
+          "txHash": {
+            "type": "string",
+            "example": "0x923812b3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef12345678",
+            "description": "Blockchain transaction hash associated with the API call"
+          },
+          "httpStatus": {
+            "type": "number",
+            "example": 200,
+            "description": "HTTP status code of the API response"
+          },
+          "data": {
+            "type": "object",
+            "description": "Additional parameters related to the API call",
+            "additionalProperties": true
+          },
+          "when": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Timestamp when the API call was made"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "txHash",
+          "httpStatus",
+          "data",
+          "when"
+        ]
+      },
+      "CreateDelegationResponseDto": {
+        "type": "object",
+        "properties": {
+          "delegationId": {
+            "type": "string",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "delegationToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR...",
+            "nullable": true,
+            "description": "Signed JWT for fiat-backed delegations (stripe/braintree). Omitted for crypto (erc4337) flows where the signed delegation is held client-side."
+          }
+        },
+        "required": [
+          "delegationId"
+        ]
+      },
+      "PaymentMethodSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "pm_1Abc2Def3Ghi4Jkl"
+          },
+          "type": {
+            "type": "string",
+            "example": "card"
+          },
+          "last4": {
+            "type": "string",
+            "example": "4242"
+          },
+          "brand": {
+            "type": "string",
+            "example": "visa"
+          },
+          "expMonth": {
+            "type": "object",
+            "example": 12,
+            "nullable": true
+          },
+          "expYear": {
+            "type": "object",
+            "example": 2027,
+            "nullable": true
+          },
+          "alias": {
+            "type": "object",
+            "example": "My Card",
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "example": "stripe",
+            "enum": [
+              "stripe",
+              "braintree",
+              "erc4337",
+              "visa",
+              "vgs"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "example": "Active",
+            "enum": [
+              "Active",
+              "Revoked"
+            ]
+          },
+          "allowedApiKeyIds": {
+            "type": "object",
+            "example": [
+              "sk-abc123",
+              "sk-def456"
+            ],
+            "nullable": true,
+            "description": "NVM API Key IDs allowed to use this card. Null = any key can use it."
+          },
+          "orgId": {
+            "type": "object",
+            "description": "Organization this card belongs to (null = personal).",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "last4",
+          "brand",
+          "expMonth",
+          "expYear",
+          "alias",
+          "provider",
+          "status"
+        ]
+      },
+      "DelegationTransactionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "tx-uuid"
+          },
+          "delegationId": {
+            "type": "string",
+            "example": "delegation-uuid"
+          },
+          "providerTransactionId": {
+            "type": "string",
+            "example": "pi_1Abc2Def3Ghi4Jkl"
+          },
+          "amountCents": {
+            "type": "string",
+            "example": "1000"
+          },
+          "currency": {
+            "type": "string",
+            "example": "usd"
+          },
+          "status": {
+            "type": "string",
+            "example": "succeeded"
+          },
+          "failureReason": {
+            "type": "object",
+            "example": null,
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-02-13T14:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "delegationId",
+          "providerTransactionId",
+          "amountCents",
+          "currency",
+          "status",
+          "failureReason",
+          "createdAt"
+        ]
+      },
+      "DelegationListDto": {
+        "type": "object",
+        "properties": {
+          "totalResults": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "delegations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegationSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "totalResults",
+          "page",
+          "offset",
+          "delegations"
+        ]
+      },
+      "CreateDelegationDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Payment provider type. `stripe` / `braintree` / `visa` / `erc4337` select that rail directly. `vgs` (epic #1958) is a unified VGS-Collect card: a PLAN-AGNOSTIC, portable delegation whose settlement PSP (`stripe` / `braintree`) is resolved AT CHARGE TIME from the plan being paid (`fiatPaymentProvider`), so ONE card can charge ANY PSP (#2082). `delegation.provider` is persisted as the portable `vgs` marker (the concrete charge never sees it — the handler derives the real PSP at settle). Requires a portable `providerPaymentMethodId` (the `CRD…` cardId, which must carry an active network token); `planId` is OPTIONAL — pass it only to BIND the delegation to a single plan.",
+            "example": "stripe",
+            "enum": [
+              "stripe",
+              "erc4337",
+              "braintree",
+              "visa",
+              "vgs"
+            ]
+          },
+          "providerPaymentMethodId": {
+            "type": "string",
+            "description": "Payment-method identifier from the provider. For stripe / braintree this is the saved card; for visa this is the VGS agentic-token id returned by enrollment; for vgs this is the `CRD…` canonical cardId from the unified VGS-Collect enroll. Required for these providers; ignored for erc4337.",
+            "example": "pm_1Abc2Def3Ghi4Jkl"
+          },
+          "consumerPrompt": {
+            "type": "string",
+            "description": "Visa-only: human-readable approval prompt shown to the user during VGS Agentic Auth device binding. Required when provider=visa.",
+            "example": "Allow up to USD 50.00 over 5 transactions"
+          },
+          "assuranceData": {
+            "type": "object",
+            "description": "Visa-only: opaque assurance payload from the VGS Agentic Auth browser SDK after FIDO/OTP device binding. Required when provider=visa."
+          },
+          "spendingLimitCents": {
+            "type": "number",
+            "description": "Maximum spending limit in cents (smallest currency unit)",
+            "example": 10000
+          },
+          "durationSecs": {
+            "type": "number",
+            "description": "Duration of the delegation in seconds",
+            "example": 604800
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency code (lowercase)",
+            "example": "usd",
+            "enum": [
+              "usd",
+              "eur",
+              "usdc",
+              "eurc"
+            ]
+          },
+          "planId": {
+            "type": "string",
+            "description": "Plan ID to restrict this delegation to. Optional and plan-agnostic by default (#1534), INCLUDING provider=vgs (#2082): a unified VGS card delegation is plan-agnostic and the settlement PSP is resolved at charge time from the plan being paid, so one card can charge any PSP — pass planId only to BIND it to a single plan. EXCEPT provider=visa (the VGS mandate is merchant-scoped, derived from the plan owner; see BCK.VISA.0015), where it is REQUIRED.",
+            "example": "123456789"
+          },
+          "merchantAccountId": {
+            "type": "string",
+            "description": "Optional merchant Stripe account ID to restrict payments to",
+            "example": "acct_1Abc2Def3Ghi"
+          },
+          "maxTransactions": {
+            "type": "number",
+            "description": "Maximum number of transactions allowed (null = unlimited)",
+            "example": 50
+          },
+          "apiKeyId": {
+            "type": "string",
+            "description": "Optional API Key ID (skId) to restrict this delegation to",
+            "example": "sk-abc123"
+          },
+          "allowedRecipients": {
+            "description": "erc4337 / Router only: restrict spend to these pay-to addresses — the Router rejects payments to any other recipient. Omit for no recipient restriction.",
+            "example": [
+              "0x209693Bc6afc0C5328bA36FaF03C514EF312287C"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "organizationWalletId": {
+            "type": "string",
+            "description": "erc4337 / Router only (#2230): fund this delegation from an ORGANIZATION wallet instead of the caller's own wallet. The caller must be an admin of the wallet's org. Spend is always capped by the SPENDING member's group budget (the wallet must be shared with the member's group).",
+            "example": "orw-abc123"
+          }
+        },
+        "required": [
+          "provider",
+          "spendingLimitCents",
+          "durationSecs",
+          "currency"
+        ]
+      },
+      "UpdatePaymentMethodDto": {
+        "type": "object",
+        "properties": {
+          "alias": {
+            "type": "string",
+            "description": "Optional friendly name for the card",
+            "example": "My Production Card"
+          },
+          "allowedApiKeyIds": {
+            "description": "Array of NVM API Key skId values allowed to use this card. Null or empty = any key can use it.",
+            "example": [
+              "sk-abc123",
+              "sk-def456"
+            ],
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "orgId": {
+            "type": "object",
+            "description": "Move the card to an org (a valid orgId) or to personal (null). Omit to leave unchanged.",
+            "nullable": true
+          }
+        }
+      },
+      "DelegationSummaryDto": {
+        "type": "object",
+        "properties": {
+          "delegationId": {
+            "type": "string",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "provider": {
+            "type": "string",
+            "example": "stripe"
+          },
+          "providerPaymentMethodId": {
+            "type": "string",
+            "example": "pm_1Abc2Def3Ghi4Jkl"
+          },
+          "status": {
+            "type": "string",
+            "example": "Active",
+            "enum": [
+              "Active",
+              "Revoked",
+              "Expired",
+              "Exhausted"
+            ]
+          },
+          "spendingLimitCents": {
+            "type": "string",
+            "example": "10000"
+          },
+          "amountSpentCents": {
+            "type": "string",
+            "example": "2500"
+          },
+          "remainingBudgetCents": {
+            "type": "string",
+            "example": "7500"
+          },
+          "currency": {
+            "type": "string",
+            "example": "usd"
+          },
+          "transactionCount": {
+            "type": "number",
+            "example": 12
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-02-20T00:00:00Z"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-02-13T10:30:00Z"
+          },
+          "apiKeyId": {
+            "type": "object",
+            "example": "sk-abc123",
+            "nullable": true,
+            "description": "NVM API Key ID restricted to this delegation. Null = any key can use it."
+          }
+        },
+        "required": [
+          "delegationId",
+          "provider",
+          "providerPaymentMethodId",
+          "status",
+          "spendingLimitCents",
+          "amountSpentCents",
+          "remainingBudgetCents",
+          "currency",
+          "transactionCount",
+          "expiresAt",
+          "createdAt"
+        ]
       }
     },
     "securitySchemes": {
