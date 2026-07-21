@@ -47,6 +47,29 @@
   if (window.__nvmDocsAnalytics) return;
   window.__nvmDocsAnalytics = true;
 
+  /* ------------- 0a. Google Consent Mode defaults + GA4 ------------- */
+  /* GA moved here from docs.json integrations.ga4 (2026-07-21): Mintlify
+     injected gtag with nothing declaring consent defaults before it, so
+     EU docs visitors got GA cookies pre-consent. Defaults MUST precede
+     both CookieYes and gtag. Region list mirrors CONSENT_COUNTRY_CODES
+     in the website repo (lib/attribution.ts) - keep in sync. */
+
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag("consent", "default", { ad_storage: "granted", ad_user_data: "granted", ad_personalization: "granted", analytics_storage: "granted", functionality_storage: "granted", personalization_storage: "granted", security_storage: "granted" });
+  gtag("consent", "default", { ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied", analytics_storage: "denied", functionality_storage: "denied", personalization_storage: "denied", security_storage: "granted", wait_for_update: 500, region: ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","GB"] });
+  gtag("set", "ads_data_redaction", true);
+
+  if (!document.getElementById("ga-gtag")) {
+    var ga = document.createElement("script");
+    ga.id = "ga-gtag";
+    ga.async = true;
+    ga.src = "https://www.googletagmanager.com/gtag/js?id=G-47H9F2MT29";
+    document.head.appendChild(ga);
+  }
+  gtag("js", new Date());
+  gtag("config", "G-47H9F2MT29");
+
   /* ---------------- 0. CookieYes CMP (added 2026-07-20) ---------------- */
   /* Docs previously had NO consent banner - EU docs-only visitors could
      never consent, so under the consent architecture nothing would ever
