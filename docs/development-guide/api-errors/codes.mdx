@@ -7,41 +7,52 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 <Note>Locked response fields are `code`, `message`, and the HTTP status. Optional fields (`hint`, `docsUrl`, `category`, `retryable`, `correlationId`) appear only when supplied. Consumers that branch only on `code` and `message` ignore the rest transparently.</Note>
 
+<Note>Beyond the catalogued codes below, any endpoint may also return a framework-level `BCK.HTTP.<status>` code (e.g. `BCK.HTTP.400` from request validation, `BCK.HTTP.429` from throttling, `BCK.HTTP.404`) for an HTTP error that carries no domain-specific code. Branch defensively — treat an unknown `BCK.HTTP.*` as its HTTP status class.</Note>
+
 ## Namespaces
 
 - [`BCK.ACCOUNT_PROVISIONING`](#bck-account_provisioning) — 2 codes
 - [`BCK.AGENT`](#bck-agent) — 12 codes
-- [`BCK.APIKEY`](#bck-apikey) — 13 codes
-- [`BCK.AUTH`](#bck-auth) — 13 codes
-- [`BCK.BILLING`](#bck-billing) — 21 codes
+- [`BCK.APIKEY`](#bck-apikey) — 17 codes
+- [`BCK.AUTH`](#bck-auth) — 15 codes
+- [`BCK.BILLING`](#bck-billing) — 18 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 10 codes
+- [`BCK.BUDGETS`](#bck-budgets) — 6 codes
+- [`BCK.CATALOG`](#bck-catalog) — 3 codes
 - [`BCK.COMMON`](#bck-common) — 34 codes
 - [`BCK.CREDITS`](#bck-credits) — 6 codes
-- [`BCK.DELEGATION`](#bck-delegation) — 3 codes
+- [`BCK.DELEGATION`](#bck-delegation) — 7 codes
 - [`BCK.ENTITLEMENTS`](#bck-entitlements) — 2 codes
+- [`BCK.GROUPS`](#bck-groups) — 12 codes
 - [`BCK.GUEST`](#bck-guest) — 2 codes
 - [`BCK.INVITATIONS`](#bck-invitations) — 5 codes
 - [`BCK.LEGAL_DOCS`](#bck-legal_docs) — 6 codes
 - [`BCK.METRIC`](#bck-metric) — 5 codes
+- [`BCK.METRICS`](#bck-metrics) — 1 code
 - [`BCK.NOTIF`](#bck-notif) — 9 codes
 - [`BCK.OAUTH`](#bck-oauth) — 7 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
 - [`BCK.ORGANIZATIONS`](#bck-organizations) — 32 codes
 - [`BCK.ORG_INTEGRATION`](#bck-org_integration) — 2 codes
+- [`BCK.ORG_WALLETS`](#bck-org_wallets) — 10 codes
+- [`BCK.PAYMENT_CREDENTIAL`](#bck-payment_credential) — 4 codes
 - [`BCK.PAYPAL`](#bck-paypal) — 1 code
 - [`BCK.PLANS`](#bck-plans) — 1 code
 - [`BCK.POINT`](#bck-point) — 19 codes
-- [`BCK.PROTOCOL`](#bck-protocol) — 50 codes
+- [`BCK.PROTOCOL`](#bck-protocol) — 53 codes
+- [`BCK.ROUTER`](#bck-router) — 9 codes
 - [`BCK.STRIPE`](#bck-stripe) — 34 codes
 - [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 5 codes
 - [`BCK.TRANSCODING`](#bck-transcoding) — 4 codes
-- [`BCK.TXS`](#bck-txs) — 10 codes
+- [`BCK.TXS`](#bck-txs) — 13 codes
 - [`BCK.USER_PROFILE`](#bck-user_profile) — 4 codes
-- [`BCK.VISA`](#bck-visa) — 19 codes
+- [`BCK.VERSION`](#bck-version) — 2 codes
+- [`BCK.VGS`](#bck-vgs) — 5 codes
+- [`BCK.VISA`](#bck-visa) — 21 codes
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
 - [`BCK.WIDGET_SESSION`](#bck-widget_session) — 13 codes
-- [`BCK.X402`](#bck-x402) — 41 codes
+- [`BCK.X402`](#bck-x402) — 50 codes
 
 ## <span id="bck-account_provisioning"></span>`BCK.ACCOUNT_PROVISIONING`
 
@@ -73,24 +84,28 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 |---|---|---|---|---|---|
 | <a id="bck-apikey-0001"></a>`BCK.APIKEY.0001` | 403 | auth | — | API Key not registered, you need to register it first | Register the API key via POST /api-keys before using it. The key signature is valid but no record exists in our DB. |
 | <a id="bck-apikey-0002"></a>`BCK.APIKEY.0002` | 404 | auth | — | API Key with given hash not found | Verify the API key value. The hashed lookup returned no row; the key may have been revoked or never registered. |
-| <a id="bck-apikey-0003"></a>`BCK.APIKEY.0003` | 401 | auth | — | Unable to revoke API Key | Inspect the underlying error in logs. The revocation write failed — usually a DB-layer issue. |
+| <a id="bck-apikey-0003"></a>`BCK.APIKEY.0003` | 404 | business | ❌ | Unable to revoke API Key | No active key matched this hash for your account — it may not exist, not belong to you, or already be revoked. |
 | <a id="bck-apikey-0004"></a>`BCK.APIKEY.0004` | 401 | auth | — | Invalid Nevermined API Key | Verify the API key value is well-formed (header.payload.signature) and not truncated. Reissue if it was rotated. |
 | <a id="bck-apikey-0006"></a>`BCK.APIKEY.0006` | 401 | auth | — | Invalid Nevermined Key Metadata | Verify the API-key payload includes the expected metadata fields (sub, iss, aud, exp). Reissue if it predates the metadata schema change. |
 | <a id="bck-apikey-0007"></a>`BCK.APIKEY.0007` | 401 | auth | — | API Key issuer does not match user address | Reissue the API key from the authenticated user’s wallet. The token’s iss claim must equal the authenticated address byte-for-byte. |
 | <a id="bck-apikey-0008"></a>`BCK.APIKEY.0008` | 403 | auth | — | API Key with hash already exists | Revoke and reissue the API key. The collision means the same hash was already stored (extremely rare; usually a duplicate-create call). |
-| <a id="bck-apikey-0009"></a>`BCK.APIKEY.0009` | 500 | auth | — | Error search API Key trannsactions | Inspect the underlying error in logs. The API-key transactions query failed — usually a DB-layer error or pagination issue. |
-| <a id="bck-apikey-0010"></a>`BCK.APIKEY.0010` | 401 | auth | — | Expiration date must be in the future | Provide an exp claim in the future when creating the key, or omit it for a never-expiring key. |
+| <a id="bck-apikey-0009"></a>`BCK.APIKEY.0009` | 500 | auth | — | Error searching API Key transactions | Inspect the underlying error in logs. The API-key transactions query failed — usually a DB-layer error or pagination issue. |
+| <a id="bck-apikey-0010"></a>`BCK.APIKEY.0010` | 400 | validation | ❌ | Expiration date must be in the future | Provide an exp claim in the future when creating the key, or omit it for a never-expiring key. |
 | <a id="bck-apikey-0011"></a>`BCK.APIKEY.0011` | 500 | auth | — | Error searching user API Keys | Inspect the underlying error in logs. The per-user API-keys lookup failed — usually a DB-layer error. |
-| <a id="bck-apikey-0012"></a>`BCK.APIKEY.0012` | 401 | auth | — | Unable to generate assertion | Inspect the underlying error in logs. Assertion generation failed — verify the signer wallet is unlocked and the requested audience is registered. |
+| <a id="bck-apikey-0012"></a>`BCK.APIKEY.0012` | 500 | internal | — | Unexpected failure registering the API key | Inspect the underlying error in the logs by correlation id — an unexpected server-side failure during key registration, not a caller credential or signer/audience issue. |
 | <a id="bck-apikey-0013"></a>`BCK.APIKEY.0013` | 401 | auth | — | Malformed API Key payload | Verify the JWT was not truncated or tampered with in transit. Reissue the API key from the source credential store and retry. |
 | <a id="bck-apikey-0014"></a>`BCK.APIKEY.0014` | 500 | internal | ❌ | API Key claim is missing the issuer (iss) address | The validated JWT payload reached the service layer without an iss claim. Inspect the upstream guard that produced this payload — iss is mandatory for API-key issuance. |
+| <a id="bck-apikey-0015"></a>`BCK.APIKEY.0015` | 500 | auth | — | Error aggregating API Key usage | Inspect the underlying error in logs. The per-key usage aggregation query failed — usually a DB-layer error. |
+| <a id="bck-apikey-0016"></a>`BCK.APIKEY.0016` | 400 | validation | ❌ | No updatable API key fields provided | Send at least one of `name` or `apiVersion` in the PATCH body. |
+| <a id="bck-apikey-0017"></a>`BCK.APIKEY.0017` | 409 | auth | ✅ | API key has no session key for the requested network | This API key was issued without a session key for this network (#1929). Re-issue the key including this network and retry — the webapp rotates the key automatically. |
+| <a id="bck-apikey-0018"></a>`BCK.APIKEY.0018` | 400 | validation | — | Authenticated but no wallet linked to the account | Link a wallet to your account before registering an API key. Email/social sign-ins must add a wallet first. |
 
 ## <span id="bck-auth"></span>`BCK.AUTH`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-auth-0001"></a>`BCK.AUTH.0001` | 500 | auth | — | Error registering API Key | Inspect the underlying error in logs. API-key registration failed — usually a DB-layer error or assertion-validation reject. |
-| <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid | Send an `Authorization: Bearer <token>` header or a valid Nevermined API key. Anonymous access is not permitted on this endpoint. |
+| <a id="bck-auth-0001"></a>`BCK.AUTH.0001` | 500 | internal | — | Error registering API Key | Inspect the underlying error in the logs by correlation id. API-key registration failed with an unexpected server-side error (usually a DB-layer fault). |
+| <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid | Send an Authorization: Bearer <token> header or a valid Nevermined API key. Anonymous access is not permitted on this endpoint. |
 | <a id="bck-auth-0003"></a>`BCK.AUTH.0003` | 403 | auth | — | Forbidden: caller is not the owner of this resource and lacks an admin role | Authenticate as the resource owner or an admin who has access to it. Cross-account access is rejected unless you carry an admin role. |
 | <a id="bck-auth-0004"></a>`BCK.AUTH.0004` | 403 | auth | ❌ | Organisation admin privileges required | The caller is not an active admin of the target organisation. Prefer the more specific siblings (BCK.AUTH.0005-0009) at new throw sites; this code remains as a catch-all. |
 | <a id="bck-auth-0005"></a>`BCK.AUTH.0005` | 403 | auth | ✅ | Unable to verify organisation membership | The membership lookup itself failed (e.g. transient DB error). Check the cause field on the server log; retry once. |
@@ -102,6 +117,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-auth-0011"></a>`BCK.AUTH.0011` | 500 | internal | ❌ | Authenticated request did not yield a resolvable account address | The authenticated request reached the handler without req.address or req.smartAccountAddress populated. Two causes are common: the guard chain is misconfigured for this route, or the user has no wallet linked to their account. |
 | <a id="bck-auth-0012"></a>`BCK.AUTH.0012` | 401 | auth | ❌ | Malformed Authorization header | The Authorization header was present but not a well-formed `Bearer <token>`. Send `Authorization: Bearer <token>` (the second space-separated segment is the token). Triage tip: this code separates "garbage token" from "no token" — the latter throws BCK.AUTH.0002. |
 | <a id="bck-auth-0013"></a>`BCK.AUTH.0013` | 403 | internal | ❌ | Role guard active without @Roles metadata | A route was decorated with `@UseGuards(RolesGuard)` but no `@Roles(...)` declaration. The guard fails closed: no role list means no caller can satisfy the requirement. Add `@Roles(...)` to the handler or remove the `RolesGuard` wiring. |
+| <a id="bck-auth-0014"></a>`BCK.AUTH.0014` | 503 | integration | ✅ | Identity provider temporarily unavailable — could not verify the session | The Privy identity-token verification (`users().get({ id_token })`) could not reach Privy (rate-limited after the SDK retries, a 5xx, or a network/timeout). This is transient and does NOT mean the session is invalid — retry after a short backoff. If it persists, check the Privy status page and the service's identity-provider configuration. |
+| <a id="bck-auth-0015"></a>`BCK.AUTH.0015` | 401 | auth | — | Authentication required | Attach a valid `Authorization: Bearer <token>` (a Nevermined API key or a Privy identity token) and retry. |
 
 ## <span id="bck-billing"></span>`BCK.BILLING`
 
@@ -112,8 +129,6 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-billing-0003"></a>`BCK.BILLING.0003` | 503 | integration | ❌ | Stripe is not configured in this environment | `STRIPE_API_KEY` is unset, so we cannot create Stripe products. Configure Stripe credentials before running tier-products bootstrap. |
 | <a id="bck-billing-0004"></a>`BCK.BILLING.0004` | 503 | integration | ✅ | Tier catalog row missing for the requested (tier, currency, interval) combination | Run the hybrid-tier-plans bootstrap (`ENABLE_ORG_TIER_BOOTSTRAP`=true on next startup, or POST /api/v1/organizations/billing/tier-bootstrap with the ops token) to materialise the catalog rows. Returns 503 because the deployment has not been fully provisioned yet — clients may retry once the operator finishes the bootstrap. |
 | <a id="bck-billing-0010"></a>`BCK.BILLING.0010` | 400 | validation | ❌ | Invalid combination of currency and interval for org-tier checkout | USD and EUR plans must use interval=month or year (Stripe). USDC and EURC plans must use interval=one_shot (on-chain payment). Other combinations are rejected. |
-| <a id="bck-billing-0011"></a>`BCK.BILLING.0011` | 202 | integration | ✅ | Transaction receipt not yet available — please retry | The /confirm-crypto endpoint polled for `CRYPTO_CONFIRM_POLL_TIMEOUT_SECS` without seeing the receipt on chain. The caller should retry with the same txHash; on-chain finality is propagating. |
-| <a id="bck-billing-0012"></a>`BCK.BILLING.0012` | 400 | validation | ❌ | Transaction does not match the expected crypto payment for this catalog row | Verify the transaction transferred the exact token (USDC for USDC plans, EURC for EURC plans) with the exact amount specified by the catalog row, to the Nevermined node-account address. |
 | <a id="bck-billing-0013"></a>`BCK.BILLING.0013` | 400 | business | ❌ | No active subscription found to cancel for this organization | The /billing/cancel endpoint requires an existing Stripe-backed subscription on the org. Org-tier upgrades through /billing/checkout populate this row; legacy crypto-paid orgs do not and cannot be canceled this way. |
 | <a id="bck-billing-0014"></a>`BCK.BILLING.0014` | 400 | business | ❌ | Subscription is already canceled — cannot downgrade | Stripe rejects updates on canceled subscriptions. Start a fresh Premium subscription via /checkout/organization-upgrade instead of attempting to downgrade the cancelled one. |
 | <a id="bck-billing-0015"></a>`BCK.BILLING.0015` | 400 | validation | ❌ | Invalid downgrade target tier | The /billing/downgrade endpoint only accepts Premium as the target. Use /billing/cancel to end the subscription (Lapsed/Personal are not valid downgrade targets). |
@@ -122,7 +137,6 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-billing-0018"></a>`BCK.BILLING.0018` | 503 | integration | ✅ | Catalog row has no Stripe priceId — Stripe products bootstrap incomplete | Run the Stripe products bootstrap (POST /api/v1/organizations/billing/bootstrap with the ops token, or `ENABLE_ORG_TIER_BOOTSTRAP`=true at startup) so the catalog row is paired with a Stripe price. Returns 503 because the deployment is partially provisioned; clients may retry once Stripe wiring lands. |
 | <a id="bck-billing-0019"></a>`BCK.BILLING.0019` | 502 | integration | ❌ | Stripe subscription has no line items | The Stripe subscription on file has zero items, which prevents a price swap during downgrade. Inspect the subscription in the Stripe dashboard — this should never happen for org-tier subs we minted ourselves. |
 | <a id="bck-billing-0020"></a>`BCK.BILLING.0020` | 502 | integration | ✅ | Stripe Checkout session created without a hosted URL | Stripe accepted the Checkout session create but returned no `url`. Treat as a transient Stripe API anomaly — retry the checkout endpoint. If it persists, inspect the Stripe Dashboard's events for the session id we return in params. |
-| <a id="bck-billing-0021"></a>`BCK.BILLING.0021` | 503 | integration | ✅ | Token address not configured for currency / chain — operator action required | The crypto-one-shot checkout cannot proceed because no ERC-20 token address is registered for the catalog row's (currency, chainId) pair. Add the mapping to getTokenAddressForChain and redeploy; until then the endpoint will keep returning 503. |
 | <a id="bck-billing-0022"></a>`BCK.BILLING.0022` | 409 | business | ❌ | Organization already has an active subscription | A live Stripe subscription (active, trialing, or past_due) already exists for this org, so /billing/checkout would create a SECOND one and bill the org twice. Use /billing/upgrade or /billing/downgrade to change tier on the existing subscription. Re-subscribing via /checkout is only allowed once the current subscription is canceled. |
 | <a id="bck-billing-0023"></a>`BCK.BILLING.0023` | 400 | validation | ❌ | Invalid upgrade target tier | The /billing/upgrade endpoint only accepts Enterprise as the target — it swaps a Premium subscription up to Enterprise in place. To start a brand-new subscription use /checkout; to step down from Enterprise use /billing/downgrade. |
 | <a id="bck-billing-0024"></a>`BCK.BILLING.0024` | 400 | business | ❌ | No active subscription found to upgrade for this organization | The in-place /billing/upgrade requires an existing Stripe-backed Premium subscription on the org. An initial subscribe goes through /checkout; legacy crypto-paid orgs and orgs without a tier subscription cannot be upgraded this way. |
@@ -143,6 +157,25 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-braintree-0008"></a>`BCK.BRAINTREE.0008` | 400 | integration | — | Cannot create a Braintree plan in this currency: your Braintree account has no merchant account in that currency. Add one in your Braintree dashboard, then disconnect and reconnect to refresh. | Add a merchant account in the requested currency in the Braintree dashboard, then disconnect and reconnect to refresh. |
 | <a id="bck-braintree-0009"></a>`BCK.BRAINTREE.0009` | 400 | integration | — | Plan metadata is missing currency. Plans must specify a currency to be settled via Braintree. | Re-publish the plan with metadata.currency populated. Braintree cannot route the settlement without a target currency. |
 | <a id="bck-braintree-0010"></a>`BCK.BRAINTREE.0010` | 503 | integration | ✅ | Braintree/PayPal payment provider is not available in this environment | Set `BRAINTREE_MERCHANT_ID`, `BRAINTREE_PUBLIC_KEY`, and `BRAINTREE_PRIVATE_KEY` in the deployment env. Returns 503 because the route is reachable only after the operator wires Braintree up. |
+
+## <span id="bck-budgets"></span>`BCK.BUDGETS`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-budgets-0001"></a>`BCK.BUDGETS.0001` | 403 | business | ❌ | Group budgets are not available on this organization tier | Group budgets require a Premium or Enterprise organization. Upgrade the organization tier to set spend budgets on groups. |
+| <a id="bck-budgets-0002"></a>`BCK.BUDGETS.0002` | 404 | business | ❌ | Group budget not found | No budget with that id for this group. Create one with POST /organizations/:orgId/groups/:groupId/budgets. |
+| <a id="bck-budgets-0003"></a>`BCK.BUDGETS.0003` | 422 | business | ❌ | Group budget exceeded: this charge would exceed the group spend budget for the current period | The group has reached its spend budget for this period. Wait for the budget to reset, or an org admin can raise the limit. |
+| <a id="bck-budgets-0004"></a>`BCK.BUDGETS.0004` | 422 | validation | ❌ | Invalid group budget: the spending limit must be a positive number of cents | Provide spendingLimitCents as a whole number of minor units greater than 0 (e.g. "150000" for $1,500). |
+| <a id="bck-budgets-0005"></a>`BCK.BUDGETS.0005` | 409 | business | ❌ | A budget already exists for this currency in this group | Each group holds one budget per currency. Edit the existing budget for this currency, or create the budget in a different currency. |
+| <a id="bck-budgets-0006"></a>`BCK.BUDGETS.0006` | 422 | business | ❌ | No group budget is configured for this currency | An organization-wallet spend must be capped by a group budget. Add a budget in this currency to the group that shares the wallet. |
+
+## <span id="bck-catalog"></span>`BCK.CATALOG`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-catalog-0001"></a>`BCK.CATALOG.0001` | 404 | business | ❌ | Agent service not found | No listed catalog service matches that slug. Slugs are case-sensitive; unlisted services are not exposed. |
+| <a id="bck-catalog-0002"></a>`BCK.CATALOG.0002` | 500 | internal | ✅ | Failed to read the agent services catalog | Transient server-side error reading the catalog (list, detail, or categories); safe to retry. Query inputs are validated upstream, so this is not a bad-request issue. |
+| <a id="bck-catalog-0003"></a>`BCK.CATALOG.0003` | 400 | validation | ❌ | Invalid catalog filter | The `protocol` filter must be one of: x402, mpp, rest, a2a, other. |
 
 ## <span id="bck-common"></span>`BCK.COMMON`
 
@@ -171,7 +204,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-common-0021"></a>`BCK.COMMON.0021` | 404 | internal | — | Unable to resolve widget metadata from DID | Verify the DID is a widget DID and exists. Widget metadata resolution returns 404 when the DID is not registered or its metadata was pruned. |
 | <a id="bck-common-0022"></a>`BCK.COMMON.0022` | 403 | internal | — | Method not supported | The endpoint or sub-feature is disabled in this deployment. Check feature-flag configuration before retrying. |
 | <a id="bck-common-0023"></a>`BCK.COMMON.0023` | 403 | internal | — | Error parsing input | Inspect the request body against the documented schema for this endpoint. The parser rejected a required field or malformed JSON. |
-| <a id="bck-common-0024"></a>`BCK.COMMON.0024` | 401 | internal | — | Could not validate the login claim | Re-issue a fresh login claim. The signed claim either has an invalid signature, an expired timestamp, or was issued for a different audience. |
+| <a id="bck-common-0024"></a>`BCK.COMMON.0024` | 401 | auth | — | Could not validate the login claim | Re-issue a fresh login claim. The signed claim either has an invalid signature, an expired timestamp, or was issued for a different audience. |
 | <a id="bck-common-0025"></a>`BCK.COMMON.0025` | 400 | internal | — | Invalid UUID format in request | Provide a valid UUID v4 string in the highlighted field. Most ID parameters require canonical UUID format. |
 | <a id="bck-common-0026"></a>`BCK.COMMON.0026` | 400 | validation | — | Invalid uint256 identifier (must be a decimal string in [0, 2^256 - 1]) | Provide a decimal-string uint256 in the highlighted field (no 0x prefix, no scientific notation). Plan IDs and agent IDs use this format end-to-end. |
 | <a id="bck-common-0027"></a>`BCK.COMMON.0027` | 409 | business | ❌ | Resource already exists (database unique constraint violated) | A record with the same unique key already exists. Either update the existing record or use a different identifier. |
@@ -200,7 +233,11 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 |---|---|---|---|---|---|
 | <a id="bck-delegation-0001"></a>`BCK.DELEGATION.0001` | 404 | business | ❌ | Payment method not found | Verify the paymentMethodId. The payment method may have been removed or never existed. |
 | <a id="bck-delegation-0002"></a>`BCK.DELEGATION.0002` | 404 | business | ❌ | Delegation not found | Verify the delegationId. The delegation may have been revoked, expired, or never existed. |
-| <a id="bck-delegation-0003"></a>`BCK.DELEGATION.0003` | 400 | validation | ❌ | Unknown payment method provider | The ?provider= query param must be one of the supported providers (stripe, braintree, erc4337, visa). Omit it to list methods from every provider. |
+| <a id="bck-delegation-0003"></a>`BCK.DELEGATION.0003` | 400 | validation | ❌ | Unknown payment method provider | The ?provider= query param must be one of the supported providers (stripe, braintree, erc4337, visa, vgs). Omit it to list methods from every provider. |
+| <a id="bck-delegation-0004"></a>`BCK.DELEGATION.0004` | 400 | validation | ❌ | Required delegation input is missing | Provide both `provider` (stripe \| braintree \| erc4337 \| visa) and `currency` (usd \| eur \| usdc \| eurc) when creating a delegation. Both are required — the backend no longer defaults them. The `details` field names the specific missing input. |
+| <a id="bck-delegation-0005"></a>`BCK.DELEGATION.0005` | 422 | business | ❌ | Card is not network-token chargeable | A `provider: "vgs"` delegation needs a portable credential (a CRD canonical card with an ACTIVE network token). The referenced card has none — it was enrolled with the canonical-credential flag off, its network-token provision failed at enrol, or the token was revoked. Re-enrol the card via the unified VGS-Collect enroll endpoint to (re)provision a network token, then retry. |
+| <a id="bck-delegation-0006"></a>`BCK.DELEGATION.0006` | 422 | business | ❌ | Plan payment provider is not network-token capable | A `provider: "vgs"` delegation is plan-agnostic and settles through the plan’s `fiatPaymentProvider`, resolved at CHARGE time (#2082) — but that plan’s provider is not in the network-token-capable acquirer set (currently stripe, braintree). The plan metadata likely carries an unexpected/unsupported `fiatPaymentProvider`. Fix the plan’s payment provider, then retry. |
+| <a id="bck-delegation-0007"></a>`BCK.DELEGATION.0007` | 400 | business | ❌ | Requested provider does not match the stored payment method | The create-delegation request declared a `provider` that does not match the provider the referenced payment method was enrolled under (e.g. requesting `stripe` for a card enrolled via the unified VGS-Collect rail, whose provider is `vgs`). Send the `provider` that matches the payment method — the value the delegation payment-methods list returns for it. |
 
 ## <span id="bck-entitlements"></span>`BCK.ENTITLEMENTS`
 
@@ -208,6 +245,23 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 |---|---|---|---|---|---|
 | <a id="bck-entitlements-0001"></a>`BCK.ENTITLEMENTS.0001` | 403 | business | ❌ | Resource cap reached for your current workspace. Upgrade to unlock higher limits. | The active workspace (personal or Premium org) has hit its agent/plan cap. Response `params.cap` and `params.current` carry the limit and current count; switch workspaces, deactivate unused resources, or upgrade the org tier to lift the cap. |
 | <a id="bck-entitlements-0002"></a>`BCK.ENTITLEMENTS.0002` | 403 | business | ❌ | Organization is not active. Reactivate the subscription before creating new resources. | The target workspace has a lapsed subscription (paid period ended without renewal, or admin override). Existing resources remain visible but new agents/plans cannot be registered until the org is reactivated via the Billing page. |
+
+## <span id="bck-groups"></span>`BCK.GROUPS`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-groups-0001"></a>`BCK.GROUPS.0001` | 403 | business | ❌ | Organization groups are not available for this organization tier | Groups require a Premium or Enterprise organization. Upgrade the organization tier to create and manage groups. |
+| <a id="bck-groups-0002"></a>`BCK.GROUPS.0002` | 404 | business | ❌ | Group not found | The groupId does not exist in this organization, or has been deactivated. List groups to get valid ids. |
+| <a id="bck-groups-0003"></a>`BCK.GROUPS.0003` | 422 | business | ❌ | Groups cap reached: cannot create more groups for this organization | The active-group cap for this tier has been reached. Deactivate an unused group or upgrade the tier to create more. |
+| <a id="bck-groups-0004"></a>`BCK.GROUPS.0004` | 409 | business | ❌ | Member already belongs to an active group | A member can belong to at most one active group. Remove the member from their current group before adding them to another. |
+| <a id="bck-groups-0005"></a>`BCK.GROUPS.0005` | 404 | business | ❌ | Organization member not found | The memberId is not an active member of this organization. List members to get valid ids. |
+| <a id="bck-groups-0006"></a>`BCK.GROUPS.0006` | 404 | business | ❌ | Member is not in this group | The member is not an active member of the specified group; nothing to remove. |
+| <a id="bck-groups-0007"></a>`BCK.GROUPS.0007` | 404 | business | ❌ | Payment method not found | The payment method id does not match an enrolled card you own. Enroll a card first, then share it with the group. |
+| <a id="bck-groups-0008"></a>`BCK.GROUPS.0008` | 422 | validation | ❌ | Only card payment methods can be shared with a group | Crypto (wallet) instruments cannot be shared as a group payment method in this phase; use an enrolled card. |
+| <a id="bck-groups-0009"></a>`BCK.GROUPS.0009` | 409 | business | ❌ | Payment method is already shared with a group | A payment method belongs to at most one group. Remove it from its current group before sharing it elsewhere. |
+| <a id="bck-groups-0010"></a>`BCK.GROUPS.0010` | 404 | business | ❌ | Group payment method not found | This payment method is not shared with the specified group; nothing to remove. |
+| <a id="bck-groups-0011"></a>`BCK.GROUPS.0011` | 422 | validation | ❌ | Payment method is bound to a specific API key and cannot be shared with a group | This card is locked to one of your API keys, so group members could not charge it. Unbind the API key from the card before sharing it with the group. |
+| <a id="bck-groups-0012"></a>`BCK.GROUPS.0012` | 409 | business | ❌ | Card is not associated with this organization | Associate the card with this organization first (a personal card cannot be shared with an organization group). Only a card whose orgId matches this organization can fund its group budgets. |
 
 ## <span id="bck-guest"></span>`BCK.GUEST`
 
@@ -234,7 +288,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-legal_docs-0002"></a>`BCK.LEGAL_DOCS.0002` | 404 | business | — | Unknown legal document version | Verify the document version. Unknown versions are rejected; ask the admin to publish the version first. |
 | <a id="bck-legal_docs-0003"></a>`BCK.LEGAL_DOCS.0003` | 422 | business | — | Submitted legal document version is not the current effective version | Submit consent against the current effective version. The version in the request is older or newer than what the system is currently asking for. |
 | <a id="bck-legal_docs-0004"></a>`BCK.LEGAL_DOCS.0004` | 412 | business | — | Legal consent is required for the current document versions | Have the user accept the current legal documents before retrying. The endpoint is gated on up-to-date consent. |
-| <a id="bck-legal_docs-0005"></a>`BCK.LEGAL_DOCS.0005` | 401 | business | — | Authenticated request without a resolvable user identity | Authenticate the caller (Privy/wallet) before retrying. The request reached the endpoint without a resolvable user identity. |
+| <a id="bck-legal_docs-0005"></a>`BCK.LEGAL_DOCS.0005` | 500 | internal | ❌ | Authenticated request without a resolvable user identity | This is a server-side identity-resolution failure; retrying will not help. If it persists, contact support with the correlation id. |
 | <a id="bck-legal_docs-0006"></a>`BCK.LEGAL_DOCS.0006` | 400 | business | — | No wallet linked to the authenticated Privy account | Link a wallet to the Privy account before retrying. Legal consent must be bound to an on-chain identity. |
 
 ## <span id="bck-metric"></span>`BCK.METRIC`
@@ -246,6 +300,12 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-metric-0003"></a>`BCK.METRIC.0003` | 404 | integration | — | Error getting info from metrics service for | Inspect the underlying error in logs. Upstream metrics service did not respond — verify the metrics service URL and that it is reachable from the API. |
 | <a id="bck-metric-0004"></a>`BCK.METRIC.0004` | 500 | integration | — | Error getting balance for account | Inspect the underlying error in logs. Account-balance metric query failed — usually a DB or chain-RPC issue. |
 | <a id="bck-metric-0005"></a>`BCK.METRIC.0005` | 500 | integration | — | Error getting total hits for account | Inspect the underlying error in logs. Hits-counter aggregation query failed — usually a DB-layer error. |
+
+## <span id="bck-metrics"></span>`BCK.METRICS`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-metrics-0001"></a>`BCK.METRICS.0001` | 401 | auth | ❌ | Unauthorized metrics scrape | The internal metrics endpoint is token-protected (METRICS_SCRAPE_TOKEN is set). Send "Authorization: Bearer <token>" matching the configured scrape token. |
 
 ## <span id="bck-notif"></span>`BCK.NOTIF`
 
@@ -259,7 +319,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-notif-0006"></a>`BCK.NOTIF.0006` | 404 | integration | — | Error searching for notifications filtered by receiver | Verify the receiver address. Empty result sets surface as 404 by design. |
 | <a id="bck-notif-0007"></a>`BCK.NOTIF.0007` | 500 | integration | — | Resend API Key or Email Sender not set | Configure `RESEND_API_KEY` and `EMAIL_SENDER` in the deployment env. Email notifications are disabled until both are present. |
 | <a id="bck-notif-0008"></a>`BCK.NOTIF.0008` | 500 | integration | — | Error sending email notification | Inspect Resend dashboard logs for the sender/recipient in params. Common causes: invalid recipient address, domain not verified, or quota exhaustion. |
-| <a id="bck-notif-0009"></a>`BCK.NOTIF.0009` | 401 | integration | — | The user doesnt own this notification | Authenticate as the notification owner before retrying. Notifications are scoped to a single recipient. |
+| <a id="bck-notif-0009"></a>`BCK.NOTIF.0009` | 403 | business | ❌ | The user doesnt own this notification | Notifications are scoped to a single recipient; only the owner can act on them. Re-authenticating as the same caller will not help. |
 
 ## <span id="bck-oauth"></span>`BCK.OAUTH`
 
@@ -278,8 +338,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-observability-0001"></a>`BCK.OBSERVABILITY.0001` | 500 | integration | — | Error fetching observability data from Helicone | Inspect Helicone dashboard logs for the request id in params. Common causes: invalid filter, expired token, or a transient Helicone outage. |
-| <a id="bck-observability-0002"></a>`BCK.OBSERVABILITY.0002` | 400 | integration | — | Invalid response from Helicone API | Inspect Helicone dashboard logs. Helicone returned a payload our parser rejected — usually a schema mismatch after a Helicone API change. |
-| <a id="bck-observability-0003"></a>`BCK.OBSERVABILITY.0003` | 401 | integration | — | Unauthorized access to Helicone API | Refresh `HELICONE_API_KEY` in the deployment env. The current key is missing, revoked, or scoped to a different workspace. |
+| <a id="bck-observability-0002"></a>`BCK.OBSERVABILITY.0002` | 502 | integration | ✅ | Invalid response from Helicone API | Retry after a short backoff. Helicone returned a non-JSON / error-page body (usually a transient upstream incident); if it persists, check the Helicone status page. |
+| <a id="bck-observability-0003"></a>`BCK.OBSERVABILITY.0003` | 500 | integration | ❌ | Unauthorized access to Helicone API | Refresh `HELICONE_API_KEY` in the deployment env. The current key is missing, revoked, or scoped to a different workspace. |
 | <a id="bck-observability-0004"></a>`BCK.OBSERVABILITY.0004` | 429 | integration | — | Rate limit exceeded for Helicone API | Back off and retry. Helicone is rate-limiting our API key; consider increasing the plan limit or batching requests. |
 | <a id="bck-observability-0005"></a>`BCK.OBSERVABILITY.0005` | 502 | integration | — | Helicone API service unavailable | Inspect Helicone status page. The upstream Helicone API is unavailable; retry after a backoff. |
 
@@ -327,6 +387,30 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-org_integration-0001"></a>`BCK.ORG_INTEGRATION.0001` | 404 | business | ❌ | Organization not found or not eligible for agentic integration | The org id either does not exist, is inactive, or does not have an active paid subscription. Only Premium and Enterprise orgs expose agentic integration files. |
 | <a id="bck-org_integration-0002"></a>`BCK.ORG_INTEGRATION.0002` | 500 | internal | ✅ | Failed to render organization integration document | Inspect the underlying error in logs. The integration template rendering failed — usually a missing template variable or a malformed organization metadata row. |
 
+## <span id="bck-org_wallets"></span>`BCK.ORG_WALLETS`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-org_wallets-0001"></a>`BCK.ORG_WALLETS.0001` | 422 | business | ❌ | Organization wallet cap reached: cannot create more wallets for this organization | The organization-wallet cap for this tier has been reached. Premium allows one; upgrade to Enterprise for more. |
+| <a id="bck-org_wallets-0002"></a>`BCK.ORG_WALLETS.0002` | 404 | business | ❌ | Organization wallet not found | No organization wallet with this id exists for the specified organization. |
+| <a id="bck-org_wallets-0003"></a>`BCK.ORG_WALLETS.0003` | 502 | integration | ✅ | Failed to provision the organization wallet | The custodial wallet provider could not create the wallet. Retry; if it persists, contact support. |
+| <a id="bck-org_wallets-0004"></a>`BCK.ORG_WALLETS.0004` | 403 | business | ❌ | Organization wallets are not available on this tier | Organization stablecoin wallets require a Premium or Enterprise organization. |
+| <a id="bck-org_wallets-0005"></a>`BCK.ORG_WALLETS.0005` | 409 | business | ❌ | Wallet is already shared with this group | This organization wallet already funds the group; nothing to add. |
+| <a id="bck-org_wallets-0006"></a>`BCK.ORG_WALLETS.0006` | 404 | business | ❌ | Wallet is not shared with this group | This organization wallet does not fund the specified group; nothing to remove. |
+| <a id="bck-org_wallets-0007"></a>`BCK.ORG_WALLETS.0007` | 502 | integration | ❌ | Failed to withdraw from the organization wallet | The withdrawal may have partially completed. Check the wallet’s balance and recent transactions before retrying; contact support if unsure. |
+| <a id="bck-org_wallets-0008"></a>`BCK.ORG_WALLETS.0008` | 409 | business | ❌ | Cannot remove a wallet that still holds funds | Withdraw the wallet’s USDC/EURC balance to another address first, then remove it. |
+| <a id="bck-org_wallets-0009"></a>`BCK.ORG_WALLETS.0009` | 422 | validation | ❌ | Insufficient balance for the requested withdrawal | The withdrawal amount exceeds the wallet’s balance for that token. |
+| <a id="bck-org_wallets-0010"></a>`BCK.ORG_WALLETS.0010` | 422 | validation | ❌ | Invalid withdrawal destination address | The destination cannot be the zero address or the wallet’s own address. Provide a different recipient. |
+
+## <span id="bck-payment_credential"></span>`BCK.PAYMENT_CREDENTIAL`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-payment_credential-0001"></a>`BCK.PAYMENT_CREDENTIAL.0001` | 500 | internal | ❌ | Canonical payment-credential dual-write failed (mirror drift) | Epic #1958 T1.A: the canonical payment_credentials/payment_instruments mirror could not be kept in sync with payment_methods (enrol/revoke/webhook fan-out). The legacy payment_methods write already succeeded — this is logged-and-swallowed because the mirror is non-authoritative while PAYMENT_CREDENTIALS_ENABLED is the only consumer. Alert on this code: drift must be reconciled before the canonical model becomes load-bearing (T1.B/T1.C). Inspect the logged stack for the underlying DB error. |
+| <a id="bck-payment_credential-0002"></a>`BCK.PAYMENT_CREDENTIAL.0002` | 500 | internal | ❌ | Canonical payment-credential resolve failed (delegation FK) | Epic #1958 T1.B: resolving the delegation→payment_credentials FK at delegation-create time failed (resolveActiveCredentialId). Logged-and-swallowed — the delegation is created with credentialId NULL, identical to the flag-off path, because the FK is a non-authoritative back-reference while PAYMENT_CREDENTIALS_ENABLED is the only consumer. Distinct from 0001 (dual-write/mirror) so an alert can tell a resolve-during-create failure from an enrol/revoke/webhook mirror failure. Inspect the logged stack for the underlying DB error. |
+| <a id="bck-payment_credential-0003"></a>`BCK.PAYMENT_CREDENTIAL.0003` | 500 | internal | ❌ | Canonical payment-credential instrument lookup failed (charge router) | Epic #1958 T1.C: loading a credential’s active payment_instruments for the charge-time router (listActiveInstrumentsForCredential) failed. Logged-and-swallowed — the router falls back to the retained delegations.provider column, identical to the flag-off path, because the derivation is non-authoritative while PAYMENT_CREDENTIALS_ENABLED is the only consumer. Distinct from 0001 (dual-write/mirror) and 0002 (resolve-on-create) so an alert can pinpoint a derive-at-charge failure. Inspect the logged stack for the underlying DB error. |
+| <a id="bck-payment_credential-0004"></a>`BCK.PAYMENT_CREDENTIAL.0004` | 404 | business | ❌ | Unified card enrolment is not available | Epic #1958 T3.A: the unified VGS-Collect card-enrol endpoint (POST /api/v1/delegation/enroll) is gated behind the PAYMENT_CREDENTIALS_ENABLED flag and is OFF in this environment. The legacy enrol paths (enroll-card / enroll-braintree / enroll-visa) remain available. 404 (not 503) so a flag-off deploy presents the endpoint as simply absent. |
+
 ## <span id="bck-paypal"></span>`BCK.PAYPAL`
 
 | Code | HTTP | Category | Retryable | Message | Hint |
@@ -343,7 +427,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-point-0001"></a>`BCK.POINT.0001` | 401 | business | — | User with address is not allowed to access | Verify the caller wallet is a registered user. The points endpoints require a user-profile row to attribute accruals. |
+| <a id="bck-point-0001"></a>`BCK.POINT.0001` | 403 | business | ❌ | User with address is not allowed to access | Register the caller wallet as a user before accruing points. The points endpoints require a user-profile row; re-authenticating the same wallet will not grant access. |
 | <a id="bck-point-0002"></a>`BCK.POINT.0002` | 404 | business | — | User with id not found | Verify the user id. The user may have been deleted or never existed. |
 | <a id="bck-point-0003"></a>`BCK.POINT.0003` | 404 | business | — | Unable to search user points | Verify the user id and that points retention has not pruned the rows. Empty per-user point lookups surface as 404. |
 | <a id="bck-point-0004"></a>`BCK.POINT.0004` | 404 | business | — | Unable to search event points | Verify the event id. Empty per-event point lookups surface as 404. |
@@ -382,8 +466,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-protocol-0013"></a>`BCK.PROTOCOL.0013` | 500 | integration | — | Error updating plan | Inspect the underlying error in logs. Plan metadata update reverted — verify the caller owns the plan and the new metadata is well-formed. |
 | <a id="bck-protocol-0014"></a>`BCK.PROTOCOL.0014` | 500 | integration | — | Error de-activating agent | Inspect the underlying error in logs. Agent de-activation reverted — verify the caller owns the agent and it is not already inactive. |
 | <a id="bck-protocol-0015"></a>`BCK.PROTOCOL.0015` | 500 | integration | — | Error de-activating plan | Inspect the underlying error in logs. Plan de-activation reverted — verify the caller owns the plan and it is not already inactive. |
-| <a id="bck-protocol-0016"></a>`BCK.PROTOCOL.0016` | 401 | integration | — | The user doesnt own this agent | Authenticate as the agent owner before retrying. Only the wallet that registered the agent can perform owner-scoped operations. |
-| <a id="bck-protocol-0017"></a>`BCK.PROTOCOL.0017` | 401 | integration | — | The user doesnt own this plan | Authenticate as the plan owner before retrying. Only the wallet that registered the plan can perform owner-scoped operations. |
+| <a id="bck-protocol-0016"></a>`BCK.PROTOCOL.0016` | 403 | business | ❌ | The user doesnt own this agent | Only the wallet that registered the agent can perform owner-scoped operations. Re-authenticating as the same caller will not help. |
+| <a id="bck-protocol-0017"></a>`BCK.PROTOCOL.0017` | 403 | business | ❌ | The user doesnt own this plan | Only the wallet that registered the plan can perform owner-scoped operations. Re-authenticating as the same caller will not help. |
 | <a id="bck-protocol-0018"></a>`BCK.PROTOCOL.0018` | 200 | integration | — | The agent is already in the desired state | No action required. The agent is already in the requested active/inactive state; the response carries the current state in params. |
 | <a id="bck-protocol-0019"></a>`BCK.PROTOCOL.0019` | 200 | integration | — | The plan is already in the desired state | No action required. The plan is already in the requested active/inactive state; the response carries the current state in params. |
 | <a id="bck-protocol-0020"></a>`BCK.PROTOCOL.0020` | 500 | integration | — | Error redeming credits | Inspect the underlying error in logs. Credit redemption reverted — verify the buyer holds enough credits and the plan permits redemption at this point. |
@@ -417,6 +501,23 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-protocol-0048"></a>`BCK.PROTOCOL.0048` | 400 | business | — | Plan and agent must belong to the same organization. A Personal plan cannot be linked to an organization agent (and vice versa); plans owned by one organization cannot be linked to agents owned by a different organization. | Either move the plan or the agent so both belong to the same organization (or both to the same Personal account). Cross-org and personal-vs-org links are rejected by design. |
 | <a id="bck-protocol-0049"></a>`BCK.PROTOCOL.0049` | 500 | integration | ❌ | On-chain submit returned without a transaction hash | The chain broadcast call succeeded at the SDK boundary but did not return a tx hash. Treat as an SDK-shape drift; the dead-letter accounting flags the row so it can be re-tried after investigation. |
 | <a id="bck-protocol-0050"></a>`BCK.PROTOCOL.0050` | 400 | business | ❌ | Fiat plans cannot be ordered through this endpoint. Use the x402 card-delegation settle flow (POST /api/v1/x402/settle) so the buyer card delegation can be charged before credits are provisioned. | This endpoint settles stablecoin (crypto) plans only. For fiat / `nvm:card-delegation` plans, register a card delegation and call /api/v1/x402/settle — that path charges the card BEFORE credits are provisioned in the off-chain ledger. On-chain mirroring (when the plan opts in) happens asynchronously after settlement; do not assume synchronous on-chain finality. |
+| <a id="bck-protocol-0051"></a>`BCK.PROTOCOL.0051` | 503 | integration | ✅ | Chain RPC dependency temporarily unavailable | A transient failure of the on-chain RPC provider / bundler prevented the write from completing (e.g. the provider returned 5xx or was unreachable). Retry after a short backoff. If it persists, the RPC endpoint or its credentials may be misconfigured. |
+| <a id="bck-protocol-0052"></a>`BCK.PROTOCOL.0052` | 400 | validation | ❌ | Unsupported settlement network | The requested network (chainId) is not served by this environment. Use a supported network — sandbox serves Base Sepolia (84532) and Tempo Moderato (42431); live serves Base (8453) and Tempo (4217). Off-chain plans (org-tier) do not settle on a chain (#1929). |
+| <a id="bck-protocol-0053"></a>`BCK.PROTOCOL.0053` | 400 | validation | ❌ | Plan and agent must settle on the same network | A plan can only be linked to an agent on the same settlement network (chainId). A Tempo plan cannot be linked to a Base agent (and vice versa). Register the plan and agent on the same network, or link a plan that already settles on the agent’s network (#1929). |
+
+## <span id="bck-router"></span>`BCK.ROUTER`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-router-0001"></a>`BCK.ROUTER.0001` | 400 | validation | ❌ | Invalid Router payment request | Bad input to the Router: unsupported `protocol`, a malformed/empty `target` (no `accepts`), no fundable option for the funded networks/assets, an upstream pay-to outside the delegation’s allowed recipients, a non-crypto (non-erc4337) delegation, or a missing `delegationId`. The per-failure `details` names the specific problem. |
+| <a id="bck-router-0002"></a>`BCK.ROUTER.0002` | 409 | business | ❌ | requestId already used | This `requestId` already minted a credential (idempotency). Omit it or use a fresh value — one credential per requestId. |
+| <a id="bck-router-0003"></a>`BCK.ROUTER.0003` | 402 | business | ❌ | Delegation budget exceeded, expired, or inactive | The spend would exceed the delegation cap, or the delegation is expired / exhausted / revoked. Create or top up a delegation via POST /api/v1/delegation/create. |
+| <a id="bck-router-0004"></a>`BCK.ROUTER.0004` | 404 | business | ❌ | Router payment not found | No Router payment with that id belongs to the authenticated user. |
+| <a id="bck-router-0005"></a>`BCK.ROUTER.0005` | 409 | business | ❌ | Router payment is not in a settleable state | Only an Issued payment can be marked Settled. Re-reporting the same txHash on an already-Settled payment is a no-op; a different txHash, or a non-Issued state, is rejected. |
+| <a id="bck-router-0006"></a>`BCK.ROUTER.0006` | 500 | integration | ✅ | Error getting router payments summary | Transient server-side error building the payments summary; safe to retry. Inputs are validated upstream (invalid from/to return 400 BCK.ROUTER.0001, granularity is normalized), so this is not a bad-request issue. |
+| <a id="bck-router-0007"></a>`BCK.ROUTER.0007` | 429 | business | ✅ | Too many concurrent routed requests | You have too many in-flight mode-B routed requests (/route, /proxy) open at once. Let some complete before starting more, or slow the request rate. |
+| <a id="bck-router-0008"></a>`BCK.ROUTER.0008` | 403 | business | ❌ | Router requires an EIP-7702 (v2) API key | This is a legacy (v1) API key bound to the old smart account, which cannot sign EIP-3009 from the unified funded wallet. Create a new API key — it will be issued as v2 (EIP-7702) and works with the Router. Existing v1 keys keep working for credit-based (nvm:erc4337) flows until they expire. |
+| <a id="bck-router-0009"></a>`BCK.ROUTER.0009` | 402 | business | ❌ | Insufficient wallet balance to fund the payment | The buyer's custodial wallet does not hold enough of the payment asset on the target network to cover this charge. This is distinct from the delegation cap (BCK.ROUTER.0003): the cap authorizes the spend, but the wallet must also actually hold the funds. Fund the wallet on the target chain and retry. (MPP-tempo / crypto pulls settle from the wallet's own balance; the router never holds funds.) |
 
 ## <span id="bck-stripe"></span>`BCK.STRIPE`
 
@@ -490,6 +591,9 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-txs-0008"></a>`BCK.TXS.0008` | 404 | integration | — | Error getting total API calls for owner | Verify the owner address. Empty total-calls lookups return 404 by design. |
 | <a id="bck-txs-0009"></a>`BCK.TXS.0009` | 404 | integration | — | Error getting total revenue for owner | Verify the owner address. Empty total-revenue lookups return 404 by design. |
 | <a id="bck-txs-0010"></a>`BCK.TXS.0010` | 404 | integration | — | Error getting dashboard metrics for owner | Verify the owner address. Empty dashboard-metrics lookups return 404 by design. |
+| <a id="bck-txs-0011"></a>`BCK.TXS.0011` | 500 | integration | — | Error getting revenue time-series for owner | Transient server-side error building the revenue time-series; safe to retry. Inputs are validated upstream (invalid dates return 400, granularity is normalized), so this is not a bad-request issue. |
+| <a id="bck-txs-0012"></a>`BCK.TXS.0012` | 500 | integration | — | Error getting requests time-series for owner | Transient server-side error building the requests time-series; safe to retry. Inputs are validated upstream (invalid dates return 400, granularity is normalized), so this is not a bad-request issue. |
+| <a id="bck-txs-0013"></a>`BCK.TXS.0013` | 400 | business | — | startDate/endDate must be valid ISO-8601 timestamps | Pass startDate/endDate as ISO-8601 strings, e.g. 2024-01-01T00:00:00.000Z. |
 
 ## <span id="bck-user_profile"></span>`BCK.USER_PROFILE`
 
@@ -499,6 +603,23 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-user_profile-0002"></a>`BCK.USER_PROFILE.0002` | 404 | business | ❌ | User profile not found | Verify the user identifier. The profile may have been disabled or never created. |
 | <a id="bck-user_profile-0003"></a>`BCK.USER_PROFILE.0003` | 400 | validation | ❌ | No wallet linked to the authenticated Privy account | Complete wallet linkage in the Privy flow before calling endpoints that require a smart-account address (dashboards, profile reads, etc.). |
 | <a id="bck-user_profile-0004"></a>`BCK.USER_PROFILE.0004` | 400 | business | ❌ | User profile already exists for this address | Use the PATCH endpoint to update an existing profile, or call POST with a different address. Profiles are unique per wallet. |
+
+## <span id="bck-version"></span>`BCK.VERSION`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-version-0001"></a>`BCK.VERSION.0001` | 400 | validation | ❌ | Unknown or unsupported API version | Send Nevermined-Version as MAJOR.MINOR (e.g. "1.0") within the supported range. GET /api/v1/meta/versions lists the supported range; see https://docs.nevermined.app/api-reference/versioning. |
+| <a id="bck-version-0002"></a>`BCK.VERSION.0002` | 500 | internal | ❌ | API version transformation failed | A server-side version gate failed to reshape the request/response for your pinned API version. This is a backend bug — quote the correlation id when reporting it. |
+
+## <span id="bck-vgs"></span>`BCK.VGS`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-vgs-0001"></a>`BCK.VGS.0001` | 503 | integration | ❌ | Unified card enrolment is not available (VGS vault not configured) | #2057 item 2: VgsVaultAvailableGuard rejected the unified VGS-Collect enrol/enroll-session call because the shared VGS vault (VGS_* / vgsAgentic.* env) is unconfigured. Same underlying state as BCK.VISA.0001, but VGS-namespaced so a unified-card 503 is not mis-attributed to a Visa-agentic outage. Configure the VGS vault credentials before enabling the unified card rail. |
+| <a id="bck-vgs-0002"></a>`BCK.VGS.0002` | 502 | integration | ❌ | VGS network-token provision-on-create failed | #2151: provisioning a portable network token for a freshly enrolled unified VGS card failed. This is the internal per-rail LOG marker emitted immediately BEFORE the enrolment is rolled back — a `vgs` card is worthless without an active network token, so the failure is NO LONGER swallowed (superseded the best-effort behaviour). The client sees BCK.VGS.0004 (permanent/config) or BCK.VGS.0005 (transient). The unified-rail twin of BCK.VISA.0021 (Visa-agentic rail): split out so an alert can pinpoint which rail dropped a token. Inspect cardId in the log context. |
+| <a id="bck-vgs-0003"></a>`BCK.VGS.0003` | 401 | auth | ❌ | Invalid or expired card enrolment session | #2057 item 1: the enrol-session token replayed on POST /api/v1/delegation/enroll was missing, malformed, expired, wrong-audience, or minted for a different user. The browser must first GET /api/v1/delegation/enroll-session (authenticated) and forward the returned enrollSessionToken. Message is intentionally generic — the specific jwt.verify reason is a forgery oracle and stays in the server logs only. |
+| <a id="bck-vgs-0004"></a>`BCK.VGS.0004` | 500 | integration | ❌ | Card not enrolled — a network token could not be provisioned | The card could not be enrolled and nothing was saved. Please try again later, or contact support if the problem persists. |
+| <a id="bck-vgs-0005"></a>`BCK.VGS.0005` | 502 | integration | ✅ | Card not enrolled — network-token provisioning is temporarily unavailable | The card could not be enrolled due to a temporary issue. Please try again shortly. |
 
 ## <span id="bck-visa"></span>`BCK.VISA`
 
@@ -521,8 +642,10 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-visa-0015"></a>`BCK.VISA.0015` | 400 | business | — | Visa delegation requires planId — mandate must bind to a single plan seller | Provide planId when creating a Visa delegation. Visa mandates must bind to a single plan seller for compliance with the Trusted Agent Protocol. |
 | <a id="bck-visa-0016"></a>`BCK.VISA.0016` | 400 | business | — | Plan seller has not completed Stripe Connect onboarding required for Visa delegations | The plan seller must complete Stripe Connect onboarding before accepting Visa delegations. Ask the seller to finish onboarding. |
 | <a id="bck-visa-0017"></a>`BCK.VISA.0017` | 502 | integration | — | Stripe Connect account lookup failed while resolving Visa merchant context | Inspect Stripe dashboard logs for the connected account id in params. Connect account lookup failed transiently — retry; if it persists, check the seller’s Connect status. |
-| <a id="bck-visa-0018"></a>`BCK.VISA.0018` | 409 | business | — | This card is already enrolled to a different account | VGS Agentic Tokens are keyed on PAN globally — the same physical card resolves to the same tokenId regardless of which user enrols it. The card you tried to enrol is already on file under another account. Use a different card. |
+| <a id="bck-visa-0018"></a>`BCK.VISA.0018` | 409 | business | — | This card is already enrolled to a different account | Deprecated: no longer thrown. Visa enrolment no longer rejects a card already on file under another account (RFC-1 relaxed uniqueness, epic #1958). |
 | <a id="bck-visa-0019"></a>`BCK.VISA.0019` | 500 | internal | ❌ | Visa provider misconfigured for this environment | The Visa provider is otherwise wired but VGS_AGENTIC_BROWSER_CLIENT_ID/SECRET are missing. The browser-token endpoint would silently fall back to the privileged backend service account in this state. Provision the narrower Client-Side Service Account or unset the Visa env vars to disable the provider. See VIS-011 in security audit 2026-05-27. |
+| <a id="bck-visa-0020"></a>`BCK.VISA.0020` | 502 | integration | ❌ | VGS GA Network-Token rail call failed | A server-to-server VGS GA Network-Token operation failed — provisioning a network token (POST /cards/{id}/network-tokens) or minting a GA cryptogram (POST /cards/{id}/cryptogram). Inspect cardId, status, and detail in params. This is the GA rail (no device binding), distinct from the Agentic-Tokens rail (BCK.VISA.0004). |
+| <a id="bck-visa-0021"></a>`BCK.VISA.0021` | 502 | integration | ❌ | VGS network-token provision-on-create failed (best-effort) | Provisioning a portable network token for a freshly enrolled VGS-canonical card failed (epic #1958, T2.A / #1976). This is BEST-EFFORT and never surfaced to the client: enrolment completes, the credential persists with networkToken NULL, and the charge path falls back to the legacy/instrument rail. Used as a stable code on the swallowed log line so the gap is alertable and backfill-able. Inspect cardId/credentialId in the log context. |
 
 ## <span id="bck-widget"></span>`BCK.WIDGET`
 
@@ -530,7 +653,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 |---|---|---|---|---|---|
 | <a id="bck-widget-0001"></a>`BCK.WIDGET.0001` | 500 | business | — | Unable to store widget config | Inspect the underlying error in logs. Widget config persistence failed — usually a DB-layer or storage-layer error. |
 | <a id="bck-widget-0002"></a>`BCK.WIDGET.0002` | 404 | business | — | Unable to get widget config from id | Verify the widget id. The widget may have been deleted or never created. |
-| <a id="bck-widget-0003"></a>`BCK.WIDGET.0003` | 401 | business | — | The user doesnt own this widget | Authenticate as the widget owner before retrying. Only the wallet that created the widget can edit or delete its config. |
+| <a id="bck-widget-0003"></a>`BCK.WIDGET.0003` | 403 | business | ❌ | The user doesnt own this widget | Only the wallet that created the widget can edit or delete its config. Re-authenticating as the same caller will not help. |
 | <a id="bck-widget-0004"></a>`BCK.WIDGET.0004` | 500 | business | — | Error updating widget config | Inspect the underlying error in logs. Widget update failed — usually a DB-layer error or validation reject on the new config. |
 | <a id="bck-widget-0005"></a>`BCK.WIDGET.0005` | 500 | business | — | Error deleting widget config | Inspect the underlying error in logs. Widget deletion failed — usually a DB-layer error. |
 
@@ -583,7 +706,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-x402-0018"></a>`BCK.X402.0018` | 500 | internal | ❌ | Invalid amountCents derived from order | A defensive arithmetic check in the erc4337 settlement path produced a non-finite or negative cents amount. Inspect the order amount and currency in params; this should never happen for legitimate orders. |
 | <a id="bck-x402-0019"></a>`BCK.X402.0019` | 402 | business | ❌ | Delegation not found | No delegation with this id is owned by the caller — it either never existed or belongs to someone else (the two are intentionally indistinguishable). Verify the delegationId, or create a fresh delegation. Revoked/expired/exhausted delegations report BCK.X402.0020/0021/0022 instead. |
 | <a id="bck-x402-0020"></a>`BCK.X402.0020` | 402 | business | ❌ | Delegation is revoked | This delegation has been revoked and can no longer be used. Create a new card delegation to continue. |
-| <a id="bck-x402-0021"></a>`BCK.X402.0021` | 402 | business | ❌ | Delegation has expired | The delegation passed its expiry. Create a fresh delegation with `createDelegation` (`provider`, `currency`, `spendingLimitCents`, `durationSecs`), then request a new token with `delegationConfig: { delegationId }`. |
+| <a id="bck-x402-0021"></a>`BCK.X402.0021` | 402 | business | ❌ | Delegation has expired | The delegation passed its expiry. Mint a new one (omit `delegationId` and resubmit with the payment method plus `spendingLimitCents` and `durationSecs`). |
 | <a id="bck-x402-0022"></a>`BCK.X402.0022` | 402 | business | ❌ | Delegation budget exhausted | The delegation has reached its spending limit or maximum transaction count. Create a new delegation with a higher `spendingLimitCents` / `maxTransactions` to keep transacting. |
 | <a id="bck-x402-0023"></a>`BCK.X402.0023` | 402 | business | ❌ | Delegation budget insufficient for this order | The remaining delegation budget is smaller than the cost of this order. Use a smaller order, or create a new delegation with a higher `spendingLimitCents`. |
 | <a id="bck-x402-0024"></a>`BCK.X402.0024` | 402 | business | ❌ | No active permission found for the delegation | The delegation has no active permission backing it. Re-create the delegation so its permission and session keys are provisioned. |
@@ -592,7 +715,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-x402-0027"></a>`BCK.X402.0027` | 402 | business | ❌ | Payment method not found or unusable | No usable payment method was found for this request. Add or re-enable a payment method in the dashboard, then retry — optionally passing its identifier via `delegationConfig.providerPaymentMethodId` or `delegationConfig.cardId`. |
 | <a id="bck-x402-0028"></a>`BCK.X402.0028` | 402 | business | ❌ | Payment method is revoked | The payment method has been revoked. Add or re-enable a payment method in the dashboard and retry with its identifier. |
 | <a id="bck-x402-0029"></a>`BCK.X402.0029` | 402 | business | ❌ | API key not authorized for this delegation or payment method | The API key used is not in the allow-list for this delegation / payment method. Use an authorized API key, or update the payment method allowedApiKeyIds to include it. |
-| <a id="bck-x402-0030"></a>`BCK.X402.0030` | 402 | business | ❌ | Required token-generation input is missing or incomplete | A required input for issuing the access token is missing. Provide `accepted.planId` and a `delegationConfig` with `{ delegationId }` — create the delegation first via `createDelegation` (`provider` and `currency` are required). Inline create-on-the-fly (`delegationConfig` without `delegationId`) is deprecated. The per-failure `details` names the specific missing field. |
+| <a id="bck-x402-0030"></a>`BCK.X402.0030` | 402 | business | ❌ | Required token-generation input is missing or incomplete | A required input for issuing the access token is missing. Provide `accepted.planId`, and a complete `delegationConfig`: reuse with `{ delegationId }`, or create with `{ providerPaymentMethodId \| cardId, spendingLimitCents, durationSecs }` (optionally `currency`). The per-failure `details` names the specific missing field. |
 | <a id="bck-x402-0034"></a>`BCK.X402.0034` | 402 | business | ❌ | Unsupported scheme or currency | The requested payment scheme or currency is not supported. Check the plan configured scheme/currency (e.g. Visa delegations support only usd / eur) and resubmit with a supported combination. |
 | <a id="bck-x402-0035"></a>`BCK.X402.0035` | 402 | business | ❌ | No session keys found for delegation | The delegation is owned by the caller and usable, but its linked erc4337 permission is missing session keys (burnSessionKey / orderSessionKey). This is a data-integrity issue — the delegation was likely created without completing session-key provisioning. Create a fresh crypto delegation; if it recurs, report the delegationId for investigation. |
 | <a id="bck-x402-0036"></a>`BCK.X402.0036` | 402 | business | ❌ | Delegation not usable (unknown lifecycle state) | The delegation is in a lifecycle state the server does not recognise as usable. Create a fresh delegation to continue; if this persists, report the delegationId for investigation. |
@@ -604,4 +727,13 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-x402-0042"></a>`BCK.X402.0042` | 500 | internal | ❌ | VGS outbound proxy is misconfigured | Server-side configuration fault (the VGS outbound proxy is unset, not HTTPS, has an invalid URL, or points at a non-VGS host). The caller did nothing wrong. Fix the VGS proxy configuration; if it persists, report the correlationId. |
 | <a id="bck-x402-0043"></a>`BCK.X402.0043` | 502 | integration | ❌ | Card enrollment via VGS failed | The upstream VGS→Stripe card-creation call returned bad data or a non-200 status. Inspect VGS / Stripe logs for the correlationId. Usually invalid card details or a vault-routing issue; retry after correcting the card, or report if it persists. |
 | <a id="bck-x402-0044"></a>`BCK.X402.0044` | 500 | internal | ❌ | Invalid internal identifier format | An internal invariant failed (a userId did not match the expected format for downstream metadata). This is a server-side fault, not a client input error. Report the correlationId for investigation. |
+| <a id="bck-x402-0045"></a>`BCK.X402.0045` | 501 | internal | ❌ | Network-token charging is not supported by this payment provider | This provider cannot yet charge from a network token + cryptogram. Today only the Visa rail does. Stripe gains a native network-token field in #1979 (T2.D) and Braintree gains BYOT in #1978 (T2.C); until then the router must not dispatch a network-token charge to these providers. |
+| <a id="bck-x402-0046"></a>`BCK.X402.0046` | 500 | internal | ❌ | Charge router received no candidate provider routes | Epic #1958 T1.C: the charge-time provider router (CardPaymentProviderFactory.chargeWithFallback) was called with an empty route list. The settle handler always supplies at least the legacy delegations.provider route, so an empty list is a server-side wiring regression — never a client input error. Report the correlationId for investigation. |
+| <a id="bck-x402-0047"></a>`BCK.X402.0047` | 500 | internal | ❌ | No card payment provider registered for the requested rail | Epic #1958 T1.C: CardPaymentProviderFactory.getProvider was asked for a card rail it has no provider instance for. CardProviderName aliases the growable CardSettlementProvider, so a newly-added PSP must be wired into the factory switch in the same change — an unhandled rail is a server-side wiring regression, never a client input error. Report the correlationId for investigation. |
+| <a id="bck-x402-0048"></a>`BCK.X402.0048` | 502 | integration | ❌ | Network-token charge failed ambiguously (may have charged) — not retried or rolled back | Epic #1958 T2.D: a network-token charge through the PSP failed with an AMBIGUOUS error (timeout / 5xx / network / idempotency-key reuse) — the charge may actually have gone through. To avoid a double charge the spending reservation is deliberately LEFT IN PLACE (no rollback) and no other route is attempted. Reconcile the delegation against the PSP before any manual retry; the providerTransactionId in delegation_transactions is the breadcrumb. |
+| <a id="bck-x402-0049"></a>`BCK.X402.0049` | 402 | business | ❌ | Network-token charge was declined by the payment provider | Epic #1958 T2.D: the PSP definitively declined the network-token charge (e.g. card_declined / insufficient_funds). No charge was captured, so the spending reservation is rolled back. Check the funding card or use a different payment method. |
+| <a id="bck-x402-0050"></a>`BCK.X402.0050` | 400 | validation | ❌ | Delegation currency has no settlement token on the plan network | An on-chain (erc4337) delegation must approve a real ERC-20 for its currency on the plan’s settlement network. The requested currency has no token configured on that network (e.g. EURC on Tempo, which settles only pathUSD/USDC) — minting the session key would produce a no-op approve that can never charge, so it is rejected. Pick a currency supported on the plan’s network (#1929). |
+| <a id="bck-x402-0051"></a>`BCK.X402.0051` | 503 | integration | ✅ | Chain RPC dependency temporarily unavailable during x402 verification | A transient failure of the on-chain RPC provider / bundler (5xx or unreachable) prevented an x402 verify/settle permission check from completing. Retry after a short backoff. If it persists, the RPC endpoint or its credentials may be misconfigured. The real upstream cause is captured server-side in the logs for this error id. |
+| <a id="bck-x402-0052"></a>`BCK.X402.0052` | 503 | integration | ✅ | EIP-7702 delegation could not be installed on the plan network | Installing the account’s Kernel v3.3 delegation designator on the plan’s network failed (bundler/paymaster/RPC), or a recent attempt is in its fail-closed backoff window. This is a transient infrastructure fault, not a client error — retry the request. See #2300. |
+| <a id="bck-x402-0053"></a>`BCK.X402.0053` | 404 | business | ❌ | Privy wallet no longer exists | The account’s embedded Privy wallet has been deleted, so its smart account can no longer be reconstructed. Privy states this is unrecoverable — neither Nevermined nor Privy can re-link an authentication method on the user’s behalf. The user profile survives but is no longer spendable; provision a new account. Distinct from BCK.X402.0011 ("user profile not found"), which means the profile itself is missing. See #2316. |
 
