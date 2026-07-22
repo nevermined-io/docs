@@ -520,11 +520,19 @@ What the agent runs to mint a token and call your endpoint:
     Nevermined handles card acquisition and PCI scope on the buyer side; you
     just bring your payout destination.
   </Accordion>
-  <Accordion title="How are chargebacks and refunds handled?">
-    On Stripe destination charges, Nevermined is the merchant of record:
-    Stripe routes disputes and refunds through Nevermined, and we surface the
-    chargeback or charge reference so you can match it to specific agent
-    transactions.
+  <Accordion title="Who is the merchant of record?">
+    **You are.** Nevermined creates each card charge with Stripe's
+    `on_behalf_of` parameter set to your connected account, which makes your
+    account the merchant of record: your statement descriptor appears on your
+    buyers' card statements, and the charge settles in your country and
+    currency. Nevermined takes its fee as a Stripe application fee and
+    transfers the remainder to your connected account.
+  </Accordion>
+  <Accordion title="How are chargebacks handled?">
+    Even though you are the merchant of record, Stripe debits **Nevermined's**
+    balance for disputes on these charges — so chargeback exposure sits with
+    us, not with you. We surface the chargeback or charge reference so you can
+    match a dispute back to the specific agent transaction that caused it.
   </Accordion>
   <Accordion title="Multi-currency?">
     Stripe Connect handles currency conversion to your destination account,
@@ -552,7 +560,14 @@ Every account starts on the free **Personal** tier. Upgrading that workspace to 
 
 The caps count what *you* publish — agents are your registered services, plans are your pricing packages. The number of customers buying them is unlimited on every tier. See [Tiers at a glance](/docs/solutions/organizations/overview#tiers-at-a-glance) for the full comparison.
 
-Settlement fees on agent payments are documented in the [Payments overview](/docs/products/payments/overview).
+<Warning>
+  **A subscription covers one environment only.** Upgrading your **sandbox**
+  workspace does not upgrade **live**, and vice versa — so a provider running
+  both is subscribing twice. Trial a tier on sandbox, then subscribe
+  separately on live. See [Plans & Billing](/docs/solutions/organizations/plans-and-billing).
+</Warning>
+
+Prices above are indicative; the live price for each tier is shown on the upgrade screen. Settlement fees on agent payments are documented in the [Payments overview](/docs/products/payments/overview).
 
 <Note>
   **Pilot / whitelist / fee waiver.** Talk to us before you ship if you're a launch
