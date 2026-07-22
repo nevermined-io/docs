@@ -22,15 +22,19 @@
  * Deliberately NOT here: RB2B (docs readers are product-led, not
  * outbound targets — decision on record in #191).
  *
- * Consent (added 2026-07-20): this file now also injects CookieYes
- * (docs previously had no CMP) and gates PostHog on the authoritative
+ * Consent (added 2026-07-20): this file also injects CookieYes (docs
+ * previously had no CMP) and gates PostHog on the authoritative
  * consent state — granted fires, anything else waits, fail closed.
- * The nvm_o decorator stays ungated (functional attribution, no
- * storage on this host). GA4 via docs.json integrations.ga4 is
- * untouched here; its consent posture rides on CookieYes auto-blocking
- * (verify in the CookieYes dashboard).
  *
- * GA4 is loaded separately via docs.json integrations.ga4 — untouched.
+ * GA4 (moved here 2026-07-21): docs.json integrations.ga4 is REMOVED
+ * in this change — Mintlify's native injection gave gtag no consent
+ * defaults, so EU visitors got GA cookies pre-consent. This file now
+ * owns the full GA load: GCM defaults first, then gtag, then
+ * CookieYes. Do not re-add integrations.ga4 — that would double-init.
+ *
+ * The nvm_o decorator attaches attribution only when consent is not
+ * explicitly denied; the click event itself still fires (GCM governs
+ * what GA does with it).
  */
 (function () {
   "use strict";
@@ -56,6 +60,9 @@
 
   window.dataLayer = window.dataLayer || [];
   function gtag() { dataLayer.push(arguments); }
+  // Review fix: the decorator (and anything else) calls window.gtag —
+  // with docs.json's native GA gone, nothing assigned it globally.
+  window.gtag = window.gtag || gtag;
   gtag("consent", "default", { ad_storage: "granted", ad_user_data: "granted", ad_personalization: "granted", analytics_storage: "granted", functionality_storage: "granted", personalization_storage: "granted", security_storage: "granted" });
   gtag("consent", "default", { ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied", analytics_storage: "denied", functionality_storage: "denied", personalization_storage: "denied", security_storage: "granted", wait_for_update: 500, region: ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","GB"] });
   gtag("set", "ads_data_redaction", true);
@@ -173,9 +180,17 @@
      only (no device storage, no replay); granted = full, upgrading a
      limited start in place. Same semantics as the site + blog. */
   var phUpgraded = false;
+  var phPoll = null;
+  function stopPhPoll() {
+    // Review fix: the 1 Hz poll only bridges the window before CookieYes
+    // is ready; once a definitive state is handled the consent_update
+    // listener alone covers later changes (e.g. revisit-consent).
+    if (phPoll) { clearInterval(phPoll); phPoll = null; }
+  }
   function applyPostHogConsent() {
     var s = consentState();
     if (s === "denied") {
+      stopPhPoll();
       if (window.posthog && window.posthog.__loaded && window.posthog.opt_out_capturing) {
         window.posthog.opt_out_capturing();
       }
@@ -191,9 +206,10 @@
       if (window.posthog.set_config) window.posthog.set_config({ persistence: "localStorage" });
       if (window.posthog.startSessionRecording) window.posthog.startSessionRecording();
     }
+    if (s === "granted") stopPhPoll();
   }
   document.addEventListener("cookieyes_consent_update", applyPostHogConsent);
-  setInterval(applyPostHogConsent, 1000);
+  phPoll = setInterval(applyPostHogConsent, 1000);
   applyPostHogConsent();
 
   /* ------- 2. nvm_o decorator + app_handoff_click ------- */
@@ -248,13 +264,19 @@
       return;
     }
     if (!isAppHost(url.hostname)) return;
-    var ft = parseTouch(unwrapTouch(readCookie("nvm_ft")));
-    var lt = parseTouch(unwrapTouch(readCookie("nvm_lt")));
-    var payload = {};
-    if (ft) payload.ft = ft;
-    if (lt) payload.lt = lt;
-    url.searchParams.set("nvm_o", b64url(JSON.stringify(payload)));
-    a.href = url.toString();
+    // Review fix: explicit denial means no attribution forwarding —
+    // the nvm_o payload stays off the URL. The click event below still
+    // fires (GCM decides what GA does with it under denial).
+    var lt = null;
+    if (consentState() !== "denied") {
+      var ft = parseTouch(unwrapTouch(readCookie("nvm_ft")));
+      lt = parseTouch(unwrapTouch(readCookie("nvm_lt")));
+      var payload = {};
+      if (ft) payload.ft = ft;
+      if (lt) payload.lt = lt;
+      url.searchParams.set("nvm_o", b64url(JSON.stringify(payload)));
+      a.href = url.toString();
+    }
     if (window.gtag) {
       window.gtag("event", "app_handoff_click", {
         link_url: url.hostname + url.pathname,
