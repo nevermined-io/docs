@@ -56,7 +56,11 @@
      injected gtag with nothing declaring consent defaults before it, so
      EU docs visitors got GA cookies pre-consent. Defaults MUST precede
      both CookieYes and gtag. Region list mirrors CONSENT_COUNTRY_CODES
-     in the website repo (lib/attribution.ts) - keep in sync. */
+     in the website repo (lib/attribution.ts) - keep in sync. Ruling
+     2026-07-22: protection geography includes GDPR-EEA (IS/LI/NO)
+     while the CookieYes banner keeps its EU+UK preset - EEA visitors
+     get denied defaults and no banner, staying cookieless-anonymous.
+     The asymmetry is deliberate. */
 
   window.dataLayer = window.dataLayer || [];
   function gtag() { dataLayer.push(arguments); }
@@ -64,7 +68,7 @@
   // with docs.json's native GA gone, nothing assigned it globally.
   window.gtag = window.gtag || gtag;
   gtag("consent", "default", { ad_storage: "granted", ad_user_data: "granted", ad_personalization: "granted", analytics_storage: "granted", functionality_storage: "granted", personalization_storage: "granted", security_storage: "granted" });
-  gtag("consent", "default", { ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied", analytics_storage: "denied", functionality_storage: "denied", personalization_storage: "denied", security_storage: "granted", wait_for_update: 500, region: ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","GB"] });
+  gtag("consent", "default", { ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied", analytics_storage: "denied", functionality_storage: "denied", personalization_storage: "denied", security_storage: "granted", wait_for_update: 500, region: ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","GB","IS","LI","NO"] });
   gtag("set", "ads_data_redaction", true);
 
   if (!document.getElementById("ga-gtag")) {
