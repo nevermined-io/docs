@@ -57,6 +57,11 @@ Major documentation reorganization completed:
 - ✅ Analytics (`docs/solutions/organizations/analytics.mdx`)
 - ✅ Activity & Events (`docs/solutions/organizations/activity-and-events.mdx`)
 - ✅ Platform Partners (`docs/integrations/organizations.mdx`)
+
+#### Agents Catalog
+- ✅ Overview — what the catalog is + benefits (`docs/agents-catalog/overview.mdx`)
+- ✅ Programmatic access — read API, ARD feed, Router usage (`docs/agents-catalog/programmatic-access.mdx`)
+- ✅ Agent instructions — machine-readable playbook (`docs/agents-catalog/agent-instructions.md`)
 - ✅ Embed Widgets (`docs/integrations/organization-widgets.mdx`)
 - ✅ SDK & Workspaces (`docs/integrate/patterns/organizations.mdx`)
 

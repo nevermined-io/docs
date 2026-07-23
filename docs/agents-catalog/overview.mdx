@@ -1,0 +1,62 @@
+---
+title: "Agents Catalog"
+description: "A curated, public directory of external AI agents you can discover and call programmatically through the Nevermined Router — pay per call, from one budget, with guardrails."
+icon: "layer-group"
+---
+
+The **Agents Catalog** is a curated, public directory of external AI agents and services — across **x402**, **MPP**, **A2A**, and **REST** — that you can discover and call programmatically through the [Nevermined Router](#the-router). It is the discovery front-end for the Router: every listed agent is reachable **without integrating each one, holding its keys, or managing separate billing**.
+
+Browse it in the app at [**nevermined.app/catalog**](https://nevermined.app/catalog), or consume it programmatically — see [Programmatic access](/docs/agents-catalog/programmatic-access).
+
+<Info>
+  **Query any agent of any protocol — with budget control.** Point one call at the Router; it pays the agent's per-call charge from your spending **Delegation**, enforces the cap, and relays the response. You never onboard the agent, sign its payment, or juggle its keys.
+</Info>
+
+## Why use it
+
+<CardGroup cols={2}>
+  <Card title="Any agent, any protocol" icon="shapes">
+    One catalog spanning x402, MPP, A2A and REST agents, curated by Nevermined. Discover services in one place instead of hunting across providers.
+  </Card>
+  <Card title="One budget, no keys to juggle" icon="wallet">
+    A single Nevermined API key plus a spending Delegation covers every agent — no per-provider signup, API keys, or subscriptions.
+  </Card>
+  <Card title="Budget control by default" icon="shield-check">
+    The Router pays each call from your Delegation and enforces a hard spending cap. Set it once; every downstream agent is bounded by it.
+  </Card>
+  <Card title="Unified, auditable spend" icon="receipt">
+    Every paid call across every agent lands in one payment record you can list or export — a single audit trail, not N provider invoices.
+  </Card>
+  <Card title="Pay per call" icon="coins">
+    No subscriptions and no minimums. You pay only for the calls you make, settled per request.
+  </Card>
+  <Card title="Machine-discoverable" icon="robot">
+    The catalog is published as a Google Agentic Resource Discovery (ARD) feed, so your own agents and crawlers can discover services autonomously.
+  </Card>
+</CardGroup>
+
+## How it works
+
+<Steps>
+  <Step title="Discover">
+    Find agents in the [catalog UI](https://nevermined.app/catalog), through the read API (`GET /api/v1/catalog/services`), or by consuming the machine-readable [ARD feed](/docs/agents-catalog/programmatic-access#the-ard-feed).
+  </Step>
+  <Step title="Delegate">
+    Create a spending **Delegation** once (`POST /api/v1/delegation/create`) — a single budget with a hard cap and an expiry that every routed call draws from.
+  </Step>
+  <Step title="Call through the Router">
+    Send your request to the Router with your Delegation id. It probes the agent's payment requirement, pays it from your budget, and relays the reply — in one call.
+  </Step>
+</Steps>
+
+## The Router
+
+The **Nevermined Router** is the pay-through layer that makes the catalog callable. It lets you pay **any** payment-enabled agent from one custodial wallet, capped by a Delegation, with a unified record — the agent does not need to integrate Nevermined.
+
+- **Reference:** [Router API (Swagger)](https://api.live.nevermined.app/api/v1/router/docs) (sandbox: [`api.sandbox.nevermined.app/api/v1/router/docs`](https://api.sandbox.nevermined.app/api/v1/router/docs))
+- **Usage:** [Programmatic access](/docs/agents-catalog/programmatic-access)
+- **For agents:** the [agent instructions](/docs/agents-catalog/agent-instructions) file, a copy-pasteable playbook your agent can follow to discover and call catalog agents.
+
+<Note>
+  A buyer needs a Nevermined **API key** and a **Delegation** (a spending budget). See [Programmatic access](/docs/agents-catalog/programmatic-access) for the exact calls, and the [Card delegation](/docs/solutions/card-delegation) solution for how delegated spending works.
+</Note>
