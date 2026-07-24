@@ -1,0 +1,147 @@
+---
+title: "White-label Customer Onboarding"
+description: "Onboard your own customers into Nevermined under your brand: provision their accounts programmatically, with no member seat, auto-recorded in your CRM, and a scoped key you can use to pay for your agents on their behalf."
+icon: "user-plus"
+---
+
+Some businesses want their customers *on* Nevermined. Others want Nevermined to disappear entirely — customers stay on your site, under your brand, and never see a third party. **White-label onboarding** is for the second group. From your own backend you provision a Nevermined account for a customer, get back a usable, scoped credential, and transact for them — all without the customer ever creating a Nevermined login.
+
+<Note>
+  Onboarding customers is an **Admin** operation — you call it with your organization's admin API key. The customers you onboard appear in your [Customers](/docs/solutions/organizations/customers) CRM (an Enterprise feature).
+</Note>
+
+## Members vs. customers
+
+Two different people transact with your organization, and they're provisioned differently:
+
+<CardGroup cols={2}>
+  <Card title="Members" icon="users" href="/docs/solutions/organizations/workspaces-and-members">
+    People who build *inside* your organization — teammates who publish agents and plans. A member **consumes a seat** and has a role.
+  </Card>
+  <Card title="Customers" icon="address-book" href="/docs/solutions/organizations/customers">
+    End users who buy *from* your organization. A customer takes **no seat**, is recorded in your CRM, and is who this guide onboards.
+  </Card>
+</CardGroup>
+
+Both are provisioned through the same endpoint (`POST /organizations/account`) — the outcome is a parameter, not a separate integration. The member flow is unchanged; onboarding a **customer** is the additive path described here.
+
+## How it works
+
+You hand the SDK an email. What comes back depends on whether that email already has a Nevermined account, and whether it's yours:
+
+| The email is… | What happens | You get back |
+|---|---|---|
+| **New** | An account is created, recorded in your Customers CRM, and issued a scoped key | The usable `nvmApiKey` (+ `userId`, `userWallet`) |
+| **Already your customer** | The scoped key is re-issued (renewal) | The usable `nvmApiKey` |
+| **An existing account you don't own** | No key is issued. A consent email is sent to the account's owner | `consentRequired: true` only — the account's identity is never disclosed |
+
+That last case keeps onboarding safe: you can't silently attach someone else's Nevermined account to your organization, and you can't use the call to probe which emails have accounts. Once the owner approves the emailed challenge, call again with the same email to complete onboarding and receive the key.
+
+## The credential you get back
+
+The key returned for a customer is deliberately **narrow** — it's meant for consumption, not building:
+
+<CardGroup cols={2}>
+  <Card title="Can" icon="check">
+    **Purchase plans** and **redeem credits** — everything needed to pay for and use your agents on the customer's behalf.
+  </Card>
+  <Card title="Cannot" icon="xmark">
+    **Register agents** or **mint credits** — the builder-side capabilities stay with your organization's members.
+  </Card>
+</CardGroup>
+
+It's also **short-lived** (roughly 30 days) and **revocable**, so a leaked customer credential has a small blast radius. Store it server-side, re-onboard to refresh it, and never expose it to the browser.
+
+## Onboard a customer
+
+Initialize the SDK with your **organization admin** key, then call `onboardCustomer`. Handle the two shapes it can return:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!, // your organization admin key ("sandbox:..." or "live:...")
+      environment: 'sandbox',
+    })
+
+    const result = await payments.organizations.onboardCustomer('customer@example.com')
+
+    if (result.consentRequired) {
+      // The email already has a Nevermined account your org doesn't own.
+      // A consent email was sent to the owner — retry once they approve.
+      console.log('Consent pending — ask the customer to check their email.')
+    } else {
+      // New account or your returning customer: a usable, scoped key is issued.
+      console.log('Onboarded customer')
+
+      // Act for the customer with their scoped key.
+      const customer = Payments.getInstance({
+        nvmApiKey: result.nvmApiKey,
+        environment: 'sandbox',
+      })
+      // `customer` can now purchase plans and redeem credits.
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from payments_py import Payments, PaymentOptions
+
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_ORG_ADMIN_API_KEY"],  # your organization admin key
+            environment="sandbox",
+        )
+    )
+
+    result = payments.organizations.onboard_customer("customer@example.com")
+
+    if result.consent_required:
+        # Existing account your org doesn't own — a consent email was sent.
+        # Retry once the owner approves.
+        print("Consent pending — ask the customer to check their email.")
+    else:
+        # New account or your returning customer: a usable, scoped key is issued.
+        print("Onboarded customer", result.user_id)
+
+        # Act for the customer with their scoped key.
+        customer = Payments.get_instance(
+            PaymentOptions(nvm_api_key=result.nvm_api_key, environment="sandbox")
+        )
+        # `customer` can now purchase plans and redeem credits.
+    ```
+  </Tab>
+</Tabs>
+
+From there, the `customer` client behaves like any buyer: it can [order a plan](/docs/getting-started/ai-agent-purchase) and [pay your agents over x402](/docs/getting-started/ai-agent-purchase) — all attributed to your organization, all invisible to the end user.
+
+## Two ways to onboard
+
+<CardGroup cols={2}>
+  <Card title="Programmatic (this guide)" icon="code">
+    Provision from your backend with the SDK. Best when you own the customer relationship end-to-end and want zero Nevermined UI.
+  </Card>
+  <Card title="Embedded widgets" icon="puzzle-piece" href="/docs/integrations/organization-widgets">
+    Drop Nevermined checkout, card enrollment, and delegation flows into your own site as signed iframes. Best when the customer completes payment themselves, inside your product.
+  </Card>
+</CardGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Customers" icon="address-book" href="/docs/solutions/organizations/customers">
+    Every onboarded customer lands here — spend, purchase history, and CSV export.
+  </Card>
+  <Card title="Organization widgets" icon="puzzle-piece" href="/docs/integrations/organization-widgets">
+    The embedded, UI-driven counterpart to programmatic onboarding.
+  </Card>
+  <Card title="Purchase & pay an agent" icon="cart-shopping" href="/docs/getting-started/ai-agent-purchase">
+    What the customer credential does next: order a plan and pay over x402.
+  </Card>
+  <Card title="Activity & Events" icon="bolt" href="/docs/solutions/organizations/activity-and-events">
+    Get notified the moment a customer is onboarded or makes a purchase.
+  </Card>
+</CardGroup>

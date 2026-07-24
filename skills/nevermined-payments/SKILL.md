@@ -69,6 +69,7 @@ This is a **REST runbook**: every step (A1–A8 below) is a plain HTTPS call you
 |---|---|
 | API keys, **card enrollment + embedded session + delegation**, payment methods, x402 buy/settle, buyer status — full REST bodies | `references/autonomous-operations.md` (card flow = **§3**, x402 buy = **§4**) |
 | Seller revenue / analytics queries (A7) | `references/seller-operations.md` |
+| Onboard your own customers (white-label, A8) | `references/customer-onboarding.md` |
 | Plan registration + the plan-type matrix (A6) | `references/payment-plans.md` |
 | Subscriber-side SDK patterns | `references/client-integration.md` |
 
@@ -296,7 +297,21 @@ These return `{ total, page, offset, plans|agents: [ … ] }`, but each **item i
 
 For per-request usage and cost observability (Helicone), see `references/seller-operations.md`, which details every seller query and the response shapes.
 
-## A8 · Receive payments in your own agent
+## A8 · Onboard your own customers (white-label)  *(org admin — fully programmatic)*
+
+If you operate an **organization**, provision Nevermined accounts for *your* customers from your backend — no member seat, recorded in your Customers CRM, and returning a **scoped key** you use to pay for your agents on their behalf. One endpoint, distinguished by `as: 'customer'`:
+
+```bash
+curl -s -XPOST -H "Authorization: Bearer $ORG_ADMIN_API_KEY" -H "Content-Type: application/json" \
+  -d '{"email":"customer@example.com","as":"customer"}' \
+  https://api.sandbox.nevermined.app/api/v1/organizations/account
+# New / returning customer → 201, walletResult.nvmApiKey (+ userId, userWallet, isCustomer, customerRecorded) — the USABLE key
+# Email owned by a non-customer account → 202, walletResult.consentRequired=true (consent email sent; no key or identity disclosed)
+```
+
+SDK: `payments.organizations.onboardCustomer(email)` (TS) / `payments.organizations.onboard_customer(email)` (Python). The key is scoped to **purchase + redeem only** (not register/mint), short-lived (~30d), and revocable — use it to buy access (A4) and check credits (A5) on the customer's behalf. Full flow, the three provenance outcomes, and SDK code: `references/customer-onboarding.md`.
+
+## A9 · Receive payments in your own agent
 
 If your goal is to make **your** agent charge its callers (not to buy from others), that is **Track B** below — it shows how to gate Express/FastAPI/MCP/A2A/Strands endpoints behind a plan with `verifyPermissions` / `settlePermissions` or framework middleware.
 

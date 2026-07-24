@@ -54,6 +54,7 @@ Major documentation reorganization completed:
 - ✅ Workspaces & Members (`docs/solutions/organizations/workspaces-and-members.mdx`)
 - ✅ Plans & Billing (`docs/solutions/organizations/plans-and-billing.mdx`)
 - ✅ Customers — Enterprise CRM (`docs/solutions/organizations/customers.mdx`)
+- ✅ White-label Customer Onboarding (`docs/solutions/organizations/white-label-onboarding.mdx`)
 - ✅ Analytics (`docs/solutions/organizations/analytics.mdx`)
 - ✅ Activity & Events (`docs/solutions/organizations/activity-and-events.mdx`)
 - ✅ Platform Partners (`docs/integrations/organizations.mdx`)
