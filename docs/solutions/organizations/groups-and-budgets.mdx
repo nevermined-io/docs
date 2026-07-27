@@ -1,0 +1,59 @@
+---
+title: "Groups & Budgets"
+description: "Organize members into groups, cap their spend with budgets, and give each group a shared payment method — all from the Budgets tab or the Organizations API."
+icon: "layer-group"
+---
+
+As your organization grows, you'll want teams to operate independently without handing everyone unlimited spend. **Groups** let you bundle members together; **budgets** put a ceiling on what a group can spend; and **shared payment methods** let a whole group charge to one org-funded source. You manage all three from the **Budgets** tab of the [organization dashboard](https://nevermined.app/organization), or programmatically with an org-admin API key.
+
+<Note>
+  Groups, budgets, and shared payment methods are **Premium and Enterprise** features. Personal and lapsed organizations can't create them.
+</Note>
+
+## Groups
+
+A group is a named collection of organization members — for example a *Support* team, a *Research* squad, or a per-customer workspace. An Admin creates a group and adds or removes members at any time.
+
+<CardGroup cols={2}>
+  <Card title="Create a group" icon="user-plus">
+    Give it a name and add the members who should share its budget and payment methods.
+  </Card>
+  <Card title="Manage membership" icon="users-gear">
+    Add or remove members as teams change. Removing a group doesn't remove the people from your organization.
+  </Card>
+</CardGroup>
+
+## Budgets
+
+A **budget** sets how much a group may spend over a period and tracks its consumption in real time. When a group reaches its budget, further spend is blocked until the budget resets or an Admin raises it — so a single team can never run away with the whole organization's balance.
+
+- **Set a limit** per group from the **Budgets** tab.
+- **Track usage** against the limit as members spend.
+- **Adjust or remove** a budget whenever priorities change.
+
+<Tip>
+  Budgets pair naturally with [Organization Wallets](/docs/solutions/organizations/wallets): fund a group from a shared treasury wallet, then cap how fast it draws down with a budget.
+</Tip>
+
+## Shared payment methods
+
+Instead of every member enrolling their own card, associate an organization **payment method** with a group. Members of that group then transact against the shared card, and you keep billing centralized. Associate or remove a card from a group at any time.
+
+## Where to find it
+
+Everything above lives under the **Budgets** tab of the organization dashboard, alongside [Organization Wallets](/docs/solutions/organizations/wallets). Select your organization with the workspace switcher, then open **Budgets**.
+
+## Do it programmatically
+
+Every group, budget, and shared-payment-method action is available on the Organizations REST API using an **org-admin** [Nevermined API key](/docs/solutions/organizations/workspaces-and-members) — so an agent or a back-office script can provision teams and enforce spend limits without the dashboard. See the [SDK & Workspaces](/docs/integrate/patterns/organizations) pattern for authenticating against a specific workspace.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Organization Wallets" icon="wallet" href="/docs/solutions/organizations/wallets">
+    The custodial treasury that funds your groups.
+  </Card>
+  <Card title="Plans & Billing" icon="credit-card" href="/docs/solutions/organizations/plans-and-billing">
+    The tier that unlocks groups, budgets, and wallets.
+  </Card>
+</CardGroup>
