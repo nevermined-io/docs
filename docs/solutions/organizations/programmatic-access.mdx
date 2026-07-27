@@ -4,34 +4,52 @@ description: "Drive your whole organization from code with an admin API key, and
 icon: "robot"
 ---
 
-Everything you can do in the Organizations dashboard, you can do from code. The entire org-management surface is a REST API authenticated with your **organization's admin [Nevermined API key](/docs/solutions/organizations/workspaces-and-members)** — there are no browser-only actions — so an autonomous agent or a back-office script can run your organization without a human in the loop.
+Everything you can do in the Organizations dashboard, you can do from code. The org-management surface is a REST API, so an autonomous agent or a back-office script can run **most** of your organization with no human in the loop. (A few flows still need a one-time browser step — card enrollment, for example.)
 
 ## Authenticate as the organization
 
-Use an **admin** API key for the organization you want to act on. If the key was minted for a specific organization, that scope applies automatically; otherwise target a workspace explicitly with the `X-Current-Org-Id` header.
+Call the API with a [Nevermined API key](/docs/solutions/organizations/workspaces-and-members) that belongs to a member with the **Admin** role in the organization you want to act on. If the key is already scoped to a specific organization, that scope applies by default; to act on a different workspace, send the `X-Current-Org-Id` header — it **overrides** the key's own scope.
+
+<Warning>
+  An admin key can invite members, move treasury funds, and withdraw from organization wallets. Treat it like a production secret: keep it server-side and never hand it to an autonomous agent or a client you don't fully control.
+</Warning>
 
 <Tabs>
   <Tab title="cURL">
     ```bash
     curl https://api.sandbox.nevermined.app/api/v1/organizations/my-memberships \
       -H "Authorization: Bearer $NVM_API_KEY" \
-      -H "X-Current-Org-Id: org-abc123"
+      -H "X-Current-Org-Id: org-9d81acea-7d38-460e-b7c0-c3b92abcbb07"
     ```
   </Tab>
   <Tab title="TypeScript">
     ```typescript
     import { Payments } from '@nevermined-io/payments'
 
-    // Initialize with your organization's admin key ("sandbox:..." or "live:...")
     const payments = Payments.getInstance({
       nvmApiKey: process.env.NVM_API_KEY!,
       environment: 'sandbox',
     })
+
+    const memberships = await payments.organizations.getMyMemberships()
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from payments_py import Payments
+
+    payments = Payments(
+      api_key=os.environ.get('NVM_API_KEY'),
+      environment='sandbox',
+    )
+
+    memberships = payments.organizations.get_my_memberships()
     ```
   </Tab>
 </Tabs>
 
-See the [SDK & Workspaces](/docs/integrate/patterns/organizations) pattern for listing your memberships and targeting a specific workspace when you publish agents or plans.
+See the [SDK & Workspaces](/docs/integrate/patterns/organizations) pattern for more on listing memberships and targeting a specific workspace when you publish agents or plans.
 
 ## What you can automate
 
@@ -59,7 +77,7 @@ Every organization feature is API-driven, subject to the same tier gates as the 
 </CardGroup>
 
 <Note>
-  The [White-label Onboarding](/docs/solutions/organizations/white-label-onboarding) flow is purpose-built for automation: one call provisions a customer account under your brand and hands back a scoped key to pay for your agents on their behalf.
+  The [White-label Onboarding](/docs/solutions/organizations/white-label-onboarding) flow is purpose-built for automation: one call provisions a **new** customer account under your brand and hands back a scoped key to pay for your agents on their behalf. (Onboarding an email that already has an account instead triggers a consent step before the accounts are linked.)
 </Note>
 
 ## Let agents discover your organization
@@ -74,11 +92,11 @@ Beyond managing your own org, Nevermined exposes three **public, unauthenticated
 
 ```bash
 # No auth needed — public discovery surface
-curl https://api.sandbox.nevermined.app/api/v1/organizations/org-abc123/ai-catalog.json
+curl https://api.sandbox.nevermined.app/api/v1/organizations/org-9d81acea-7d38-460e-b7c0-c3b92abcbb07/ai-catalog.json
 ```
 
 <Tip>
-  These endpoints are how an agent goes from "I found this organization" to "I can pay for its agents" without a human — the `ai-catalog.json` x402 terms are everything a paying agent needs.
+  These endpoints are how an agent goes from "I found this organization" to "I can pay for its agents" without a human — the `ai-catalog.json` x402 terms are everything a paying agent needs. See [Buy & Call a Paid Agent](/docs/getting-started/ai-agent-purchase) for an end-to-end demo driven entirely by an `agentic-instructions.md` URL.
 </Tip>
 
 ## Full API reference
