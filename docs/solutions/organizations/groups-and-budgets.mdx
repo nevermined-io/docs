@@ -4,7 +4,7 @@ description: "Organize members into groups, cap their spend with budgets, and gi
 icon: "layer-group"
 ---
 
-As your organization grows, you'll want teams to operate independently without handing everyone unlimited spend. **Groups** let you bundle members together; **budgets** put a ceiling on what a group can spend; and **shared payment methods** let a whole group charge to one org-funded source. You manage all three from the **Budgets** tab of the [organization dashboard](https://nevermined.app/organization), or programmatically with an org-admin API key.
+As your organization grows, you'll want teams to operate independently without handing everyone unlimited spend. **Groups** let you bundle members together; **budgets** put a ceiling on what a group can spend; and **shared payment methods** let a whole group charge to one org-funded source. You manage all three from the **Budgets** tab of the [organization dashboard](https://nevermined.app/organization), or programmatically with your organization's admin API key.
 
 <Note>
   Groups, budgets, and shared payment methods are **Premium and Enterprise** features. Personal and lapsed organizations can't create them.
@@ -19,7 +19,7 @@ A group is a named collection of organization members — for example a *Support
     Give it a name and add the members who should share its budget and payment methods.
   </Card>
   <Card title="Manage membership" icon="users-gear">
-    Add or remove members as teams change. Removing a group doesn't remove the people from your organization.
+    Add or remove members as teams change. Removing someone from a group doesn't remove them from your organization.
   </Card>
 </CardGroup>
 
@@ -45,7 +45,9 @@ Everything above lives under the **Budgets** tab of the organization dashboard, 
 
 ## Do it programmatically
 
-Every group, budget, and shared-payment-method action is available on the Organizations REST API using an **org-admin** [Nevermined API key](/docs/solutions/organizations/workspaces-and-members) — so an agent or a back-office script can provision teams and enforce spend limits without the dashboard. See the [SDK & Workspaces](/docs/integrate/patterns/organizations) pattern for authenticating against a specific workspace.
+Every group, budget, and shared-payment-method action is available on the Organizations REST API using your **organization's admin** [Nevermined API key](/docs/solutions/organizations/workspaces-and-members) — so an agent or a back-office script can provision teams and enforce spend limits without the dashboard.
+
+<Note>The full Organizations API reference is coming soon. Until then, see [SDK & Workspaces](/docs/integrate/patterns/organizations) for authenticating against a specific workspace.</Note>
 
 ## Related
 
