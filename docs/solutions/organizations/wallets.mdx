@@ -1,0 +1,55 @@
+---
+title: "Organization Wallets"
+description: "Custodial stablecoin treasury wallets for your organization — hold USDC and EURC, fund groups, and withdraw, from the Budgets tab or the Organizations API."
+icon: "wallet"
+---
+
+An **organization wallet** is a custodial stablecoin treasury that belongs to the whole organization rather than to one member. Use it to hold **USDC** and **EURC**, fund the teams that spend on your behalf, and move funds out when you need to. Wallets are managed from the **Budgets** tab of the [organization dashboard](https://nevermined.app/organization) or through the Organizations API.
+
+<Note>
+  Organization wallets are a **Premium and Enterprise** feature. They are custodial — Nevermined manages the signing key on the organization's behalf, so there's no seed phrase for your team to safeguard.
+</Note>
+
+## Create and fund a wallet
+
+An Admin creates a named wallet for the organization. Each wallet has an on-chain address you can send **USDC** or **EURC** to in order to fund it. You can rename a wallet at any time, and an organization can hold more than one depending on its tier.
+
+## Check balances
+
+Every wallet shows its live **USDC** and **EURC** balances, so you always know how much treasury is available before you fund a group or authorize spend.
+
+## Fund a group
+
+Share a wallet with a [group](/docs/solutions/organizations/groups-and-budgets) to make it that group's funding source. Combined with a **budget**, this lets a team spend from the shared treasury up to a ceiling you control — and you can un-share a wallet from a group whenever you need to cut it off.
+
+<Steps>
+  <Step title="Create a wallet">Add an organization wallet from the Budgets tab.</Step>
+  <Step title="Fund it">Send USDC or EURC to the wallet's address.</Step>
+  <Step title="Share with a group">Attach the wallet to a group so its members can spend from it.</Step>
+  <Step title="Cap it with a budget">Set a [budget](/docs/solutions/organizations/groups-and-budgets#budgets) so the group draws down only as fast as you allow.</Step>
+</Steps>
+
+## Withdraw
+
+When you need funds outside the platform, **withdraw** moves stablecoins from an organization wallet to an external address. The withdrawal is submitted on-chain from the custodial wallet.
+
+<Warning>
+  Withdrawals move real funds on-chain and can't be reversed. Double-check the destination address and amount before confirming.
+</Warning>
+
+## Do it programmatically
+
+Wallet creation, balances, funding groups, and withdrawals are all available on the Organizations REST API with your **organization's admin** [Nevermined API key](/docs/solutions/organizations/workspaces-and-members) — so an autonomous agent can top up a team or sweep a treasury without a human in the dashboard.
+
+<Note>The full Organizations API reference is coming soon. Until then, see [SDK & Workspaces](/docs/integrate/patterns/organizations) for authenticating against a specific workspace.</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Groups & Budgets" icon="layer-group" href="/docs/solutions/organizations/groups-and-budgets">
+    The teams and spend limits a wallet funds.
+  </Card>
+  <Card title="Plans & Billing" icon="credit-card" href="/docs/solutions/organizations/plans-and-billing">
+    The tier that unlocks organization wallets.
+  </Card>
+</CardGroup>
