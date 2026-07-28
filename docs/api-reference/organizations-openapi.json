@@ -2093,7 +2093,14 @@
         },
         "responses": {
           "201": {
-            "description": "Envelope `{ success, budget: GroupBudgetResponseDto }`"
+            "description": "Envelope `{ success, budget: GroupBudgetResponseDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupBudgetResponseEnvelopeDto"
+                }
+              }
+            }
           },
           "403": {
             "description": "Group budgets not available on this tier"
@@ -2142,7 +2149,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, budgets: GroupBudgetResponseDto[] }`"
+            "description": "Envelope `{ success, budgets: GroupBudgetResponseDto[] }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupBudgetListResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2190,7 +2204,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, usage: GroupBudgetUsageDto }`"
+            "description": "Envelope `{ success, usage: GroupBudgetUsageDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupBudgetUsageResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Budget not found"
@@ -2241,7 +2262,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, budget: GroupBudgetResponseDto }`"
+            "description": "Envelope `{ success, budget: GroupBudgetResponseDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupBudgetResponseEnvelopeDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Budget not found"
@@ -2300,7 +2328,14 @@
         },
         "responses": {
           "200": {
-            "description": "Envelope `{ success, budget: GroupBudgetResponseDto }`"
+            "description": "Envelope `{ success, budget: GroupBudgetResponseDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupBudgetResponseEnvelopeDto"
+                }
+              }
+            }
           },
           "403": {
             "description": "Group budgets not available on this tier"
@@ -2355,7 +2390,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success }`"
+            "description": "Envelope `{ success }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationsSuccessResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Budget not found"
@@ -2407,7 +2449,14 @@
         },
         "responses": {
           "201": {
-            "description": "Envelope `{ success, paymentMethod: GroupPaymentMethodResponseDto }`"
+            "description": "Envelope `{ success, paymentMethod: GroupPaymentMethodResponseDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPaymentMethodResponseEnvelopeDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Group or payment method not found"
@@ -2453,7 +2502,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, paymentMethods: GroupPaymentMethodResponseDto[] }`"
+            "description": "Envelope `{ success, paymentMethods: GroupPaymentMethodResponseDto[] }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPaymentMethodListResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2501,7 +2557,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success }`"
+            "description": "Envelope `{ success }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationsSuccessResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Group payment method not found"
@@ -2550,7 +2613,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupResponseDto"
+                  "$ref": "#/components/schemas/GroupResponseEnvelopeDto"
                 }
               }
             }
@@ -2618,7 +2681,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, groups: GroupResponseDto[], meta: { total, page, limit } }`"
+            "description": "Envelope `{ success, groups: GroupResponseDto[], meta: { total, page, limit } }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupListResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2657,7 +2727,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, group }` where `group` is a GroupResponseDto plus `members: GroupMemberResponseDto[]`"
+            "description": "Envelope `{ success, group }` where `group` is a GroupResponseDto plus `members: GroupMemberResponseDto[]`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetailEnvelopeDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Group not found"
@@ -2711,7 +2788,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupResponseDto"
+                  "$ref": "#/components/schemas/GroupResponseEnvelopeDto"
                 }
               }
             }
@@ -2754,7 +2831,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Group deactivated"
+            "description": "Group deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationsSuccessResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Group not found"
@@ -2806,7 +2890,14 @@
         },
         "responses": {
           "201": {
-            "description": "Member added to group"
+            "description": "Member added to group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMemberEnvelopeDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Group or member not found"
@@ -2860,7 +2951,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Member removed from group"
+            "description": "Member removed from group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationsSuccessResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Group or membership not found"
@@ -3485,7 +3583,14 @@
         },
         "responses": {
           "201": {
-            "description": "Envelope `{ success, wallet: OrganizationWalletResponseDto }`"
+            "description": "Envelope `{ success, wallet: OrganizationWalletResponseDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWalletResponseEnvelopeDto"
+                }
+              }
+            }
           },
           "403": {
             "description": "Org wallets not available on this tier"
@@ -3519,7 +3624,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, wallets: OrganizationWalletResponseDto[] }`"
+            "description": "Envelope `{ success, wallets: OrganizationWalletResponseDto[] }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWalletListResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3558,7 +3670,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, wallet: OrganizationWalletResponseDto }`"
+            "description": "Envelope `{ success, wallet: OrganizationWalletResponseDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWalletResponseEnvelopeDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Wallet not found"
@@ -3608,7 +3727,14 @@
         },
         "responses": {
           "200": {
-            "description": "Envelope `{ success, wallet: OrganizationWalletResponseDto }`"
+            "description": "Envelope `{ success, wallet: OrganizationWalletResponseDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWalletResponseEnvelopeDto"
+                }
+              }
+            }
           },
           "403": {
             "description": "Org wallets not available on this tier"
@@ -3651,7 +3777,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success }`"
+            "description": "Envelope `{ success }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationsSuccessResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Wallet not found"
@@ -3693,7 +3826,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, balances: OrganizationWalletBalancesDto }`"
+            "description": "Envelope `{ success, balances: OrganizationWalletBalancesDto }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWalletBalancesResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Wallet not found"
@@ -3745,7 +3885,14 @@
         },
         "responses": {
           "200": {
-            "description": "Envelope `{ success, userOpHash, txHash }`"
+            "description": "Envelope `{ success, userOpHash, txHash }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWalletWithdrawResponseDto"
+                }
+              }
+            }
           },
           "403": {
             "description": "Org wallets not available on this tier"
@@ -3805,7 +3952,14 @@
         ],
         "responses": {
           "201": {
-            "description": "Envelope `{ success }`"
+            "description": "Envelope `{ success }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationsSuccessResponseDto"
+                }
+              }
+            }
           },
           "403": {
             "description": "Org wallets not available on this tier"
@@ -3860,7 +4014,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success }`"
+            "description": "Envelope `{ success }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationsSuccessResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Wallet not shared with this group"
@@ -3902,7 +4063,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, wallets: OrganizationWalletResponseDto[] }`"
+            "description": "Envelope `{ success, wallets: OrganizationWalletResponseDto[] }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWalletListResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3941,7 +4109,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Envelope `{ success, groupIds: string[] }`"
+            "description": "Envelope `{ success, groupIds: string[] }`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWalletGroupsResponseDto"
+                }
+              }
+            }
           },
           "404": {
             "description": "Wallet not found"
@@ -5981,7 +6156,7 @@
             "example": "Marketing"
           },
           "description": {
-            "type": "object",
+            "type": "string",
             "example": "Growth, campaigns and content spend.",
             "nullable": true
           },
@@ -6539,6 +6714,690 @@
           "code",
           "httpStatus",
           "message"
+        ]
+      },
+      "GroupBudgetResponseDto": {
+        "type": "object",
+        "properties": {
+          "budgetId": {
+            "type": "string",
+            "example": "bdg-3fa8…afa6"
+          },
+          "spendingLimitCents": {
+            "type": "string",
+            "description": "Spend ceiling for the period (minor units)",
+            "example": "150000"
+          },
+          "amountSpentCents": {
+            "type": "string",
+            "description": "Spent so far this period (minor units)",
+            "example": "2000"
+          },
+          "remainingBudgetCents": {
+            "type": "string",
+            "description": "spendingLimit − amountSpent, floored at 0",
+            "example": "148000"
+          },
+          "currency": {
+            "type": "string",
+            "example": "usd"
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "month",
+              "year",
+              "one_shot"
+            ],
+            "example": "month"
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "alertThresholdPct": {
+            "type": "number",
+            "example": 80
+          },
+          "status": {
+            "type": "string",
+            "example": "Active",
+            "enum": [
+              "Active",
+              "Exhausted"
+            ]
+          }
+        },
+        "required": [
+          "budgetId",
+          "spendingLimitCents",
+          "amountSpentCents",
+          "remainingBudgetCents",
+          "currency",
+          "interval",
+          "periodStart",
+          "periodEnd",
+          "alertThresholdPct",
+          "status"
+        ]
+      },
+      "GroupBudgetListResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "budgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupBudgetResponseDto"
+            }
+          }
+        },
+        "required": [
+          "success",
+          "budgets"
+        ]
+      },
+      "GroupBudgetResponseEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "budget": {
+            "$ref": "#/components/schemas/GroupBudgetResponseDto"
+          }
+        },
+        "required": [
+          "success",
+          "budget"
+        ]
+      },
+      "GroupBudgetUsageDto": {
+        "type": "object",
+        "properties": {
+          "budgetId": {
+            "type": "string",
+            "example": "bdg-3fa8…afa6"
+          },
+          "currency": {
+            "type": "string",
+            "example": "usd"
+          },
+          "spendingLimitCents": {
+            "type": "string",
+            "example": "150000"
+          },
+          "amountSpentCents": {
+            "type": "string",
+            "example": "120000"
+          },
+          "remainingBudgetCents": {
+            "type": "string",
+            "example": "30000"
+          },
+          "percentUsed": {
+            "type": "number",
+            "description": "amountSpent / spendingLimit, 0–100",
+            "example": 80
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "alertThresholdPct": {
+            "type": "number",
+            "example": 80
+          },
+          "status": {
+            "type": "string",
+            "example": "Active",
+            "enum": [
+              "Active",
+              "Exhausted"
+            ]
+          }
+        },
+        "required": [
+          "budgetId",
+          "currency",
+          "spendingLimitCents",
+          "amountSpentCents",
+          "remainingBudgetCents",
+          "percentUsed",
+          "periodStart",
+          "periodEnd",
+          "alertThresholdPct",
+          "status"
+        ]
+      },
+      "GroupBudgetUsageResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "usage": {
+            "$ref": "#/components/schemas/GroupBudgetUsageDto"
+          }
+        },
+        "required": [
+          "success",
+          "usage"
+        ]
+      },
+      "GroupMemberResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "gm-abc123"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "grp-abc123"
+          },
+          "orgMemberId": {
+            "type": "string",
+            "example": "om-abc123"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "id",
+          "groupId",
+          "orgMemberId",
+          "isActive"
+        ]
+      },
+      "GroupWithMembersDto": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "example": "grp-abc123"
+          },
+          "orgId": {
+            "type": "string",
+            "example": "org-abc123"
+          },
+          "name": {
+            "type": "string",
+            "example": "Marketing"
+          },
+          "description": {
+            "type": "string",
+            "example": "Growth, campaigns and content spend.",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "createdByUserId": {
+            "type": "string",
+            "example": "us-abc123"
+          },
+          "memberCount": {
+            "type": "number",
+            "description": "Count of active members in the group",
+            "example": 3
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-07-02T10:00:00.000Z"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupMemberResponseDto"
+            }
+          }
+        },
+        "required": [
+          "groupId",
+          "orgId",
+          "name",
+          "description",
+          "isActive",
+          "createdByUserId",
+          "memberCount",
+          "createdAt",
+          "members"
+        ]
+      },
+      "GroupDetailEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "group": {
+            "$ref": "#/components/schemas/GroupWithMembersDto"
+          }
+        },
+        "required": [
+          "success",
+          "group"
+        ]
+      },
+      "PaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "example": 42,
+            "description": "Total number of matching items"
+          },
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number (1-based)"
+          },
+          "limit": {
+            "type": "number",
+            "example": 20,
+            "description": "Items per page"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "GroupListResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupResponseDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMetaDto"
+          }
+        },
+        "required": [
+          "success",
+          "groups",
+          "meta"
+        ]
+      },
+      "GroupMemberEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "membership": {
+            "$ref": "#/components/schemas/GroupMemberResponseDto"
+          }
+        },
+        "required": [
+          "success",
+          "membership"
+        ]
+      },
+      "GroupPaymentMethodResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Card (payment method) id",
+            "example": "3fa8…afa6"
+          },
+          "provider": {
+            "type": "string",
+            "example": "stripe"
+          },
+          "brand": {
+            "type": "string",
+            "example": "visa",
+            "nullable": true
+          },
+          "last4": {
+            "type": "string",
+            "example": "4242",
+            "nullable": true
+          },
+          "expMonth": {
+            "type": "number",
+            "example": 12,
+            "nullable": true
+          },
+          "expYear": {
+            "type": "number",
+            "example": 2030,
+            "nullable": true
+          },
+          "alias": {
+            "type": "string",
+            "description": "User-given card name (alias)",
+            "example": "Team Amex",
+            "nullable": true
+          },
+          "orgId": {
+            "type": "string",
+            "description": "Organization the card belongs to (null = personal)",
+            "example": "org-3fa8…afa6",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "brand",
+          "last4",
+          "expMonth",
+          "expYear",
+          "alias",
+          "orgId"
+        ]
+      },
+      "GroupPaymentMethodListResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "paymentMethods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupPaymentMethodResponseDto"
+            }
+          }
+        },
+        "required": [
+          "success",
+          "paymentMethods"
+        ]
+      },
+      "GroupPaymentMethodResponseEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/GroupPaymentMethodResponseDto"
+          }
+        },
+        "required": [
+          "success",
+          "paymentMethod"
+        ]
+      },
+      "GroupResponseEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "group": {
+            "$ref": "#/components/schemas/GroupResponseDto"
+          }
+        },
+        "required": [
+          "success",
+          "group"
+        ]
+      },
+      "OrganizationWalletTokenBalanceDto": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "enum": [
+              "USDC",
+              "EURC"
+            ],
+            "example": "USDC"
+          },
+          "decimals": {
+            "type": "number",
+            "example": 6
+          },
+          "atomic": {
+            "type": "string",
+            "description": "Balance in the token’s smallest unit (null if the read failed)",
+            "example": "1500000",
+            "nullable": true
+          },
+          "formatted": {
+            "type": "string",
+            "description": "Human-readable balance (null if the read failed)",
+            "example": "1.5",
+            "nullable": true
+          }
+        },
+        "required": [
+          "symbol",
+          "decimals",
+          "atomic",
+          "formatted"
+        ]
+      },
+      "OrganizationWalletBalancesDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The wallet address the balances are read for",
+            "example": "0x…"
+          },
+          "chainId": {
+            "type": "number",
+            "description": "Chain the balances were read on",
+            "example": 84532
+          },
+          "balances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationWalletTokenBalanceDto"
+            }
+          }
+        },
+        "required": [
+          "address",
+          "chainId",
+          "balances"
+        ]
+      },
+      "OrganizationWalletBalancesResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "balances": {
+            "$ref": "#/components/schemas/OrganizationWalletBalancesDto"
+          }
+        },
+        "required": [
+          "success",
+          "balances"
+        ]
+      },
+      "OrganizationWalletGroupsResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "groupIds": {
+            "example": [
+              "grp-abc123",
+              "grp-def456"
+            ],
+            "description": "Identifiers of the groups the wallet is shared with",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "success",
+          "groupIds"
+        ]
+      },
+      "OrganizationWalletResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "orw-3fa8…afa6"
+          },
+          "orgId": {
+            "type": "string",
+            "example": "org-abc123"
+          },
+          "walletIndex": {
+            "type": "number",
+            "description": "Per-org slot (0-based)",
+            "example": 0
+          },
+          "address": {
+            "type": "string",
+            "description": "The on-chain address that holds the stablecoins",
+            "example": "0x…"
+          },
+          "walletMode": {
+            "type": "string",
+            "enum": [
+              "sca",
+              "eip7702"
+            ],
+            "example": "sca"
+          },
+          "label": {
+            "type": "string",
+            "example": "Treasury",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Revoked"
+            ],
+            "example": "Active"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-07-13T10:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "orgId",
+          "walletIndex",
+          "address",
+          "walletMode",
+          "status",
+          "createdAt"
+        ]
+      },
+      "OrganizationWalletListResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "wallets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationWalletResponseDto"
+            }
+          }
+        },
+        "required": [
+          "success",
+          "wallets"
+        ]
+      },
+      "OrganizationWalletResponseEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "wallet": {
+            "$ref": "#/components/schemas/OrganizationWalletResponseDto"
+          }
+        },
+        "required": [
+          "success",
+          "wallet"
+        ]
+      },
+      "OrganizationWalletWithdrawResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "userOpHash": {
+            "type": "string",
+            "example": "0xUserOpHash",
+            "description": "ERC-4337 user operation hash for the withdrawal"
+          },
+          "txHash": {
+            "type": "string",
+            "example": "0xTxHash",
+            "nullable": true,
+            "description": "On-chain transaction hash, once the user operation is mined"
+          }
+        },
+        "required": [
+          "success",
+          "userOpHash",
+          "txHash"
+        ]
+      },
+      "OrganizationsSuccessResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
         ]
       }
     }
