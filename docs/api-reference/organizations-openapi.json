@@ -726,7 +726,7 @@
         ],
         "summary": "List organization activity events",
         "tags": [
-          "Organizations"
+          "Organizations - Activity"
         ]
       }
     },
@@ -791,7 +791,7 @@
         ],
         "summary": "Get revenue breakdown by agent",
         "tags": [
-          "Organizations"
+          "Organizations - Analytics"
         ]
       }
     },
@@ -846,7 +846,7 @@
         ],
         "summary": "Get monthly recurring revenue",
         "tags": [
-          "Organizations"
+          "Organizations - Analytics"
         ]
       }
     },
@@ -921,7 +921,7 @@
         ],
         "summary": "Get plan consumption",
         "tags": [
-          "Organizations"
+          "Organizations - Analytics"
         ]
       }
     },
@@ -976,7 +976,7 @@
         ],
         "summary": "Get top customers by spend",
         "tags": [
-          "Organizations"
+          "Organizations - Analytics"
         ]
       }
     },
@@ -1041,7 +1041,7 @@
         ],
         "summary": "Get conversion funnel metrics",
         "tags": [
-          "Organizations"
+          "Organizations - Analytics"
         ]
       }
     },
@@ -1136,7 +1136,7 @@
         ],
         "summary": "Get per-member credit-burn attribution",
         "tags": [
-          "Organizations"
+          "Organizations - Analytics"
         ]
       }
     },
@@ -1221,7 +1221,7 @@
         ],
         "summary": "Get a group's Router-rail (crypto) spend",
         "tags": [
-          "Organizations"
+          "Organizations - Analytics"
         ]
       }
     },
@@ -1256,7 +1256,7 @@
         ],
         "summary": "Effective tier, caps and feature flags for this org",
         "tags": [
-          "Organizations"
+          "Organizations - Billing"
         ]
       }
     },
@@ -1291,7 +1291,7 @@
         ],
         "summary": "Current tier subscription for this org (or null)",
         "tags": [
-          "Organizations"
+          "Organizations - Billing"
         ]
       }
     },
@@ -1326,7 +1326,7 @@
         ],
         "summary": "List Stripe invoices for the org tier subscription",
         "tags": [
-          "Organizations"
+          "Organizations - Billing"
         ]
       }
     },
@@ -1364,7 +1364,7 @@
         ],
         "summary": "Cancel the org tier subscription at period end",
         "tags": [
-          "Organizations"
+          "Organizations - Billing"
         ]
       }
     },
@@ -1415,7 +1415,7 @@
         ],
         "summary": "Downgrade an Enterprise org to Premium without resubscribing",
         "tags": [
-          "Organizations"
+          "Organizations - Billing"
         ]
       }
     },
@@ -1466,7 +1466,7 @@
         ],
         "summary": "Upgrade a Premium org to Enterprise without resubscribing",
         "tags": [
-          "Organizations"
+          "Organizations - Billing"
         ]
       }
     },
@@ -1523,7 +1523,7 @@
         ],
         "summary": "Create a tier-plan Stripe checkout",
         "tags": [
-          "Organizations"
+          "Organizations - Billing"
         ]
       }
     },
@@ -1546,7 +1546,7 @@
         },
         "summary": "List the active hybrid-tier catalog",
         "tags": [
-          "Organizations"
+          "Organizations - Billing"
         ]
       }
     },
@@ -1614,7 +1614,7 @@
         ],
         "summary": "List organization customers",
         "tags": [
-          "Organizations"
+          "Organizations - Customers"
         ]
       }
     },
@@ -1676,7 +1676,7 @@
         ],
         "summary": "Org-wide customer aggregations",
         "tags": [
-          "Organizations"
+          "Organizations - Customers"
         ]
       }
     },
@@ -1732,7 +1732,7 @@
         ],
         "summary": "Export organization customers as CSV",
         "tags": [
-          "Organizations"
+          "Organizations - Customers"
         ]
       }
     },
@@ -1790,7 +1790,7 @@
         ],
         "summary": "Get an organization customer",
         "tags": [
-          "Organizations"
+          "Organizations - Customers"
         ]
       }
     },
@@ -1864,7 +1864,7 @@
         ],
         "summary": "Per-customer aggregations + drill-down series",
         "tags": [
-          "Organizations"
+          "Organizations - Customers"
         ]
       }
     },
@@ -1938,7 +1938,123 @@
         ],
         "summary": "Per-customer purchase history",
         "tags": [
-          "Organizations"
+          "Organizations - Customers"
+        ]
+      }
+    },
+    "/organizations/{orgId}/customers/{customerId}/block": {
+      "post": {
+        "description": "Blocks a customer: revokes every API key this organization issued to them, and refuses to issue new ones until they are unblocked. Their own personal keys, and keys issued by other organizations, are untouched. Idempotent — blocking an already-blocked customer succeeds without re-revoking or re-emitting the activity event. Requires a Nevermined API key, organization admin privileges, and the Enterprise tier.",
+        "operationId": "OrganizationCustomersController_blockCustomer",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "example": "org-abc123",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "description": "Customer record ID",
+            "schema": {
+              "example": "oc-7b1c3e9a",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer blocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid Nevermined API key"
+          },
+          "403": {
+            "description": "Caller is not an organization admin, or the org is not on the Enterprise tier"
+          },
+          "404": {
+            "description": "Customer not found or does not belong to this org"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "Block an organization customer",
+        "tags": [
+          "Organizations - Customers"
+        ]
+      }
+    },
+    "/organizations/{orgId}/customers/{customerId}/unblock": {
+      "post": {
+        "description": "Restores a blocked customer to active, so the organization can issue them credentials again. Does NOT reinstate the keys revoked at block time — those stay revoked and a new one must be issued. Idempotent. Requires a Nevermined API key, organization admin privileges, and the Enterprise tier.",
+        "operationId": "OrganizationCustomersController_unblockCustomer",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "example": "org-abc123",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "description": "Customer record ID",
+            "schema": {
+              "example": "oc-7b1c3e9a",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer unblocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid Nevermined API key"
+          },
+          "403": {
+            "description": "Caller is not an organization admin, or the org is not on the Enterprise tier"
+          },
+          "404": {
+            "description": "Customer not found or does not belong to this org"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "summary": "Unblock an organization customer",
+        "tags": [
+          "Organizations - Customers"
         ]
       }
     },
@@ -3184,7 +3300,7 @@
         ],
         "summary": "Generate a WebSocket secret",
         "tags": [
-          "Organizations"
+          "Organizations - Realtime"
         ]
       },
       "get": {
@@ -3230,7 +3346,7 @@
         ],
         "summary": "List the caller's own WebSocket secrets",
         "tags": [
-          "Organizations"
+          "Organizations - Realtime"
         ]
       }
     },
@@ -3288,7 +3404,7 @@
         ],
         "summary": "Rotate a WebSocket secret",
         "tags": [
-          "Organizations"
+          "Organizations - Realtime"
         ]
       }
     },
@@ -3339,7 +3455,7 @@
         ],
         "summary": "Revoke a WebSocket secret",
         "tags": [
-          "Organizations"
+          "Organizations - Realtime"
         ]
       }
     },
@@ -3385,7 +3501,7 @@
         ],
         "summary": "Create an organization stablecoin wallet",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       },
       "get": {
@@ -3413,7 +3529,7 @@
         ],
         "summary": "List an org's active stablecoin wallets",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       }
     },
@@ -3455,7 +3571,7 @@
         ],
         "summary": "Read one organization wallet by id",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       },
       "patch": {
@@ -3508,7 +3624,7 @@
         ],
         "summary": "Rename an organization wallet",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       },
       "delete": {
@@ -3548,7 +3664,7 @@
         ],
         "summary": "Revoke (soft-delete) an organization wallet",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       }
     },
@@ -3590,7 +3706,7 @@
         ],
         "summary": "Read a wallet's USDC + EURC balances on the deployment's chain",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       }
     },
@@ -3651,7 +3767,7 @@
         ],
         "summary": "Withdraw stablecoins from an org wallet to a nominated address",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       }
     },
@@ -3708,7 +3824,7 @@
         ],
         "summary": "Share an org wallet with a group (so it funds the group budget)",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       },
       "delete": {
@@ -3757,7 +3873,7 @@
         ],
         "summary": "Stop a group from drawing on a wallet",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       }
     },
@@ -3796,7 +3912,7 @@
         ],
         "summary": "List the org wallets shared with a group (fund its budgets)",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       }
     },
@@ -3838,7 +3954,7 @@
         ],
         "summary": "List the groups a wallet is shared with",
         "tags": [
-          "Organizations"
+          "Organizations - Wallets"
         ]
       }
     },
@@ -3889,7 +4005,7 @@
         ],
         "summary": "Create a webhook subscription",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       },
       "get": {
@@ -3925,7 +4041,7 @@
         ],
         "summary": "List webhook subscriptions",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       }
     },
@@ -3976,7 +4092,7 @@
         ],
         "summary": "Get a webhook subscription",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       },
       "patch": {
@@ -4038,7 +4154,7 @@
         ],
         "summary": "Update a webhook subscription",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       },
       "delete": {
@@ -4087,7 +4203,7 @@
         ],
         "summary": "Delete a webhook subscription",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       }
     },
@@ -4138,7 +4254,7 @@
         ],
         "summary": "Rotate a webhook signing secret",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       }
     },
@@ -4215,7 +4331,7 @@
         ],
         "summary": "List deliveries for a webhook subscription",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       }
     },
@@ -4266,7 +4382,7 @@
         ],
         "summary": "Get a webhook delivery record",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       }
     },
@@ -4317,7 +4433,7 @@
         ],
         "summary": "Retry a webhook delivery",
         "tags": [
-          "Organizations"
+          "Organizations - Webhooks"
         ]
       }
     }
@@ -4331,19 +4447,58 @@
   "tags": [
     {
       "name": "Organizations",
-      "description": "Core organization management — settings, members & roles, billing & tiers, customers, analytics, wallets, webhooks, and realtime secrets."
+      "x-displayName": "General",
+      "description": "Organization settings, members & roles, and workspace context."
+    },
+    {
+      "name": "Organizations - Billing",
+      "x-displayName": "Billing",
+      "description": "Tiers, subscriptions, invoices, checkout, and the public tier catalog."
     },
     {
       "name": "Groups",
+      "x-displayName": "Groups & Budgets",
       "description": "Organization groups, per-group budgets, and shared payment methods."
     },
     {
+      "name": "Organizations - Wallets",
+      "x-displayName": "Wallets",
+      "description": "Custodial stablecoin treasury wallets."
+    },
+    {
+      "name": "Organizations - Customers",
+      "x-displayName": "Customers",
+      "description": "The white-label customer CRM (Enterprise)."
+    },
+    {
+      "name": "Organizations - Analytics",
+      "x-displayName": "Analytics",
+      "description": "Revenue, MRR, usage, conversion, and per-member metrics."
+    },
+    {
+      "name": "Organizations - Webhooks",
+      "x-displayName": "Webhooks",
+      "description": "Outbound webhook subscriptions and deliveries."
+    },
+    {
+      "name": "Organizations - Activity",
+      "x-displayName": "Activity",
+      "description": "The organization activity feed."
+    },
+    {
+      "name": "Organizations - Realtime",
+      "x-displayName": "Realtime",
+      "description": "Realtime WebSocket secret management (Enterprise)."
+    },
+    {
       "name": "Invitations",
-      "description": "Invite people to an organization and manage pending invitations."
+      "x-displayName": "Invitations",
+      "description": "Invite people to an organization."
     },
     {
       "name": "Organizations - Integration",
-      "description": "Public, unauthenticated agent-discovery surfaces (llms.txt, agentic-instructions.md, ai-catalog.json)."
+      "x-displayName": "Agent Discovery",
+      "description": "Public agent-discovery surfaces (llms.txt, agentic-instructions.md, ai-catalog.json)."
     }
   ],
   "servers": [
@@ -5566,6 +5721,15 @@
             "description": "ISO-8601 timestamp the customer record was created.",
             "example": "2026-01-15T09:30:00.000Z"
           },
+          "status": {
+            "description": "Lifecycle status. `blocked` customers hold no valid org-issued credential and cannot be issued a new one until unblocked (#2484).",
+            "example": "active",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationCustomerStatus"
+              }
+            ]
+          },
           "userName": {
             "type": "object",
             "description": "Display name from the buyer’s user profile, when available.",
@@ -5586,7 +5750,8 @@
           "firstSeenAt",
           "lastActiveAt",
           "totalSpent",
-          "createdAt"
+          "createdAt",
+          "status"
         ]
       },
       "CustomerAggregationsResponseDto": {
