@@ -1944,7 +1944,7 @@
     },
     "/organizations/{orgId}/customers/{customerId}/block": {
       "post": {
-        "description": "Blocks a customer: revokes every API key this organization issued to them, and refuses to issue new ones until they are unblocked. Their own personal keys, and keys issued by other organizations, are untouched. Idempotent — blocking an already-blocked customer succeeds without re-revoking or re-emitting the activity event. Requires a Nevermined API key, organization admin privileges, and the Enterprise tier.",
+        "description": "Blocks a customer: revokes the API keys this organization issued to them via white-label onboarding, and refuses to re-issue those until they are unblocked. Their own personal keys, and keys issued by other organizations, are untouched. Note: short-lived credentials minted through the embedded widget/iframe session flow are not org-scoped, so a block neither revokes an outstanding one nor prevents a new one (tracked separately). Idempotent — blocking an already-blocked customer succeeds without re-revoking or re-emitting the activity event. Requires a Nevermined API key, organization admin privileges, and the Enterprise tier.",
         "operationId": "OrganizationCustomersController_blockCustomer",
         "parameters": [
           {
@@ -4447,57 +4447,57 @@
   "tags": [
     {
       "name": "Organizations",
-      "x-displayName": "General",
+      "x-group": "General",
       "description": "Organization settings, members & roles, and workspace context."
     },
     {
       "name": "Organizations - Billing",
-      "x-displayName": "Billing",
+      "x-group": "Billing",
       "description": "Tiers, subscriptions, invoices, checkout, and the public tier catalog."
     },
     {
       "name": "Groups",
-      "x-displayName": "Groups & Budgets",
+      "x-group": "Groups & Budgets",
       "description": "Organization groups, per-group budgets, and shared payment methods."
     },
     {
       "name": "Organizations - Wallets",
-      "x-displayName": "Wallets",
+      "x-group": "Wallets",
       "description": "Custodial stablecoin treasury wallets."
     },
     {
       "name": "Organizations - Customers",
-      "x-displayName": "Customers",
+      "x-group": "Customers",
       "description": "The white-label customer CRM (Enterprise)."
     },
     {
       "name": "Organizations - Analytics",
-      "x-displayName": "Analytics",
+      "x-group": "Analytics",
       "description": "Revenue, MRR, usage, conversion, and per-member metrics."
     },
     {
       "name": "Organizations - Webhooks",
-      "x-displayName": "Webhooks",
+      "x-group": "Webhooks",
       "description": "Outbound webhook subscriptions and deliveries."
     },
     {
       "name": "Organizations - Activity",
-      "x-displayName": "Activity",
+      "x-group": "Activity",
       "description": "The organization activity feed."
     },
     {
       "name": "Organizations - Realtime",
-      "x-displayName": "Realtime",
+      "x-group": "Realtime",
       "description": "Realtime WebSocket secret management (Enterprise)."
     },
     {
       "name": "Invitations",
-      "x-displayName": "Invitations",
+      "x-group": "Invitations",
       "description": "Invite people to an organization."
     },
     {
       "name": "Organizations - Integration",
-      "x-displayName": "Agent Discovery",
+      "x-group": "Agent Discovery",
       "description": "Public agent-discovery surfaces (llms.txt, agentic-instructions.md, ai-catalog.json)."
     }
   ],
