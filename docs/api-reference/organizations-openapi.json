@@ -4829,28 +4829,28 @@
             "default": "Lapsed"
           },
           "branding": {
-            "type": "object",
             "description": "Branding configuration for the organization",
-            "example": {
-              "themeName": "default",
-              "logo": "https://example.com/logo.png"
-            }
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrandingDto"
+              }
+            ]
           },
           "live": {
-            "type": "object",
             "description": "Stripe configuration for live environment",
-            "example": {
-              "accountId": "acct_1234567890",
-              "isAccountValidated": false
-            }
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationStripeConfigDto"
+              }
+            ]
           },
           "sandbox": {
-            "type": "object",
             "description": "Stripe configuration for sandbox environment",
-            "example": {
-              "accountId": "acct_test_1234567890",
-              "isAccountValidated": false
-            }
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationStripeConfigDto"
+              }
+            ]
           }
         },
         "required": [
@@ -4907,13 +4907,13 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "object",
+            "type": "string",
             "example": "John Doe",
             "description": "Name of the user",
             "nullable": true
           },
           "stripeAccountId": {
-            "type": "object",
+            "type": "string",
             "example": "acct_1234567890",
             "description": "Stripe account ID for the current environment",
             "nullable": true
@@ -5220,17 +5220,35 @@
             "description": "The type of event that occurred"
           },
           "actorUserId": {
-            "type": "object",
+            "type": "string",
             "description": "The user ID of the actor who triggered the event, or null for system events",
             "nullable": true
           },
           "subject": {
             "type": "object",
-            "description": "The resource the event is about: { kind, id, ...extra }"
+            "properties": {
+              "kind": {
+                "type": "string",
+                "example": "plan",
+                "description": "The kind of resource, e.g. plan / agent / member"
+              },
+              "id": {
+                "type": "string",
+                "example": "pl-abc123",
+                "description": "The resource identifier"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "additionalProperties": true,
+            "description": "The resource the event is about — `{ kind, id }` plus event-type-specific extra keys"
           },
           "metadata": {
             "type": "object",
-            "description": "Optional extra payload (e.g. role change before/after)",
+            "additionalProperties": true,
+            "description": "Optional free-form extra payload (e.g. role change before/after)",
             "nullable": true
           },
           "occurredAt": {
@@ -5906,13 +5924,13 @@
             ]
           },
           "userName": {
-            "type": "object",
+            "type": "string",
             "description": "Display name from the buyer’s user profile, when available.",
             "example": "Aitor Argomaniz",
             "nullable": true
           },
           "userEmail": {
-            "type": "object",
+            "type": "string",
             "description": "Email from the buyer’s user profile, when available.",
             "example": "aitor@example.com",
             "nullable": true
@@ -7403,6 +7421,114 @@
         "required": [
           "success"
         ]
+      },
+      "BrandingDto": {
+        "type": "object",
+        "properties": {
+          "themeName": {
+            "type": "string",
+            "description": "Theme name, e.g. 'default', 'gradient', 'dark', 'ocean', 'sunset', 'custom'.",
+            "example": "default"
+          },
+          "logo": {
+            "type": "string",
+            "description": "Company logo URL.",
+            "example": "https://example.com/logo.png"
+          },
+          "leftPanelHeadingTextColor": {
+            "type": "string",
+            "description": "Left panel heading text color.",
+            "example": "#0F172A"
+          },
+          "leftPanelBodyTextColor": {
+            "type": "string",
+            "description": "Left panel body text color.",
+            "example": "#334155"
+          },
+          "leftPanelBackgroundColor1": {
+            "type": "string",
+            "description": "Left panel background color (stop 1).",
+            "example": "#FFFFFF"
+          },
+          "leftPanelBackgroundColor2": {
+            "type": "string",
+            "description": "Left panel background color (stop 2).",
+            "example": "#F1F5F9"
+          },
+          "leftPanelBackgroundImageUrl": {
+            "type": "string",
+            "description": "Left panel background image URL (alternative to background colors).",
+            "example": "https://example.com/bg-left.png"
+          },
+          "rightCardTextColor": {
+            "type": "string",
+            "description": "Right card text color.",
+            "example": "#0F172A"
+          },
+          "rightCardButtonBackgroundColor": {
+            "type": "string",
+            "description": "Right card button background color.",
+            "example": "#2563EB"
+          },
+          "rightCardButtonTextColor": {
+            "type": "string",
+            "description": "Right card button text color.",
+            "example": "#FFFFFF"
+          },
+          "rightCardBackgroundColor1": {
+            "type": "string",
+            "description": "Right card background color (stop 1).",
+            "example": "#FFFFFF"
+          },
+          "rightCardBackgroundColor2": {
+            "type": "string",
+            "description": "Right card background color (stop 2).",
+            "example": "#E2E8F0"
+          },
+          "rightCardBackgroundImageUrl": {
+            "type": "string",
+            "description": "Right card background image URL (alternative to background colors).",
+            "example": "https://example.com/bg-right.png"
+          }
+        }
+      },
+      "OrganizationStripeConfigDto": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "nullable": true,
+            "example": "acct_1234567890",
+            "description": "Stripe connected account ID"
+          },
+          "accountType": {
+            "type": "string",
+            "enum": [
+              "express",
+              "standard"
+            ],
+            "nullable": true,
+            "description": "Stripe account type"
+          },
+          "isAccountValidated": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the Stripe account has completed validation"
+          },
+          "accountCreatedAt": {
+            "type": "string",
+            "description": "ISO timestamp the account was created"
+          },
+          "accountUpdatedAt": {
+            "type": "string",
+            "description": "ISO timestamp the account was last updated"
+          },
+          "additionalInformation": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Provider-specific extra information"
+          }
+        }
       }
     }
   }
