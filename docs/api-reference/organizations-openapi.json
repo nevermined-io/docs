@@ -5225,12 +5225,25 @@
             "nullable": true
           },
           "subject": {
-            "description": "The resource the event is about: { kind, id, ...extra }",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OrganizationActivitySubjectDto"
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "example": "plan",
+                "description": "The kind of resource, e.g. plan / agent / member"
+              },
+              "id": {
+                "type": "string",
+                "example": "pl-abc123",
+                "description": "The resource identifier"
               }
-            ]
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "additionalProperties": true,
+            "description": "The resource the event is about — `{ kind, id }` plus event-type-specific extra keys"
           },
           "metadata": {
             "type": "object",
@@ -7516,25 +7529,6 @@
             "description": "Provider-specific extra information"
           }
         }
-      },
-      "OrganizationActivitySubjectDto": {
-        "type": "object",
-        "properties": {
-          "kind": {
-            "type": "string",
-            "example": "plan",
-            "description": "The kind of resource, e.g. plan / agent / member"
-          },
-          "id": {
-            "type": "string",
-            "example": "pl-abc123",
-            "description": "The resource identifier"
-          }
-        },
-        "required": [
-          "kind",
-          "id"
-        ]
       }
     }
   }
