@@ -1,0 +1,138 @@
+---
+title: "Core Concepts"
+description: "Learn how Nevermined adds payments and access control to AI agents, MCP tools, and static assets with payment plans, metering, and per-request entitlement."
+icon: "lightbulb"
+---
+
+Nevermined adds a payment and entitlement layer to any **monetizable service** (agent APIs, MCP tools, or static assets). Attach a **payment plan** and each inbound request is validated, metered, and settled in real time. No checkout flows, no manual invoicing, no distinction between human and agent callers.
+
+## What Can You Monetize?
+
+Nevermined validates each inbound request against the caller’s entitlement before your code runs:
+
+- **Agent APIs** - AI agents exposed as HTTP endpoints (REST, webhooks, etc.)
+- **MCP Tools** - tool endpoints served via the Model Context Protocol
+- **Static Assets** - gated resources like files, datasets, or downloads
+
+Every monetizable service has:
+
+- A **public endpoint** (the URL callers hit)
+- A **payment plan** (pricing and access terms)
+- A **validation step** (Nevermined checks entitlement per request)
+- **Usage tracking** (automatic metering on every call)
+
+## Standards and protocols (x402)
+
+Nevermined supports modern payment standards used in agentic commerce. In particular, **x402** standardizes how clients and servers negotiate payment-required requests, enabling smoother, interoperable monetization flows.
+
+If you're integrating with x402-compatible clients/servers, see the [x402 integration](/development-guide/nevermined-x402).
+
+## What is a Payment Plan?
+
+A payment plan defines how users pay and what they're entitled to consume:
+
+<CardGroup cols={2}>
+  <Card title="Payment Method" icon="credit-card">
+    [**Cards**](/products/payments/overview) (Visa, Stripe, or Braintree) or [**Crypto**](/integrate/patterns/stablecoin-payments) (USDC, EURC on-chain).
+  </Card>
+  <Card title="Pricing Model" icon="sack-dollar">
+    **Fixed** (same cost per call) or **Dynamic** (builder-defined per request, or cost+margin).
+  </Card>
+  <Card title="Plan Type" icon="calendar-days">
+    **Prepaid** (buy upfront) or **Pay-as-you-go** (charge per request).
+  </Card>
+  <Card title="Payouts" icon="building-columns">
+    Merchants receive fiat payouts via [Stripe Connect](https://stripe.com/connect) or crypto directly to their wallet. Connect your account in the [Nevermined App](https://nevermined.app).
+  </Card>
+</CardGroup>
+
+<AccordionGroup>
+<Accordion title="Prepaid plans">
+  Users buy a plan upfront. Each API call deducts from their balance:
+
+  - **Fixed pricing**: every request costs the same (e.g., \$10 for 100 requests at \$0.10 each)
+  - **Dynamic pricing**: charge different amounts per request based on complexity, or apply cost+margin automatically
+</Accordion>
+<Accordion title="Pay-as-you-go">
+  No upfront purchase. Charge the user's card or wallet on each request:
+
+  - **Cards**: agents charge via [card delegation](/products/payments/overview)
+  - **Crypto**: settle in USDC or EURC on-chain
+</Accordion>
+<Accordion title="Time-limited plans">
+  Add expiration to any plan:
+
+  - **Duration**: set expiry (days, months, years)
+  - **Hybrid**: combine usage limits with time limits (e.g., 1,000 requests valid for 30 days)
+</Accordion>
+<Accordion title="Outcome-based pricing">
+  Charge on success: meetings booked, leads qualified, issues resolved. Only bill when your agent delivers a defined outcome or milestone.
+</Accordion>
+</AccordionGroup>
+
+### Examples
+
+- **Customer Support Agent**: \$49/month unlimited, or \$10 for 1,000 calls
+- **Dataset Access**: \$99 for 30-day access
+- **Agent API**: \$0.10/call prepaid, or \$0.15/call PAYG
+- **Sales Agent**: \$5 per qualified lead (outcome-based)
+
+## How It All Works Together
+
+<Steps>
+  <Step title="Register your API">
+    Define your service interface and metadata using the Payments SDK.
+  </Step>
+  <Step title="Create a payment plan">
+    Set payment method, pricing model, and plan type using the Payments SDK.
+  </Step>
+  <Step title="Users or agents purchase access">
+    Purchase a prepaid or pay-as-you-go plan, paid with [card](/products/payments/overview) or crypto.
+  </Step>
+  <Step title="Validate before delivery">
+    Validate entitlement before serving requests or granting access.
+  </Step>
+  <Step title="Track and settle">
+    Automatically track usage per request and settle payments.
+  </Step>
+</Steps>
+
+## Payment Methods
+
+<CardGroup cols={2}>
+  <Card title="Cards" icon="credit-card" href="/products/payments/overview">
+    Pay with real Visa, Stripe, or Braintree cards via [card delegation](/products/payments/overview). Agents charge against spending delegations with lifetime limits, usage caps, and (for Visa) per-delegation WebAuthn/passkey device binding. No crypto wallet needed.
+  </Card>
+  <Card title="Crypto" icon="coins" href="/integrate/patterns/stablecoin-payments">
+    USDC, EURC, or any ERC-20 token on-chain. Lowest fees and full transparency for crypto-native users.
+  </Card>
+</CardGroup>
+
+### Fiat vs crypto: what each plan needs
+
+A plan is paid for in **one** of two ways — fiat (card) or crypto — and each needs different setup before you can pay. A plan is never both. Check the type up front, so you don't enroll a card for a crypto plan or try to pay a card plan from a wallet:
+
+| | **Fiat plan** (`nvm:card-delegation`) | **Crypto plan** (`nvm:erc4337`) |
+|---|---|---|
+| **What the buyer needs** | An enrolled card with the plan's provider | A smart account funded with the plan's token |
+| **Set up** | [Enroll a card](/products/payments/card-enrollment) — Stripe, Braintree, or Visa | Fund the account with USDC / EURC |
+| **Delegation** | `provider: 'stripe'` (or `braintree` / `visa`), `currency: 'usd'` | `provider: 'erc4337'`, `currency: 'usdc'` |
+| **Token scheme** | pass `scheme: 'nvm:card-delegation'` | `scheme: 'nvm:erc4337'` (the default) |
+| **Detect in code** | `resolveScheme()` / `resolve_scheme()` → `nvm:card-delegation` | → `nvm:erc4337` |
+
+Not sure which a plan uses? See [Which payment type does this plan need?](/development-guide/order-plans#which-payment-type-does-this-plan-need) to detect it in code before you pay.
+
+## Merchant Onboarding
+
+<CardGroup cols={2}>
+  <Card title="Payouts" icon="building-columns">
+    Merchants receive fiat payouts via [Stripe Connect](https://stripe.com/connect) or crypto directly to their wallet. Connect your account in the [Nevermined App](https://nevermined.app).
+  </Card>
+  <Card title="Security & Compliance" icon="shield-check">
+    ISO 27001, SOC 2 Type II, PCI SAQ-D, GDPR compliant. Card data captured via PCI Level 1 infrastructure (VGS). Nevermined never stores raw card numbers.
+  </Card>
+</CardGroup>
+
+## Next steps
+
+Building an **AI agent that needs to pay** for services? Follow [AI Agents: Buy Access Autonomously](/getting-started/ai-agent-purchase) — get an API key, enroll a card, delegate a budget, and make an x402 purchase end to end.
