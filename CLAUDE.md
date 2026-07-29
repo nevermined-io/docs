@@ -20,11 +20,11 @@ This document provides comprehensive guidelines for AI agents to write and maint
 
 ### Generated files — never edit by hand
 
-- `docs/development-guide/api-errors/codes.mdx` — mirrored from nvm-monorepo (`sync-errors-docs.yml`).
-- `docs/development-guide/api-changelog.mdx` — mirrored from nvm-monorepo's version-gate registry (`sync-api-changelog-docs.yml`). Fix content at the source (`apps/api/src/api-versioning/registry.ts` gate descriptions) and let the sync regenerate it.
-- `docs/api-reference/*` subtrees synced from payments / payments-py / cli / openclaw stay source-owned as before.
+- `development-guide/api-errors/codes.mdx` — mirrored from nvm-monorepo (`sync-errors-docs.yml`).
+- `development-guide/api-changelog.mdx` — mirrored from nvm-monorepo's version-gate registry (`sync-api-changelog-docs.yml`). Fix content at the source (`apps/api/src/api-versioning/registry.ts` gate descriptions) and let the sync regenerate it.
+- `api-reference/*` subtrees synced from payments / payments-py / cli / openclaw stay source-owned as before.
 
-`docs/development-guide/api-versioning.mdx` is AUTHORED here (not generated) — edit it normally.
+`development-guide/api-versioning.mdx` is AUTHORED here (not generated) — edit it normally.
 
 ### AI Coding Skill
 
@@ -126,10 +126,10 @@ Use H2 headings (#) for major topics, H3 (#) for subsections.
 
 **Framework Integrations** (for adding payments to your API)
 
-- Express.js (TypeScript/JavaScript) - `docs/integrate/add-to-your-agent/express.mdx`
-- FastAPI (Python) - `docs/integrate/add-to-your-agent/fastapi.mdx`
-- Strands Agent (Python/AWS) - `docs/integrate/add-to-your-agent/strands.mdx`
-- Generic HTTP (any framework) - `docs/integrate/add-to-your-agent/generic-http.mdx`
+- Express.js (TypeScript/JavaScript) - `integrate/add-to-your-agent/express.mdx`
+- FastAPI (Python) - `integrate/add-to-your-agent/fastapi.mdx`
+- Strands Agent (Python/AWS) - `integrate/add-to-your-agent/strands.mdx`
+- Generic HTTP (any framework) - `integrate/add-to-your-agent/generic-http.mdx`
 
 ### Mintlify Components to Use
 
@@ -355,7 +355,7 @@ Before finalizing any documentation:
 - **Local server not starting**: Run `mintlify install` to reinstall dependencies
 - **404 errors**: Ensure you're running `mintlify dev` from the root directory with `docs.json`
 - **MDX rendering issues**: Check Mintlify documentation for component syntax
-- **Link breaks**: Verify paths match directory structure (e.g., `docs/getting-started/welcome`)
+- **Link breaks**: Verify paths match directory structure (e.g., `getting-started/welcome`)
 
 ---
 
@@ -366,7 +366,7 @@ Before finalizing any documentation:
 - **Purpose**: Help developers onboard quickly
 - **Structure**: Welcome → Quickstart → Core Concepts → Examples
 - **Tone**: Encouraging and instructive
-- **Examples**: [welcome.mdx](docs/getting-started/welcome.mdx), [quickstart.mdx](docs/getting-started/quickstart.mdx)
+- **Examples**: [welcome.mdx](getting-started/welcome.mdx), [quickstart.mdx](getting-started/quickstart.mdx)
 
 ### 2. Solutions & Use Cases
 
@@ -388,8 +388,8 @@ Before finalizing any documentation:
 - **Purpose**: Document all Payments library methods and endpoints
 - **Structure**: Overview → Setup → Method details → Examples → Error handling
 - **Tone**: Technical and precise
-- **Examples**: [api-reference/introduction.mdx](docs/api-reference/introduction.mdx)
-- **Source of Documentation**: All the documentation included in the "docs/api-reference" folder is sourced from different repositories. Don't modify it directly.
+- **Examples**: [api-reference/introduction.mdx](api-reference/introduction.mdx)
+- **Source of Documentation**: All the documentation included in the "api-reference" folder is sourced from different repositories. Don't modify it directly.
 
 ### 5. Integration Guides
 
@@ -488,7 +488,7 @@ Before finalizing any documentation:
 ### File Organization
 
 ```
-docs/
+.                             # repo root IS the content directory
 ├── getting-started/          # Onboarding and core concepts
 ├── solutions/                # Use cases and business scenarios
 ├── integrations/             # Integration partners and flows
@@ -544,7 +544,7 @@ description: "Register AI agents and create payment plans in 5 minutes using the
 - **README.md** - Local development and deployment instructions
 - **[architecture.md](architecture.md)** - Documentation status tracker and roadmap
 - **[docs.json](docs.json)** - Mintlify configuration and navigation structure
-- **[docs/api-reference/openapi.json](docs/api-reference/openapi.json)** - OpenAPI spec for Payments API
+- **[api-reference/openapi.json](api-reference/openapi.json)** - OpenAPI spec for Payments API
 
 ### External References
 
@@ -587,7 +587,7 @@ description: "Register AI agents and create payment plans in 5 minutes using the
 - Link to broken or non-existent pages
 - Forget both TypeScript and Python examples
 - Write overly long paragraphs
-- Modify the "docs/api-reference/" folder documentation, that is sourced from different repos
+- Modify the "api-reference/" folder documentation, that is sourced from different repos
 
 ---
 

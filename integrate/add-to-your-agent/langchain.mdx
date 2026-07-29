@@ -1,0 +1,1219 @@
+---
+title: "LangChain"
+description: "Add Nevermined x402 payments to your LangChain and LangGraph agents"
+icon: "link-simple"
+frameworks: ["langchain", "langgraph", "python", "typescript"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/integrate/quickstart/5-minute-setup).
+</Note>
+
+<Card title="Runnable tutorial" icon="play" href="https://github.com/nevermined-io/tutorials/tree/main/langchain-paid-agent-py">
+  **`langchain-paid-agent-py`** — a deliberately minimal LangChain + LangGraph agent
+  with a single tool gated by `@requires_payment`. Clone, fill in `.env`, run
+  `poetry run buyer` to see the full discovery → token-acquisition → settlement
+  flow in five numbered steps. The cleanest starting point if you'd rather read
+  working code than docs.
+</Card>
+
+Add payment protection to [LangChain](https://python.langchain.com/) and [LangChain.js](https://js.langchain.com/) tools using the [x402 protocol](https://github.com/coinbase/x402). The library provides two complementary approaches:
+
+| Approach | Best for | Payment layer |
+| -------- | -------- | ------------- |
+| **`requiresPayment` wrapper/decorator** | Direct tool invocation, CLI scripts, notebooks | Per-tool wrapper |
+| **Payment middleware on HTTP server** | Serving the agent over HTTP | HTTP middleware |
+
+Both use the same Nevermined plan, credits, and settlement flow — choose whichever fits your deployment model.
+
+## Installation
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```bash
+    npm install @nevermined-io/payments @langchain/core @langchain/openai zod
+    ```
+
+    <Note>
+      The `@nevermined-io/payments/langchain` sub-path export provides the `requiresPayment()` wrapper.
+      For the HTTP server approach, also install `express`.
+    </Note>
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    pip install payments-py[langchain] langchain-openai
+    ```
+
+    <Note>
+      The `[langchain]` extra installs the LangChain dependency required for the decorator.
+      For the HTTP server approach, also install `fastapi` and `uvicorn`.
+    </Note>
+  </Tab>
+</Tabs>
+
+---
+
+## Approach 1: Tool Decorator / Wrapper
+
+### x402 Payment Flow (decorator)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant LLM
+    participant Tool
+    participant NVM as Nevermined
+
+    Client->>LLM: invoke(messages)
+    LLM->>Tool: tool_call (no token)
+    Tool-->>LLM: PaymentRequired error (tool result)
+    LLM-->>Client: "Payment required"
+    Client->>NVM: get_x402_access_token(plan_id)
+    NVM-->>Client: Access token
+    Client->>LLM: invoke(messages, config=payment_token)
+    LLM->>Tool: tool_call
+    Tool->>NVM: Verify permissions
+    NVM-->>Tool: Valid
+    Tool->>Tool: Execute function
+    Tool->>NVM: Settle (burn credits)
+    NVM-->>Tool: Settled
+    Tool-->>LLM: Result
+    LLM-->>Client: Final answer
+```
+
+### Quick Start
+
+<Tabs>
+  <Tab title="TypeScript">
+    In LangChain.js, `requiresPayment()` is a higher-order function that wraps the tool implementation:
+
+    ```typescript filename="agent.ts"
+    import 'dotenv/config'
+    import { tool } from '@langchain/core/tools'
+    import { z } from 'zod'
+    import { Payments } from '@nevermined-io/payments'
+    import { requiresPayment } from '@nevermined-io/payments/langchain'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: process.env.NVM_ENVIRONMENT || 'sandbox',
+    })
+
+    const PLAN_ID = process.env.NVM_PLAN_ID!
+
+    // Protect a tool with payment — 1 credit per call
+    const searchData = tool(
+      requiresPayment(
+        (args) => `Results for '${args.query}': ...`,
+        { payments, planId: PLAN_ID, credits: 1 }
+      ),
+      {
+        name: 'search_data',
+        description: 'Search for data on a given topic. Costs 1 credit.',
+        schema: z.object({ query: z.string() }),
+      }
+    )
+    ```
+
+    <Warning>
+      The payment token is read from `config.configurable.payment_token`.
+      Pass it when invoking the tool or agent.
+    </Warning>
+  </Tab>
+  <Tab title="Python">
+    In Python, `@requires_payment` is a decorator applied before `@tool`:
+
+    ```python filename="agent.py"
+    import os
+    from dotenv import load_dotenv
+    from langchain_core.runnables import RunnableConfig
+    from langchain_core.tools import tool
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402.langchain import requires_payment
+
+    load_dotenv()
+
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_API_KEY"],
+            environment=os.environ.get("NVM_ENVIRONMENT", "sandbox"),
+        )
+    )
+
+    PLAN_ID = os.environ["NVM_PLAN_ID"]
+
+    # Protect a tool with payment — 1 credit per call
+    @tool
+    @requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
+    def search_data(query: str, config: RunnableConfig) -> str:
+        """Search for data on a given topic. Costs 1 credit."""
+        return f"Results for '{query}': ..."
+    ```
+
+    <Warning>
+      The tool function **must** accept a `config: RunnableConfig` parameter.
+      The decorator uses it to read the payment token from
+      `config["configurable"]["payment_token"]`.
+    </Warning>
+  </Tab>
+</Tabs>
+
+### Invoking with payment
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript filename="client.ts"
+    import { Payments } from '@nevermined-io/payments'
+
+    // Subscriber side — acquire token
+    const subscriber = Payments.getInstance({
+      nvmApiKey: process.env.NVM_SUBSCRIBER_API_KEY!,
+      environment: process.env.NVM_ENVIRONMENT || 'sandbox',
+    })
+
+    // Create a delegation once, then reuse its id to mint tokens.
+    const { delegationId } = await subscriber.delegation.createDelegation({
+      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      spendingLimitCents: 10000, // $100 budget
+      durationSecs: 604800,      // 7 days
+      currency: 'usdc',          // 'usd' for fiat plans
+    })
+    const token = await subscriber.x402.getX402AccessToken(PLAN_ID, undefined, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
+      delegationConfig: { delegationId },
+    })
+    const accessToken = token.accessToken
+
+    // Invoke tool directly
+    const result = await searchData.invoke(
+      { query: 'AI trends' },
+      { configurable: { payment_token: accessToken } }
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python filename="client.py"
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
+
+    # Subscriber side — acquire token
+    subscriber = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_SUBSCRIBER_API_KEY"],
+            environment=os.environ.get("NVM_ENVIRONMENT", "sandbox"),
+        )
+    )
+
+    # Create a delegation once, then reuse its id to mint tokens.
+    delegation = subscriber.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider="erc4337", spending_limit_cents=10000, duration_secs=604800, currency="usdc",
+        )
+    )
+    token = subscriber.x402.get_x402_access_token(
+        plan_id=PLAN_ID,
+        token_options=X402TokenOptions(
+            scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+        ),
+    )
+    access_token = token["accessToken"]
+
+    # Invoke tool directly
+    result = search_data.invoke(
+        {"query": "AI trends"},
+        config={"configurable": {"payment_token": access_token}},
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### LLM-driven tool calling
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { HumanMessage } from '@langchain/core/messages'
+    import { ChatOpenAI } from '@langchain/openai'
+
+    const llm = new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0 })
+    const tools = [searchData, summarizeData, researchTopic]
+    const llmWithTools = llm.bindTools(tools)
+    const toolMap = new Map(tools.map((t) => [t.name, t]))
+
+    const messages = [new HumanMessage('Search for AI trends')]
+    const aiMessage = await llmWithTools.invoke(messages)
+    messages.push(aiMessage)
+
+    for (const toolCall of aiMessage.tool_calls || []) {
+      const result = await toolMap.get(toolCall.name)!.invoke(
+        toolCall.args,
+        { configurable: { payment_token: accessToken } }
+      )
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    tools = [search_data, summarize_data, research_topic]
+    llm_with_tools = llm.bind_tools(tools)
+    tool_map = {t.name: t for t in tools}
+
+    messages = [HumanMessage(content="Search for AI trends")]
+    ai_message = llm_with_tools.invoke(messages)
+    messages.append(ai_message)
+
+    for tool_call in ai_message.tool_calls:
+        result = tool_map[tool_call["name"]].invoke(
+            tool_call["args"],
+            config={"configurable": {"payment_token": access_token}},
+        )
+    ```
+  </Tab>
+</Tabs>
+
+### LangGraph ReAct agent
+
+The same payment-protected tools work with LangGraph's `create_react_agent`. The simple case — buyer already holds a token — just threads it through `configurable`:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { createReactAgent } from '@langchain/langgraph/prebuilt'
+
+    const agent = createReactAgent({
+      llm: new ChatOpenAI({ model: 'gpt-4o-mini' }),
+      tools: [searchData, summarizeData, researchTopic],
+      prompt: 'You are a helpful research assistant.',
+    })
+
+    const result = await agent.invoke(
+      { messages: [{ role: 'human', content: 'Research AI agents and summarize' }] },
+      { configurable: { payment_token: accessToken } }
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from langgraph.prebuilt import create_react_agent
+
+    graph = create_react_agent(
+        ChatOpenAI(model="gpt-4o-mini"),
+        [search_data, summarize_data, research_topic],
+        prompt="You are a helpful research assistant.",
+    )
+
+    result = graph.invoke(
+        {"messages": [("human", "Research AI agents and summarize")]},
+        config={"configurable": {"payment_token": access_token}},
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### Discovery-first flow with `createPaidReactAgent`
+
+If the buyer **doesn't** know the plan id / scheme / provider up front, the x402 way is to invoke the agent without a token, let the protected tool raise `PaymentRequiredError`, and read the requirements off the exception. By default LangGraph's `ToolNode` would catch that exception and stringify it into a `ToolMessage` for the LLM — losing the `X402PaymentRequired` payload. Both SDKs ship a paid-agent helper for exactly this — `createPaidReactAgent` (TypeScript) / `create_paid_react_agent` (Python) — that builds the underlying `ToolNode` with `handleToolErrors: false` / `handle_tool_errors=False`, so the exception propagates to `agent.invoke()`'s caller with the payload intact.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { tool } from '@langchain/core/tools'
+    import { ChatOpenAI } from '@langchain/openai'
+    import { z } from 'zod'
+    import {
+      PaymentRequiredError,
+      createPaidReactAgent,
+      requiresPayment,
+    } from '@nevermined-io/payments/langchain'
+
+    const getMarketInsight = tool(
+      requiresPayment(
+        (args) => `Market insight for '${args.topic}': ...`,
+        { payments, planId: PLAN_ID, credits: 1 },
+      ),
+      {
+        name: 'get_market_insight',
+        description: 'Return a market insight. Costs 1 credit.',
+        schema: z.object({ topic: z.string() }),
+      },
+    )
+
+    const agent = await createPaidReactAgent(
+      new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0 }),
+      [getMarketInsight],
+      { prompt: 'You are a market data assistant.' },
+    )
+
+    // 1. Discover what the agent's tool charges by invoking without a token.
+    let accept
+    try {
+      await agent.invoke(
+        { messages: [{ role: 'human', content: QUERY }] },
+        { configurable: {} },
+      )
+    } catch (err) {
+      if (!(err instanceof PaymentRequiredError)) throw err
+      accept = err.paymentRequired!.accepts[0]
+      // accept.scheme  → "nvm:erc4337" or "nvm:card-delegation"
+      // accept.network → CAIP-2 chain or provider name (stripe, braintree, …)
+      // accept.planId  → which plan to acquire a token against
+    }
+
+    // 2. Pick a payment method matching the discovered network and create a
+    //    delegation once (provider + currency required). Reuse its delegationId
+    //    for subsequent token requests.
+    const methods = await payments.delegation.listPaymentMethods()
+    const pm = methods.find((m) => m.provider === accept.network)!
+    const delegation = await payments.delegation.createDelegation({
+      provider: pm.provider!,
+      providerPaymentMethodId: pm.id,
+      spendingLimitCents: 10000,
+      durationSecs: 3600,
+      currency: 'usd',
+    })
+
+    // 3. Acquire the token against the discovered plan by delegationId.
+    const { accessToken } = await payments.x402.getX402AccessToken(
+      accept.planId,
+      undefined,
+      {
+        scheme: accept.scheme,
+        delegationConfig: { delegationId: delegation.delegationId },
+      },
+    )
+
+    // 4. Retry with the token.
+    const result = await agent.invoke(
+      { messages: [{ role: 'human', content: QUERY }] },
+      { configurable: { payment_token: accessToken } },
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402.langchain import (
+        PaymentRequiredError,
+        create_paid_react_agent,
+        requires_payment,
+    )
+    from payments_py.x402.types import (
+        CreateDelegationPayload,
+        DelegationConfig,
+        X402TokenOptions,
+    )
+
+    @tool
+    @requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
+    def get_market_insight(topic: str, config: RunnableConfig = None) -> str:
+        """Return a market insight. Costs 1 credit."""
+        return f"Market insight for '{topic}': ..."
+
+    agent = create_paid_react_agent(
+        ChatOpenAI(model="gpt-4o-mini", temperature=0),
+        [get_market_insight],
+        prompt="You are a market data assistant.",
+    )
+
+    # 1. Discover what the agent's tool charges by invoking without a token.
+    try:
+        agent.invoke({"messages": [("human", QUERY)]}, config={"configurable": {}})
+    except PaymentRequiredError as err:
+        accept = err.payment_required.accepts[0]
+        # accept.scheme    → "nvm:erc4337" or "nvm:card-delegation"
+        # accept.network   → CAIP-2 chain or provider name (stripe, braintree, …)
+        # accept.plan_id   → which plan to acquire a token against
+
+    # 2. Pick a payment method matching the discovered network and create a
+    #    delegation once (provider + currency required). Reuse its delegation_id
+    #    for subsequent token requests.
+    pm = next(m for m in payments.delegation.list_payment_methods()
+              if m.provider == accept.network)
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider=pm.provider,
+            provider_payment_method_id=pm.id,
+            spending_limit_cents=10000,
+            duration_secs=3600,
+            currency="usd",
+        )
+    )
+
+    # 3. Acquire the token against the discovered plan by delegation_id.
+    token = payments.x402.get_x402_access_token(
+        accept.plan_id,
+        token_options=X402TokenOptions(
+            scheme=accept.scheme,
+            delegation_config=DelegationConfig(
+                delegation_id=delegation.delegation_id,
+            ),
+        ),
+    )["accessToken"]
+
+    # 4. Retry with the token.
+    result = agent.invoke(
+        {"messages": [("human", QUERY)]},
+        config={"configurable": {"payment_token": token}},
+    )
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  Create the delegation that backs the payment signature **first** (with
+  `createDelegation`), then pass its `delegationId` in the token's
+  `delegationConfig`. This applies to both card-delegation and crypto
+  (`nvm:erc4337`) plans. Passing creation fields inline instead of a
+  `delegationId` is deprecated and emits a runtime warning — see the x402
+  Protocol module reference ([TypeScript](/api-reference/typescript/x402) ·
+  [Python](/api-reference/python/x402-module)) for the full token-options
+  surface. This discovery flow covers Stripe and Braintree. For **Visa**-priced
+  plans, `createDelegation` from the SDK is rejected (`BCK.VISA.0014`) — create
+  the Visa delegation in the Nevermined app and reuse its `delegationId` here.
+</Note>
+
+<Note>
+  `createPaidReactAgent` is **async** in TypeScript — it `await`s the lazy
+  `@langchain/langgraph` import so the dependency stays optional. Install
+  LangGraph yourself (`pnpm add @langchain/langgraph`) to use it.
+</Note>
+
+### Reading the settlement receipt
+
+After a successful agent call, the buyer can read the settlement receipt — credits redeemed, remaining balance, transaction hash, network, payer — via `lastSettlement()` (TypeScript) / `last_settlement()` (Python). LangGraph copies `configurable` per node, so the in-place `payment_settlement` write is invisible to the outer scope; the accessor reads it from a module-level slot instead.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { lastSettlement } from '@nevermined-io/payments/langchain'
+
+    const result = await agent.invoke(
+      { messages: [{ role: 'human', content: QUERY }] },
+      { configurable: { payment_token: accessToken } },
+    )
+    const receipt = lastSettlement()
+    if (receipt) {
+      console.log(`credits redeemed: ${receipt.creditsRedeemed}`)
+      console.log(`remaining balance: ${receipt.remainingBalance}`)
+      console.log(`tx: ${receipt.transaction}`)
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from payments_py.x402.langchain import last_settlement
+
+    result = agent.invoke(
+        {"messages": [("human", QUERY)]},
+        config={"configurable": {"payment_token": token}},
+    )
+    receipt = last_settlement()
+    if receipt:
+        print(f"credits redeemed: {receipt.credits_redeemed}")
+        print(f"remaining balance: {receipt.remaining_balance}")
+        print(f"tx: {receipt.transaction}")
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  `lastSettlement()` / `last_settlement()` reads from a module-level slot. In
+  multi-tenant processes (e.g. a server handling concurrent settlements), the
+  value reflects whichever invocation settled most recently — there is no
+  per-call isolation. For multi-tenant scenarios, surface settlement via a
+  callback or observability layer instead.
+</Warning>
+
+### Trace payments in LangSmith
+
+Once payment protection is wired up, you can have every paid tool call surface as structured spans in [LangSmith](https://smith.langchain.com) — no code changes required, just two env vars and an optional dependency. **Both SDKs emit the identical `nvm:verify` / `nvm:settlement` span shape** (the cross-SDK [observability-spans-v1 contract](https://github.com/nevermined-io/nvm-monorepo/blob/main/docs/specs/observability-spans-v1.md)), so a single trace can be correlated across a TypeScript buyer and a Python seller — e.g. filter on `nvm.tx_hash`.
+
+**Install the optional dependency:**
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```bash
+    pnpm add langsmith
+    ```
+
+    `langsmith` is an optional peer dependency — the `requiresPayment` wrapper emits the spans automatically when it is installed and tracing is enabled.
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    pip install "payments-py[langchain,langsmith]"
+    ```
+  </Tab>
+</Tabs>
+
+**Enable tracing:**
+
+```bash filename=".env"
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=lsv2_pt_your-key
+LANGSMITH_PROJECT=nvm-langchain          # optional
+# Only needed if your LangSmith account is NOT in GCP US:
+# LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com
+```
+
+That's it. Running the same agent invocation now produces a trace tree with two dedicated Nevermined child spans nested under the tool:
+
+```text
+LangGraph
+└── tools
+    └── get_market_insight
+        ├── nvm:verify      0.28s     ← around the facilitator verify call
+        └── nvm:settlement  1.88s     ← around the facilitator settle call
+```
+
+Each Nevermined span carries `nvm.*` metadata for audit + reconciliation:
+
+| Span | Attributes |
+| ---- | ---------- |
+| `nvm:verify` | `nvm.plan_ids`, `nvm.scheme`, `nvm.network`, `nvm.agent_id`, `nvm.payer`, `nvm.agent_request_id`, `nvm.payment_token` (abbreviated), `nvm.verify.duration_ms` |
+| `nvm:settlement` | `nvm.credits_redeemed`, `nvm.balance.after`, `nvm.tx_hash`, `nvm.network`, `nvm.payer`, `nvm.payment_token` (abbreviated), `nvm.settle.duration_ms` |
+
+The same `nvm.*` metadata is also attached to the parent tool span so cmd-F searches in the LangSmith UI land on either level.
+
+**Failed discovery probes are first-class too.** When the buyer's first `agent.invoke()` runs without a `payment_token` (the discovery-first flow), the `nvm:verify` span still opens, carries the static `nvm.plan_ids` / `nvm.scheme` / `nvm.network`, and is marked failed by the raised `PaymentRequiredError`. That gives you "which plan was the probe against?" filterability instead of an opaque LangChain crash.
+
+<Warning title="Sensitive data in traces">
+  The `payment_token` the buyer passes in `configurable.payment_token` would normally be captured into the parent tool span's metadata by LangChain and inherited by every child span. The full token grants access to the protected tool until it expires. Both SDKs **proactively strip it from the parent span's metadata** before opening any `nvm:*` child, so the full credential never reaches a Nevermined-emitted attribute. The abbreviated `nvm.payment_token` (first 16 chars + `…` + last 4 chars) remains available for correlation.
+
+  A too-short token (≤ 20 chars — almost always a misconfiguration, since real x402 access tokens are JWTs) is **redacted, not exported**: at most the first 4 chars are surfaced followed by a `…(short)` marker, and a token of 4 chars or fewer reveals **nothing** (just `…(short)`). A warning is logged, so a wrong value passed as the token never lands in a trace.
+
+  Other channels (custom callbacks, an explicit metadata write that includes the token, tool signatures that contain the token) are not covered — strip them yourself or set `export LANGSMITH_HIDE_INPUTS=true` for blanket coverage.
+</Warning>
+
+If a span failure ever occurs during metadata building or attachment, observability is silently dropped — the payment flow itself is never interrupted. Settlement receipts persist (via `lastSettlement()` in TypeScript / `last_settlement()` in Python) regardless of whether the span emit succeeded.
+
+For the full module reference, see the [Python LangChain module reference](/api-reference/python/langchain-module#observability-with-langsmith). The TypeScript helper surface (`verifySpan`, `settlementSpan`, `abbreviateToken`, `addMetadata`, `redactMetadataKeys`, `activeRunTree`, plus `buildVerifyMetadata` / `buildSettleMetadata` for manual use outside the `requiresPayment` decorator) is exported from `@nevermined-io/payments/langsmith` — JSDoc on each helper documents the contract until the next `update-docs.yml` sync mirrors a dedicated TS api-reference page.
+
+### Dynamic Credits
+
+<Note>
+  The `credits` argument is sent to the facilitator as `max_amount`. The amount
+  actually redeemed depends on the plan's server-side credit config:
+  **fixed plans** (where `plan.credits.minAmount == plan.credits.maxAmount`)
+  always burn `plan.credits.maxAmount` and ignore the supplied value (per
+  [nvm-monorepo#1568](https://github.com/nevermined-io/nvm-monorepo/issues/1568));
+  **range plans** clamp the value into `[minAmount, maxAmount]`. If you want
+  predictable per-call cost, configure the plan as fixed.
+</Note>
+
+<Tabs>
+  <Tab title="TypeScript">
+    Three patterns for credit calculation:
+
+    ```typescript
+    // Pattern 1: Static number — always costs 1 credit
+    const searchData = tool(
+      requiresPayment(
+        (args) => `Results for ${args.query}`,
+        { payments, planId: PLAN_ID, credits: 1 }
+      ),
+      { name: 'search_data', description: '...', schema: z.object({ query: z.string() }) }
+    )
+
+    // Pattern 2: Arrow function — cost scales with output length
+    const summarize = tool(
+      requiresPayment(
+        (args) => `Summary of ${args.text}`,
+        {
+          payments, planId: PLAN_ID,
+          credits: (ctx) => Math.max(2, Math.min(Math.floor(String(ctx.result).length / 100), 10)),
+        }
+      ),
+      { name: 'summarize', description: '...', schema: z.object({ text: z.string() }) }
+    )
+
+    // Pattern 3: Named function — complex logic on args + result
+    function calcCredits(ctx: { args: Record<string, unknown>; result: unknown }): number {
+      const topic = String(ctx.args.topic || '')
+      const result = String(ctx.result || '')
+      const base = 3
+      const keywordExtra = Math.max(0, topic.split(' ').length - 3)
+      const outputExtra = Math.floor(result.length / 200)
+      return Math.min(base + keywordExtra + outputExtra, 15)
+    }
+
+    const research = tool(
+      requiresPayment(
+        (args) => `Report on ${args.topic}`,
+        { payments, planId: PLAN_ID, credits: calcCredits }
+      ),
+      { name: 'research', description: '...', schema: z.object({ topic: z.string() }) }
+    )
+    ```
+
+    The credits function receives `{ args, result }` after tool execution.
+  </Tab>
+  <Tab title="Python">
+    Three patterns for credit calculation:
+
+    ```python
+    # Pattern 1: Static int — always costs 1 credit
+    @tool
+    @requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
+    def search_data(query: str, config: RunnableConfig) -> str:
+        ...
+
+    # Pattern 2: Lambda — cost scales with output length
+    @tool
+    @requires_payment(
+        payments=payments, plan_id=PLAN_ID,
+        credits=lambda ctx: max(2, min(len(ctx.get("result", "")) // 100, 10)),
+    )
+    def summarize_data(text: str, config: RunnableConfig) -> str:
+        ...
+
+    # Pattern 3: Named function — complex logic on args + result
+    def calc_credits(ctx: dict) -> int:
+        args = ctx.get("args", {})
+        result = ctx.get("result", "")
+        base = 3
+        keyword_extra = max(0, len(args.get("topic", "").split()) - 3)
+        output_extra = len(result) // 200
+        return min(base + keyword_extra + output_extra, 15)
+
+    @tool
+    @requires_payment(payments=payments, plan_id=PLAN_ID, credits=calc_credits)
+    def research_topic(topic: str, config: RunnableConfig) -> str:
+        ...
+    ```
+
+    The `ctx` dict passed to the credits function contains:
+    - `args` — the tool's input arguments
+    - `result` — the tool's return value (evaluated after execution)
+  </Tab>
+</Tabs>
+
+---
+
+## Approach 2: HTTP Server with Payment Middleware
+
+For serving the agent over HTTP, use payment middleware on your framework. Payment is handled at the HTTP layer — tools are plain functions with no decorators or payment config.
+
+### x402 Payment Flow (HTTP)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Agent
+
+    Client->>Agent: 1. POST /ask (no token)
+    Agent-->>Client: 2. 402 Payment Required<br/>Header: payment-required (base64)
+
+    Note over Client: 3. Generate x402 token via SDK
+
+    Client->>Agent: 4. POST /ask<br/>Header: payment-signature (token)
+
+    Note over Agent: Verify permissions<br/>Run LLM agent<br/>Settle (burn credits)
+
+    Agent-->>Client: 5. 200 OK + AI response<br/>Header: payment-response (base64)
+```
+
+### Server: LangChain
+
+<Tabs>
+  <Tab title="TypeScript (Express)">
+    ```typescript filename="src/server.ts"
+    import 'dotenv/config'
+    import express from 'express'
+    import { HumanMessage, ToolMessage } from '@langchain/core/messages'
+    import { tool } from '@langchain/core/tools'
+    import { ChatOpenAI } from '@langchain/openai'
+    import { z } from 'zod'
+    import { Payments } from '@nevermined-io/payments'
+    import { paymentMiddleware } from '@nevermined-io/payments/express'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: process.env.NVM_ENVIRONMENT || 'sandbox',
+    })
+
+    const PLAN_ID = process.env.NVM_PLAN_ID!
+
+    // Plain tools — no requiresPayment, no config parameter
+    const searchData = tool(
+      (args) => `Results for '${args.query}': ...`,
+      { name: 'search_data', description: 'Search for data.', schema: z.object({ query: z.string() }) }
+    )
+
+    const summarizeData = tool(
+      (args) => `Summary: ...`,
+      { name: 'summarize_data', description: 'Summarize text.', schema: z.object({ text: z.string() }) }
+    )
+
+    // LLM + tools
+    const llm = new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0 })
+    const tools = [searchData, summarizeData]
+    const llmWithTools = llm.bindTools(tools)
+    const toolMap = new Map(tools.map((t) => [t.name, t]))
+
+    async function runAgent(query: string): Promise<string> {
+      const messages: any[] = [new HumanMessage(query)]
+      for (let i = 0; i < 10; i++) {
+        const ai = await llmWithTools.invoke(messages)
+        messages.push(ai)
+        if (!ai.tool_calls?.length) return String(ai.content)
+        for (const tc of ai.tool_calls) {
+          const result = await (toolMap.get(tc.name) as any).invoke(tc.args)
+          messages.push(new ToolMessage({ content: result, tool_call_id: tc.id! }))
+        }
+      }
+      return String(messages.at(-1)?.content || 'No response.')
+    }
+
+    // Express app with payment middleware
+    const app = express()
+    app.use(express.json())
+    app.use(paymentMiddleware(payments, {
+      'POST /ask': { planId: PLAN_ID, credits: 1 },
+    }))
+
+    app.post('/ask', async (req, res) => {
+      const response = await runAgent(req.body.query)
+      res.json({ response })
+    })
+
+    app.get('/health', (_req, res) => res.json({ status: 'ok' }))
+
+    app.listen(8000, () => console.log('Running on http://localhost:8000'))
+    ```
+  </Tab>
+  <Tab title="Python (FastAPI)">
+    ```python filename="src/server.py"
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    import uvicorn
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+    from langchain_core.messages import HumanMessage, ToolMessage
+    from langchain_core.tools import tool
+    from langchain_openai import ChatOpenAI
+    from pydantic import BaseModel
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402.fastapi import PaymentMiddleware
+
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_API_KEY"],
+            environment=os.environ.get("NVM_ENVIRONMENT", "sandbox"),
+        )
+    )
+
+    PLAN_ID = os.environ["NVM_PLAN_ID"]
+    AGENT_ID = os.environ.get("NVM_AGENT_ID")
+
+    # Plain tools — no @requires_payment, no RunnableConfig
+    @tool
+    def search_data(query: str) -> str:
+        """Search for data on a given topic."""
+        return f"Results for '{query}': ..."
+
+    @tool
+    def summarize_data(text: str) -> str:
+        """Summarize text into bullet points."""
+        return f"Summary: ..."
+
+    # LLM + tools
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    tools = [search_data, summarize_data]
+    llm_with_tools = llm.bind_tools(tools)
+    tool_map = {t.name: t for t in tools}
+
+
+    def run_agent(query: str) -> str:
+        """Run the LangChain agent with a tool-call loop."""
+        messages = [HumanMessage(content=query)]
+        for _ in range(10):
+            ai = llm_with_tools.invoke(messages)
+            messages.append(ai)
+            if not ai.tool_calls:
+                return ai.content
+            for tc in ai.tool_calls:
+                result = tool_map[tc["name"]].invoke(tc["args"])
+                messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
+        return messages[-1].content
+
+
+    # FastAPI app with payment middleware
+    app = FastAPI(title="LangChain Agent with x402 Payments")
+
+    app.add_middleware(
+        PaymentMiddleware,
+        payments=payments,
+        routes={
+            "POST /ask": {"plan_id": PLAN_ID, "credits": 1, "agent_id": AGENT_ID},
+        },
+    )
+
+
+    class AskRequest(BaseModel):
+        query: str
+
+
+    @app.post("/ask")
+    async def ask(body: AskRequest, request: Request) -> JSONResponse:
+        response = run_agent(body.query)
+        return JSONResponse(content={"response": response})
+
+
+    @app.get("/health")
+    async def health():
+        return {"status": "ok"}
+
+
+    if __name__ == "__main__":
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+    ```
+  </Tab>
+</Tabs>
+
+### Server: LangGraph
+
+Replace the tool-call loop with LangGraph's `create_react_agent`:
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { tool } from '@langchain/core/tools'
+    import { ChatOpenAI } from '@langchain/openai'
+    import { createReactAgent } from '@langchain/langgraph/prebuilt'
+    import { z } from 'zod'
+
+    // Plain tools — no payment wrappers
+    const searchData = tool(
+      (args) => `Results for '${args.query}': ...`,
+      { name: 'search_data', description: 'Search.', schema: z.object({ query: z.string() }) }
+    )
+
+    const agent = createReactAgent({
+      llm: new ChatOpenAI({ model: 'gpt-4o-mini' }),
+      tools: [searchData, summarizeData],
+    })
+
+    async function runAgent(query: string): Promise<string> {
+      const result = await agent.invoke({ messages: [{ role: 'human', content: query }] })
+      const messages = result.messages || []
+      return messages.at(-1)?.content || 'No response.'
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from langchain_core.tools import tool
+    from langchain_openai import ChatOpenAI
+    from langgraph.prebuilt import create_react_agent
+
+    # Plain tools — no payment decorators
+    @tool
+    def search_data(query: str) -> str:
+        """Search for data on a given topic."""
+        return f"Results for '{query}': ..."
+
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    graph = create_react_agent(llm, [search_data, summarize_data])
+
+
+    def run_agent(query: str) -> str:
+        result = graph.invoke({"messages": [("human", query)]})
+        messages = result.get("messages", [])
+        return messages[-1].content if messages else "No response."
+    ```
+  </Tab>
+</Tabs>
+
+The HTTP app, middleware, and route handlers are identical to the LangChain version above.
+
+### Client: Full x402 HTTP Flow
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript filename="src/client.ts"
+    import 'dotenv/config'
+    import { Payments } from '@nevermined-io/payments'
+
+    const SERVER_URL = process.env.SERVER_URL || 'http://localhost:8000'
+    const PLAN_ID = process.env.NVM_PLAN_ID!
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_SUBSCRIBER_API_KEY!,
+      environment: process.env.NVM_ENVIRONMENT || 'sandbox',
+    })
+
+    // Step 1: Request without token → 402
+    const resp402 = await fetch(`${SERVER_URL}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: 'AI trends' }),
+    })
+    console.log(`Status: ${resp402.status}`) // 402
+
+    // Step 2: Decode payment requirements
+    const pr = JSON.parse(Buffer.from(resp402.headers.get('payment-required')!, 'base64').toString())
+    console.log(`Plan: ${pr.accepts[0].planId}`)
+
+    // Step 3: Acquire x402 token
+    // Create a delegation once, then reuse its id to mint tokens.
+    const { delegationId } = await payments.delegation.createDelegation({
+      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      spendingLimitCents: 10000, // $100 budget
+      durationSecs: 604800,      // 7 days
+      currency: 'usdc',          // 'usd' for fiat plans
+    })
+    const token = await payments.x402.getX402AccessToken(PLAN_ID, undefined, {
+      scheme: 'nvm:erc4337',       // 'nvm:card-delegation' for fiat plans
+      delegationConfig: { delegationId },
+    })
+    const accessToken = token.accessToken
+
+    // Step 4: Request with token → 200
+    const resp200 = await fetch(`${SERVER_URL}/ask`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'payment-signature': accessToken,
+      },
+      body: JSON.stringify({ query: 'AI trends' }),
+    })
+    const body = await resp200.json()
+    console.log(`Response: ${body.response}`)
+
+    // Step 5: Decode settlement receipt
+    const settlement = JSON.parse(
+      Buffer.from(resp200.headers.get('payment-response')!, 'base64').toString()
+    )
+    console.log(`Credits charged:   ${settlement.creditsRedeemed}`)
+    console.log(`Remaining balance: ${settlement.remainingBalance}`)
+    console.log(`Transaction:       ${settlement.transaction}`)
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python filename="src/client.py"
+    import base64
+    import json
+    import os
+    import httpx
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402 import X402TokenOptions, DelegationConfig, CreateDelegationPayload
+
+    SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:8000")
+    PLAN_ID = os.environ["NVM_PLAN_ID"]
+
+    payments = Payments.get_instance(
+        PaymentOptions(
+            nvm_api_key=os.environ["NVM_SUBSCRIBER_API_KEY"],
+            environment=os.environ.get("NVM_ENVIRONMENT", "sandbox"),
+        )
+    )
+
+    with httpx.Client(timeout=60.0) as client:
+        # Step 1: Request without token → 402
+        resp = client.post(f"{SERVER_URL}/ask", json={"query": "AI trends"})
+        assert resp.status_code == 402
+
+        # Step 2: Decode payment requirements
+        pr = json.loads(base64.b64decode(resp.headers["payment-required"]))
+        print(f"Plan: {pr['accepts'][0]['planId']}")
+
+        # Step 3: Acquire x402 token
+        # Create a delegation once, then reuse its id to mint tokens.
+        delegation = payments.delegation.create_delegation(
+            CreateDelegationPayload(
+                provider="erc4337", spending_limit_cents=10000, duration_secs=604800, currency="usdc",
+            )
+        )
+        token = payments.x402.get_x402_access_token(
+            plan_id=PLAN_ID,
+            token_options=X402TokenOptions(
+                scheme="nvm:erc4337",  # "nvm:card-delegation" for fiat plans
+                delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+            ),
+        )
+        access_token = token["accessToken"]
+
+        # Step 4: Request with token → 200
+        resp = client.post(
+            f"{SERVER_URL}/ask",
+            headers={"payment-signature": access_token},
+            json={"query": "AI trends"},
+        )
+        print(f"Response: {resp.json()['response']}")
+
+        # Step 5: Decode settlement receipt
+        settlement = json.loads(base64.b64decode(resp.headers["payment-response"]))
+        print(f"Credits charged:   {settlement['creditsRedeemed']}")
+        print(f"Remaining balance: {settlement['remainingBalance']}")
+        print(f"Transaction:       {settlement['transaction']}")
+    ```
+  </Tab>
+</Tabs>
+
+### x402 HTTP Headers
+
+| Header | Direction | Description |
+| ------ | --------- | ----------- |
+| `payment-signature` | Client → Server | x402 access token |
+| `payment-required` | Server → Client (402) | Base64-encoded payment requirements |
+| `payment-response` | Server → Client (200) | Base64-encoded settlement receipt |
+
+The settlement receipt (`payment-response`) contains:
+
+| Field | Description |
+| ----- | ----------- |
+| `creditsRedeemed` | Number of credits charged |
+| `remainingBalance` | Subscriber's remaining credit balance |
+| `transaction` | Blockchain transaction hash |
+| `network` | Blockchain network (CAIP-2 format) |
+| `payer` | Subscriber wallet address |
+
+---
+
+## Decorator Configuration
+
+### With Agent ID
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    const myTool = tool(
+      requiresPayment(
+        (args) => `Result for ${args.query}`,
+        {
+          payments,
+          planId: PLAN_ID,
+          credits: 1,
+          agentId: process.env.NVM_AGENT_ID,
+        }
+      ),
+      { name: 'my_tool', description: '...', schema: z.object({ query: z.string() }) }
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    @tool
+    @requires_payment(
+        payments=payments,
+        plan_id=PLAN_ID,
+        credits=1,
+        agent_id=os.environ.get("NVM_AGENT_ID"),
+    )
+    def my_tool(query: str, config: RunnableConfig) -> str:
+        ...
+    ```
+  </Tab>
+</Tabs>
+
+### Multiple Plans (Python only)
+
+```python
+@tool
+@requires_payment(
+    payments=payments,
+    plan_ids=["plan-basic", "plan-premium"],
+    credits=1,
+)
+def my_tool(query: str, config: RunnableConfig) -> str:
+    ...
+```
+
+### Scheme and Network
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    const myTool = tool(
+      requiresPayment(
+        (args) => `Result`,
+        { payments, planId: PLAN_ID, credits: 1, network: 'eip155:84532' }
+      ),
+      { name: 'my_tool', description: '...', schema: z.object({ query: z.string() }) }
+    )
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    # Explicit card-delegation scheme for fiat payments
+    @tool
+    @requires_payment(
+        payments=payments,
+        plan_id=PLAN_ID,
+        credits=1,
+        scheme="nvm:card-delegation",
+    )
+    def my_fiat_tool(query: str, config: RunnableConfig) -> str:
+        ...
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The decorator/wrapper automatically detects the payment scheme from plan metadata.
+Plans with fiat pricing (`isCrypto: false`) use `nvm:card-delegation` (Stripe).
+**No code changes are needed on the agent side.**
+</Note>
+
+## Complete Examples
+
+Working seller/buyer agents with LangGraph — includes both Python and TypeScript variants:
+
+<Tabs>
+  <Tab title="TypeScript">
+    - [seller-simple-agent/ts](https://github.com/nevermined-io/hackathons/tree/main/agents/seller-simple-agent/ts) — Seller with `paymentMiddleware` + `requiresPayment` demo
+    - [buyer-simple-agent/ts](https://github.com/nevermined-io/hackathons/tree/main/agents/buyer-simple-agent/ts) — Buyer CLI agent with x402 token generation
+
+    Each includes:
+    - `src/server.ts` / `src/agent.ts` — LangGraph `createReactAgent` with payment-protected tools
+    - `src/demo.ts` — `requiresPayment` wrapper demo (seller only)
+    - `src/client.ts` — HTTP client with full x402 payment flow
+  </Tab>
+  <Tab title="Python">
+    - [seller-simple-agent](https://github.com/nevermined-io/hackathons/tree/main/agents/seller-simple-agent) — `src/langgraph_agent.py` with `@requires_payment` decorator
+    - [buyer-simple-agent](https://github.com/nevermined-io/hackathons/tree/main/agents/buyer-simple-agent) — `src/langgraph_agent.py` with buyer tools
+
+    Each includes:
+    - `src/langgraph_agent.py` — LangGraph `create_react_agent` with payment-protected tools
+    - `src/agent_langgraph.py` — Interactive CLI entry point
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+```bash filename=".env"
+# Nevermined (required)
+NVM_API_KEY=sandbox:your-api-key         # Builder/server API key
+NVM_SUBSCRIBER_API_KEY=sandbox:your-key  # Subscriber/client API key
+NVM_ENVIRONMENT=sandbox
+NVM_PLAN_ID=your-plan-id
+NVM_AGENT_ID=your-agent-id              # Optional
+
+# LLM Provider
+OPENAI_API_KEY=sk-your-openai-key
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Express Middleware (TS)" icon="js" href="/integrate/add-to-your-agent/express">
+    Deep dive into paymentMiddleware for Express
+  </Card>
+
+  <Card title="FastAPI Middleware (Python)" icon="python" href="/integrate/add-to-your-agent/fastapi">
+    Deep dive into PaymentMiddleware for FastAPI
+  </Card>
+
+  <Card title="x402 Protocol" icon="link" href="/development-guide/nevermined-x402">
+    Deep dive into x402 payment flows
+  </Card>
+
+  <Card title="Payment Models" icon="calculator" href="/integrate/patterns/payment-models">
+    Configure credits, subscriptions, and dynamic pricing
+  </Card>
+</CardGroup>

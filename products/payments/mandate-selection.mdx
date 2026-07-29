@@ -1,0 +1,232 @@
+---
+title: "Delegation Selection"
+description: "How Nevermined automatically resolves which delegation to charge when an agent makes a payment request. Three-tier priority with explicit, key-linked, and fallback modes."
+icon: "route"
+---
+
+{/*
+  URL note: this file lives at `/docs/products/payments/mandate-selection`
+  despite the "Delegation Selection" title. The slug is kept stable to
+  preserve external links shared before the VGS Agentic Tokens rollout
+  retired the per-network "mandate" object (see PR #176). Rename to
+  `delegation-selection.mdx` only if you also add a `redirects` entry in
+  `docs.json` pointing the old slug here.
+*/}
+
+## The Problem
+
+When a subscriber has multiple active delegations across their enrolled cards, the agent needs to know which one to use. Should it charge the $5 Visa delegation on Card A or the $10 Stripe delegation on Card B?
+
+Nevermined solves this with a **three-tier selection algorithm** that automatically resolves the right delegation based on priority rules. The algorithm is the same for Visa, Stripe, and Braintree — `apiKeyId` and explicit `delegationId` work identically across all three networks.
+
+<Note>
+The recommended approach is **create-first**: create the delegation with `createDelegation`, then pass its `delegationId` explicitly (Mode 1). This removes all ambiguity and is the only supported path for Visa. Auto-resolution (Modes 2–3) selects among the delegations you've already created; it does **not** create one. Inline create-on-the-fly (passing `spendingLimitCents` instead of a `delegationId`) is deprecated.
+</Note>
+
+## Three-Tier Resolution
+
+When the SDK or CLI requests an x402 access token, Nevermined resolves the delegation in this order:
+
+<Steps>
+  <Step title="Mode 1: Explicit Delegation ID">
+    If the caller passes a `delegationId` in `delegationConfig`, Nevermined uses that delegation directly. No ambiguity, the caller knows exactly which authorization it wants.
+
+    <Tabs>
+      <Tab title="TypeScript">
+        ```typescript
+        const token = await payments.x402.getX402AccessToken(
+          'plan_abc123',
+          undefined, // agentId — pass when the plan has multiple agents
+          {
+            delegationConfig: {
+              delegationId: 'deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6',
+            },
+          },
+        )
+        ```
+      </Tab>
+      <Tab title="Python">
+        ```python
+        from payments_py.x402 import DelegationConfig, X402TokenOptions
+
+        token = payments.x402.get_x402_access_token(
+            plan_id="plan_abc123",
+            token_options=X402TokenOptions(
+                delegation_config=DelegationConfig(
+                    delegation_id="deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6",
+                ),
+            ),
+        )
+        ```
+      </Tab>
+    </Tabs>
+
+    Nevermined validates:
+    - The delegation exists and is `Active` (not expired, exhausted, or revoked)
+    - The delegation has remaining budget and remaining transactions
+    - If the delegation is linked to an API key, it must match the calling key
+    - The associated card is active and belongs to the authenticated user
+
+    <Note>
+      This is the **only** supported mode for Visa delegations. Auto-creation from the SDK requires `consumerPrompt` + `assuranceData`, which the SDK cannot produce — see the [Visa enrollment notes](/products/payments/card-enrollment).
+    </Note>
+  </Step>
+  <Step title="Mode 2: Key-Linked Delegation">
+    If no `delegationId` is passed, Nevermined checks if any delegation is **linked to the calling API key**. If exactly one key-linked delegation matches, it's selected automatically.
+
+    This is the recommended approach for production setups with multiple delegations. Link each API key to a specific delegation and the routing is deterministic.
+
+    Nevermined collects all delegations where `delegation.apiKeyId === calling_key.skId`, then filters for `Active`, with remaining budget, remaining transactions, and a non-expired duration. Key-linked delegations **always take priority** over unlinked ones.
+  </Step>
+  <Step title="Mode 3: Unlinked Fallback">
+    If no key-linked delegations exist, Nevermined falls back to **unlinked delegations** (delegations with no `apiKeyId` set). If exactly one unlinked delegation matches, it's selected.
+
+    This mode is convenient when you only have one delegation. You don't need to link anything.
+  </Step>
+</Steps>
+
+## Decision Flowchart
+
+```
+SDK / CLI requests an x402 access token
+  |
+  |- delegationId in delegationConfig?
+  |   |- YES -> Use that delegation (validate ownership, status, budget, usage, expiry)
+  |   |- NO  -> Continue to auto-resolution (Stripe / Braintree only)
+  |
+  |- Collect all user's delegations across all cards
+  |   |- Key-linked: delegation.apiKeyId === current key's skId
+  |   |- Unlinked: delegation.apiKeyId is null
+  |
+  |- Filter each group: Active, not expired, remaining budget > 0, remaining transactions > 0
+  |
+  |- Key-linked delegations found?
+  |   |- Exactly 1 -> Use it
+  |   |- Multiple  -> Error: "Multiple active delegations found"
+  |   |- None      -> Fall through to unlinked
+  |
+  |- Unlinked delegations found?
+      |- Exactly 1 -> Use it
+      |- Multiple  -> Error: "Multiple active delegations found"
+      |- None      -> Error: "No active delegation found"
+```
+
+## When to Use Each Mode
+
+<CardGroup cols={3}>
+  <Card title="Explicit ID" icon="crosshairs">
+    Multiple delegations, full control. Required for Visa.
+  </Card>
+  <Card title="Key-Linked" icon="link">
+    One delegation per API key. Set it once, forget it.
+  </Card>
+  <Card title="Unlinked" icon="wand-magic-sparkles">
+    Single delegation, zero config. Just create and go.
+  </Card>
+</CardGroup>
+
+## Linking an API Key
+
+API key linking works the same way for Visa, Stripe, and Braintree delegations through the shared `apiKeyId` field on `POST /api/v1/delegation/create`.
+
+### When Creating
+
+In the [Nevermined App](https://nevermined.app), open the Create Delegation dialog and select an API key from the dropdown. Only active, non-browser API keys that aren't already linked to another delegation are shown.
+
+### When Updating
+
+Delegations cannot be updated in place. To change the linked API key, revoke the existing delegation and create a new one with the desired `apiKeyId`. For Visa, this requires a fresh device-binding ceremony.
+
+<Note>
+Linking an API key is optional but recommended when you have two or more active delegations. Without it, Nevermined can't automatically determine which one to use and will return an error.
+</Note>
+
+## Error Handling
+
+### Multiple Delegations Found
+
+```
+"Multiple active delegations found.
+ Pass a delegationId in delegationConfig, or link a delegation to your API key."
+```
+
+**Fix:** Either pass `delegationId` explicitly in `delegationConfig`, or link one of the delegations to your API key in the dashboard.
+
+### No Active Delegation Found
+
+```
+"No active delegation found (check remaining budget, expiry, status, and key restrictions)"
+```
+
+**Possible causes:**
+- All delegations are exhausted (`amountSpentCents >= spendingLimitCents` or `transactionCount >= maxTransactions`)
+- All delegations have expired (`createdAt + durationSecs` in the past)
+- Delegations are linked to a different API key
+
+### Delegation Linked to Different Key
+
+```
+"This delegation is linked to a different API key"
+```
+
+**HTTP 403.** The explicit `delegationId` you passed is linked to a different API key than the one you're authenticating with. Use the correct API key, or revoke the delegation and recreate it with the API key you want.
+
+## API Reference
+
+### Generate Access Token
+
+```bash
+POST /api/v1/x402/permissions
+Authorization: Bearer <NVM_API_KEY>
+Content-Type: application/json
+```
+
+**Request:**
+
+```json
+{
+  "planId": "plan_abc123",
+  "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
+  "delegationConfig": {
+    "delegationId": "deleg-8f14e45f-ce34-4797-b88e-968374b0d4b6"
+  }
+}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `planId` | Yes | The plan you're paying for |
+| `agentId` | No | Agent identifier (for plans with multiple agents) |
+| `delegationConfig.delegationId` | Recommended | Explicit delegation ID (Mode 1) — the supported path. Omit to use auto-resolution among your existing delegations. **Required for Visa.** |
+| `delegationConfig.spendingLimitCents` + `durationSecs` | No | **Deprecated** — auto-create a delegation on the fly (Stripe / Braintree only). Create the delegation first with `createDelegation`, then pass `{ delegationId }` instead; the inline form emits a runtime deprecation warning. |
+
+**Response (success):**
+
+```json
+{
+  "accessToken": "eyJ4NDAyVmVyc2lvbiI6Mi...",
+  "permissionHash": "0x1a2b3c..."
+}
+```
+
+The `accessToken` value (a base64-encoded x402 PaymentPayload) goes in the `payment-signature` HTTP header when calling a protected resource.
+
+**Error responses:**
+
+| Status | Reason |
+|---|---|
+| 400 | Multiple delegations, delegation exhausted, missing required fields for Visa |
+| 403 | Delegation linked to a different API key, delegation doesn't belong to user |
+| 404 | No active delegation found, delegation ID not found |
+
+## Best Practices
+
+1. **Start simple.** If you have one delegation, you don't need to link API keys or pass explicit IDs. Just create the delegation and call the API.
+
+2. **Link keys for production.** When you add a second delegation, link each API key to a specific delegation. This gives you deterministic routing without code changes.
+
+3. **Use explicit IDs for Visa or for complex setups.** Visa delegations require `delegationId` in `delegationConfig`. The same pattern is useful when an agent works with multiple delegations dynamically (e.g., different delegations for different pricing tiers).
+
+4. **Monitor usage.** Check `amountSpentCents` vs `spendingLimitCents` and `transactionCount` vs `maxTransactions` to know when delegations are close to exhaustion. Create new ones before the old ones run out.
+
+5. **Set reasonable expiration times.** Don't create delegations that last indefinitely. Set `durationSecs` aligned with your billing cycles. For Visa, the `assuranceData` ceremony scales with the duration shown in the approval prompt — keep it short for higher-trust use cases.
