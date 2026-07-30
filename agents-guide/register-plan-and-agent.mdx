@@ -104,6 +104,24 @@ Report both IDs and the confirmation results. (Fiat provider defaults to Stripe 
     </Tabs>
 
     The `endpoints` are optional — omit them for an open agent, or include them so the platform enforces route-level access on top of your own middleware.
+
+    <Accordion title="URL pattern syntax (path-to-regexp)">
+      Endpoint URLs are matched with [path-to-regexp](https://github.com/pillarjs/path-to-regexp), so one entry can cover a whole family of routes:
+
+      ```
+      https://example.com/api/v1/agents/:agentId/tasks/:taskId
+      ```
+
+      Captures `agentId` and `taskId` as named parameters.
+
+      ```
+      https://example.com/api/v1/agents/*path
+      ```
+
+      Matches one or more segments after `agents/` and captures them into the `path` array.
+
+      Use `openEndpoints` (TypeScript) or `open_endpoints` (Python) for routes that must stay public, such as documentation or health checks.
+    </Accordion>
   </Step>
 
   <Step title="Confirm it's published">
@@ -134,7 +152,7 @@ Report both IDs and the confirmation results. (Fiat provider defaults to Stripe 
   <Card title="Check revenue" icon="chart-line" href="/agents-guide/check-revenue">
     Track sales once buyers start arriving.
   </Card>
-  <Card title="Order Plans" icon="cart-shopping" href="/development-guide/order-plans">
+  <Card title="Order Plans" icon="cart-shopping" href="/getting-started/ai-agent-purchase">
     How buyers purchase the plan you just created.
   </Card>
 </CardGroup>
