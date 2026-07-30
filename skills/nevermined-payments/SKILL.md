@@ -890,7 +890,7 @@ curl -X POST http://localhost:3000/chat \
 - **Card enrollment & delegation**: [nevermined.ai/docs/solutions/card-delegation](https://nevermined.ai/docs/solutions/card-delegation)
 - **Nevermined App**: [nevermined.app](https://nevermined.app) — register agents, create plans, manage subscriptions
 - **API discovery (per environment)**: `GET {API_BASE}/api/v1/rest/docs-json` (OpenAPI JSON)
-- **MCP Search Server**: `https://docs.nevermined.app/mcp` — search Nevermined docs from any MCP client
+- **MCP Search Server**: `https://nevermined.ai/docs/mcp` — search Nevermined docs from any MCP client
 - **Tutorials**: [github.com/nevermined-io/tutorials](https://github.com/nevermined-io/tutorials)
 - **Discord**: [discord.com/invite/GZju2qScKq](https://discord.com/invite/GZju2qScKq)
 - **TypeScript SDK**: `@nevermined-io/payments` on npm

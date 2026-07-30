@@ -14,9 +14,9 @@
  *    website repo) — one posture everywhere.
  * 2. nvm_o outbound-link decorator + app_handoff_click GA event — docs
  *    readers are the highest-intent handoff to nevermined.app. On the
- *    proxied domain (nevermined.ai/docs) the middleware's nvm_ft/nvm_lt
- *    cookies are present and ride along; on direct docs.nevermined.app
- *    visits they don't exist and the payload is empty — the click event
+ *    proxied domain (nevermined.ai/docs) — the only host this runs on —
+ *    the middleware's nvm_ft/nvm_lt cookies are present and ride along.
+ *    If they are ever missing the payload is empty but the click event
  *    still counts (it's the blocklist-watch numerator, #195).
  *
  * Deliberately NOT here: RB2B (docs readers are product-led, not
@@ -44,9 +44,7 @@
 
   var host = window.location.hostname.toLowerCase();
   var isProduction =
-    host === "nevermined.ai" ||
-    host === "www.nevermined.ai" ||
-    host === "docs.nevermined.app";
+    host === "nevermined.ai" || host === "www.nevermined.ai";
   if (!isProduction) return;
   if (window.__nvmDocsAnalytics) return;
   window.__nvmDocsAnalytics = true;
@@ -137,8 +135,7 @@
 
   /* Capture-on-consent recovery: only on the proxied domain, where
      /api/consent-touch is same-origin and the middleware's deferred
-     first-touch can be recovered. Direct docs.nevermined.app visits
-     have no middleware cookies either way. */
+     first-touch can be recovered. */
   if (host === "nevermined.ai" || host === "www.nevermined.ai") {
     whenConsented(function consentTouch() {
       if (document.cookie.indexOf("nvm_ft=") !== -1) return;
@@ -252,8 +249,6 @@
   }
   function isAppHost(h) {
     h = h.toLowerCase();
-    // The docs host itself is never a handoff target.
-    if (h === "docs.nevermined.app") return false;
     return h === "nevermined.app" || h.slice(-15) === ".nevermined.app";
   }
   function decorate(event) {
