@@ -510,6 +510,12 @@ Before finalizing any documentation:
 
 ## SEO & Metadata
 
+### Never commit `sitemap.xml` or `robots.txt`
+
+Mintlify generates both. A file at the repo root **overrides** the generated one and then silently goes stale — a committed `sitemap.xml` froze coverage at 18 of 227 pages for nine months, and a committed `robots.txt` suppressed the `Content-Signal` directives that let AI crawlers cite the docs. Neither failure surfaces in CI or in `mint dev` (which returns 404 for `sitemap.xml`, `robots.txt`, and `llms.txt` — SEO artifacts only exist in the hosted build). Delete the file and the generated one applies again.
+
+Control indexing through `docs.json` navigation and page frontmatter instead: pages absent from the navigation are excluded from the sitemap, `llms.txt`, and search by default.
+
 ### Frontmatter Requirements
 
 Every `.mdx` file must include:
