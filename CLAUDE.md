@@ -355,7 +355,7 @@ Before finalizing any documentation:
 - **Local server not starting**: Run `mintlify install` to reinstall dependencies
 - **404 errors**: Ensure you're running `mintlify dev` from the root directory with `docs.json`
 - **MDX rendering issues**: Check Mintlify documentation for component syntax
-- **Link breaks**: Verify paths match directory structure (e.g., `getting-started/welcome`)
+- **Link breaks**: Verify paths match directory structure (e.g., `getting-started/overview`)
 
 ---
 
@@ -364,9 +364,9 @@ Before finalizing any documentation:
 ### 1. Getting Started
 
 - **Purpose**: Help developers onboard quickly
-- **Structure**: Welcome → Quickstart → Core Concepts → Examples
+- **Structure**: Overview → Quickstart → Core Concepts → Examples
 - **Tone**: Encouraging and instructive
-- **Examples**: [welcome.mdx](getting-started/welcome.mdx), [quickstart.mdx](getting-started/quickstart.mdx)
+- **Examples**: [overview.mdx](getting-started/overview.mdx), [5-minute-setup.mdx](integrate/quickstart/5-minute-setup.mdx)
 
 ### 2. Solutions & Use Cases
 
@@ -501,7 +501,7 @@ Before finalizing any documentation:
 
 ### Naming Conventions
 
-- Use **kebab-case** for file names: `getting-started.mdx`, `query-agents.mdx`
+- Use **kebab-case** for file names: `core-concepts.mdx`, `register-plan-and-agent.mdx`
 - Use **descriptive, SEO-friendly names** that match page titles
 - Avoid ambiguous names like `guide.mdx` or `integration.mdx`
 - Group related files in subdirectories (e.g., `products/payments/`)

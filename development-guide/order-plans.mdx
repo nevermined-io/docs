@@ -39,7 +39,7 @@ A plan is strictly one type or the other — there are no dual crypto-and-fiat p
 </Tabs>
 
 <Note>
-  Server-side middleware (Express, FastAPI) and the A2A clients resolve the scheme for you. The direct `getX402AccessToken` / `get_x402_access_token` call does **not** — it defaults to `nvm:erc4337`. For a fiat plan you must pass `scheme: 'nvm:card-delegation'` and have a card enrolled with the matching provider. See [Core Concepts](/getting-started/core-concepts#fiat-vs-crypto-what-each-plan-needs) for the full prerequisites and [Payment method mismatch](/development-guide/integration-faq#how-do-i-fix-a-payment-method-mismatch) if a payment is rejected.
+  Server-side middleware (Express, FastAPI) and the A2A clients resolve the scheme for you. The direct `getX402AccessToken` / `get_x402_access_token` call does **not** — it defaults to `nvm:erc4337`. For a fiat plan you must pass `scheme: 'nvm:card-delegation'` and have a card enrolled with the matching provider. See [Core Concepts](/getting-started/core-concepts#fiat-vs-crypto-what-each-plan-needs) for the full prerequisites and [Payment method mismatch](/products/payments/faq#how-do-i-fix-a-payment-method-mismatch) if a payment is rejected.
 </Note>
 
 ## Buying a Plan
@@ -241,7 +241,7 @@ After a user purchases a plan, they can check their balance for that plan. The b
 After users purchase plans, they can:
 
 <CardGroup cols={2}>
-  <Card title="Query AI Agents" icon="search" href="/development-guide/query-agents">
+  <Card title="Query AI Agents" icon="search" href="/development-guide/nevermined-x402">
     Learn how to access AI services with purchased plans
   </Card>
   <Card title="Handle Requests" icon="chart-line" href="/development-guide/process-requests">
