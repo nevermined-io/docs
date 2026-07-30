@@ -147,22 +147,13 @@ Major documentation reorganization completed:
 
 ---
 
-## Legacy Content (Preserved but not in navigation)
+## Pages outside the navigation
 
-These files contain useful reference content but are not part of the main navigation:
+Every `.mdx` in this repo is in `docs.json` navigation except one:
 
-### Development Guide (Reference)
-Located in `development-guide/`:
-- `registration.mdx` - Agent registration details
-- `order-plans.mdx` - Plan ordering details
-- `process-requests.mdx` - Request processing
-
-### Integrations (Reference)
-Located in `integrations/`:
-- `nevermined-x402-ap2.mdx` - x402 AP2 details
-
-### Intentionally hidden
 - `download/nevermined-mcp-config.mdx` - MCP config download target, linked from `development-guide/build-using-nvm-mcp`. Kept out of navigation on purpose.
+
+Keep it that way. A page absent from the navigation is excluded from `sitemap.xml`, `llms.txt`, internal search, and AI assistant context, while still serving 200 — so it becomes live duplicate content that no crawler is told about. That is exactly how 20 pages accumulated here and had to be retired in #261 and #262. Either add a new page to the navigation or don't add it at all.
 
 ---
 
