@@ -13,7 +13,7 @@ To ensure AI agents only authorize valid requests (users with credits), we provi
 When a user wants to query an AI Agent, they need to send a request with the access token received when purchasing the Payment Plan. This token is used to validate that the user has access to the AI Agent and that they have enough credits.
 
 <Note>
-  The access token is minted against a **delegation** — create it once with `createDelegation` / `create_delegation`, then reuse its `delegationId`. The direct call defaults to crypto (`nvm:erc4337`); for **fiat** (card) plans pass `scheme: 'nvm:card-delegation'`. See [Query Agents](/development-guide/query-agents) for the full buyer flow and [Order Plans](/development-guide/order-plans#which-payment-type-does-this-plan-need) for detecting a plan's payment type.
+  The access token is minted against a **delegation** — create it once with `createDelegation` / `create_delegation`, then reuse its `delegationId`. The direct call defaults to crypto (`nvm:erc4337`); for **fiat** (card) plans pass `scheme: 'nvm:card-delegation'`. See [Query Agents](/development-guide/nevermined-x402) for the full buyer flow and [Order Plans](/development-guide/order-plans#which-payment-type-does-this-plan-need) for detecting a plan's payment type.
 </Note>
 
 <Tabs>

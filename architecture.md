@@ -27,9 +27,8 @@ Major documentation reorganization completed:
 ### Tab 1: Documentation (Learning Path)
 
 #### Getting Started
-- ✅ Welcome & Overview (`docs/getting-started/welcome.mdx`)
-- ✅ How It Works (`docs/getting-started/how-it-works.mdx`)
-- ✅ Core Concepts (`docs/getting-started/core-concepts.mdx`)
+- ✅ Welcome & Overview (`getting-started/overview.mdx`)
+- ✅ Core Concepts (`getting-started/core-concepts.mdx`)
 - ✅ AI Agents: Buy Access Autonomously (`docs/getting-started/ai-agent-purchase.mdx`)
 
 #### Agents Guide (Learn → Agents Guide)

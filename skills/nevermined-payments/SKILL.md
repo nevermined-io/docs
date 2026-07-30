@@ -108,7 +108,7 @@ After they sign in, the browser is redirected to `http://127.0.0.1:<port>/callba
 
 **Option B — manual paste (works anywhere).** Ask your human to open [nevermined.app](https://nevermined.app), sign in, create an API Key (Settings → Global NVM API Keys → **+ New API Key**), and paste it back. Or, once signed in, open `https://nevermined.app/auth/cli` with no `callback_url` to see the key on screen.
 
-**Store the key and reuse it.** Never fabricate a key; the placeholder is `sandbox:your-api-key`. Full docs: https://nevermined.ai/docs/getting-started/get-your-api-key
+**Store the key and reuse it.** Never fabricate a key; the placeholder is `sandbox:your-api-key`. Full docs: https://nevermined.ai/docs/agents-guide/get-api-key
 
 ## A2 · Check your payment methods
 
@@ -335,7 +335,7 @@ export NVM_API_KEY="sandbox:your-api-key"
 
 | Variable | Required | Description |
 |---|---|---|
-| `NVM_API_KEY` | Yes | Your Nevermined API key — see [Get Your API Key](https://nevermined.ai/docs/getting-started/get-your-api-key) |
+| `NVM_API_KEY` | Yes | Your Nevermined API key — see [Get Your API Key](https://nevermined.ai/docs/agents-guide/get-api-key) |
 | `NVM_ENVIRONMENT` | Yes | `sandbox` for testing, `live` for production |
 | `NVM_PLAN_ID` | Yes | The plan ID from registration |
 | `NVM_AGENT_ID` | Sometimes | Required for MCP servers and plans with multiple agents |
