@@ -501,7 +501,7 @@ Before finalizing any documentation:
 
 ### Naming Conventions
 
-- Use **kebab-case** for file names: `getting-started.mdx`, `query-agents.mdx`
+- Use **kebab-case** for file names: `core-concepts.mdx`, `register-plan-and-agent.mdx`
 - Use **descriptive, SEO-friendly names** that match page titles
 - Avoid ambiguous names like `guide.mdx` or `integration.mdx`
 - Group related files in subdirectories (e.g., `products/payments/`)

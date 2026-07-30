@@ -152,30 +152,17 @@ Major documentation reorganization completed:
 These files contain useful reference content but are not part of the main navigation:
 
 ### Development Guide (Reference)
-Located in `docs/development-guide/`:
-- `index.mdx` - Development guide overview
-- `features.mdx` - Feature documentation
-- `getting-started.mdx` - Legacy getting started
+Located in `development-guide/`:
 - `registration.mdx` - Agent registration details
 - `order-plans.mdx` - Plan ordering details
-- `query-agents.mdx` - Query agent details
 - `process-requests.mdx` - Request processing
-- `observability.mdx` - Observability features
-- `nevermined-x402.mdx` - x402 protocol details (symlinked from integrate/platforms)
-- `build-using-nvm-mcp.mdx` - MCP building guide
-- `faq.mdx` - Frequently asked questions
-- `integration-faq.mdx` - Integration FAQ
 
 ### Integrations (Reference)
-Located in `docs/integrations/`:
-- `index.mdx` - Integrations overview
-- `google-a2a.mdx` - Google A2A (symlinked from integrate/platforms)
-- `mcp.mdx` - MCP integration (symlinked from integrate/platforms)
-- `buildship-integration.mdx` - BuildShip (symlinked from integrate/platforms)
-- `organizations.mdx` - Organizations (symlinked from integrate/platforms)
-- `agent-integration.mdx` - Agent integration patterns
-- `examples.mdx` - Integration examples
+Located in `integrations/`:
 - `nevermined-x402-ap2.mdx` - x402 AP2 details
+
+### Intentionally hidden
+- `download/nevermined-mcp-config.mdx` - MCP config download target, linked from `development-guide/build-using-nvm-mcp`. Kept out of navigation on purpose.
 
 ---
 
