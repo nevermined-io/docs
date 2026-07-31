@@ -38,11 +38,13 @@ The error deliberately doesn't echo the address it checked. Read the wallet addr
 
 ## Who can be paid
 
-For crypto-funded Delegations the Router enforces **recipient scope**: the merchant's pay-to address must be one the Delegation permits. This is checked *before* the expensive signing step, so a disallowed recipient costs you nothing.
+A Delegation **may** restrict which addresses it will pay. When it carries a recipient list, the merchant's pay-to address must be on it — checked *before* the expensive signing step, so a disallowed recipient costs you nothing.
 
-On the MPP rail this extends to a refusal worth calling out: a challenge carrying **`splits`** — additional payout recipients beyond the primary one — is rejected outright. Recipient scope authorizes the primary recipient, so honouring splits would move real money to addresses nobody validated. The Router refuses the whole challenge rather than paying the part it can vouch for.
+<Note>
+**Recipient scope is optional, and unset means unrestricted.** A Delegation with no recipient list can pay any merchant the Router can reach; its cap and expiry are then the only limits on it. Don't assume a Delegation is address-bound unless you deliberately made it so. Card-funded Delegations are vendor-agnostic by design and never carry one.
+</Note>
 
-Card-funded Delegations work differently by design: they're vendor-agnostic with no recipient allowlist, so the cap and the expiry are the guardrails.
+On the MPP rail there's a related refusal worth calling out: a challenge carrying **`splits`** — additional payout recipients beyond the primary one — is rejected outright, whether or not your Delegation has a recipient list. Only the primary recipient is ever validated, so honouring splits would move real money to addresses nobody checked. The Router refuses the whole challenge rather than paying the part it can vouch for.
 
 ## Paying twice
 

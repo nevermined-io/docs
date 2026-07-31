@@ -63,7 +63,7 @@ The MPP handler validates the decoded challenge before it signs, and fails close
 - **Multi-recipient payouts.** A challenge that carries `splits` is refused outright.
 
 <Warning>
-**Why splits are refused.** An MPP `charge` can name a primary recipient *and* a list of additional payout recipients. Your Delegation's recipient scope authorizes the primary one — so honouring splits would move real funds to addresses nobody validated. The Router therefore rejects any split-bearing challenge rather than paying the part it can vouch for.
+**Why splits are refused.** An MPP `charge` can name a primary recipient *and* a list of additional payout recipients. Only the primary one is ever validated against your Delegation, so honouring splits would move real funds to addresses nobody checked. The Router rejects any split-bearing challenge outright — unconditionally, whether or not your Delegation restricts recipients — rather than paying the part it can vouch for.
 </Warning>
 
 After signing, the Router decodes the credential it actually produced and compares it against the challenge it validated. If they diverge, the credential is discarded and never leaves the process — so a merchant can't get one thing approved and a different thing signed.
