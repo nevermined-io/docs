@@ -1,0 +1,116 @@
+---
+title: "The MPP rail"
+description: "Paying Merchant Payment Protocol services through the Router — Tempo charges, receipts, and the asset allowlist."
+icon: "credit-card"
+---
+
+The **Merchant Payment Protocol (MPP)** is the other pay-per-call protocol the Router speaks. Where x402 advertises its terms in an `accepts` array, an MPP merchant answers with an RFC 7235 challenge:
+
+```
+HTTP/1.1 402 Payment Required
+WWW-Authenticate: Payment id="…", realm="service.example", method="tempo",
+                  intent="charge", request="<base64url>", expires="…"
+```
+
+The Router decodes that challenge, signs the payment, and hands back an `Authorization: Payment <…>` credential. Your agent never loads an MPP SDK and never learns the envelope.
+
+## What's supported
+
+| | Supported |
+| --- | --- |
+| **Method** | `tempo` — a native Tempo transaction pulling a Tempo stablecoin |
+| **Intent** | `charge` — a one-off payment for this request |
+| **Networks** | Tempo mainnet (chain `4217`) and Tempo Moderato, the public testnet (chain `42431`) |
+| **Assets** | Whatever the operator has allowlisted for that chain (see below) |
+
+Other intents — sessions, subscriptions, metered streams — aren't supported yet. A challenge advertising one is refused rather than approximated.
+
+<Note>
+**You don't have to know a service speaks MPP.** In [mode B](/products/router/how-it-works) the Router detects the protocol from the 402 itself, and the detected protocol always wins over the optional `protocol` hint in your request. Send the same `/route` call you'd send for x402.
+</Note>
+
+## The asset allowlist
+
+MPP challenges name their payment token by contract address, and the challenge comes from the merchant — an untrusted source. So the Router will only settle a token the operator has **explicitly allowlisted for that chain**, via `ROUTER_TEMPO_ASSETS_<chainId>`.
+
+This is **fail-closed**: an unset or empty allowlist rejects *every* asset on that chain. A payment naming a token that isn't on the list is refused with **`400 BCK.ROUTER.0001`** before anything is signed.
+
+If MPP payments fail with that code on a deployment where x402 works fine, an unconfigured allowlist is the first thing to check — the two rails are configured independently.
+
+| Chain | Chain id | Ledger network |
+| --- | --- | --- |
+| Tempo mainnet | `4217` | `tempo` |
+| Tempo Moderato (public testnet) | `42431` | `tempo-moderato` |
+
+<Warning>
+The stablecoin contract address is **not the same on both chains**. Allowlisting a testnet address on mainnet, or vice versa, produces a `400` that looks like the rail is broken. Read the address off a real challenge from the service you intend to pay.
+</Warning>
+
+## Funding your wallet
+
+Like x402, MPP `charge` is a **pull**: the merchant takes the amount from your own custodial wallet on the Tempo chain in question. Fund the address on your Delegation (`providerPaymentMethodId`) with the allowlisted token before you call.
+
+An underfunded wallet fails with **`402 BCK.ROUTER.0009`**, checked *before* signing — nothing is minted and no budget is reserved.
+
+## What the Router refuses
+
+The MPP handler validates the decoded challenge before it signs, and fails closed on anything it can't fully account for:
+
+- **Wrong method or intent** — anything other than `tempo` / `charge`.
+- **Unsupported chain** — a chain id outside the table above.
+- **Malformed recipient, currency, or amount** — addresses must be valid hex; the amount must be a positive integer.
+- **A non-allowlisted asset** — see above.
+- **Multi-recipient payouts.** A challenge that carries `splits` is refused outright.
+
+<Warning>
+**Why splits are refused.** An MPP `charge` can name a primary recipient *and* a list of additional payout recipients. Only the primary one is ever validated against your Delegation, so honouring splits would move real funds to addresses nobody checked. The Router rejects any split-bearing challenge outright — unconditionally, whether or not your Delegation restricts recipients — rather than paying the part it can vouch for.
+</Warning>
+
+After signing, the Router decodes the credential it actually produced and compares it against the challenge it validated. If they diverge, the credential is discarded and never leaves the process — so a merchant can't get one thing approved and a different thing signed.
+
+## Receipts and settlement
+
+On a paid response an MPP merchant returns a **`Payment-Receipt`** header. In mode B the Router decodes it and stores its `reference` as the record's `txHash` — for `tempo`, the on-chain settlement transaction hash.
+
+- Receipt present and valid → record `Settled`.
+- Receipt missing, oversized, or malformed → record stays **`Issued`**. The hop succeeded and you got your resource; only the settlement anchor is pending. This is a normal state, not a failure, and the Router will not fail an already-paid call over a bad receipt.
+- Merchant returns another 402 to the paid hop (it rejected the credential) → record `Failed`.
+
+<Note>
+In **mode A** the Router isn't in the request path, so it never sees the receipt. Closing the record means decoding the receipt yourself and reporting the reference — which needs the MPP codec. This is the main reason to prefer mode B on this rail.
+</Note>
+
+The reference is merchant-controlled and stored **unverified** — see [how it works](/products/router/how-it-works#how-settlement-gets-recorded).
+
+## Card-funded MPP
+
+Some MPP merchants advertise `method="stripe"` instead — a card-funded rail where the Router mints a Shared Payment Token from your enrolled card rather than pulling a stablecoin. The API surface is identical: same endpoints, same Delegation model, same ledger.
+
+The differences that matter:
+
+- It's funded by a **card** Delegation, not a crypto one. A crypto Delegation fails on this rail and vice versa.
+- There's **no recipient allowlist** — a card Delegation is deliberately not bound to a seller, so the guardrails are the spending cap and the expiry.
+- Settlement is a payment-processor reference rather than a transaction hash, and it isn't known until the merchant redeems — so the record stays `Issued` pending reconciliation.
+
+<Warning>
+This rail is **feature-flagged off by default and sandbox-only** while the underlying token issuance is still in limited availability. With the flag off, a card-funded payment is refused with `400 BCK.ROUTER.0001` before anything is minted. Don't build against it in production yet.
+</Warning>
+
+## Operator configuration
+
+| Env var | Required | Purpose |
+| --- | --- | --- |
+| `ROUTER_TEMPO_ASSETS_<chainId>` | **Yes** | Comma-separated allowlist of payment-token addresses settleable on that chain. **Fail-closed** — unset rejects everything. |
+| `ROUTER_TEMPO_RPC_URL_<chainId>` | No | Override RPC endpoint for that chain. Defaults to the chain's public RPC. |
+| `ROUTER_STRIPE_SPT_ENABLED` | No | Master switch for the card-funded rail. Fail-closed; sandbox only. |
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="The x402 rail" icon="coins" href="/products/router/rails-x402">
+    The other supported protocol.
+  </Card>
+  <Card title="Payment ledger" icon="receipt" href="/products/router/ledger">
+    Reading and reconciling what you spent.
+  </Card>
+</CardGroup>

@@ -1,0 +1,93 @@
+---
+title: "Nevermined Router Overview"
+description: "The Router lets your agents pay any x402 or MPP service from one budget — without those services integrating Nevermined."
+icon: "route"
+---
+
+The **Nevermined Router** is the buyer side of Nevermined. It lets your agents **pay for external services that were never onboarded to Nevermined** — any endpoint that speaks the x402 protocol or the Merchant Payment Protocol (MPP).
+
+Your agent authenticates with its Nevermined API key and spends against a **Delegation** — a budget with a hard cap and an expiry. The Router does everything else: it reads the merchant's payment challenge, signs the payment from your custodial wallet, enforces the cap, and records the spend on one unified ledger.
+
+Your agent never holds a private key, never learns a payment protocol, and never needs an account with the service it just paid.
+
+## What this is not
+
+Nevermined has two halves, and it's worth being precise about which one you're reading:
+
+| | **Router** (this section) | **[x402 Facilitator](/products/x402-facilitator/overview)** |
+| --- | --- | --- |
+| Role | **Buyer** — your agent pays someone else | **Seller** — your API charges its callers |
+| Who integrates | Only you | Only the service being paid |
+| The money moves | out of your wallet | into yours |
+
+If you're monetizing an API, you want the Facilitator. If you want your agent to go buy things, you're in the right place.
+
+## Why route payments instead of paying directly
+
+<CardGroup cols={2}>
+  <Card title="One budget, every rail" icon="wallet">
+    A single Delegation covers x402 and MPP alike. Your agent doesn't branch on protocol, and you don't reconcile two sets of books.
+  </Card>
+  <Card title="No per-provider accounts" icon="key">
+    Pay-per-call services need no signup, no API key, and no subscription. The payment *is* the authentication.
+  </Card>
+  <Card title="A hard spending cap" icon="shield-check">
+    The Delegation is enforced server-side, per payment. An agent cannot exceed it — not by looping, not by retrying, not by being wrong.
+  </Card>
+  <Card title="One audit trail" icon="receipt">
+    Every payment across every protocol lands on the same ledger, exportable as JSON or CSV.
+  </Card>
+</CardGroup>
+
+## Which services you can pay
+
+| Protocol | What it looks like | Status |
+| --- | --- | --- |
+| **x402** | The service answers `HTTP 402` advertising an `accepts` array (in the body for v1, in a `PAYMENT-REQUIRED` header for v2) | Supported — see [the x402 rail](/products/router/rails-x402) |
+| **MPP** | The service answers `HTTP 402` with `WWW-Authenticate: Payment …` | Supported — see [the MPP rail](/products/router/rails-mpp) |
+
+You do **not** need to know which one a service speaks. In the recommended call mode the Router probes the service, detects the protocol from its 402, and pays it. The detected protocol always wins over anything you declare.
+
+Services that authenticate with a conventional API key and bill you monthly are a different shape entirely — there is no per-request price on the wire and nothing for the Router to pay. Those aren't routable today.
+
+## Environments
+
+| Environment | API base | Purpose |
+| --- | --- | --- |
+| **Sandbox** | `https://api.sandbox.nevermined.app` | Development and testing |
+| **Live** | `https://api.live.nevermined.app` | Real payments |
+
+<Warning>
+Both rails settle **real value on public networks**. The Router is a payment system, not a simulator — a call made against the live environment moves real funds to a real merchant. Start in sandbox, and keep your first Delegation cap small.
+</Warning>
+
+## What you need before you start
+
+<Steps>
+  <Step title="A Nevermined API key">
+    Sent as `Authorization: Bearer <your-api-key>` on every Router call. It must be a current-generation key — see [the quickstart](/products/router/quickstart) for how to tell.
+  </Step>
+  <Step title="A Delegation">
+    Your budget. Created once, reused for every payment until it's exhausted or expires.
+  </Step>
+  <Step title="A funded wallet">
+    Both rails **pull** from your own custodial wallet, so it must already hold the payment asset on the network you're paying on. The Router never holds or moves float on your behalf.
+  </Step>
+</Steps>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/products/router/quickstart">
+    From an API key to a paid call, in five steps.
+  </Card>
+  <Card title="How it works" icon="diagram-project" href="/products/router/how-it-works">
+    The payment flow, the two call modes, and where custody sits.
+  </Card>
+  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+    What the Router enforces, what it refuses, and every error code it can return.
+  </Card>
+  <Card title="Payment ledger" icon="receipt" href="/products/router/ledger">
+    Query, export, and reconcile everything your agents have spent.
+  </Card>
+</CardGroup>
