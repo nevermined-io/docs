@@ -67,7 +67,7 @@ Amounts are in the asset's smallest unit. USDC and EURC have 6 decimals, so:
     10_000 atomic units = 1 cent
 ```
 
-Your Delegation cap is denominated in **cents**, so every payment is converted and **rounded up** to the next whole cent before it's checked against the cap. A payment of 4,500 atomic units (half a cent) reserves 1 cent. Sub-cent calls therefore cost you a full cent of budget each — worth knowing if you're planning a long loop of very cheap calls.
+Your Delegation cap is denominated in **cents**, so every payment is converted and **rounded up** to the next whole cent before it's checked against the cap. A payment of 5,000 atomic units (half a cent) reserves 1 cent. Sub-cent calls therefore cost you a full cent of budget each — worth knowing if you're planning a long loop of very cheap calls.
 
 The `settlement.approxCents` field on every response tells you exactly what was reserved.
 
