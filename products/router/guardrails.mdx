@@ -1,0 +1,115 @@
+---
+title: "Guardrails and error codes"
+description: "What the Router enforces before it signs, what it refuses outright, and every error code it can return."
+icon: "shield-check"
+---
+
+The Router signs payments on your behalf, from your wallet, in response to instructions written by a merchant you may never have heard of. So it is deliberately suspicious. This page is the complete list of what it checks — and, more usefully, what to do when it says no.
+
+<Note>
+**A refusal is the system working.** Most Router errors mean a guardrail caught something. Before you widen a cap or drop an idempotency key to make an error go away, read what it was actually protecting you from.
+</Note>
+
+## Your budget
+
+The **Delegation** is the control you own. It carries a hard cap in cents and an expiry, and it's checked server-side on every single payment.
+
+| | |
+| --- | --- |
+| **Cap** | The spend, converted to cents and rounded up, must fit in the remaining budget |
+| **Expiry** | Set at creation via `durationSecs` — after that, nothing spends |
+| **Status** | Must be `Active`. `Revoked`, `Expired`, and `Exhausted` all refuse |
+
+Any of those failing gives you **`402 BCK.ROUTER.0003`**. Check the current state any time with `GET /api/v1/delegation/{id}` — `remainingBudgetCents` and `expiresAt` tell you which it was.
+
+An agent cannot spend past its cap by looping, by retrying, or by being confidently wrong about its own budget. That's the point of the mechanism, and it's why an agent should treat `0003` as a stop signal rather than something to route around.
+
+<Warning>
+Delegations **expire silently**. A long-running agent that worked yesterday and fails today with `0003` has very often just aged out. Check `expiresAt` before assuming anything is broken.
+</Warning>
+
+## Your wallet
+
+A cap authorizes a spend; it doesn't provide funds. Because both rails **pull** from your own custodial wallet, the Router checks the actual balance on the target network *before* signing.
+
+If it's short you get **`402 BCK.ROUTER.0009`**, and nothing happens: no credential is minted, no budget is reserved, no partial state exists to clean up.
+
+The error deliberately doesn't echo the address it checked. Read the wallet address from the live Delegation (`providerPaymentMethodId`) rather than from anything you saved earlier — funding a stale address is the most common cause of this error, and the one that takes longest to spot.
+
+## Who can be paid
+
+For crypto-funded Delegations the Router enforces **recipient scope**: the merchant's pay-to address must be one the Delegation permits. This is checked *before* the expensive signing step, so a disallowed recipient costs you nothing.
+
+On the MPP rail this extends to a refusal worth calling out: a challenge carrying **`splits`** — additional payout recipients beyond the primary one — is rejected outright. Recipient scope authorizes the primary recipient, so honouring splits would move real money to addresses nobody validated. The Router refuses the whole challenge rather than paying the part it can vouch for.
+
+Card-funded Delegations work differently by design: they're vendor-agnostic with no recipient allowlist, so the cap and the expiry are the guardrails.
+
+## Paying twice
+
+`requestId` is the idempotency key, and it's **required** in mode B — because the Router pays automatically, a retry after a dropped connection must not buy the same thing again.
+
+At most one payment is minted per `(caller, requestId)`. A duplicate returns **`409 BCK.ROUTER.0002`** carrying the original `paymentId`, which is usually what you actually wanted.
+
+Use **one stable id per logical purchase**, not per HTTP attempt:
+
+- Retrying a timed-out call with the **same** id → returns the original payment. Safe.
+- Retrying with a **fresh** id → buys again. Also safe, but only if that's what you meant.
+
+## What the Router won't fetch
+
+The Router makes server-side HTTP requests to URLs you supply, so it will not let you point it at infrastructure you shouldn't reach. Targets resolving to loopback, private (RFC 1918), link-local, or cloud-metadata addresses are blocked — both literal IPs and public hostnames that *resolve* to internal addresses, so DNS rebinding doesn't get around it. The connection is then pinned to the address that was validated, so it can't be swapped underneath.
+
+Redirects are **not followed at all**, and the `location` header is stripped from the relayed response — so a merchant can't bounce the Router toward an internal target, and can't hand your client one either.
+
+Operators can lift this for local development with `ROUTER_ALLOW_PRIVATE_TARGETS=true`. It should never be on in a shared environment.
+
+Control headers are also stripped in both directions: your `X-Router-*` headers aren't forwarded upstream, and any `X-Router-*` headers a merchant returns are removed before the response reaches you — so an upstream can't forge a payment signal that makes a free response look paid.
+
+## Relay limits
+
+Mode B relays live traffic, so it's bounded:
+
+| Limit | Default | Env var |
+| --- | --- | --- |
+| Concurrent routed requests per user | 10 | `ROUTER_MAX_CONCURRENT_PER_USER` |
+| Idle time on a streamed response | 30s | `ROUTER_STREAM_IDLE_MS` |
+| Total time on a streamed response | 5 min | `ROUTER_STREAM_MAX_MS` |
+| Relayed body size | 100 MB | `ROUTER_MAX_RELAY_BYTES` |
+
+Exceeding the concurrency limit returns **`429 BCK.ROUTER.0007`**, which *is* retryable — let some calls finish and try again. The idle timer is re-armed by your client draining the response, so a slow-but-healthy large transfer won't trip it.
+
+## Every error code
+
+| Code | Status | Meaning | Retry? |
+| --- | --- | --- | --- |
+| `BCK.ROUTER.0001` | 400 | Bad input: unsupported protocol, malformed or empty challenge, no fundable option, a recipient outside the Delegation's scope, a non-allowlisted asset, a wrong-provider Delegation, or a missing `delegationId`. The `details` field names the specific problem. | No |
+| `BCK.ROUTER.0002` | 409 | This `requestId` already minted a payment. The original `paymentId` is in the response. | No |
+| `BCK.ROUTER.0003` | 402 | The Delegation is over cap, expired, exhausted, or revoked. | No |
+| `BCK.ROUTER.0004` | 404 | No Router payment with that id belongs to you. | No |
+| `BCK.ROUTER.0005` | 409 | The payment isn't in a settleable state. Only an `Issued` payment can be marked `Settled`; re-reporting the same hash is a no-op, a different hash is rejected. | No |
+| `BCK.ROUTER.0006` | 500 | Transient failure building the payments summary. | **Yes** |
+| `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight. | **Yes** |
+| `BCK.ROUTER.0008` | 403 | Legacy API key. Create a new one — see [the quickstart](/products/router/quickstart#1-get-an-api-key). | No |
+| `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on the target network. Nothing was signed. | No |
+
+Only `0006` and `0007` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer.
+
+## Notes for autonomous agents
+
+If you're writing an agent that spends without a human in the loop, four rules:
+
+1. **Treat `0003` and `0009` as stop conditions.** They mean "out of budget" and "out of money". Report them; don't work around them.
+2. **Never widen a Delegation in response to a refusal.** The cap is the user's decision, not a runtime obstacle.
+3. **Generate one `requestId` per purchase**, and reuse it across retries of that purchase. Deriving it from the work you're doing beats a fresh UUID per HTTP attempt.
+4. **Check the price before you commit.** `settlement.approxCents` on the response tells you what a call cost; a run of sub-cent calls still burns a cent of budget each.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Payment ledger" icon="receipt" href="/products/router/ledger">
+    What actually got spent, and how to reconcile it.
+  </Card>
+  <Card title="How it works" icon="diagram-project" href="/products/router/how-it-works">
+    Where these checks sit in the flow.
+  </Card>
+</CardGroup>

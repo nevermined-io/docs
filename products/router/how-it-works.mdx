@@ -1,0 +1,168 @@
+---
+title: "How the Router works"
+description: "The payment flow end to end, the two call modes, and where custody actually sits."
+icon: "diagram-project"
+---
+
+Every Router payment follows the same five beats, whatever protocol the merchant speaks:
+
+<Steps>
+  <Step title="Probe">
+    Someone requests the paid resource without payment. The merchant answers **HTTP 402** with a payment challenge.
+  </Step>
+  <Step title="Detect">
+    The Router reads the challenge and works out which protocol it is — an `accepts` array means x402, a `WWW-Authenticate: Payment` header means MPP.
+  </Step>
+  <Step title="Mint">
+    The Router checks the spend against your Delegation, checks your wallet actually holds the funds, signs the payment from your custodial wallet, and reserves the amount against the cap.
+  </Step>
+  <Step title="Pay">
+    The credential goes to the merchant as an HTTP header. The merchant verifies it, settles, and returns the resource.
+  </Step>
+  <Step title="Record">
+    The payment lands on your [ledger](/products/router/ledger) with its settlement reference.
+  </Step>
+</Steps>
+
+The only thing that changes between call modes is **who performs steps 1 and 4** — you, or the Router.
+
+## Mode B — the Router calls the merchant (recommended)
+
+You hand the Router the request you want made. It probes, detects, mints, attaches, calls, and relays the answer. One call in, one answer out; you never see the 402 and never touch a credential.
+
+```http
+POST /api/v1/router/route
+Authorization: Bearer <your-api-key>
+Content-Type: application/json
+
+{
+  "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
+  "url": "https://service.example/api/resource",
+  "method": "GET",
+  "requestId": "order-1234"
+}
+```
+
+```json
+{
+  "status": 200,
+  "body": { "…": "the paid resource" },
+  "paid": true,
+  "payment": {
+    "paymentId": "b1f9c2e4-…",
+    "settlement": {
+      "recipient": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+      "amount": "1000",
+      "asset": "USDC",
+      "network": "base-sepolia",
+      "approxCents": "1",
+      "scheme": "exact"
+    },
+    "txHash": "0xfc8af37b…",
+    "status": "Settled"
+  }
+}
+```
+
+`status` and `body` are the merchant's, relayed unchanged. `paid: false` means the resource was free — the Router relayed it and there is no `payment` block.
+
+<Note>
+**`requestId` is required in mode B.** Because the Router pays automatically, a retry after a dropped connection must not buy the same thing twice. At most one payment is minted per `(caller, requestId)`; a duplicate returns **409** carrying the original `paymentId` instead of paying again. Use one stable id per logical purchase, not per HTTP attempt.
+</Note>
+
+### Streaming variant
+
+For large or streamed responses, use `ALL /api/v1/router/proxy` instead. It's the same engine, driven by headers rather than a JSON envelope, and the merchant's response body streams straight back to you:
+
+| Header | Purpose |
+| --- | --- |
+| `X-Router-Target-Url` | Absolute upstream URL to route to. Required. |
+| `X-Router-Delegation-Id` | The Delegation to spend against. Required. |
+| `X-Router-Request-Id` | Idempotency key. Required. |
+| `X-Router-Upstream-Authorization` | Optional — the merchant's own auth, forwarded upstream. |
+
+Your method, body and headers pass through. Payment metadata comes back on the response:
+`X-Router-Payment-Id`, `X-Router-Payment-Status` (`Issued` / `Settled` / `Failed`), and `X-Router-Tx-Hash`.
+
+Use `/route` when you want one structured result; use `/proxy` when you want the bytes.
+
+## Mode A — you call the merchant yourself
+
+Use mode A when your agent needs to make the upstream call itself — a client you don't control, a transport the Router doesn't proxy, or a request you want to shape by hand.
+
+<Steps>
+  <Step title="Probe the merchant yourself">
+    Request the resource, get the 402, and keep the challenge exactly as it arrived — the `accepts` object for x402, or the raw `WWW-Authenticate: Payment …` header value for MPP.
+  </Step>
+  <Step title="Ask the Router for a credential">
+    ```http
+    POST /api/v1/router/payments
+    Authorization: Bearer <your-api-key>
+    Content-Type: application/json
+
+    {
+      "delegationId": "5e7481c3-…",
+      "protocol": "x402",
+      "resourceUrl": "https://service.example/api/resource",
+      "requestId": "order-1234",
+      "target": { "x402Version": 2, "accepts": [ … ] }
+    }
+    ```
+
+    You get back a `credential` — `{ transport, name, value }` — plus a `settlement` descriptor and a `paymentId`. The record is created `Issued`.
+  </Step>
+  <Step title="Attach it and re-request">
+    Set the HTTP header named by `credential.name` to `credential.value`, and send your original request again. The merchant verifies, settles, and returns the resource.
+  </Step>
+  <Step title="Close the record">
+    Report the settlement so the ledger entry completes:
+
+    ```http
+    POST /api/v1/router/payments/{paymentId}/settled
+    ```
+
+    Skip this and the record stays `Issued` — a valid state meaning "paid, settlement not yet observed", not an error.
+  </Step>
+</Steps>
+
+In mode A the Router only *signs*. It is not in the request path, so it cannot observe whether you ever redeemed the credential — which is why the ledger needs you to close the loop.
+
+<Tip>
+Prefer mode B unless you have a specific reason not to. It self-settles the ledger record, it's one round trip instead of three, and it removes an entire class of "I minted a credential and forgot to use it" bugs.
+</Tip>
+
+## Where custody sits
+
+This is the part worth understanding properly, because it explains an error you will eventually hit.
+
+Both rails are **pull-based**. The credential the Router signs authorizes the *merchant* to take a specific amount from **your own custodial wallet**. Nevermined never holds your funds, never fronts them, and never moves them between users.
+
+Two independent things therefore have to be true for a payment to succeed:
+
+1. **The Delegation authorizes the spend** — enough cap remains and it hasn't expired. Otherwise: `402 BCK.ROUTER.0003`.
+2. **The wallet actually holds the money** — on the specific network and in the specific asset the merchant demanded. Otherwise: `402 BCK.ROUTER.0009`.
+
+A cap is permission, not funds. You can hold a $50 Delegation and still fail to buy something for a penny if your wallet is empty on that chain. The Router checks the balance *before* signing, so an underfunded wallet costs you nothing — no credential is minted and no budget is reserved.
+
+## How settlement gets recorded
+
+When the merchant accepts the credential it returns a settlement reference — a `PAYMENT-RESPONSE` header on x402, a `Payment-Receipt` on MPP. In mode B the Router reads it and stores it on the record.
+
+- On success the record goes to **`Settled`** with the reference stored as `txHash`.
+- If the merchant paid but returned no usable reference, the record stays **`Issued`** — a normal state meaning "the hop succeeded, settlement is pending observation". It is not an error and the Router will not fail an already-paid call over it.
+- If the merchant rejects the credential and returns another 402, the record is marked **`Failed`**.
+
+<Warning>
+The settlement reference is **merchant-controlled and stored unverified**. It's bounded in length and character set, but the Router does not confirm on-chain that the referenced transaction exists or paid what it claims. Treat it as an anchor for reconciliation, not as proof of payment.
+</Warning>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/products/router/quickstart">
+    Run the whole flow yourself.
+  </Card>
+  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+    Everything the Router checks before it signs.
+  </Card>
+</CardGroup>

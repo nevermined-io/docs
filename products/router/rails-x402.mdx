@@ -1,0 +1,119 @@
+---
+title: "The x402 rail"
+description: "Paying x402 services through the Router — networks, assets, schemes, and how the 402 is negotiated."
+icon: "coins"
+---
+
+x402 is the HTTP-native payment protocol where a server answers an unpaid request with **HTTP 402** and an `accepts` array describing what it will take. The Router reads that array, picks an option it can fund, signs the payment from your custodial wallet, and hands back a credential.
+
+You don't need the service to know anything about Nevermined. If it speaks x402, it's payable.
+
+## What a challenge looks like
+
+The Router supports both protocol versions and works out which one it's talking to.
+
+<Tabs>
+  <Tab title="x402 v2">
+    Requirements arrive base64-encoded in a **`PAYMENT-REQUIRED`** response header. The credential goes back in a **`PAYMENT-SIGNATURE`** request header.
+  </Tab>
+  <Tab title="x402 v1">
+    Requirements arrive in the **JSON body** of the 402. The credential goes back in an **`X-PAYMENT`** request header.
+
+    ```json
+    {
+      "x402Version": 1,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "base-sepolia",
+          "maxAmountRequired": "1000",
+          "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+          "payTo": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+          "maxTimeoutSeconds": 60,
+          "extra": { "name": "USDC", "version": "2" }
+        }
+      ]
+    }
+    ```
+  </Tab>
+</Tabs>
+
+In [mode B](/products/router/how-it-works) you never see any of this — the Router probes, negotiates the version, and pays. You only need the shape above if you're using mode A and passing the challenge yourself as `target`.
+
+## What's supported
+
+| | Supported |
+| --- | --- |
+| **Scheme** | `exact` — an EIP-3009 `TransferWithAuthorization`, a single-use signed authorization the merchant redeems |
+| **Networks** | `base` (chain `8453`) and `base-sepolia` (chain `84532`), by name or as CAIP-2 (`eip155:8453`) |
+| **Assets** | `USDC` and `EURC` — 6-decimal stablecoins |
+
+Anything outside that isn't payable on this rail today: other schemes, other chains, and non-EVM networks such as Solana.
+
+<Note>
+A **mixed-chain 402 still works** as long as one option is fundable. If a service advertises both a Solana option and a Base option, the Router skips the one it can't parse and pays the Base one. It only fails if *no* entry survives the filter — that's `400 BCK.ROUTER.0001`.
+</Note>
+
+### How an option gets chosen
+
+Given several fundable entries, the Router filters to `scheme: "exact"` on a funded network with a funded asset, then prefers **USDC**. The asset symbol is read from the entry's **`extra.name`** field — a service that omits it won't match the symbol filter even if its `asset` address is USDC.
+
+## Money and budget
+
+Amounts are in the asset's smallest unit. USDC and EURC have 6 decimals, so:
+
+```
+1_000_000 atomic units = 1 USDC = 100 cents
+    10_000 atomic units = 1 cent
+```
+
+Your Delegation cap is denominated in **cents**, so every payment is converted and **rounded up** to the next whole cent before it's checked against the cap. A payment of 4,500 atomic units (half a cent) reserves 1 cent. Sub-cent calls therefore cost you a full cent of budget each — worth knowing if you're planning a long loop of very cheap calls.
+
+The `settlement.approxCents` field on every response tells you exactly what was reserved.
+
+## Funding your wallet
+
+The payment is a **pull**: your signature authorizes the merchant to take the amount from your own wallet. So the wallet must already hold that asset **on that chain** before you call.
+
+Get the address from your Delegation's `providerPaymentMethodId` — see [step 3 of the quickstart](/products/router/quickstart#3-fund-your-wallet). If it's short, the mint fails with **`402 BCK.ROUTER.0009`** and nothing is signed: no credential, no reserved budget, no partial state to clean up.
+
+<Warning>
+`base` is **Base mainnet** and moves real funds. `base-sepolia` is the testnet. Both are enabled by default, and which one you use is decided entirely by what the service you're calling advertises — not by which Nevermined environment you're pointed at. Read the `settlement.network` on the response if you want to be sure what just happened.
+</Warning>
+
+## Authorization lifetime
+
+The signed authorization carries a validity window, capped by the operator (one hour by default) with a small allowance for clock skew between you and the merchant. A merchant asking for a longer window than the operator permits gets the operator's cap, not its own request.
+
+In practice this only matters in mode A: if you mint a credential and sit on it, it can expire before you redeem it. The budget stays reserved and the record stays `Issued`. Mint credentials when you're about to use them.
+
+## Settling the record
+
+When the merchant accepts the credential it returns a settlement reference in a `PAYMENT-RESPONSE` (or `X-PAYMENT-RESPONSE`) header — the on-chain transaction hash.
+
+- **Mode B** reads it and closes the record for you: status `Settled`, hash on the ledger.
+- **Mode A** leaves the record `Issued` until you report it with `POST /api/v1/router/payments/{paymentId}/settled`.
+
+See [the ledger](/products/router/ledger) for what those statuses mean and how to reconcile them.
+
+## Operator configuration
+
+These are set per deployment, not per call. You only need them if you run your own Nevermined deployment.
+
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `ROUTER_FUNDED_NETWORKS` | `base,base-sepolia` | Networks the Router will fund a payment on |
+| `ROUTER_FUNDED_SYMBOLS` | `USDC,EURC` | Asset symbols it will pay in |
+| `ROUTER_PREFER_SYMBOL` | `USDC` | Which symbol wins when a 402 offers several |
+| `ROUTER_MAX_AUTH_TTL_SECS` | `3600` | Ceiling on the signed authorization's validity window |
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="The MPP rail" icon="credit-card" href="/products/router/rails-mpp">
+    The other supported protocol, and how it differs.
+  </Card>
+  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+    Every check the Router runs before it signs.
+  </Card>
+</CardGroup>
