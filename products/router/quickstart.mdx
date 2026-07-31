@@ -1,0 +1,207 @@
+---
+title: "Router quickstart"
+description: "From a Nevermined API key to a paid call against an external service, in five steps."
+icon: "rocket"
+---
+
+By the end of this page your agent will have paid a service that has never heard of Nevermined, from a budget you control, with the spend on your ledger.
+
+Everything here is plain HTTP. The Nevermined SDKs don't expose the Router yet, so the examples use `curl` and `fetch` — which is also the point: any agent, in any language, can drive it.
+
+Set your environment once:
+
+<Tabs>
+  <Tab title="Sandbox">
+    ```bash
+    export NVM_API_URL="https://api.sandbox.nevermined.app"
+    export NVM_API_KEY="<your-api-key>"
+    ```
+  </Tab>
+  <Tab title="Live">
+    ```bash
+    export NVM_API_URL="https://api.live.nevermined.app"
+    export NVM_API_KEY="<your-api-key>"
+    ```
+  </Tab>
+</Tabs>
+
+## 1. Get an API key
+
+Create one from the Nevermined app. Every Router call carries it as `Authorization: Bearer $NVM_API_KEY`.
+
+<Warning>
+**Older keys don't work with the Router.** If you have a key from an earlier generation, the Router rejects it with **`403 BCK.ROUTER.0008`** — it's bound to a previous account model that can't sign these payments. The fix is simply to create a new key; newly issued keys work. Existing keys keep working for credit-based flows, so there's no rush to rotate anything else.
+</Warning>
+
+Never send this key to the service you're paying. It authenticates you to Nevermined, nothing else.
+
+## 2. Create a Delegation
+
+A Delegation is your budget: a hard cap in cents and an expiry. Create it once and reuse the id for every payment until it's exhausted or expires.
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "erc4337",
+    "currency": "usdc",
+    "spendingLimitCents": 500,
+    "durationSecs": 604800
+  }'
+```
+
+```json
+{ "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1" }
+```
+
+```bash
+export NVM_DELEGATION_ID="5e7481c3-e972-45bd-bdc5-a0b99c4de4a1"
+```
+
+That's a $5.00 cap for 7 days. The cap is enforced server-side on every single payment — your agent cannot spend past it by looping, retrying, or misreading its own budget.
+
+<Note>
+`provider: "erc4337"` is the crypto-funded Delegation, which is what both stablecoin rails use. A card-funded Delegation is a different provider and is not accepted on those rails.
+</Note>
+
+## 3. Fund your wallet
+
+Both rails **pull**: the merchant takes the money from your own custodial wallet. A Delegation authorizes the spend, but the wallet has to actually hold the funds. Find its address on the Delegation:
+
+```bash
+curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+```json
+{
+  "delegationId": "5e7481c3-…",
+  "provider": "erc4337",
+  "providerPaymentMethodId": "0x8F60b3838e6C121FcDBdBc50e7B150F8560a670E",
+  "status": "Active",
+  "spendingLimitCents": "500",
+  "amountSpentCents": "0",
+  "remainingBudgetCents": "500",
+  "expiresAt": "2026-08-07T00:00:00Z"
+}
+```
+
+`providerPaymentMethodId` is the wallet address to fund. Send it the payment asset **on the network you intend to pay on** — see [the x402 rail](/products/router/rails-x402) and [the MPP rail](/products/router/rails-mpp) for which networks and assets each supports.
+
+<Warning>
+Always read this address back from the live Delegation rather than reusing one you saved. A stale address is the single most common cause of a confusing `402 BCK.ROUTER.0009` — the error deliberately doesn't echo the address it checked, so it can't tell you that you funded the wrong wallet.
+</Warning>
+
+## 4. Make a paid call
+
+Hand the Router the request you want made. It probes the service, detects the protocol, pays the 402, and relays the answer.
+
+<Tabs>
+  <Tab title="curl">
+    ```bash
+    curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+      -H "Authorization: Bearer $NVM_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "delegationId": "'"$NVM_DELEGATION_ID"'",
+        "url": "https://service.example/api/resource",
+        "method": "GET",
+        "requestId": "'"$(uuidgen)"'"
+      }'
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    const res = await fetch(`${process.env.NVM_API_URL}/api/v1/router/route`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.NVM_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        delegationId: process.env.NVM_DELEGATION_ID,
+        url: 'https://service.example/api/resource',
+        method: 'GET',
+        requestId: crypto.randomUUID(),
+      }),
+    })
+
+    const { status, body, paid, payment } = await res.json()
+    if (paid) console.log(`paid ${payment.settlement.approxCents}c`, payment.txHash)
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os, uuid, requests
+
+    res = requests.post(
+        f"{os.environ['NVM_API_URL']}/api/v1/router/route",
+        headers={"Authorization": f"Bearer {os.environ['NVM_API_KEY']}"},
+        json={
+            "delegationId": os.environ["NVM_DELEGATION_ID"],
+            "url": "https://service.example/api/resource",
+            "method": "GET",
+            "requestId": str(uuid.uuid4()),
+        },
+    ).json()
+
+    if res["paid"]:
+        print(res["payment"]["settlement"]["approxCents"], "cents", res["payment"]["txHash"])
+    ```
+  </Tab>
+</Tabs>
+
+The response carries the merchant's `status` and `body` unchanged, plus what the call cost you:
+
+```json
+{
+  "status": 200,
+  "body": { "…": "the paid resource" },
+  "paid": true,
+  "payment": {
+    "paymentId": "b1f9c2e4-…",
+    "settlement": { "amount": "1000", "asset": "USDC", "network": "base", "approxCents": "1" },
+    "txHash": "0xfc8af37b…",
+    "status": "Settled"
+  }
+}
+```
+
+If the resource turned out to be free, you get `paid: false` and no `payment` block — the Router relays it and charges nothing.
+
+<Note>
+**Use one stable `requestId` per logical purchase, not per HTTP attempt.** It's the idempotency key: retrying a dropped call with the same id returns the original payment instead of buying twice. Retrying with a fresh id buys twice, on purpose.
+</Note>
+
+## 5. Check what you spent
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+Every payment across every protocol is on one ledger — see [the ledger page](/products/router/ledger) for filters, CSV export, and the aggregate summary.
+
+## When something is refused
+
+Refusals are the system working. The three you're most likely to meet:
+
+| Code | Status | What happened |
+| --- | --- | --- |
+| `BCK.ROUTER.0003` | 402 | The spend would exceed your Delegation cap, or the Delegation expired. |
+| `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on that network. Nothing was signed. |
+| `BCK.ROUTER.0002` | 409 | That `requestId` already bought something. The original `paymentId` is in the response. |
+
+[Guardrails](/products/router/guardrails) covers every code and, more usefully, why widening a cap in response to a refusal is almost always the wrong move.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="The x402 rail" icon="coins" href="/products/router/rails-x402">
+    Networks, assets, and what "exact" means.
+  </Card>
+  <Card title="The MPP rail" icon="credit-card" href="/products/router/rails-mpp">
+    Tempo charges, receipts, and the asset allowlist.
+  </Card>
+</CardGroup>

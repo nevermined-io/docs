@@ -1,0 +1,132 @@
+---
+title: "Payment ledger"
+description: "Query, export, and reconcile every payment your agents have made — across every protocol, in one place."
+icon: "receipt"
+---
+
+Every payment the Router mints lands on one ledger, whatever protocol it used and whichever service it paid. That's most of the point of routing payments at all: instead of reconciling a dozen provider dashboards, you have a single record of what your agents bought.
+
+All ledger endpoints are scoped to the authenticated caller. You only ever see your own payments.
+
+## List payments
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+| Query | Purpose |
+| --- | --- |
+| `delegationId` | Only payments spent against one Delegation |
+| `from` | ISO-8601 lower bound on `createdAt`, inclusive |
+| `to` | ISO-8601 upper bound on `createdAt`, inclusive |
+| `format` | `json` (default) or `csv` for a downloadable file |
+
+An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ignoring the filter.
+
+```json
+[
+  {
+    "id": "b1f9c2e4-…",
+    "createdAt": "2026-07-01T09:00:55.605Z",
+    "status": "Settled",
+    "protocol": "x402",
+    "network": "base",
+    "asset": "USDC",
+    "amount": "1000",
+    "merchantAddress": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+    "txHash": "0xfc8af37b…",
+    "delegationId": "5e7481c3-…",
+    "requestId": "order-1234",
+    "resourceUrl": "https://service.example/api/resource",
+    "buyer": "0x8D6A5233…"
+  }
+]
+```
+
+`amount` is in the asset's smallest unit — divide by 10<sup>6</sup> for the 6-decimal stablecoins both rails use. The figure charged against your Delegation cap is the cents equivalent, **rounded up**, which is why a long run of sub-cent calls costs more budget than the raw amounts suggest.
+
+### Export
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments?from=2026-07-01T00:00:00Z&to=2026-07-31T23:59:59Z&format=csv" \
+  -H "Authorization: Bearer $NVM_API_KEY" -o router-payments-july.csv
+```
+
+## Aggregate summary
+
+For dashboards and spend monitoring, `GET /api/v1/router/payments/summary` returns a total plus a time series instead of individual rows.
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments/summary?granularity=day" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+```json
+{
+  "total": 137,
+  "series": [
+    { "date": "2026-07-01T00:00:00.000Z", "value": 12 },
+    { "date": "2026-07-02T00:00:00.000Z", "value": 31 }
+  ]
+}
+```
+
+`granularity` is `day` (default), `week`, or `month`; an unrecognised value falls back to `day` rather than erroring. `from` and `to` work as above. Buckets are oldest first.
+
+<Note>
+The summary counts **payment requests**, not amounts. Use the list endpoint when you need money rather than volume.
+</Note>
+
+## Record statuses
+
+| Status | Meaning |
+| --- | --- |
+| `Issued` | The credential was minted and the budget reserved. Either the call is still in flight, or it succeeded without a usable settlement reference. |
+| `Settled` | The merchant accepted the credential and returned a settlement reference, now stored as `txHash`. |
+| `Failed` | The merchant rejected the credential — it answered the paid request with another 402. |
+
+<Warning>
+**`Issued` is not an error.** On a paid mode-B call it means the resource came back fine but the settlement anchor didn't — a missing, oversized, or malformed receipt. The Router deliberately will not fail an already-paid hop over a bad receipt. In mode A it's simply the state a record sits in until you report the settlement yourself.
+</Warning>
+
+## Closing a mode-A record
+
+In [mode A](/products/router/how-it-works) the Router only signs — it never sees the merchant's response, so it can't know whether you redeemed the credential. Report the settlement to close the record:
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/settled" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "txHash": "0xfc8af37b…" }'
+```
+
+```json
+{ "paymentId": "b1f9c2e4-…", "status": "Settled", "txHash": "0xfc8af37b…" }
+```
+
+Take the hash from the merchant's `PAYMENT-RESPONSE` header. Two things to know:
+
+- Only an `Issued` payment can be settled. Re-reporting the **same** hash is a harmless no-op; a **different** hash, or a record that isn't `Issued`, returns `409 BCK.ROUTER.0005`.
+- A payment id that isn't yours returns `404 BCK.ROUTER.0004`.
+
+[Mode B does this for you](/products/router/how-it-works), which is one of the better reasons to prefer it.
+
+## Reconciling against the chain
+
+The settlement reference is reported by the merchant and stored **unverified**. The Router bounds its length and character set, but it does not confirm on-chain that the transaction exists, that it paid the expected recipient, or that it moved the expected amount.
+
+So for anything that matters — accounting, disputes, anomaly detection — treat `txHash` as an **anchor to verify**, not as proof. Check it against the chain named in the record's `network` field.
+
+Note also that a non-`0x` reference is legitimate: settlement identifiers are protocol-specific, and non-blockchain rails return processor references rather than transaction hashes. Don't assume the field is always a hash.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+    Every error code, and what to do about each.
+  </Card>
+  <Card title="Overview" icon="route" href="/products/router/overview">
+    Back to the top.
+  </Card>
+</CardGroup>
