@@ -1,6 +1,6 @@
 ---
 name: nevermined-router
-version: "0.1.0"
+version: "0.1.1"
 lastUpdated: "2026-08-03"
 description: >
   Use when an AI agent needs to PAY an external service it does not have an account
@@ -28,7 +28,7 @@ metadata:
 
 # Nevermined Router — buy from any x402 or MPP service
 
-> **Skill version**: 0.1.0 | **Last updated**: 2026-08-03 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
+> **Skill version**: 0.1.1 | **Last updated**: 2026-08-03 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 >
 > **⚠️ Use the latest version.** If you have a cached copy, check its **Last updated** date against the canonical source and refresh if older.
 >
@@ -47,6 +47,8 @@ It works because a growing set of services quote their price **on the wire**: yo
 
 <a id="not-for"></a>
 **This skill cannot help you with conventional SaaS APIs.** Exa, Firecrawl, Tavily and similar are billed out of band — a monthly plan, a long-lived key. They never quote a price for one call, so there is nothing on the wire for the Router to pay and no address to pay it to. The Router isn't missing a feature; the transaction it performs does not exist for those services. If a service answers `401` or `403` rather than `402`, it wants **authentication**, not payment — stop, and tell the user it needs an account.
+
+That is not a dead end, just a different rail. Nevermined can still buy from such a provider **out of band** — purchasing API credits up front instead of paying per call. Exa is the worked example: a $7 x402 card-delegation purchase provisions or tops up an Exa API key, fully agent-driven — https://nevermined.ai/docs/integrations/exa. That flow belongs to the `nevermined-payments` skill and the Payments SDK. What you cannot do is put those calls through `/router/route`.
 
 ## The buy loop
 
