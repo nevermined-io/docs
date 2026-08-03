@@ -26,13 +26,13 @@ Handled with the Nevermined Payments SDK (`npm install @nevermined-io/payments`;
 
 1. **Initialize** the SDK with your Nevermined API key only (`Payments.getInstance({ nvmApiKey })`). The environment is derived from the key prefix; do not pass an `environment` option.
 2. **Find the delegation to pay with**; see [Getting a delegation](#getting-a-delegation) below.
-3. **Mint the x402 access token** for the Exa plan ID via `payments.x402.getX402AccessToken`, using the `nvm:card-delegation` scheme and referencing the delegation by ID (`delegationConfig: { delegationId }`). No agentId is needed for this flow: the method's arguments are `(planId, agentId?, tokenOptions?)`, so pass the plan ID, `undefined`, and the token options. Tokens cannot create delegations on the fly; the delegation must exist first.
+3. **Mint the x402 access token** for the Exa plan ID via `payments.x402.getX402AccessToken`, using the `nvm:card-delegation` scheme and referencing the delegation by ID (`delegationConfig: { delegationId }`). No agentId is needed for this flow: the method's arguments are `(planId, agentId?, tokenOptions?)`, so pass the plan ID, `undefined`, and the token options. The call returns an object, `{ accessToken }`. Tokens cannot create delegations on the fly; the delegation must exist first.
 4. **POST the token to Exa** in the `payment-signature` header (endpoint below). The response contains the Exa API key. Check the HTTP status before reading the body.
 5. **Use the key** against the standard [Exa Search API](https://docs.exa.ai).
 
 ## Getting a delegation
 
-Query the delegations accessible to your API key with `payments.delegation.getPurchasingPower()` and select one with at least 700 cents of remaining budget. Budget fields are returned as strings, in cents. Purchasing-power results contain only delegations that can still pay; exhausted ones are excluded. With several delegations, discovery is deterministic when the owner key-scoped one to your key; to designate a specific budget among several, reference its ID explicitly.
+Query the delegations accessible to your API key with `payments.delegation.getPurchasingPower()` and select one with at least 700 cents of remaining budget. Budget fields are returned as strings, in cents. Purchasing-power results contain only delegations that can still pay; exhausted ones are excluded. With several delegations, discovery is deterministic when the owner key-scoped one to your key; to designate a specific budget among several, reference its ID explicitly. Each API key has an id in `sk-…` form, shown on the key's details page in the dashboard; delegations scoped to a key carry it in the `apiKeyId` field of the results (unset means unscoped). Owners using key-scoping should give the agent this id along with the key so it can recognize which delegation is its own.
 
 **If discovery returns none**, the preferred path is for the card owner to create a delegation in the dashboard (Prerequisites, step 2); the agent then re-runs discovery. Nothing needs to be copied. If no operator is reachable (or the request goes unanswered), a fully autonomous agent can create one programmatically with `payments.delegation.createDelegation`. Its payload fields:
 
@@ -63,7 +63,7 @@ payment-signature: <x402-token>
 
 ## Verifying charges
 
-Use `payments.delegation.listDelegations()` to inspect spend per delegation (`amountSpentCents`, `transactionCount`, status). Fully spent delegations are marked `Exhausted` and no longer appear in `getPurchasingPower()` results; purchasing power lists only delegations that can still pay.
+Use `payments.delegation.listDelegations()` to inspect spend per delegation (`amountSpentCents`, `transactionCount`, status); the response wraps a `delegations` array. Fully spent delegations are marked `Exhausted` and no longer appear in `getPurchasingPower()` results; purchasing power lists only delegations that can still pay.
 
 ## Troubleshooting
 
