@@ -7,7 +7,7 @@ icon: "magnifying-glass"
 [Exa](https://exa.ai) accepts autonomous payments through Nevermined's [x402 card-delegation](/specs/x402-card-delegation) scheme. An agent holding a Nevermined API key mints an x402 access token against the Exa plan and exchanges it at Exa's purchase endpoint for a working Exa API key. Repeat purchases top up the same key.
 
 <Info>
-  Exa's Nevermined plan ID:<br />`27800462147494506865542649899724877617306579171265399959488097895839186996870`<br />The purchase is for API credits, not for a single search request. \$7 covers roughly 1,000 standard searches; see [Exa pricing](https://exa.ai/pricing) for current rates.
+  Exa's Nevermined plan ID:<br />`27800462147494506865542649899724877617306579171265399959488097895839186996870`<br />This plan and purchase run on **live**; use a live-prefixed Nevermined API key. The purchase is for API credits, not for a single search request. \$7 covers roughly 1,000 standard searches; see [Exa pricing](https://exa.ai/pricing) for current rates.
 </Info>
 
 ## Prerequisites (one time, done by the card owner)
@@ -71,7 +71,8 @@ Use `payments.delegation.listDelegations()` to inspect spend per delegation (`am
 |---|---|
 | Token mint fails: `Required token-generation input is missing or incomplete (HTTP 402)` | The mint referenced no existing delegation (e.g., legacy create-on-the-fly `delegationConfig` with card details). Create or discover a delegation first and pass `delegationConfig: { delegationId }`. |
 | `ERR_PACKAGE_PATH_NOT_EXPORTED` on import | The SDK is ESM-only. Set `"type": "module"` in `package.json` or use `.mts`. |
-| Console warning: `The 'environment' option is deprecated…` even though you never passed it | Known SDK issue; harmless. The environment is derived from your key prefix. |
+| Console warning: `The 'environment' option is deprecated…` | Something is still passing the deprecated `environment` option (a wrapper or copied example). Remove it; the environment is derived from your key prefix. On SDK 1.10.0 the warning can also self-fire with nothing passed ([payments#416](https://github.com/nevermined-io/payments/issues/416)); if you have removed the option and still see it, that issue is why. |
+| The plan ID above does not resolve, or token mint fails against it | Check your key prefix: this is a live plan, and a `sandbox:`-prefixed key targets a different environment where the plan does not exist. |
 | A delegation you spent from disappears from `getPurchasingPower()` | It is exhausted. Inspect it with `listDelegations()`; create or top up a delegation to continue. |
 | Exa search returns `402` with `NO_MORE_CREDITS` | The Exa key's credits are spent. Repeat the purchase flow to top up the same key. |
 
