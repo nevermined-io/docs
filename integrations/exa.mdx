@@ -1,0 +1,85 @@
+---
+title: "Exa"
+description: "Buy Exa API credits with card delegation: a $7 x402 purchase provisions or tops up an Exa API key, fully agent-driven."
+icon: "magnifying-glass"
+---
+
+[Exa](https://exa.ai), the search engine built for AI, accepts autonomous agent payments through Nevermined's [x402 card-delegation](/specs/x402-card-delegation) scheme in production. An agent holding a Nevermined API key mints an x402 access token against Exa's payment plan and exchanges it at Exa's purchase endpoint for a working Exa API key; repeat purchases top up the same key. No human is needed at purchase time: the card owner authorizes spending once through a delegation, and the agent buys within that budget.
+
+<Info>
+  Exa's Nevermined plan ID:<br />`27800462147494506865542649899724877617306579171265399959488097895839186996870`<br />The purchase is for API credits, not for a single search request. \$7 covers roughly 1,000 standard searches; see [Exa pricing](https://exa.ai/pricing) for current rates.
+</Info>
+
+## Prerequisites (one time, done by the card owner)
+
+1. Enroll a card at [nevermined.app](https://nevermined.app) → Payment Methods.
+2. Create a **delegation** on the card: the spending permission an agent pays with. The owner sets the spending limit and duration, and can scope the delegation to a specific API key (recommended; it makes discovery deterministic for that key).
+3. Generate an API key and give it to the agent. Two ways:
+   * **Embedded login flow (no copy/paste):** the agent hosts a callback on `127.0.0.1` and sends its human this URL to sign in: `https://nevermined.app/auth/cli?callback_url=http://127.0.0.1:<port>/callback`. After sign-in, the browser redirects to the callback with `nvm_api_key=<api-key>` for the agent to read.
+   * **Manual:** [nevermined.app](https://nevermined.app) → Account → API Keys → create a key and paste it to the agent (or open `https://nevermined.app/auth/cli` with no `callback_url` and copy the key shown on screen).
+
+**Agent-orchestrated alternative** (no dashboard navigation for the owner): an agent that already has an API key can run enrollment itself. Host a callback on `127.0.0.1`, then mint an embedded session: `POST https://api.live.nevermined.app/api/v1/embed/session` with `Authorization: Bearer <api-key>` and body `{ "returnUrl": "http://127.0.0.1:<port>/callback" }`, which returns a `sessionToken`. Send the human this URL to enter their card in the browser: `https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=http://127.0.0.1:<port>/callback&state=<random>&provider=stripe`. When they finish, the browser redirects to the callback with `paymentMethodId` and `delegationId`; store the `delegationId`. The human still enters the card details and approves any bank step-up; the agent receives the resulting delegation directly.
+
+See the [x402 card-delegation spec](/specs/x402-card-delegation) for how enrollment and delegations work.
+
+## The flow
+
+Handled with the Nevermined Payments SDK (`npm install @nevermined-io/payments`; the package is ESM-only; in a fresh npm project set `"type": "module"` in `package.json`, or the import fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`). The package's bundled TypeScript definitions are the authoritative call reference for every method named below. For broader context, start from the [Payments overview](/products/payments/overview) and the [documentation index](https://nevermined.ai/docs/llms.txt).
+
+1. **Initialize** the SDK with your Nevermined API key only (`Payments.getInstance({ nvmApiKey })`). The environment is derived from the key prefix; do not pass an `environment` option.
+2. **Find the delegation to pay with**; see [Getting a delegation](#getting-a-delegation) below.
+3. **Mint the x402 access token** for the Exa plan ID via `payments.x402.getX402AccessToken`, using the `nvm:card-delegation` scheme and referencing the delegation by ID (`delegationConfig: { delegationId }`). No agentId is needed for this flow: the method's arguments are `(planId, agentId?, tokenOptions?)`, so pass the plan ID, `undefined`, and the token options. Tokens cannot create delegations on the fly; the delegation must exist first.
+4. **POST the token to Exa** in the `payment-signature` header (endpoint below). The response contains the Exa API key. Check the HTTP status before reading the body.
+5. **Use the key** against the standard [Exa Search API](https://docs.exa.ai).
+
+## Getting a delegation
+
+Query the delegations accessible to your API key with `payments.delegation.getPurchasingPower()` and select one with at least 700 cents of remaining budget. Budget fields are returned as strings, in cents. Purchasing-power results contain only delegations that can still pay; exhausted ones are excluded. With several delegations, discovery is deterministic when the owner key-scoped one to your key; to designate a specific budget among several, reference its ID explicitly.
+
+**If discovery returns none**, the preferred path is for the card owner to create a delegation in the dashboard (Prerequisites, step 2); the agent then re-runs discovery. Nothing needs to be copied. If no operator is reachable (or the request goes unanswered), a fully autonomous agent can create one programmatically with `payments.delegation.createDelegation`. Its payload fields:
+
+| Field | Value for this flow |
+|---|---|
+| `provider` | `"stripe"` |
+| `providerPaymentMethodId` | The card's id from `payments.delegation.listPaymentMethods()` |
+| `spendingLimitCents` | N × 700 for N expected purchases; a 700-cent delegation is exhausted after a single purchase |
+| `durationSecs` | `3600` is a sensible default for a one-shot purchase; keep it short (least privilege) |
+| `currency` | `"usd"` |
+
+The response includes the `delegationId` to mint with (it also includes a `delegationToken`; not needed for this flow; treat it as a secret and do not log it). **Card selection:** `listPaymentMethods()` carries no ordering guarantee and cards may be indistinguishable by metadata; if several are enrolled and the owner's intent is unknown, prefer asking the owner; otherwise any Active card of the provider is acceptable, and you should record which payment-method id was chosen. Note the trade-off of this whole path: the agent chooses the card and sets its own budget. Prefer an owner-created delegation whenever an owner is available.
+
+## Exa's purchase contract
+
+```bash
+POST https://admin-api.exa.ai/team-management/nevermined/purchase-key
+payment-signature: <x402-token>
+```
+
+* **Cost:** \$7 per purchase, charged to the card behind the delegation referenced by the token.
+* **New payer:** `{ status: "ok", apiKey: "…", expiresAt: null }`; a new Exa API key with \$7 of credits.
+* **Returning payer:** the same API key with \$7 more credits added.
+* **Replayed token:** cached result, no new charge.
+* **Missing/invalid signature:** `402 Payment Required` with payment requirements in the body.
+
+**When the key runs out:** Exa's regular API endpoints return `HTTP 402` with error tag `NO_MORE_CREDITS`. Mint a fresh x402 token with the same plan ID and delegation, POST it to the same endpoint, and Exa adds another \$7 of credits to the same key.
+
+## Verifying charges
+
+Use `payments.delegation.listDelegations()` to inspect spend per delegation (`amountSpentCents`, `transactionCount`, status). Fully spent delegations are marked `Exhausted` and no longer appear in `getPurchasingPower()` results; purchasing power lists only delegations that can still pay.
+
+## Troubleshooting
+
+| Symptom | Meaning / fix |
+|---|---|
+| Token mint fails: `Required token-generation input is missing or incomplete (HTTP 402)` | The mint referenced no existing delegation (e.g., legacy create-on-the-fly `delegationConfig` with card details). Create or discover a delegation first and pass `delegationConfig: { delegationId }`. |
+| `ERR_PACKAGE_PATH_NOT_EXPORTED` on import | The SDK is ESM-only. Set `"type": "module"` in `package.json` or use `.mts`. |
+| Console warning: `The 'environment' option is deprecated…` even though you never passed it | Known SDK issue; harmless. The environment is derived from your key prefix. |
+| A delegation you spent from disappears from `getPurchasingPower()` | It is exhausted. Inspect it with `listDelegations()`; create or top up a delegation to continue. |
+| Exa search returns `402` with `NO_MORE_CREDITS` | The Exa key's credits are spent. Repeat the purchase flow to top up the same key. |
+
+## References
+
+* [Payments overview](/products/payments/overview)
+* [x402 card-delegation spec](/specs/x402-card-delegation)
+* [Exa pricing](https://exa.ai/pricing)
+* [Exa Search API](https://docs.exa.ai)
