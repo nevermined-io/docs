@@ -11,11 +11,18 @@ name: Publish skill to ClawHub
 #   CLAWHUB_TOKEN — a ClawHub API token belonging to a user who owns the
 #   `nevermined-io` publisher (create at https://clawhub.ai, `clawhub token`).
 #
-# Versioning: the CLI auto-increments from the latest published version. The
-# push trigger is path-filtered on `skills/**`, so a change to ONE skill still
-# runs the matrix leg for the other — that leg is a no-op, because republishing
-# an unchanged version is handled as "already published" below. To publish an
-# explicit version, add `--version <x.y.z>`.
+# Versioning: on REPUBLISH the CLI auto-increments from the latest published
+# version. On a brand-new slug there is nothing to increment from, and the CLI
+# does NOT read the version out of SKILL.md frontmatter — `clawhub skill publish
+# --help` documents `--version` as "defaults to 1.0.0 or next patch". So a first
+# publish would land as 1.0.0 and permanently contradict the `version:` in the
+# skill's own frontmatter (which the rendered skill header shows to users).
+# Hence the optional per-skill `version` in the matrix below: set it for the
+# FIRST publish of a new slug, then delete it and let auto-increment take over.
+#
+# The push trigger is path-filtered on `skills/**`, so a change to ONE skill
+# still runs the matrix leg for the other — that leg is a no-op, because
+# republishing an unchanged version is handled as "already published" below.
 #
 # Adding a skill: add one entry to the matrix. Nothing else needs to change.
 
@@ -50,11 +57,16 @@ jobs:
           - path: skills/nevermined-router
             slug: nevermined-router
             name: Nevermined Router
+            # First publish of a new slug only — pins it to the frontmatter
+            # version instead of the CLI's 1.0.0 default. Delete this line once
+            # it has published once; auto-increment takes over from there.
+            version: "0.1.0"
     env:
       SKILL_PATH: ${{ matrix.path }}
       OWNER: nevermined-io
       SLUG: ${{ matrix.slug }}
       SKILL_NAME: ${{ matrix.name }}
+      SKILL_VERSION: ${{ matrix.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -82,8 +94,16 @@ jobs:
           SOURCE_COMMIT: ${{ github.sha }}
           SOURCE_REF: ${{ github.ref }}
         run: |
+          # `if`, not `[ -n … ] && …`. Both behave identically *here*: the default
+          # shell is `bash -e`, and errexit ignores a failing non-final element of
+          # an && list. But that list's own status is 1 when SKILL_VERSION is
+          # unset, so the && form fails the step the moment anyone moves it to the
+          # last line. `if` has no such edge — verified both ways.
+          VERSION_ARG=()
+          if [ -n "${SKILL_VERSION:-}" ]; then VERSION_ARG=(--version "$SKILL_VERSION"); fi
           clawhub --no-input skill publish "$SKILL_PATH" \
             --owner "$OWNER" --slug "$SLUG" --name "$SKILL_NAME" \
+            "${VERSION_ARG[@]}" \
             --source-repo "$SOURCE_REPO" --source-commit "$SOURCE_COMMIT" \
             --source-ref "$SOURCE_REF" --source-path "$SKILL_PATH" \
             --dry-run --json
@@ -94,9 +114,12 @@ jobs:
           SOURCE_COMMIT: ${{ github.sha }}
           SOURCE_REF: ${{ github.ref }}
         run: |
+          VERSION_ARG=()
+          if [ -n "${SKILL_VERSION:-}" ]; then VERSION_ARG=(--version "$SKILL_VERSION"); fi
           set +e
           OUT=$(clawhub --no-input skill publish "$SKILL_PATH" \
             --owner "$OWNER" --slug "$SLUG" --name "$SKILL_NAME" \
+            "${VERSION_ARG[@]}" \
             --source-repo "$SOURCE_REPO" --source-commit "$SOURCE_COMMIT" \
             --source-ref "$SOURCE_REF" --source-path "$SKILL_PATH" \
             --json 2>&1)
