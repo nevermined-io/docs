@@ -59,15 +59,15 @@ Scope is deliberately **not** advertised in our authorization-server metadata �
     You can run an SDK and manage your own identity. The simplest path — the SDK mints a key directly. See [Get a Nevermined API key](/agents-guide/get-api-key).
   </Card>
   <Card title="Device flow (RFC 8628)" icon="mobile-screen">
-    You're a headless agent with no browser, but a human can approve for you. Ends with an **NVM API key** bound to the approver. See [Device flow](/integrate/authentication/device-flow).
+    You're a headless agent with no browser, but a human can approve for you. Approval is collected without a browser on your side — typically ending in an **NVM API key** bound to the approver. See [Device flow](/integrate/authentication/device-flow).
   </Card>
   <Card title="Authorization Code + PKCE" icon="browser">
-    You're a browser-based MCP client (Cursor, Claude) connecting to a paid agent. Mints an **x402 payment permission** for a specific agent and plan. See [Authorization Code](/integrate/authentication/oauth-authorization-code).
+    You're a browser-based MCP client (Cursor, Claude). The user approves in a browser — typically to obtain an **x402 payment permission** for a specific agent. See [Authorization Code](/integrate/authentication/oauth-authorization-code).
   </Card>
 </CardGroup>
 
 <Note>
-The two OAuth grants mint **different credentials**. Authorization Code + PKCE yields an *x402 payment permission* for an agent+plan. The RFC 8628 device flow yields the *NVM API key* that authenticates you against this API. Pick the flow by the credential you actually need.
+**The credential you receive is chosen by the requested `resource`, not by the grant.** A `resource` (RFC 8707 audience) matching this API's host mints an **NVM API key**; any other resource mints an **x402 payment permission**. An `account_access` consent always yields an API key; with no `resource`, a delegation-backed binding yields an x402 permission and a plan-only binding yields an API key. The two grants differ only in *how the human approves* — Authorization Code in a browser, the device flow without one — so pick the grant by your environment and the `resource` by the credential you need.
 </Note>
 
 ## Discovery
@@ -86,12 +86,14 @@ Because a transport now mints a credential this API accepts, discovery reflects 
 
 A `401` is *usually* a missing, malformed, or invalid key — not a hint to go discover something. It isn't *always* an authentication problem, though: a few endpoints return `401` when you're authenticated but lack access to a specific resource. Distinguish by the error body's `category` field:
 
+- `category: validation` → fix your request (a malformed or missing parameter).
 - `category: auth` → fix your credential.
 - `category: business` or `integration` → you reached something that isn't yours.
+- `category: internal` → not your fault; retry, or report it with the correlation id.
 
 The `x-correlation-id` header is always present — quote it (and the `BCK.*` code, if any) when asking for help. See the [API error codes](/development-guide/api-errors/codes).
 
-## What needs a human — and why
+## What needs a human, and why
 
 Three things require a person in the loop. None is an oversight:
 
@@ -107,7 +109,7 @@ Three things require a person in the loop. None is an oversight:
   </Card>
 </CardGroup>
 
-Once a card is enrolled, spending is yours to drive with no further browser step — create a delegation and reuse its id on your x402 requests.
+Once a card is enrolled, spending on **Stripe, Braintree, and crypto** delegations is yours to drive with no further browser step — create a delegation and reuse its id on your x402 requests. Visa is the exception noted above: an existing Visa delegation you can use, but *creating* one needs the per-delegation device-binding ceremony in the browser.
 
 ## Next steps
 

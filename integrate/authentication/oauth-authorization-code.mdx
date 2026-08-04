@@ -9,10 +9,10 @@ related:
   - MCP integration: /docs/integrations/mcp
 ---
 
-Use the **OAuth 2.1 Authorization Code flow with PKCE** when a browser-based MCP client (Cursor, Claude, and the like) connects to a paid Nevermined agent. Unlike the [device flow](/integrate/authentication/device-flow), this grant does **not** mint an NVM API key — it mints an **x402 payment permission scoped to a specific agent and plan**, the credential you attach to x402 requests against that agent.
+Use the **OAuth 2.1 Authorization Code flow with PKCE** when a browser-based MCP client (Cursor, Claude, and the like) connects to a paid Nevermined agent and the user approves in a browser. It's the browser-based counterpart to the no-browser [device flow](/integrate/authentication/device-flow) — the two grants differ only in *how* the human approves.
 
 <Note>
-Two grants, two credentials. If you need a key that authenticates *you* against the Nevermined API, use the [device flow](/integrate/authentication/device-flow). If you need to *pay a specific agent* from a browser client, you're on the right page.
+**Which credential you receive is chosen by the requested `resource`, not by the grant** ([details](/integrate/authentication/overview)). To obtain an **x402 payment permission** — the credential you attach to x402 requests against the agent — request that agent's `resource`. If you omit `resource` and send only a `plan_id` (a plan-only binding with no delegation), the exchange returns an **NVM API key** instead. A `resource` matching the Nevermined API host also returns an API key.
 </Note>
 
 ## Prerequisites
@@ -35,6 +35,7 @@ Two grants, two credentials. If you need a key that authenticates *you* against 
     {
       "client_id": "fleet",
       "agent_id": "agent-123",
+      "resource": "https://mcp-server.example.com",
       "redirect_uri": "cursor://oauth/callback",
       "code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
       "code_challenge_method": "S256",
@@ -43,7 +44,7 @@ Two grants, two credentials. If you need a key that authenticates *you* against 
     }
     ```
 
-    `client_id`, `redirect_uri`, `code_challenge`, and `code_challenge_method` are required; `agent_id`, `plan_id`, `state`, and `resource` are optional. Once the user approves the connection, the endpoint returns the `code` in the response body:
+    `client_id`, `redirect_uri`, `code_challenge`, and `code_challenge_method` are required; `agent_id`, `plan_id`, `state`, and `resource` are optional. `resource` is optional but load-bearing: the agent's `resource` here is what makes the exchange mint an **x402 payment permission** rather than an API key. Once the user approves the connection, the endpoint returns the `code` in the response body:
 
     ```json
     { "code": "abc123…" }
@@ -81,7 +82,7 @@ Two grants, two credentials. If you need a key that authenticates *you* against 
   </Step>
 
   <Step title="Pay the agent">
-    The `access_token` is an x402 payment permission for the agent+plan you were authorized against. Use it on your x402 requests to that agent. See the [MCP integration](/integrations/mcp) for how a paywalled MCP server consumes it.
+    Because you requested the agent's `resource`, the `access_token` is an x402 payment permission for the agent+plan you were authorized against (unlike an NVM API key, it is a JWT and is **not** environment-prefixed). Use it on your x402 requests to that agent. See the [MCP integration](/integrations/mcp) for how a paywalled MCP server consumes it.
   </Step>
 </Steps>
 

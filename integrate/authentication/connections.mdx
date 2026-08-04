@@ -11,7 +11,7 @@ related:
 Every authorization ceremony — device flow or Authorization Code — records an **AgentBinding**: the consent receipt for what a user allowed an agent to do. "Connected agents" is the browser surface a user manages these from, and it covers **both credential types in one view**, each with a human-facing lifecycle state.
 
 <Note>
-These endpoints are browser-initiated: the subject comes from the authenticated session, so a caller only ever sees and manages **their own** bindings. Requires a Nevermined API key.
+The `/oauth/bindings` endpoints are browser-initiated and require a Nevermined API key: the subject comes from the authenticated session, so a caller only ever sees and manages **their own** bindings. `POST /oauth/revoke` (below) is the exception — it is public, because the token you present is itself the authorization to revoke it (RFC 7009).
 </Note>
 
 ## List connections

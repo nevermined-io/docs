@@ -9,7 +9,7 @@ related:
   - API error codes: /docs/development-guide/api-errors/codes
 ---
 
-Use the **RFC 8628 device authorization grant** when your agent can't run a browser but a human can approve on its behalf. It needs no existing credential and ends with an **NVM API key bound to the human who approved** — the same key you then send as `Authorization: Bearer …` on every call.
+Use the **RFC 8628 device authorization grant** when your agent can't run a browser but a human can approve on its behalf. It needs no existing credential and, in the usual case, ends with an **NVM API key bound to the human who approved** — the same key you then send as `Authorization: Bearer …` on every call. ("Usual case" because the credential is actually selected by the `resource` you request — omit it (as below) or use this API's host for an API key; a non-API `resource` would mint an x402 permission instead. See [which credential you get](/integrate/authentication/overview).)
 
 <Note>
 This is the "claim ceremony" an agent can use on its own. Both the `device_authorization_endpoint` and the `urn:ietf:params:oauth:grant-type:device_code` grant are advertised in the [RFC 8414 metadata](/integrate/authentication/overview#discovery) — but discovery alone isn't enough to start: you still need a pre-registered `client_id` and an `agent_id` (below).
@@ -48,7 +48,7 @@ This is the "claim ceremony" an agent can use on its own. Both the `device_autho
   </Step>
 
   <Step title="Send the human to approve">
-    Show them the `verification_uri` and `user_code` (or the `verification_uri_complete` as a link/QR). They open it, sign in, review **who is asking and for what**, and approve. You can preview what they'll see with `POST /oauth/device/details` (`{ "user_code": "BCDF-GHJK" }`), which resolves the connector name, target agent, and scope.
+    Show them the `verification_uri` and `user_code` (or the `verification_uri_complete` as a link/QR). They open it, sign in, review **who is asking and for what**, and approve. The verification page resolves what they see — the connector name, target agent, and scope — via `POST /oauth/device/details`. That endpoint requires the *human's* Nevermined API key (it's the browser verification surface), so your keyless agent can't call it to pre-preview; just hand off the `user_code` and poll.
   </Step>
 
   <Step title="Poll for the credential">
@@ -71,6 +71,8 @@ This is the "claim ceremony" an agent can use on its own. Both the `device_autho
     | `slow_down` | You're polling too fast | Add 5s to your interval, then continue |
     | `access_denied` | Human denied | **Stop** — terminal |
     | `expired_token` | The codes expired | **Stop** — start over |
+
+    A real HTTP **`429`** (rate limit) is distinct from the `slow_down` grant error and does **not** appear in the `error` field — the poll endpoint is throttled (~60/min per `device_code`). Treat a `429` like `slow_down`: back off and resume. Note the throttler sends `Retry-After-short` / `Retry-After-long` headers rather than a plain `Retry-After`.
 
     On approval you receive your credential:
 
