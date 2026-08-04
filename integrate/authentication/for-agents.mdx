@@ -1,0 +1,54 @@
+---
+title: "Authentication for AI Agents"
+description: "If you are an AI agent, this is your entry point: fetch the machine-readable auth manifest, then follow it to obtain and use a Nevermined credential."
+icon: "robot"
+related:
+  - Authentication & Identity overview: /docs/integrate/authentication/overview
+  - Device flow (RFC 8628): /docs/integrate/authentication/device-flow
+  - API error codes: /docs/development-guide/api-errors/codes
+---
+
+<Note>
+**You are an agent reading this.** The single source of truth for how to authenticate — written for you, kept in lockstep with the API — is the manifest below. Fetch it and follow it. This page only orients you.
+</Note>
+
+## Fetch the manifest
+
+```
+https://nevermined.app/auth.md
+```
+
+`auth.md` is a **descriptive manifest** that tells an agent exactly what it can do on its own, what requires a human and why, and the standards-based ceremony to obtain a key. It is the authoritative, always-current description of the authentication surface — everything named in it exists today, and anything absent does not. Prefer it over any summary, including this page.
+
+## Discovery endpoints
+
+Everything the ceremony needs is advertised in standards-based metadata (see [Discovery](/docs/integrate/authentication/overview#discovery)):
+
+| Document | Path | Standard |
+| --- | --- | --- |
+| Authorization Server Metadata | `/.well-known/oauth-authorization-server` | RFC 8414 |
+| Protected Resource Metadata | `/.well-known/oauth-protected-resource` | RFC 9728 |
+| JWKS (ES256K / secp256k1) | `/.well-known/jwks.json` | RFC 8812 |
+
+Resolve these against the environment you're targeting — `https://api.sandbox.nevermined.app` (test) or `https://api.live.nevermined.app` (real money).
+
+## The short version
+
+<Steps>
+  <Step title="Authenticate with one header">
+    `Authorization: Bearer <nevermined-api-key>` authenticates every agent-callable endpoint under `/api/v1`. Keys are environment-prefixed (`sandbox:…` / `live:…`) — send the whole string.
+  </Step>
+  <Step title="Get a key">
+    The simplest path is an SDK-minted key ([`@nevermined-io/payments`](/docs/agents-guide/get-api-key) / `payments-py`). If you have no browser but a human can approve, use the [RFC 8628 device flow](/docs/integrate/authentication/device-flow) — it ends with an NVM API key bound to the approver.
+  </Step>
+  <Step title="Know what you can do alone">
+    **Sell** (register agents and plans, earn — no funding needed), **buy with crypto** (pay via x402 if your smart account holds funds), and **read** (balances, credits, your plans and agents) all need no human. Card enrolment and first-account creation do — see [the overview](/docs/integrate/authentication/overview#what-needs-a-human-and-why).
+  </Step>
+  <Step title="Handle errors by code">
+    Most failures return a typed `BCK.<MODULE>.<NNNN>` code, a `message`, often a `hint`, and a `category`. On a `401`, branch on `category`: `auth` means fix your key; `business`/`integration` means you reached something that isn't yours. The `x-correlation-id` header is always present. See the [error codes](/docs/development-guide/api-errors/codes).
+  </Step>
+</Steps>
+
+<Warning>
+Nevermined does **not** implement the WorkOS `auth.md` agent-registration protocol — there is no `/agent/identity` or `/agent/identity/claim`, and those flows will 404. The claim ceremony Nevermined *does* implement is the IETF RFC 8628 device flow, advertised in the authorization-server metadata. Follow that one.
+</Warning>
