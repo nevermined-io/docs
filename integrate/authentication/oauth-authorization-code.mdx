@@ -1,0 +1,95 @@
+---
+title: "Authorization Code + PKCE"
+description: "The OAuth 2.1 Authorization Code flow with PKCE — how a browser-based MCP client obtains an x402 payment permission for a specific Nevermined agent and plan."
+icon: "browser"
+related:
+  - Authentication & Identity overview: /docs/integrate/authentication/overview
+  - Device flow (RFC 8628): /docs/integrate/authentication/device-flow
+  - Connected agents: /docs/integrate/authentication/connections
+  - MCP integration: /docs/integrations/mcp
+---
+
+Use the **OAuth 2.1 Authorization Code flow with PKCE** when a browser-based MCP client (Cursor, Claude, and the like) connects to a paid Nevermined agent and the user approves in a browser. It's the browser-based counterpart to the no-browser [device flow](/integrate/authentication/device-flow) — the two grants differ only in *how* the human approves.
+
+<Note>
+**Which credential you receive is chosen by the requested `resource`, not by the grant** ([details](/integrate/authentication/overview)). To obtain an **x402 payment permission** — the credential you attach to x402 requests against the agent — request that agent's `resource`. If you omit `resource` and send only a `plan_id` (a plan-only binding with no delegation), the exchange returns an **NVM API key** instead. A `resource` matching the Nevermined API host also returns an API key.
+</Note>
+
+## Prerequisites
+
+- **An authenticated user.** `POST /oauth/authorize` runs in the signed-in user's context — the browser client calls it with the user's Nevermined API key. Without an authenticated user it fails with `BCK.OAUTH.0007`.
+- **A pre-registered `client_id`.** Same as the device flow — connectors are onboarded out of band (no dynamic client registration). An unregistered `client_id` is rejected with `BCK.OAUTH.0016`.
+- **PKCE is mandatory.** Generate a `code_verifier` and its `code_challenge` (`S256`). There is no non-PKCE path.
+
+## The flow
+
+<Steps>
+  <Step title="Request an authorization code">
+    From the signed-in browser session, POST to the authorization endpoint with your PKCE challenge. The request is authenticated as the user (their Nevermined API key):
+
+    ```http
+    POST /oauth/authorize
+    Authorization: Bearer <sandbox:… | live:…>
+    Content-Type: application/json
+
+    {
+      "client_id": "fleet",
+      "agent_id": "agent-123",
+      "resource": "https://mcp-server.example.com",
+      "redirect_uri": "cursor://oauth/callback",
+      "code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+      "code_challenge_method": "S256",
+      "state": "xyz",
+      "plan_id": "105906634574379352540220884472"
+    }
+    ```
+
+    `client_id`, `redirect_uri`, `code_challenge`, and `code_challenge_method` are required; `agent_id`, `plan_id`, `state`, and `resource` are optional. `resource` is optional but load-bearing: the agent's `resource` here is what makes the exchange mint an **x402 payment permission** rather than an API key. Once the user approves the connection, the endpoint returns the `code` in the response body:
+
+    ```json
+    { "code": "abc123…" }
+    ```
+
+    Your client then completes the OAuth hand-off by redirecting the browser to `redirect_uri` with the `code` (and your `state`) appended.
+  </Step>
+
+  <Step title="Exchange the code for the credential">
+    Prove possession of the PKCE verifier and exchange the code:
+
+    ```http
+    POST /oauth/token
+    Content-Type: application/json
+
+    {
+      "grant_type": "authorization_code",
+      "code": "abc123…",
+      "redirect_uri": "cursor://oauth/callback",
+      "client_id": "fleet",
+      "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+    }
+    ```
+
+    Response:
+
+    ```json
+    {
+      "access_token": "eyJhbGciOiJFUzI1NksifQ…",
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "refresh_token": "nvm_rt_Zm9vYmFy…"
+    }
+    ```
+  </Step>
+
+  <Step title="Pay the agent">
+    Because you requested the agent's `resource`, the `access_token` is an x402 payment permission for the agent+plan you were authorized against (unlike an NVM API key, it is a JWT and is **not** environment-prefixed). Use it on your x402 requests to that agent. See the [MCP integration](/integrations/mcp) for how a paywalled MCP server consumes it.
+  </Step>
+</Steps>
+
+## Connectors and consent
+
+The connection the user approves is recorded as an **AgentBinding** — the consent receipt. The `client_id` is the *connector* fronting the connection (Cursor, Claude, LangSmith Fleet), which is distinct from the *agent* the consent is for. Users can review and revoke these at any time from the [Connected agents](/integrate/authentication/connections) surface.
+
+<Note>
+Both the `authorization_endpoint` and the `authorization_code` grant are advertised in the [RFC 8414 metadata](/integrate/authentication/overview#discovery). As with the device flow, discovery doesn't substitute for a pre-registered `client_id`.
+</Note>

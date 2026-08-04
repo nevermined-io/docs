@@ -1,0 +1,364 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Nevermined Authentication API",
+    "description": "The OAuth 2.1 + RFC 8628 device-flow ceremony and standards-based discovery endpoints an agent or connector uses to obtain and manage a Nevermined credential. These endpoints are root-mounted (not under /api/v1).",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "servers": [
+    { "url": "https://api.sandbox.nevermined.app", "description": "Sandbox" },
+    { "url": "https://api.live.nevermined.app", "description": "Live" }
+  ],
+  "tags": [
+    { "name": "Authentication - Ceremony", "x-group": "Ceremony", "description": "Authorization Code (PKCE) and RFC 8628 device grant." },
+    { "name": "Authentication - Connections", "x-group": "Connections", "description": "AgentBindings — the consent receipts a user manages." },
+    { "name": "Authentication - Discovery", "x-group": "Discovery", "description": "RFC 8414 / 9728 / JWKS metadata." }
+  ],
+  "paths": {
+    "/oauth/authorize": {
+      "post": {
+        "tags": ["Authentication - Ceremony"],
+        "summary": "Generate an OAuth 2.1 authorization code",
+        "description": "Authorization Code flow with PKCE (mandatory). Mints an x402 payment permission for a specific agent and plan. Browser-initiated in the signed-in user's context — authenticated with the user's Nevermined API key (unauthenticated → BCK.OAUTH.0007). Requires a pre-registered client_id (unregistered → BCK.OAUTH.0016).",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthorizeRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Authorization code", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthorizeResponse" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/oauth/token": {
+      "post": {
+        "tags": ["Authentication - Ceremony"],
+        "summary": "Exchange a code, device_code, or refresh_token for a credential",
+        "description": "One endpoint, three grants. The grant only selects HOW the exchange happens; the *credential type* is selected by the `resource` (RFC 8707) and the binding, not the grant: an `account_access` consent always yields an NVM API key; otherwise a `resource` matching this API's host yields an NVM API key and any other `resource` yields an x402 payment permission; with no `resource`, a delegation-backed binding yields an x402 permission and a plan-only binding yields an NVM API key. Device-flow polling returns a top-level `error`: authorization_pending, slow_down (add 5s to your interval), access_denied, expired_token. Honour the `interval` — this endpoint is rate-limited (~60/min per client IP for device polls, shared across concurrent ceremonies from the same address), so a real HTTP 429 (distinct from the `slow_down` grant error) is reachable under a tight poll loop.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "The minted credential", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenResponse" } } } },
+          "400": { "description": "Grant error (RFC 6749 / RFC 8628), e.g. authorization_pending / slow_down", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OAuthError" } } } },
+          "429": { "description": "Rate limited (HTTP-level throttle, not an RFC 8628 grant error). The throttler emits `Retry-After-short` / `Retry-After-long` headers rather than a plain `Retry-After`. Back off and resume polling." }
+        }
+      }
+    },
+    "/oauth/device_authorization": {
+      "post": {
+        "tags": ["Authentication - Ceremony"],
+        "summary": "RFC 8628 device authorization request",
+        "description": "Start the device flow. Requires a pre-registered client_id (BCK.OAUTH.0016) and an agent_id (absent → BCK.OAUTH.0018). Returns the device_code the agent polls with and the user_code the human approves.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthorizationRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Device + user codes", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthorizationResponse" } } } },
+          "400": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/oauth/device": {
+      "post": {
+        "tags": ["Authentication - Ceremony"],
+        "summary": "Approve or deny a device authorization",
+        "description": "Browser-initiated: the signed-in human resolves a user_code and approves (binding the ceremony to themselves) or denies.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceVerificationRequest" } } }
+        },
+        "responses": {
+          "204": { "description": "Recorded (approved or denied)" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/oauth/device/details": {
+      "post": {
+        "tags": ["Authentication - Ceremony"],
+        "summary": "Resolve a user_code to its verification-page details",
+        "description": "What the signed-in human sees on the verification page before approving: the connector name, the target agent, the consent type, and any bound resource/scope. Requires the human's Nevermined API key (unauthenticated → BCK.OAUTH.0007) — it is the browser verification-page surface, not the polling device.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserCodeRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Verification details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceVerificationDetails" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/oauth/connect/details": {
+      "post": {
+        "tags": ["Authentication - Ceremony"],
+        "summary": "Resolve a connect client_id to its display name + eligibility",
+        "description": "For the account-level connect page: the verified connector name and whether account-level authorization is allowed for it. Browser-initiated — requires the human's Nevermined API key (unauthenticated → BCK.OAUTH.0007), like device/details.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConnectDetailsRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Connector details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConnectDetails" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/oauth/revoke": {
+      "post": {
+        "tags": ["Authentication - Connections"],
+        "summary": "Revoke a credential (RFC 7009)",
+        "description": "Revoke an NVM API key or an x402 access token. Idempotent — revoking an already-revoked or unknown token succeeds. token_type_hint is advisory.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RevokeRequest" } } }
+        },
+        "responses": { "200": { "description": "Revoked (or already revoked / unknown)" } }
+      }
+    },
+    "/oauth/bindings": {
+      "get": {
+        "tags": ["Authentication - Connections"],
+        "summary": "List connected agents (AgentBindings) for the signed-in user",
+        "description": "Browser-initiated. Both credential types in one view, each with its human-facing lifecycle state. Paginated with the API-wide page/offset convention; totalResults is the honest cross-page total, and the applied page/offset are echoed back.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "default": 1, "minimum": 1 }, "description": "Page number, 1-indexed. Defaults to 1." },
+          { "name": "offset", "in": "query", "required": false, "schema": { "type": "integer", "default": 50, "minimum": 1, "maximum": 100 }, "description": "Page size. Defaults to 50, clamped to a max of 100." }
+        ],
+        "responses": {
+          "200": { "description": "The user's connected agents", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentBindingList" } } } },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/oauth/bindings/{id}/revoke": {
+      "post": {
+        "tags": ["Authentication - Connections"],
+        "summary": "Revoke an AgentBinding by id",
+        "description": "One action kills every credential minted from the binding. Owner-scoped — a binding that isn't the caller's returns 404.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "The AgentBinding id." }
+        ],
+        "responses": {
+          "204": { "description": "Revoked" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "tags": ["Authentication - Discovery"],
+        "summary": "Authorization Server Metadata (RFC 8414)",
+        "description": "Advertises the authorization, token, and device_authorization endpoints, the supported grants (including urn:ietf:params:oauth:grant-type:device_code), and the JWKS URI. scopes_supported is deliberately absent (#2397).",
+        "responses": {
+          "200": { "description": "RFC 8414 metadata", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true, "example": { "issuer": "https://api.sandbox.nevermined.app", "authorization_endpoint": "https://api.sandbox.nevermined.app/oauth/authorize", "token_endpoint": "https://api.sandbox.nevermined.app/oauth/token", "device_authorization_endpoint": "https://api.sandbox.nevermined.app/oauth/device_authorization", "jwks_uri": "https://api.sandbox.nevermined.app/.well-known/jwks.json", "grant_types_supported": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"], "code_challenge_methods_supported": ["S256"] } } } } }
+        }
+      }
+    },
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "tags": ["Authentication - Discovery"],
+        "summary": "Protected Resource Metadata (RFC 9728)",
+        "description": "Names this issuer in authorization_servers and points at the human/agent documentation (auth.md). The WWW-Authenticate challenge on a genuine 401 references this document.",
+        "responses": {
+          "200": { "description": "RFC 9728 metadata", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true, "example": { "resource": "https://api.sandbox.nevermined.app", "authorization_servers": ["https://api.sandbox.nevermined.app"], "bearer_methods_supported": ["header"], "resource_documentation": "https://nevermined.app/auth.md" } } } } }
+        }
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "tags": ["Authentication - Discovery"],
+        "summary": "JSON Web Key Set (ES256K / secp256k1)",
+        "description": "The public keys OAuth clients use to verify the JWTs this authorization server issues. Public — no authentication.",
+        "responses": {
+          "200": { "description": "JWKS", "content": { "application/json": { "schema": { "type": "object", "properties": { "keys": { "type": "array", "items": { "type": "object", "additionalProperties": true } } } } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "Nevermined API key", "description": "A Nevermined API key: `Authorization: Bearer <sandbox:… | live:…>`. Environment-prefixed, not a bare JWT — send the whole string." }
+    },
+    "responses": {
+      "Error": {
+        "description": "Typed error envelope",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      }
+    },
+    "schemas": {
+      "AuthorizeRequest": {
+        "type": "object",
+        "required": ["client_id", "redirect_uri", "code_challenge", "code_challenge_method"],
+        "properties": {
+          "client_id": { "type": "string", "example": "fleet", "description": "Pre-registered OAuth client (connector)." },
+          "agent_id": { "type": "string", "nullable": true, "example": "agent-123", "description": "Target agent for the grant. Optional." },
+          "resource": { "type": "string", "nullable": true, "example": "https://mcp-server.example.com", "description": "RFC 8707 resource (audience) — SELECTS the credential type: this API's host → NVM API key; any other resource → x402 payment permission. Omit it and the binding decides (delegation-backed → x402 permission; plan-only → NVM API key)." },
+          "redirect_uri": { "type": "string", "example": "cursor://oauth/callback" },
+          "code_challenge": { "type": "string", "example": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "description": "PKCE challenge (base64url SHA-256)." },
+          "code_challenge_method": { "type": "string", "enum": ["S256"], "example": "S256" },
+          "state": { "type": "string", "nullable": true, "example": "xyz", "description": "CSRF protection." },
+          "plan_id": { "type": "string", "nullable": true, "example": "105906634574379352540220884472", "description": "Plan to authorize against. Optional." },
+          "provider": { "type": "string", "enum": ["stripe", "braintree", "vgs"], "nullable": true, "description": "Account-level (account_access) spend mandate only: the card rail backing the cap. Plan-agnostic card providers only. All five spend-mandate fields are REQUIRED together for an account-level grant (partial presence → BCK.OAUTH.0026); they are ignored for an agent-specific grant." },
+          "provider_payment_method_id": { "type": "string", "nullable": true, "description": "Account-level only: the enrolled card id backing the delegation. Part of the all-or-nothing spend-mandate set (see provider)." },
+          "spending_limit_cents": { "type": "integer", "nullable": true, "minimum": 1, "maximum": 100000000, "example": 5000, "description": "Account-level only: cumulative spend cap in cents (smallest currency unit), 1..100000000 ($1,000,000 ceiling). This is where a cap is SET; its consumption surfaces later as AgentBindingSummary.spendingLimitCents / amountSpentCents." },
+          "duration_secs": { "type": "integer", "nullable": true, "minimum": 1, "maximum": 31536000, "example": 2592000, "description": "Account-level only: the spend cap's active window in seconds, 1..31536000 (1-year ceiling)." },
+          "currency": { "type": "string", "enum": ["usd", "eur"], "nullable": true, "description": "Account-level only: the fiat currency of the spend cap. Card rails only — crypto codes are rejected." }
+        }
+      },
+      "AuthorizeResponse": {
+        "type": "object",
+        "properties": { "code": { "type": "string", "example": "abc123…", "description": "Authorization code to exchange at /oauth/token." } }
+      },
+      "TokenRequest": {
+        "type": "object",
+        "required": ["grant_type", "client_id"],
+        "properties": {
+          "grant_type": { "type": "string", "enum": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"], "example": "authorization_code" },
+          "client_id": { "type": "string", "example": "fleet" },
+          "code": { "type": "string", "nullable": true, "description": "Required for authorization_code." },
+          "redirect_uri": { "type": "string", "nullable": true, "example": "cursor://oauth/callback", "description": "Required for authorization_code — must match the authorize request." },
+          "code_verifier": { "type": "string", "nullable": true, "example": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", "description": "PKCE verifier. Required for authorization_code." },
+          "device_code": { "type": "string", "nullable": true, "description": "Required for the device_code grant." },
+          "refresh_token": { "type": "string", "nullable": true, "example": "nvm_rt_Zm9vYmFy…", "description": "Required for refresh_token." },
+          "resource": { "type": "string", "nullable": true, "example": "https://mcp-server.example.com", "description": "RFC 8707 resource (audience). SELECTS the credential type on the `authorization_code` and `device_code` exchanges (this API's host → NVM API key; any other → x402 permission). On `refresh_token` it does NOT select: the credential is re-derived from the binding, and a `resource` here is only validated against the one bound at authorize (mismatch → BCK.OAUTH.0005) — it cannot re-target the credential." }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string", "example": "sandbox:eyJhbGciOiJFUzI1NksifQ…", "description": "The credential selected by the `resource`/binding (see the endpoint description), NOT by the grant: an NVM API key (environment-prefixed, e.g. `sandbox:…` / `live:…`, as in this example) or an x402 payment permission (a JWT, NOT environment-prefixed)." },
+          "token_type": { "type": "string", "enum": ["Bearer"], "example": "Bearer" },
+          "expires_in": { "type": "integer", "example": 3600 },
+          "refresh_token": { "type": "string", "nullable": true, "example": "nvm_rt_Zm9vYmFy…" },
+          "scope": { "type": "string", "nullable": true, "example": "openid" }
+        }
+      },
+      "OAuthError": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "enum": ["authorization_pending", "slow_down", "access_denied", "expired_token", "invalid_grant", "invalid_request"], "example": "authorization_pending" },
+          "error_description": { "type": "string", "nullable": true }
+        }
+      },
+      "DeviceAuthorizationRequest": {
+        "type": "object",
+        "required": ["client_id", "agent_id"],
+        "properties": {
+          "client_id": { "type": "string", "example": "fleet", "description": "Pre-registered connector (unregistered → BCK.OAUTH.0016)." },
+          "agent_id": { "type": "string", "example": "agent-123", "description": "Target agent — required today (absent → BCK.OAUTH.0018)." },
+          "resource": { "type": "string", "nullable": true, "example": "https://api.nevermined.app", "description": "RFC 8707 resource (audience) — SELECTS the credential. For the usual device-flow goal (an NVM API key), either omit it or use this API's host, as in the example; a NON-API resource makes the exchange mint an x402 permission instead, which fails with BCK.OAUTH.0008 if the binding has no delegation." },
+          "scope": { "type": "string", "nullable": true, "example": "openid" }
+        }
+      },
+      "DeviceAuthorizationResponse": {
+        "type": "object",
+        "properties": {
+          "device_code": { "type": "string", "description": "Machine secret the agent polls with (opaque)." },
+          "user_code": { "type": "string", "example": "BCDF-GHJK" },
+          "verification_uri": { "type": "string", "example": "https://nevermined.app/oauth/device" },
+          "verification_uri_complete": { "type": "string", "example": "https://nevermined.app/oauth/device?user_code=BCDF-GHJK" },
+          "expires_in": { "type": "integer", "example": 600 },
+          "interval": { "type": "integer", "example": 5, "description": "Minimum seconds between token polls." }
+        }
+      },
+      "DeviceVerificationRequest": {
+        "type": "object",
+        "required": ["user_code", "approve"],
+        "properties": {
+          "user_code": { "type": "string", "example": "BCDF-GHJK", "description": "Hyphens and case are ignored." },
+          "approve": { "type": "boolean", "example": true, "description": "true to approve (bind to the caller); false to deny." }
+        }
+      },
+      "UserCodeRequest": {
+        "type": "object",
+        "required": ["user_code"],
+        "properties": { "user_code": { "type": "string", "example": "BCDF-GHJK" } }
+      },
+      "DeviceVerificationDetails": {
+        "type": "object",
+        "properties": {
+          "connectorName": { "type": "string", "example": "LangSmith Fleet" },
+          "agentId": { "type": "string", "nullable": true, "example": "did:nv:agent-123" },
+          "agentName": { "type": "string", "nullable": true, "example": "My Weather Agent" },
+          "consentType": { "type": "string", "enum": ["credits_purchase", "account_access"], "example": "credits_purchase" },
+          "resource": { "type": "string", "nullable": true, "example": "https://api.nevermined.app" },
+          "scope": { "type": "string", "nullable": true, "example": "openid" }
+        }
+      },
+      "ConnectDetailsRequest": {
+        "type": "object",
+        "required": ["client_id"],
+        "properties": { "client_id": { "type": "string", "example": "fleet" } }
+      },
+      "ConnectDetails": {
+        "type": "object",
+        "properties": {
+          "connectorName": { "type": "string", "example": "LangSmith Fleet" },
+          "accountLevelAllowed": { "type": "boolean", "example": true }
+        }
+      },
+      "RevokeRequest": {
+        "type": "object",
+        "required": ["token"],
+        "properties": {
+          "token": { "type": "string", "description": "An NVM API key or an x402 access token." },
+          "token_type_hint": { "type": "string", "nullable": true, "description": "RFC 7009 hint — advisory only." }
+        }
+      },
+      "AgentBindingList": {
+        "type": "object",
+        "properties": {
+          "bindings": { "type": "array", "items": { "$ref": "#/components/schemas/AgentBindingSummary" } },
+          "totalResults": { "type": "integer", "example": 3, "description": "Honest total across all pages." },
+          "page": { "type": "integer", "example": 1 },
+          "offset": { "type": "integer", "example": 50, "description": "Page size actually applied (clamped to a max of 100)." }
+        }
+      },
+      "AgentBindingSummary": {
+        "type": "object",
+        "properties": {
+          "bindingId": { "type": "string", "example": "ab-a1b2c3d4" },
+          "clientId": { "type": "string", "example": "fleet", "description": "The connector fronting the connection." },
+          "agentId": { "type": "string", "nullable": true, "example": "agent-weather-bot" },
+          "consentType": { "type": "string", "enum": ["credits_purchase", "account_access"], "example": "credits_purchase" },
+          "resource": { "type": "string", "nullable": true, "example": "https://api.sandbox.nevermined.app" },
+          "planId": { "type": "string", "nullable": true, "example": "123456789" },
+          "delegationId": { "type": "string", "nullable": true, "example": "del-1" },
+          "spendingLimitCents": { "type": "string", "nullable": true, "example": "5000" },
+          "amountSpentCents": { "type": "string", "nullable": true, "example": "1200" },
+          "currency": { "type": "string", "nullable": true, "example": "usd" },
+          "state": { "type": "string", "enum": ["active", "expired", "exhausted", "revoked"], "example": "active" },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2026-07-01T10:30:00Z" },
+          "lastUsedAt": { "type": "string", "nullable": true, "format": "date-time", "example": "2026-07-20T14:00:00Z" },
+          "revokedAt": { "type": "string", "nullable": true, "format": "date-time", "example": null }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string", "example": "BCK.OAUTH.0016" },
+          "message": { "type": "string", "example": "Unknown OAuth client" },
+          "category": { "type": "string", "enum": ["validation", "auth", "business", "integration", "internal"], "example": "auth" },
+          "hint": { "type": "string", "nullable": true },
+          "retryable": { "type": "boolean", "nullable": true, "description": "When present, whether retrying the same request may succeed." },
+          "httpStatus": { "type": "integer", "example": 400 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,129 @@
+---
+title: "Authentication & Identity"
+description: "How agents and humans authenticate to the Nevermined API — one bearer token, and the standards-based ceremonies to obtain it with or without a browser."
+icon: "key"
+related:
+  - For AI agents — read this first: /docs/integrate/authentication/for-agents
+  - Get a Nevermined API key: /docs/agents-guide/get-api-key
+  - Device flow (RFC 8628): /docs/integrate/authentication/device-flow
+  - OAuth 2.1 Authorization Code: /docs/integrate/authentication/oauth-authorization-code
+---
+
+<Note>
+**Are you an AI agent, or building one?**
+
+Start with [Authentication for AI agents](/integrate/authentication/for-agents) — it points to the machine-readable manifest an agent can fetch and follow on its own.
+</Note>
+
+Every agent-callable Nevermined endpoint is authenticated by a single header:
+
+```http
+Authorization: Bearer <nevermined-api-key>
+```
+
+That's the whole contract. Getting the key is the only interesting part — and depending on whether a human is in the loop and whether a browser is available, there's a path for each case.
+
+## The one rule
+
+```http
+GET /api/v1/protocol/plans
+Authorization: Bearer <nevermined-api-key>
+```
+
+`Bearer` in the `Authorization` header is the only accepted form — not a query parameter, not a body field. Keys are environment-prefixed (`sandbox:…` / `live:…`); send the whole string, prefix included.
+
+## Environments
+
+| Environment | API base | Funds |
+| --- | --- | --- |
+| **Sandbox** | `https://api.sandbox.nevermined.app` | Test only |
+| **Live** | `https://api.live.nevermined.app` | Real money |
+
+Both are fully independent: an account, key, and balance in one do not exist in the other. Start in sandbox.
+
+## What a Nevermined key actually is
+
+A Nevermined API key is not an opaque random string — it's an **encrypted, signed JWT that carries an on-chain session key**. That has two consequences worth internalizing before you integrate:
+
+- **The real enforcement boundary is on-chain.** The account's smart-account kernel rejects any call outside the session key's policy. The API-layer permission flags a key carries (`canRegister` / `canOrder` / `canMint` / `canBurn`) are a *derived, advisory projection* of that on-chain policy — they tell you what the key was minted to do, not what a request-time guard will check.
+- **Don't hand-roll a key.** Because the credential wraps a session key, minting one is the SDK's job. Use `@nevermined-io/payments` (TypeScript) or `payments-py` (Python), or have a human create one for you in the app (**Profile → API Keys**).
+
+<Note>
+Scope is deliberately **not** advertised in our authorization-server metadata — you won't find `scopes_supported`. We don't publish a scope vocabulary the API layer doesn't itself enforce. Treat the on-chain policy as authoritative.
+</Note>
+
+## Which path do I use?
+
+<CardGroup cols={3}>
+  <Card title="SDK key" icon="terminal">
+    You can run an SDK and manage your own identity. The simplest path — the SDK mints a key directly. See [Get a Nevermined API key](/agents-guide/get-api-key).
+  </Card>
+  <Card title="Device flow (RFC 8628)" icon="mobile-screen">
+    You're a headless agent with no browser, but a human can approve for you. Approval is collected without a browser on your side — typically ending in an **NVM API key** bound to the approver. See [Device flow](/integrate/authentication/device-flow).
+  </Card>
+  <Card title="Authorization Code + PKCE" icon="browser">
+    You're a browser-based MCP client (Cursor, Claude). The user approves in a browser — typically to obtain an **x402 payment permission** for a specific agent. See [Authorization Code](/integrate/authentication/oauth-authorization-code).
+  </Card>
+</CardGroup>
+
+<Note>
+**The credential you receive is chosen by the requested `resource`, not by the grant.** A `resource` (RFC 8707 audience) matching this API's host mints an **NVM API key**; any other resource mints an **x402 payment permission**. An `account_access` consent always yields an API key; with no `resource`, a delegation-backed binding yields an x402 permission and a plan-only binding yields an API key. The two grants differ only in *how the human approves* — Authorization Code in a browser, the device flow without one — so pick the grant by your environment and the `resource` by the credential you need.
+</Note>
+
+## Discovery
+
+Everything the ceremony needs is advertised in standards-based metadata. If a capability is absent from these documents, it does not exist — don't infer it.
+
+| Document | Path | Standard |
+| --- | --- | --- |
+| Authorization Server Metadata | `/.well-known/oauth-authorization-server` | RFC 8414 |
+| Protected Resource Metadata | `/.well-known/oauth-protected-resource` | RFC 9728 |
+| JWKS (ES256K / secp256k1) | `/.well-known/jwks.json` | RFC 7517 (ES256K curve: RFC 8812) |
+
+Because a transport now mints a credential this API accepts, discovery reflects it: the Protected Resource Metadata names this issuer in `authorization_servers`, and a genuine authentication `401` carries an RFC 6750 `WWW-Authenticate: Bearer resource_metadata="…"` challenge pointing at it.
+
+### Reading a 401
+
+A `401` is *usually* a missing, malformed, or invalid key — not a hint to go discover something. It isn't *always* an authentication problem, though: a few endpoints return `401` when you're authenticated but lack access to a specific resource. Distinguish by the error body's `category` field:
+
+- `category: validation` → fix your request (a malformed or missing parameter).
+- `category: auth` → fix your credential.
+- `category: business` or `integration` → you reached something that isn't yours.
+- `category: internal` → not your fault; retry, or report it with the correlation id.
+
+The `x-correlation-id` header is always present — quote it (and the `BCK.*` code, if any) when asking for help. See the [API error codes](/development-guide/api-errors/codes).
+
+## What needs a human, and why
+
+Three things require a person in the loop. None is an oversight:
+
+<CardGroup cols={3}>
+  <Card title="Card enrolment" icon="credit-card">
+    The card number never reaches Nevermined — it's tokenized inside a VGS iframe in the browser. There is no server-to-server path, by design (PCI scope). You drive the hand-off; see [Enroll a card](/agents-guide/enroll-card).
+  </Card>
+  <Card title="First account" icon="user-plus">
+    First login at [nevermined.app](https://nevermined.app) is a browser flow (Privy — Google or email OTP). A human onboards, then hands you a key.
+  </Card>
+  <Card title="Visa delegations" icon="shield-halved">
+    A `provider=visa` delegation needs a per-delegation FIDO/passkey device-binding ceremony in the browser. You can *use* an existing Visa delegation but can't create one. Stripe, Braintree, and crypto delegations you create yourself.
+  </Card>
+</CardGroup>
+
+Once a card is enrolled, spending on **Stripe, Braintree, and crypto** delegations is yours to drive with no further browser step — create a delegation and reuse its id on your x402 requests. Visa is the exception noted above: an existing Visa delegation you can use, but *creating* one needs the per-delegation device-binding ceremony in the browser.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication for AI agents" icon="robot" href="/integrate/authentication/for-agents">
+    The machine-readable manifest an agent fetches and follows.
+  </Card>
+  <Card title="Device flow (RFC 8628)" icon="mobile-screen" href="/integrate/authentication/device-flow">
+    Get an API key with a human's approval, no browser on your side.
+  </Card>
+  <Card title="Authorization Code + PKCE" icon="browser" href="/integrate/authentication/oauth-authorization-code">
+    Browser-based MCP clients paying for a specific agent.
+  </Card>
+  <Card title="Connected agents" icon="link" href="/integrate/authentication/connections">
+    List and revoke the agents a user has authorized.
+  </Card>
+</CardGroup>

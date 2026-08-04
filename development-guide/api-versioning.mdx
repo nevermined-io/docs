@@ -1,6 +1,7 @@
 ---
 title: "API Versioning"
 description: "How Nevermined versions its API with the platform release MAJOR.MINOR, how to pin a version per API key or per request, and what the compatibility guarantees are."
+icon: "code-branch"
 ---
 
 The Nevermined API is versioned with the platform's own semantic version: **the API version identifier is the release `MAJOR.MINOR`** (for example `1.0`). There is no separate date-based scheme. When platform `X.Y.Z` ships, the API it serves natively is version `X.Y` — patch releases never change the API contract.
@@ -60,7 +61,7 @@ curl -H "Authorization: Bearer $NVM_API_KEY" \
 - `gatedVersions` — the versions that introduced at least one wire-shape change. A release that changed nothing in the API simply does not appear here: pinning to it behaves exactly like the previous version.
 - `yourPinnedVersion` — the default stored on the key you called with.
 
-The full list of what changed in each version is in the [API Changelog](/development-guide/api-changelog).
+A version only appears in `gatedVersions` when it changed the wire shape — `GET /api/v1/meta/versions` reports the current set, and each gate translates the difference for older pins.
 
 ## Compatibility guarantees
 
@@ -105,7 +106,7 @@ payments = Payments(
 
 ## Upgrading your pin
 
-1. Read the [API Changelog](/development-guide/api-changelog) entries between your pin and the target version.
+1. Check which versions between your pin and the target actually changed the wire shape — the `gatedVersions` list from `GET /api/v1/meta/versions`.
 2. Test your integration against the target by sending `Nevermined-Version: <target>` on requests (no stored change needed).
 3. When everything works, move the key's default pin on its details page in the dashboard — or rotate to a newly created key, which pins to current automatically.
 

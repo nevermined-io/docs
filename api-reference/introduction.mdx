@@ -80,11 +80,33 @@ curl -X GET "https://api.sandbox.nevermined.app/api/v1/protocol/agents" \
   -H "Nevermined-Version: 1.0"
 ```
 
-See [API Versioning](/development-guide/api-versioning) for the resolution rules and compatibility guarantees, and the [API Changelog](/development-guide/api-changelog) for what changed in each version.
+See [API Versioning](/development-guide/api-versioning) for the resolution rules and compatibility guarantees.
+
+## Authentication
+
+Every request is authenticated with a single bearer header — `Authorization: Bearer <nevermined-api-key>`. The key above is all most integrations need. For the full picture — the on-chain identity model, obtaining a key **with or without a browser** (the OAuth 2.1 Authorization Code and RFC 8628 device flows), standards-based discovery, and how to read a `401` — see the [**Authentication & Identity** guide](/integrate/authentication/overview).
+
+## Error model
+
+Errors return a typed envelope — a `BCK.<MODULE>.<NNNN>` code, a `message`, often a `hint`, a `category`, and an `x-correlation-id` header. Branch on the `code`/`category`, not the prose. See the [API error model](/development-guide/api-errors/overview) for the shape and the [API error codes](/development-guide/api-errors/codes) for the full catalog.
 
 ## Next Steps
 
 <CardGroup cols={2}>
+  <Card
+    title="Authentication & Identity"
+    icon="key"
+    href="/integrate/authentication/overview"
+  >
+    The bearer-token contract, the device flow, OAuth 2.1, and discovery.
+  </Card>
+  <Card
+    title="API error codes"
+    icon="circle-exclamation"
+    href="/development-guide/api-errors/codes"
+  >
+    The full catalog of `BCK.*` codes and what they mean.
+  </Card>
   <Card
     title="TypeScript SDK"
     icon="js"
