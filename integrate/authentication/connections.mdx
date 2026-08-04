@@ -1,0 +1,75 @@
+---
+title: "Connected Agents"
+description: "List and revoke the agents a user has authorized — the AgentBinding surface that backs both OAuth credential types."
+icon: "link"
+related:
+  - Authentication & Identity overview: /docs/integrate/authentication/overview
+  - Device flow (RFC 8628): /docs/integrate/authentication/device-flow
+  - Authorization Code + PKCE: /docs/integrate/authentication/oauth-authorization-code
+---
+
+Every authorization ceremony — device flow or Authorization Code — records an **AgentBinding**: the consent receipt for what a user allowed an agent to do. "Connected agents" is the browser surface a user manages these from, and it covers **both credential types in one view**, each with a human-facing lifecycle state.
+
+<Note>
+These endpoints are browser-initiated: the subject comes from the authenticated session, so a caller only ever sees and manages **their own** bindings. Requires a Nevermined API key.
+</Note>
+
+## List connections
+
+```http
+GET /oauth/bindings?page=1&offset=50
+Authorization: Bearer <nevermined-api-key>
+```
+
+Paginated with the API-wide convention — `page` (1-indexed) and `offset` (page size, default 50, max 100). `totalResults` is the honest total across all pages, and the applied `page`/`offset` are echoed back so you can tell when a requested page size was clamped.
+
+```json
+{
+  "bindings": [
+    {
+      "bindingId": "ab-a1b2c3d4",
+      "clientId": "fleet",
+      "agentId": "agent-weather-bot",
+      "consentType": "credits_purchase",
+      "state": "active",
+      "createdAt": "2026-07-01T10:30:00Z"
+    }
+  ],
+  "totalResults": 1,
+  "page": 1,
+  "offset": 50
+}
+```
+
+### Lifecycle states
+
+The `state` a user sees distinguishes *why* a binding is (or isn't) usable:
+
+| State | Meaning |
+| --- | --- |
+| `active` | Usable now. |
+| `expired` | The spend mandate's window elapsed — re-consent to renew. |
+| `exhausted` | The spend mandate's cap (amount or transaction count) is spent — raise the cap. |
+| `revoked` | Withdrawn. Shown, never hidden — it's the audit trail. |
+
+## Revoke a connection
+
+```http
+POST /oauth/bindings/{bindingId}/revoke
+Authorization: Bearer <nevermined-api-key>
+```
+
+Returns `204`. One action kills **every credential minted from that binding**. A binding that isn't the caller's returns `404`, so a caller can't revoke — or probe — another user's bindings.
+
+## Revoke a single credential
+
+To revoke one credential rather than a whole connection, use the RFC 7009 endpoint — it accepts either an NVM API key or an x402 access token:
+
+```http
+POST /oauth/revoke
+Content-Type: application/json
+
+{ "token": "sandbox:eyJhbGci…" }
+```
+
+The `token_type_hint` field is advisory only; resolution doesn't depend on it. The endpoint is idempotent — revoking an already-revoked or unknown token succeeds.

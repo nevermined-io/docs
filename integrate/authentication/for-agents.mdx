@@ -22,7 +22,7 @@ https://nevermined.app/auth.md
 
 ## Discovery endpoints
 
-Everything the ceremony needs is advertised in standards-based metadata (see [Discovery](/docs/integrate/authentication/overview#discovery)):
+Everything the ceremony needs is advertised in standards-based metadata (see [Discovery](/integrate/authentication/overview#discovery)):
 
 | Document | Path | Standard |
 | --- | --- | --- |
@@ -39,13 +39,13 @@ Resolve these against the environment you're targeting — `https://api.sandbox.
     `Authorization: Bearer <nevermined-api-key>` authenticates every agent-callable endpoint under `/api/v1`. Keys are environment-prefixed (`sandbox:…` / `live:…`) — send the whole string.
   </Step>
   <Step title="Get a key">
-    The simplest path is an SDK-minted key ([`@nevermined-io/payments`](/docs/agents-guide/get-api-key) / `payments-py`). If you have no browser but a human can approve, use the [RFC 8628 device flow](/docs/integrate/authentication/device-flow) — it ends with an NVM API key bound to the approver.
+    The simplest path is an SDK-minted key ([`@nevermined-io/payments`](/agents-guide/get-api-key) / `payments-py`). If you have no browser but a human can approve, use the [RFC 8628 device flow](/integrate/authentication/device-flow) — it ends with an NVM API key bound to the approver.
   </Step>
   <Step title="Know what you can do alone">
-    **Sell** (register agents and plans, earn — no funding needed), **buy with crypto** (pay via x402 if your smart account holds funds), and **read** (balances, credits, your plans and agents) all need no human. Card enrolment and first-account creation do — see [the overview](/docs/integrate/authentication/overview#what-needs-a-human-and-why).
+    **Sell** (register agents and plans, earn — no funding needed), **buy with crypto** (pay via x402 if your smart account holds funds), and **read** (balances, credits, your plans and agents) all need no human. Card enrolment and first-account creation do — see [the overview](/integrate/authentication/overview#what-needs-a-human-and-why).
   </Step>
   <Step title="Handle errors by code">
-    Most failures return a typed `BCK.<MODULE>.<NNNN>` code, a `message`, often a `hint`, and a `category`. On a `401`, branch on `category`: `auth` means fix your key; `business`/`integration` means you reached something that isn't yours. The `x-correlation-id` header is always present. See the [error codes](/docs/development-guide/api-errors/codes).
+    Most failures return a typed `BCK.<MODULE>.<NNNN>` code, a `message`, often a `hint`, and a `category`. On a `401`, branch on `category`: `auth` means fix your key; `business`/`integration` means you reached something that isn't yours. The `x-correlation-id` header is always present. See the [error codes](/development-guide/api-errors/codes).
   </Step>
 </Steps>
 

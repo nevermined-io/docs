@@ -1,0 +1,114 @@
+---
+title: "Device Flow (RFC 8628)"
+description: "Get a Nevermined API key with a human's approval when your agent has no browser — the IETF device authorization grant, end to end."
+icon: "mobile-screen"
+related:
+  - Authentication & Identity overview: /docs/integrate/authentication/overview
+  - For AI agents: /docs/integrate/authentication/for-agents
+  - Authorization Code + PKCE: /docs/integrate/authentication/oauth-authorization-code
+  - API error codes: /docs/development-guide/api-errors/codes
+---
+
+Use the **RFC 8628 device authorization grant** when your agent can't run a browser but a human can approve on its behalf. It needs no existing credential and ends with an **NVM API key bound to the human who approved** — the same key you then send as `Authorization: Bearer …` on every call.
+
+<Note>
+This is the "claim ceremony" an agent can use on its own. Both the `device_authorization_endpoint` and the `urn:ietf:params:oauth:grant-type:device_code` grant are advertised in the [RFC 8414 metadata](/integrate/authentication/overview#discovery) — but discovery alone isn't enough to start: you still need a pre-registered `client_id` and an `agent_id` (below).
+</Note>
+
+## Prerequisites
+
+- **A pre-registered `client_id`.** Connectors are onboarded out of band — there is no self-service dynamic client registration, and the metadata deliberately omits a `registration_endpoint`. An unregistered `client_id` is rejected with `BCK.OAUTH.0016`. If you don't have one, ask Nevermined to register your client.
+- **An `agent_id`** — the agent you want authorized. It's required today; an absent `agent_id` is rejected with `BCK.OAUTH.0018` (account-level authorization with no `agent_id` is a follow-up).
+
+## The ceremony
+
+<Steps>
+  <Step title="Request a device + user code">
+    ```http
+    POST /oauth/device_authorization
+    Content-Type: application/json
+
+    { "client_id": "fleet", "agent_id": "agent-123" }
+    ```
+
+    Response:
+
+    ```json
+    {
+      "device_code": "a1b2c3…",
+      "user_code": "BCDF-GHJK",
+      "verification_uri": "https://nevermined.app/oauth/device",
+      "verification_uri_complete": "https://nevermined.app/oauth/device?user_code=BCDF-GHJK",
+      "expires_in": 600,
+      "interval": 5
+    }
+    ```
+
+    `device_code` is your machine secret (opaque — poll with it). `user_code` is what the human types. `interval` is the minimum seconds between polls.
+  </Step>
+
+  <Step title="Send the human to approve">
+    Show them the `verification_uri` and `user_code` (or the `verification_uri_complete` as a link/QR). They open it, sign in, review **who is asking and for what**, and approve. You can preview what they'll see with `POST /oauth/device/details` (`{ "user_code": "BCDF-GHJK" }`), which resolves the connector name, target agent, and scope.
+  </Step>
+
+  <Step title="Poll for the credential">
+    ```http
+    POST /oauth/token
+    Content-Type: application/json
+
+    {
+      "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+      "device_code": "a1b2c3…",
+      "client_id": "fleet"
+    }
+    ```
+
+    Honour the `interval` — the poll endpoint is rate-limited. Branch on the top-level `error`:
+
+    | `error` | Meaning | What to do |
+    | --- | --- | --- |
+    | `authorization_pending` | Human hasn't approved yet | Keep polling at `interval` |
+    | `slow_down` | You're polling too fast | Add 5s to your interval, then continue |
+    | `access_denied` | Human denied | **Stop** — terminal |
+    | `expired_token` | The codes expired | **Stop** — start over |
+
+    On approval you receive your credential:
+
+    ```json
+    {
+      "access_token": "sandbox:eyJhbGciOiJFUzI1NksifQ…",
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "refresh_token": "nvm_rt_Zm9vYmFy…"
+    }
+    ```
+  </Step>
+
+  <Step title="Use the key">
+    `access_token` is your NVM API key. Send it as `Authorization: Bearer <access_token>` on every `/api/v1` call. Keep the `refresh_token` to mint a fresh key without another human step (RFC 6749 refresh grant).
+  </Step>
+</Steps>
+
+## Refreshing
+
+When the key expires, exchange the refresh token — no human, no browser:
+
+```http
+POST /oauth/token
+Content-Type: application/json
+
+{ "grant_type": "refresh_token", "refresh_token": "nvm_rt_Zm9vYmFy…", "client_id": "fleet" }
+```
+
+## Revoking
+
+Either side can revoke (RFC 7009):
+
+```http
+POST /oauth/revoke
+Content-Type: application/json
+
+{ "token": "sandbox:eyJhbGci…" }
+```
+
+The human can also revoke from the [Connected agents](/integrate/authentication/connections) surface, which kills every credential minted from the binding.
