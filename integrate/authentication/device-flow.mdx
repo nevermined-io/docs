@@ -72,7 +72,7 @@ This is the "claim ceremony" an agent can use on its own. Both the `device_autho
     | `access_denied` | Human denied | **Stop** — terminal |
     | `expired_token` | The codes expired | **Stop** — start over |
 
-    A real HTTP **`429`** (rate limit) is distinct from the `slow_down` grant error and does **not** appear in the `error` field — the poll endpoint is throttled (~60/min per `device_code`). Treat a `429` like `slow_down`: back off and resume. Note the throttler sends `Retry-After-short` / `Retry-After-long` headers rather than a plain `Retry-After`.
+    A real HTTP **`429`** (rate limit) is distinct from the `slow_down` grant error and does **not** appear in the `error` field — the poll endpoint is throttled **per client IP** (~60/min for device polls, **shared across every concurrent ceremony from the same host**, not per `device_code`). Treat a `429` like `slow_down`: back off and resume. Note the throttler sends `Retry-After-short` / `Retry-After-long` headers rather than a plain `Retry-After`.
 
     On approval you receive your credential:
 

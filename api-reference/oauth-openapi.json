@@ -37,7 +37,7 @@
       "post": {
         "tags": ["Authentication - Ceremony"],
         "summary": "Exchange a code, device_code, or refresh_token for a credential",
-        "description": "One endpoint, three grants. The grant only selects HOW the exchange happens; the *credential type* is selected by the `resource` (RFC 8707) and the binding, not the grant: an `account_access` consent always yields an NVM API key; otherwise a `resource` matching this API's host yields an NVM API key and any other `resource` yields an x402 payment permission; with no `resource`, a delegation-backed binding yields an x402 permission and a plan-only binding yields an NVM API key. Device-flow polling returns a top-level `error`: authorization_pending, slow_down (add 5s to your interval), access_denied, expired_token. Honour the `interval` — this endpoint is rate-limited (~60/min per device_code), so a real HTTP 429 (distinct from the `slow_down` grant error) is reachable under a tight poll loop.",
+        "description": "One endpoint, three grants. The grant only selects HOW the exchange happens; the *credential type* is selected by the `resource` (RFC 8707) and the binding, not the grant: an `account_access` consent always yields an NVM API key; otherwise a `resource` matching this API's host yields an NVM API key and any other `resource` yields an x402 payment permission; with no `resource`, a delegation-backed binding yields an x402 permission and a plan-only binding yields an NVM API key. Device-flow polling returns a top-level `error`: authorization_pending, slow_down (add 5s to your interval), access_denied, expired_token. Honour the `interval` — this endpoint is rate-limited (~60/min per client IP for device polls, shared across concurrent ceremonies from the same address), so a real HTTP 429 (distinct from the `slow_down` grant error) is reachable under a tight poll loop.",
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenRequest" } } }
@@ -213,10 +213,10 @@
           "code_challenge_method": { "type": "string", "enum": ["S256"], "example": "S256" },
           "state": { "type": "string", "nullable": true, "example": "xyz", "description": "CSRF protection." },
           "plan_id": { "type": "string", "nullable": true, "example": "105906634574379352540220884472", "description": "Plan to authorize against. Optional." },
-          "provider": { "type": "string", "enum": ["stripe", "braintree", "vgs"], "nullable": true, "description": "Account-level (account_access) spend mandate only: the card rail backing the cap. Plan-agnostic card providers only." },
-          "provider_payment_method_id": { "type": "string", "nullable": true, "description": "Account-level only: the enrolled card id backing the delegation." },
-          "spending_limit_cents": { "type": "integer", "nullable": true, "example": 5000, "description": "Account-level only: cumulative spend cap in cents (smallest currency unit). This is where a cap is SET; its consumption surfaces later as AgentBindingSummary.spendingLimitCents / amountSpentCents." },
-          "duration_secs": { "type": "integer", "nullable": true, "example": 2592000, "description": "Account-level only: the spend cap's active window in seconds." },
+          "provider": { "type": "string", "enum": ["stripe", "braintree", "vgs"], "nullable": true, "description": "Account-level (account_access) spend mandate only: the card rail backing the cap. Plan-agnostic card providers only. All five spend-mandate fields are REQUIRED together for an account-level grant (partial presence → BCK.OAUTH.0026); they are ignored for an agent-specific grant." },
+          "provider_payment_method_id": { "type": "string", "nullable": true, "description": "Account-level only: the enrolled card id backing the delegation. Part of the all-or-nothing spend-mandate set (see provider)." },
+          "spending_limit_cents": { "type": "integer", "nullable": true, "minimum": 1, "maximum": 100000000, "example": 5000, "description": "Account-level only: cumulative spend cap in cents (smallest currency unit), 1..100000000 ($1,000,000 ceiling). This is where a cap is SET; its consumption surfaces later as AgentBindingSummary.spendingLimitCents / amountSpentCents." },
+          "duration_secs": { "type": "integer", "nullable": true, "minimum": 1, "maximum": 31536000, "example": 2592000, "description": "Account-level only: the spend cap's active window in seconds, 1..31536000 (1-year ceiling)." },
           "currency": { "type": "string", "enum": ["usd", "eur"], "nullable": true, "description": "Account-level only: the fiat currency of the spend cap. Card rails only — crypto codes are rejected." }
         }
       },
@@ -235,7 +235,7 @@
           "code_verifier": { "type": "string", "nullable": true, "example": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", "description": "PKCE verifier. Required for authorization_code." },
           "device_code": { "type": "string", "nullable": true, "description": "Required for the device_code grant." },
           "refresh_token": { "type": "string", "nullable": true, "example": "nvm_rt_Zm9vYmFy…", "description": "Required for refresh_token." },
-          "resource": { "type": "string", "nullable": true, "example": "https://mcp-server.example.com", "description": "RFC 8707 resource (audience) — SELECTS the credential type (this API's host → NVM API key; any other → x402 permission). Applies to every grant, including the device_code and refresh flows." }
+          "resource": { "type": "string", "nullable": true, "example": "https://mcp-server.example.com", "description": "RFC 8707 resource (audience). SELECTS the credential type on the `authorization_code` and `device_code` exchanges (this API's host → NVM API key; any other → x402 permission). On `refresh_token` it does NOT select: the credential is re-derived from the binding, and a `resource` here is only validated against the one bound at authorize (mismatch → BCK.OAUTH.0005) — it cannot re-target the credential." }
         }
       },
       "TokenResponse": {
