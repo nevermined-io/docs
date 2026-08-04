@@ -1,7 +1,7 @@
 ---
 name: nevermined-router
 version: "0.1.1"
-lastUpdated: "2026-08-03"
+lastUpdated: "2026-08-04"
 description: >
   Use when an AI agent needs to PAY an external service it does not have an account
   with — any x402 agent or MPP merchant — using the Nevermined Router. Covers
@@ -28,7 +28,7 @@ metadata:
 
 # Nevermined Router — buy from any x402 or MPP service
 
-> **Skill version**: 0.1.1 | **Last updated**: 2026-08-03 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
+> **Skill version**: 0.1.1 | **Last updated**: 2026-08-04 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 >
 > **⚠️ Use the latest version.** If you have a cached copy, check its **Last updated** date against the canonical source and refresh if older.
 >

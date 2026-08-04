@@ -20,7 +20,8 @@ There are two, and which one you want depends on which side of the payment you'r
 Installing both is fine — they don't overlap. How you install the Router one depends on your tool:
 
 - **Claude Code, Cursor, Windsurf, Cline, Amazon Q** — swap `nevermined-payments` for `nevermined-router` in the paths below, or run the extra command shown in each tab.
-- **GitHub Copilot and Codex CLI** — these load a *single* file (`.github/copilot-instructions.md`, `AGENTS.md`) with no skill name in the path, so there is nothing to swap. Both files currently carry the **payments** guidance only. Until that changes, use the [full skill on GitHub](https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router) or paste it in manually.
+- **Codex CLI** — its `AGENTS.md` route is a *single* file with no skill name in it, and that file carries the **payments** guidance only. Use the tab's **"install as a Codex skill"** alternative instead: `.agents/skills/` takes a skill directory, so `nevermined-router` works there.
+- **GitHub Copilot** — `.github/copilot-instructions.md` is a single file with nothing to swap, and it carries the **payments** guidance only. Until that changes, use the [full skill on GitHub](https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router) or paste it in manually.
 
 ## What's Included
 
@@ -174,6 +175,7 @@ Choose your AI coding tool below for step-by-step installation instructions.
     ```bash
     mkdir -p .agents/skills
     cp -r skills/nevermined-payments .agents/skills/
+    cp -r skills/nevermined-router .agents/skills/    # buying through the Router
     ```
 
     Codex CLI detects skills from `.agents/skills/` and loads them when relevant.
@@ -240,7 +242,7 @@ Choose your AI coding tool below for step-by-step installation instructions.
 | **Cursor** | `.cursor/rules/<skill>.mdc` | Yes | Yes — on `.ts`, `.js`, `.py` files |
 | **Windsurf** | `.windsurf/rules/<skill>.md` | Yes | Yes — model decides |
 | **GitHub Copilot** | `.github/copilot-instructions.md` | **No** — single file, payments only | Yes — always |
-| **Codex CLI** | `AGENTS.md` or `.agents/skills/<skill>/` | **No** via `AGENTS.md` — single file, payments only | Yes — always or when relevant |
+| **Codex CLI** | `AGENTS.md` or `.agents/skills/<skill>/` | Yes — via `.agents/skills/`; **not** via `AGENTS.md` (single file, payments only) | Yes — always or when relevant |
 | **Cline** | `.clinerules/<skill>.md` | Yes | Yes — on `.ts`, `.js`, `.py` files |
 | **Amazon Q** | `.amazonq/rules/<skill>.md` | Yes | Yes — always |
 
