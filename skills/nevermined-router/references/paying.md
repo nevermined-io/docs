@@ -177,17 +177,23 @@ Call the merchant with no payment. It answers `402` with its requirements:
 
 Pass `target` **verbatim** from the 402. Do not normalise, reorder or re-encode it.
 
+The response echoes the negotiated version, and `credential.name` follows from it — the request
+above is v1, so this one comes back v1 with the v1 header:
+
 ```json
 {
   "paymentId": "b1f9c2e4-…",
   "protocol": "x402",
-  "x402Version": 2,
-  "credential": { "transport": "header", "name": "PAYMENT-SIGNATURE", "value": "eyJ4NDAy…" },
+  "x402Version": 1,
+  "credential": { "transport": "header", "name": "X-PAYMENT", "value": "eyJ4NDAy…" },
   "settlement": { "recipient": "0x2096…", "amount": "1000", "asset": "USDC",
                   "network": "base", "approxCents": "1" },
   "status": "Issued"
 }
 ```
+
+Had you passed a v2 `target` (the default), the same call would return `"x402Version": 2` and
+`"name": "PAYMENT-SIGNATURE"`.
 
 ### 3 · Attach it and re-send
 
