@@ -17,7 +17,11 @@ There are two, and which one you want depends on which side of the payment you'r
 | **`nevermined-payments`** | **receiving** money, or buying a Nevermined plan | SDK integration, middleware, plans, credits — the rest of this page |
 | **`nevermined-router`** | **spending** money at external services | Discovering services in the catalog, creating a spending Delegation, paying any x402 or MPP endpoint through the [Nevermined Router](/products/router/overview) |
 
-Every install method below works for either — swap `nevermined-payments` for `nevermined-router` in the paths. Installing both is fine; they don't overlap.
+Installing both is fine — they don't overlap. How you install the Router one depends on your tool:
+
+- **Claude Code, Cursor, Windsurf, Cline, Amazon Q** — swap `nevermined-payments` for `nevermined-router` in the paths below, or run the extra command shown in each tab.
+- **Codex CLI** — its `AGENTS.md` route is a *single* file with no skill name in it, and that file carries the **payments** guidance only. Use the tab's **"install as a Codex skill"** alternative instead: `.agents/skills/` takes a skill directory, so `nevermined-router` works there.
+- **GitHub Copilot** — `.github/copilot-instructions.md` is a single file with nothing to swap, and it carries the **payments** guidance only. Until that changes, use the [full skill on GitHub](https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router) or paste it in manually.
 
 ## What's Included
 
@@ -46,9 +50,10 @@ Choose your AI coding tool below for step-by-step installation instructions.
     tmpdir="$(mktemp -d)"
     git clone --depth 1 --filter=blob:none --sparse https://github.com/nevermined-io/docs "$tmpdir"
     cd "$tmpdir"
-    git sparse-checkout set skills/nevermined-payments
+    git sparse-checkout set skills/nevermined-payments skills/nevermined-router
 
     cp -R skills/nevermined-payments ~/.claude/skills/
+    cp -R skills/nevermined-router ~/.claude/skills/    # buying through the Router
 
     cd -
     rm -rf "$tmpdir"
@@ -92,8 +97,12 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
     ```bash
     mkdir -p .cursor/rules
-    curl -o .cursor/rules/nevermined-payments.mdc \
+    curl --fail -o .cursor/rules/nevermined-payments.mdc \
       https://raw.githubusercontent.com/nevermined-io/docs/main/.cursor/rules/nevermined-payments.mdc
+
+    # Buying from external x402 / MPP services through the Router
+    curl --fail -o .cursor/rules/nevermined-router.mdc \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.cursor/rules/nevermined-router.mdc
     ```
 
     The `.cursor/rules/*.mdc` format supports glob-based activation — the Nevermined rule auto-activates when you work with `.ts`, `.js`, or `.py` files.
@@ -106,8 +115,12 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
     ```bash
     mkdir -p .windsurf/rules
-    curl -o .windsurf/rules/nevermined-payments.md \
+    curl --fail -o .windsurf/rules/nevermined-payments.md \
       https://raw.githubusercontent.com/nevermined-io/docs/main/.windsurf/rules/nevermined-payments.md
+
+    # Buying from external x402 / MPP services through the Router
+    curl --fail -o .windsurf/rules/nevermined-router.md \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.windsurf/rules/nevermined-router.md
     ```
 
     Windsurf automatically discovers rules from `.windsurf/rules/` and applies them based on their activation mode.
@@ -126,7 +139,7 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
     ```bash
     mkdir -p .github
-    curl -o .github/copilot-instructions.md \
+    curl --fail -o .github/copilot-instructions.md \
       https://raw.githubusercontent.com/nevermined-io/docs/main/.github/copilot-instructions.md
     ```
 
@@ -151,7 +164,7 @@ Choose your AI coding tool below for step-by-step installation instructions.
     Codex CLI reads `AGENTS.md` files for project context. Add it to your project:
 
     ```bash
-    curl -o AGENTS.md \
+    curl --fail -o AGENTS.md \
       https://raw.githubusercontent.com/nevermined-io/docs/main/AGENTS.md
     ```
 
@@ -162,6 +175,7 @@ Choose your AI coding tool below for step-by-step installation instructions.
     ```bash
     mkdir -p .agents/skills
     cp -r skills/nevermined-payments .agents/skills/
+    cp -r skills/nevermined-router .agents/skills/    # buying through the Router
     ```
 
     Codex CLI detects skills from `.agents/skills/` and loads them when relevant.
@@ -174,8 +188,12 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
     ```bash
     mkdir -p .clinerules
-    curl -o .clinerules/nevermined-payments.md \
+    curl --fail -o .clinerules/nevermined-payments.md \
       https://raw.githubusercontent.com/nevermined-io/docs/main/.clinerules/nevermined-payments.md
+
+    # Buying from external x402 / MPP services through the Router
+    curl --fail -o .clinerules/nevermined-router.md \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.clinerules/nevermined-router.md
     ```
 
     Cline discovers all `.md` files in the `.clinerules/` directory and applies them based on the `paths` frontmatter. The Nevermined rule activates for `.ts`, `.js`, and `.py` files.
@@ -190,8 +208,12 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
     ```bash
     mkdir -p .amazonq/rules
-    curl -o .amazonq/rules/nevermined-payments.md \
+    curl --fail -o .amazonq/rules/nevermined-payments.md \
       https://raw.githubusercontent.com/nevermined-io/docs/main/.amazonq/rules/nevermined-payments.md
+
+    # Buying from external x402 / MPP services through the Router
+    curl --fail -o .amazonq/rules/nevermined-router.md \
+      https://raw.githubusercontent.com/nevermined-io/docs/main/.amazonq/rules/nevermined-router.md
     ```
 
     Amazon Q automatically uses rules from `.amazonq/rules/` as context. You can toggle rules on/off via the Rules button in the Amazon Q chat panel.
@@ -212,15 +234,17 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
 ## Supported Tools at a Glance
 
-| Tool | Config File | Auto-Activates |
-|---|---|---|
-| **Claude Code** | `~/.claude/skills/nevermined-payments/SKILL.md` | Yes — when relevant |
-| **Cursor** | `.cursor/rules/nevermined-payments.mdc` | Yes — on `.ts`, `.js`, `.py` files |
-| **Windsurf** | `.windsurf/rules/nevermined-payments.md` | Yes — model decides |
-| **GitHub Copilot** | `.github/copilot-instructions.md` | Yes — always |
-| **Codex CLI** | `AGENTS.md` or `.agents/skills/nevermined-payments/` | Yes — always or when relevant |
-| **Cline** | `.clinerules/nevermined-payments.md` | Yes — on `.ts`, `.js`, `.py` files |
-| **Amazon Q** | `.amazonq/rules/nevermined-payments.md` | Yes — always |
+`<skill>` is `nevermined-payments` or `nevermined-router` — install either or both.
+
+| Tool | Config File | Router available? | Auto-Activates |
+|---|---|---|---|
+| **Claude Code** | `~/.claude/skills/<skill>/SKILL.md` | Yes | Yes — when relevant |
+| **Cursor** | `.cursor/rules/<skill>.mdc` | Yes | Yes — on `.ts`, `.js`, `.py` files |
+| **Windsurf** | `.windsurf/rules/<skill>.md` | Yes | Yes — model decides |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | **No** — single file, payments only | Yes — always |
+| **Codex CLI** | `AGENTS.md` or `.agents/skills/<skill>/` | Yes — via `.agents/skills/`; **not** via `AGENTS.md` (single file, payments only) | Yes — always or when relevant |
+| **Cline** | `.clinerules/<skill>.md` | Yes | Yes — on `.ts`, `.js`, `.py` files |
+| **Amazon Q** | `.amazonq/rules/<skill>.md` | Yes | Yes — always |
 
 ## Example Prompts
 

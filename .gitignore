@@ -1,5 +1,10 @@
-# Cursor
-/.cursor
+# Cursor — local editor state, EXCEPT `.cursor/rules/`, which is published
+# content: the install page tells users to curl it from `main`, so a rule file
+# that silently fails to commit becomes a 404 (and, without `--fail`, writes
+# "404: Not Found" into their rules directory). `nevermined-payments.mdc` only
+# survived the blanket `/.cursor` because it was tracked before the rule existed.
+/.cursor/*
+!/.cursor/rules/
 
 # Node
 node_modules

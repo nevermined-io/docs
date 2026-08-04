@@ -28,7 +28,25 @@ This document provides comprehensive guidelines for AI agents to write and maint
 
 ### AI Coding Skill
 
-This repository includes a **Nevermined AI Skill** at `skills/nevermined-payments/SKILL.md` with 7 reference files. This skill provides AI coding assistants (Claude Code, Cursor, Copilot, ChatGPT) with SDK patterns and integration knowledge. When updating SDK code examples, framework integrations, or x402 protocol documentation, also update the corresponding skill reference files in `skills/nevermined-payments/references/` to keep them in sync. IDE-specific files (`.cursorrules`, `.cursor/rules/`, `.github/copilot-instructions.md`) contain condensed versions of the skill and should be updated when core patterns change.
+This repository publishes **two** Nevermined AI Skills, pointed in opposite directions:
+
+- `skills/nevermined-payments/` — **receiving** payments (SDK, middleware, plans, credits), 12 reference files.
+- `skills/nevermined-router/` — **spending** at external x402 / MPP services through the Nevermined Router, 5 reference files.
+
+They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, Cline, Amazon Q) SDK patterns and integration knowledge. When updating SDK code examples, framework integrations, or x402 protocol documentation, also update the matching `references/` files to keep them in sync.
+
+**IDE-specific files carry condensed versions of a skill and must be updated when core patterns change.** The full set — note there is **no `.cursorrules`** in this repo:
+
+| Path | Skills present |
+| --- | --- |
+| `.cursor/rules/<skill>.mdc` | payments, router |
+| `.windsurf/rules/<skill>.md` | payments, router (**6,000-char limit per file**) |
+| `.clinerules/<skill>.md` | payments, router |
+| `.amazonq/rules/<skill>.md` | payments, router |
+| `.github/copilot-instructions.md` | payments only — single file, no skill segment |
+| `AGENTS.md` | payments only — single file, no skill segment |
+
+`.cursor/` is otherwise gitignored; `.gitignore` re-includes `.cursor/rules/` specifically, because those files are published — users `curl` them from `main`, so one that fails to commit becomes a 404 in their editor. Both `development-guide/build-using-nvm-skill.mdx` (the install page) and its "Supported Tools at a Glance" table must be updated when this set changes.
 
 ---
 
