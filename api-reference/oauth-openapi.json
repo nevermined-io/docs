@@ -20,14 +20,16 @@
       "post": {
         "tags": ["Ceremony"],
         "summary": "Generate an OAuth 2.1 authorization code",
-        "description": "Authorization Code flow with PKCE (mandatory). Mints an x402 payment permission for a specific agent and plan. Requires a pre-registered client_id (unregistered → BCK.OAUTH.0016).",
+        "description": "Authorization Code flow with PKCE (mandatory). Mints an x402 payment permission for a specific agent and plan. Browser-initiated in the signed-in user's context — authenticated with the user's Nevermined API key (unauthenticated → BCK.OAUTH.0007). Requires a pre-registered client_id (unregistered → BCK.OAUTH.0016).",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthorizeRequest" } } }
         },
         "responses": {
           "201": { "description": "Authorization code", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthorizeResponse" } } } },
-          "400": { "$ref": "#/components/responses/Error" }
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" }
         }
       }
     },
@@ -185,7 +187,7 @@
   },
   "components": {
     "securitySchemes": {
-      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "A Nevermined API key: `Authorization: Bearer <sandbox:… | live:…>`." }
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "Nevermined API key", "description": "A Nevermined API key: `Authorization: Bearer <sandbox:… | live:…>`. Environment-prefixed, not a bare JWT — send the whole string." }
     },
     "responses": {
       "Error": {

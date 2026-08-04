@@ -17,6 +17,7 @@ Two grants, two credentials. If you need a key that authenticates *you* against 
 
 ## Prerequisites
 
+- **An authenticated user.** `POST /oauth/authorize` runs in the signed-in user's context — the browser client calls it with the user's Nevermined API key. Without an authenticated user it fails with `BCK.OAUTH.0007`.
 - **A pre-registered `client_id`.** Same as the device flow — connectors are onboarded out of band (no dynamic client registration). An unregistered `client_id` is rejected with `BCK.OAUTH.0016`.
 - **PKCE is mandatory.** Generate a `code_verifier` and its `code_challenge` (`S256`). There is no non-PKCE path.
 
@@ -24,10 +25,11 @@ Two grants, two credentials. If you need a key that authenticates *you* against 
 
 <Steps>
   <Step title="Request an authorization code">
-    Send the user's browser to the authorization endpoint with your PKCE challenge:
+    From the signed-in browser session, POST to the authorization endpoint with your PKCE challenge. The request is authenticated as the user (their Nevermined API key):
 
     ```http
     POST /oauth/authorize
+    Authorization: Bearer <sandbox:… | live:…>
     Content-Type: application/json
 
     {
@@ -41,11 +43,13 @@ Two grants, two credentials. If you need a key that authenticates *you* against 
     }
     ```
 
-    `agent_id`, `plan_id`, `state`, and `resource` are optional; `redirect_uri`, `code_challenge`, and `code_challenge_method` are required. The user reviews and approves the connection in the browser at the `/oauth/authorize` page, then is redirected to your `redirect_uri` with the `code` (and your `state`).
+    `client_id`, `redirect_uri`, `code_challenge`, and `code_challenge_method` are required; `agent_id`, `plan_id`, `state`, and `resource` are optional. Once the user approves the connection, the endpoint returns the `code` in the response body:
 
     ```json
     { "code": "abc123…" }
     ```
+
+    Your client then completes the OAuth hand-off by redirecting the browser to `redirect_uri` with the `code` (and your `state`) appended.
   </Step>
 
   <Step title="Exchange the code for the credential">
