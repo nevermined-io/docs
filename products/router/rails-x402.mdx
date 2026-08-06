@@ -77,8 +77,10 @@ The payment is a **pull**: your signature authorizes the merchant to take the am
 
 Get the address from your Delegation's `providerPaymentMethodId` — see [step 3 of the quickstart](/products/router/quickstart#3-fund-your-wallet). If it's short, the mint fails with **`402 BCK.ROUTER.0009`** and nothing is signed: no credential, no reserved budget, no partial state to clean up.
 
+The asset to send is the one the service's 402 advertises — `USDC` or `EURC`, 6 decimals, on the network in that entry. Base mainnet USDC is `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`.
+
 <Warning>
-`base` is **Base mainnet** and moves real funds. `base-sepolia` is the testnet. Both are enabled by default, and which one you use is decided entirely by what the service you're calling advertises — not by which Nevermined environment you're pointed at. Read the `settlement.network` on the response if you want to be sure what just happened.
+`base` is **Base mainnet** and moves real funds; `base-sepolia` is the testnet. **Which of them your deployment will fund is decided by the environment you are pointed at, not by the service.** A sandbox deployment funds testnets only and a live deployment funds mainnet only — that split is the real-money firewall and an operator cannot widen it. If you call a mainnet service from sandbox, no entry survives the filter and you get `400 BCK.ROUTER.0001`. Read `settlement.network` on the response to be sure what just happened.
 </Warning>
 
 ## Authorization lifetime
@@ -102,7 +104,7 @@ These are set per deployment, not per call. You only need them if you run your o
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
-| `ROUTER_FUNDED_NETWORKS` | `base,base-sepolia` | Networks the Router will fund a payment on |
+| `ROUTER_FUNDED_NETWORKS` | derived from `ENVIRONMENT` | Networks the Router will fund a payment on. Sandbox derives the testnets, live derives mainnet; only a local/dev instance falls back to the permissive `base,base-sepolia`. On a deployed instance this variable can only **narrow** the derived set — it can never add a network, so it cannot move a box across the sandbox/live firewall. Setting it to an empty string is an explicit "fund nothing", not "use the default". |
 | `ROUTER_FUNDED_SYMBOLS` | `USDC,EURC` | Asset symbols it will pay in |
 | `ROUTER_PREFER_SYMBOL` | `USDC` | Which symbol wins when a 402 offers several |
 | `ROUTER_MAX_AUTH_TTL_SECS` | `3600` | Ceiling on the signed authorization's validity window |

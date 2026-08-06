@@ -87,7 +87,20 @@ curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
 }
 ```
 
-`providerPaymentMethodId` is the wallet address to fund. Send it the payment asset **on the network you intend to pay on** — see [the x402 rail](/products/router/rails-x402) and [the MPP rail](/products/router/rails-mpp) for which networks and assets each supports.
+`providerPaymentMethodId` is the wallet address to fund. Send it the payment asset **on the network you intend to pay on**:
+
+| Rail | Network | Asset |
+| --- | --- | --- |
+| x402 | Base mainnet (`8453`) | USDC — `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| x402 | Base Sepolia (`84532`) | testnet USDC, from a public faucet |
+| MPP | Tempo mainnet (`4217`) | USDC.e — `0x20c000000000000000000000b9537d11c60e8b50` |
+| MPP | Tempo Moderato (`42431`) | PathUSD — `0x20c0000000000000000000000000000000000000`, self-funded via [one RPC call](/products/router/rails-mpp#funding-your-wallet) |
+
+The address is the same on every EVM chain — it's one key-derived wallet, so there is nothing extra to create on Tempo. But **the balances are per-chain**: funding Base does nothing for an MPP payment. See [the x402 rail](/products/router/rails-x402) and [the MPP rail](/products/router/rails-mpp) for the full picture.
+
+<Note>
+**Funding is manual today.** There is no on-ramp — you cannot top this wallet up from a card or from a Nevermined credit balance, and the agent cannot refill itself. When the wallet runs dry, payments stop with `402 BCK.ROUTER.0009` until a human sends more. Budget for that when you decide how much to fund: an agent is autonomous *after* it is funded, and only until the balance runs out.
+</Note>
 
 <Warning>
 Always read this address back from the live Delegation rather than reusing one you saved. A stale address is the single most common cause of a confusing `402 BCK.ROUTER.0009` — the error deliberately doesn't echo the address it checked, so it can't tell you that you funded the wrong wallet.
