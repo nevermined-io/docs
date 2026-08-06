@@ -1,0 +1,203 @@
+---
+title: "Agentic Integration"
+description: "Every organization gets three auto-generated, agent-discoverable files — llms.txt, agentic-instructions.md, and ai-catalog.json — so AI agents and discovery registries can find and pay for your agents. Here's what they are and how to use them."
+icon: "compass"
+---
+
+When you publish agents and plans on Nevermined, you don't just get a checkout page — you get a machine-readable **integration surface** that any AI agent can read to discover what you offer and pay for it autonomously.
+
+Nevermined generates and keeps this surface up to date for you as three files:
+
+<CardGroup cols={3}>
+  <Card title="llms.txt" icon="file-lines" href="#llms-txt">
+    A concise index of your plans, agents, and reference links. The agent's map of your organization.
+  </Card>
+  <Card title="agentic-instructions.md" icon="robot" href="#agentic-instructions-md">
+    A step-by-step guide telling an AI agent how to discover and pay for your agents via x402.
+  </Card>
+  <Card title="ai-catalog.json" icon="magnifying-glass-chart" href="#ai-catalog-json">
+    A structured Agentic Resource Discovery (ARD) catalog with your agents' x402 payment terms, crawlable by registries.
+  </Card>
+</CardGroup>
+
+Nothing to build, host, or keep in sync: publish an agent or a plan and these files reflect it automatically.
+
+## Why this matters
+
+An AI agent that has never heard of you can go from **"I found this organization"** to **"I've paid for its agent and I'm calling it"** without a human in the loop. That's the difference between being listed and being *usable* by the agent economy:
+
+<CardGroup cols={2}>
+  <Card title="Discoverable" icon="compass">
+    Agents and crawlers read a stable, documented format instead of scraping a marketing page.
+  </Card>
+  <Card title="Self-serve for agents" icon="key">
+    The instructions carry the exact endpoints, environment, and payment steps — an agent can act on them directly.
+  </Card>
+  <Card title="Payment terms included" icon="coins">
+    Each agent's price, plan, and settlement scheme travel with the catalog, so a buyer agent can pre-build its x402 payment.
+  </Card>
+  <Card title="Zero maintenance" icon="arrows-rotate">
+    Generated on demand from your live plans and agents. No drift, no stale docs.
+  </Card>
+</CardGroup>
+
+## Where to find them
+
+Open the Nevermined App and go to **Organization → Agentic Integration**. Each file is listed with a copy button and a direct link — hand any of these URLs to an AI agent to get started.
+
+They're also served directly from the API. Every file lives at a **permanent URL** built from your organization ID, which never changes:
+
+| File | URL | Content type |
+|---|---|---|
+| `llms.txt` | `{API}/api/v1/organizations/{orgId}/llms.txt` | `text/plain` |
+| `agentic-instructions.md` | `{API}/api/v1/organizations/{orgId}/agentic-instructions.md` | `text/markdown` |
+| `ai-catalog.json` | `{API}/api/v1/organizations/{orgId}/ai-catalog.json` | `application/json` |
+
+`{API}` is the environment's API host — `https://api.sandbox.nevermined.app` for sandbox, `https://api.live.nevermined.app` for live.
+
+```bash
+# No auth needed — this is a public discovery surface
+curl https://api.sandbox.nevermined.app/api/v1/organizations/org-abc123/agentic-instructions.md
+```
+
+<Note>
+  These files are public and served for **active Premium and Enterprise organizations** — any other organization returns `404`. Only your **published** plans and agents appear; deactivating a plan or agent removes it from all three files.
+</Note>
+
+## llms.txt
+
+A short, agent-discoverable index that follows the [llms.txt convention](https://llmstxt.org). It's the fast "table of contents" for your organization: the plans you sell, the agents you publish, and links into the Nevermined docs an agent needs to integrate.
+
+```text llms.txt
+# Acme AI
+
+> Agent-discoverable index of Payment Plans and AI Agents/Services published by Acme AI on Nevermined.
+
+## Payment Plans
+
+- [Acme AI Payment Plan: Pro API access](https://api.live.nevermined.app/api/v1/protocol/plans/<planId>)
+
+## Agents
+
+- [Acme AI agent: Legal document analyzer](https://api.live.nevermined.app/api/v1/protocol/agents/<agentId>)
+
+## Nevermined Reference
+
+- [x402 payments reference (TypeScript)](https://nevermined.ai/docs/integrate/patterns/stablecoin-payments)
+- [This environment's API reference (OpenAPI JSON)](https://api.live.nevermined.app/api/v1/rest/docs-json)
+- [Get your Nevermined API Keys](https://nevermined.ai/docs/api-reference/typescript/initializing-the-library#get-your-nvm-api-key)
+- [Nevermined API Reference](https://nevermined.ai/docs/api-reference/introduction)
+```
+
+**Use it when** you want to give an agent (or an LLM crawler) a lightweight starting point. It's small, cache-friendly, and points onward to everything else.
+
+## agentic-instructions.md
+
+The operational guide. Where `llms.txt` is a map, this is the *how-to*: a plain-Markdown document — consumed raw by agents like Claude Code — that tells an autonomous agent exactly how to discover and pay for your agents through Nevermined's x402 flow.
+
+It opens by stating the environment ("you are talking to the sandbox / live environment"), then walks the ordered path:
+
+<Steps>
+  <Step title="Get a Nevermined API key">
+    A one-time, human-in-the-loop step. The document links the embedded login flow so the key can be issued and returned automatically.
+  </Step>
+  <Step title="Set up a payment method">
+    A stablecoin method works immediately; a card needs a one-time embedded enrollment. The agent then creates a spending **delegation** — a budget it can spend within, no human per purchase.
+  </Step>
+  <Step title="Pay with x402">
+    Pick a plan from the registry and settle it with `verify` + `settle`. The document spells out the exact endpoints and request bodies.
+  </Step>
+</Steps>
+
+It then lists your **registry of agent-payable APIs** (your plans and agents) and links out to the Nevermined ecosystem docs.
+
+<Tip>
+  This is the single URL to share with a coding agent or harness. Point Claude Code (or any x402-aware agent) at `…/agentic-instructions.md` and it has everything it needs — environment, endpoints, the login → delegation → x402 path, and your catalog — to buy and call your agents on its own.
+</Tip>
+
+## ai-catalog.json
+
+Your organization's [Agentic Resource Discovery](https://agenticresourcediscovery.org/spec/) (ARD) catalog: one entry per published agent, each carrying an embedded A2A agent card **and** its x402 payment terms. This is the format built for machines — a crawler or registry ingests it directly, and a buyer agent gets everything it needs to pre-build a payment without first triggering a `402`.
+
+The payment terms live under the `x-nevermined-payment` key in each entry's `metadata` — plan, price, credits, settlement network, and the ready-to-use x402 `accepts` block:
+
+```json ai-catalog.json
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "Acme AI",
+    "identifier": "did:web:api.live.nevermined.app",
+    "documentationUrl": "https://api.live.nevermined.app/api/v1/organizations/org-abc123/agentic-instructions.md"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:api.live.nevermined.app:agent:<agentId>",
+      "displayName": "Legal document analyzer",
+      "type": "application/a2a-agent-card+json",
+      "description": "Extracts clauses and obligations from contracts.",
+      "representativeQueries": ["Use Legal document analyzer", "agent for legal"],
+      "metadata": {
+        "x-nevermined-payment": {
+          "paymentProtocol": "x402",
+          "x402Version": 2,
+          "isTrialAvailable": false,
+          "plans": [
+            {
+              "planId": "<planId>",
+              "name": "Pro API access",
+              "priceModel": "fixed",
+              "isCrypto": false,
+              "price": { "amount": "5000000", "asset": "USD", "network": "stripe" },
+              "credits": { "amount": "1000", "expirySecs": "0", "minPerRequest": "1", "maxPerRequest": "1" },
+              "accepts": [
+                { "scheme": "nvm:card-delegation", "network": "stripe", "planId": "<planId>", "extra": { "agentId": "<agentId>" } }
+              ],
+              "planUrl": "https://api.live.nevermined.app/api/v1/protocol/plans/<planId>"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+Crypto plans advertise an on-chain settlement network instead (for example `"network": "eip155:8453"` with `"scheme": "nvm:erc4337"`), so an agent knows exactly which chain to sign for.
+
+**Use it when** you're integrating with an ARD-aware registry or building a buyer agent that shops across catalogs programmatically.
+
+## How an agent uses them together
+
+The three files layer from "quick index" to "ready-to-transact":
+
+<Steps>
+  <Step title="An agent is handed one of your URLs">
+    Usually `agentic-instructions.md` (for a coding agent or harness) or `ai-catalog.json` (for a registry or a programmatic buyer).
+  </Step>
+  <Step title="It learns the environment and your catalog">
+    Which network it's on, which API to call, and which of your plans and agents accept payment.
+  </Step>
+  <Step title="It obtains a credential and pays with x402">
+    A one-time key + delegation, then `settle` against the plan — no human per purchase.
+  </Step>
+  <Step title="It calls your agent">
+    With credits in hand, it invokes your agent and you get paid. See [Buy & Call a Paid Agent](/getting-started/ai-agent-purchase) for the end-to-end flow.
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Programmatic & Agentic Access" icon="robot" href="/solutions/organizations/programmatic-access">
+    Drive your whole organization from code, and the endpoints behind these files.
+  </Card>
+  <Card title="Buy & Call a Paid Agent" icon="cart-shopping" href="/getting-started/ai-agent-purchase">
+    The buyer's side — an agent purchasing and calling a paid agent end to end.
+  </Card>
+  <Card title="x402 card-delegation" icon="credit-card" href="/specs/x402-card-delegation">
+    How an agent pays with a delegated card, no human per transaction.
+  </Card>
+  <Card title="x402 stablecoin payments" icon="coins" href="/integrate/patterns/stablecoin-payments">
+    Paying for agents with USDC and other stablecoins.
+  </Card>
+</CardGroup>
