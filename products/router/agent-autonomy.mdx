@@ -1,0 +1,248 @@
+---
+title: "An agent buying on its own"
+description: "A worked end-to-end run: an agent given only an API key and a budget discovers services, buys across two payment protocols on two chains, and is then refused by its own spend cap."
+icon: "robot"
+---
+
+Every page before this one describes a piece of the Router. This one runs the whole thing, start to finish, and shows the actual output — so you can see what an autonomous agent's spending really looks like before you give one a budget.
+
+The question it answers:
+
+> Can you hand an agent an API key and a cap, and have it find services, pay for them, and be **stopped** — with no per-provider accounts, no protocol knowledge, and no keys of its own?
+
+The run below is real. Every number, hash and error on this page came from one execution against live merchants on Base mainnet and Tempo mainnet. Total cost: **$0.08**.
+
+<Note>
+**The refusal is the interesting part.** Anyone can demo a purchase. What makes an agent safe to leave running is a spend control that says no — and keeps saying no — without you being there. That's step 6, and it's the reason this page exists.
+</Note>
+
+## What the agent is given
+
+Two things. That's the whole grant:
+
+| | |
+| --- | --- |
+| **An API key** | Authenticates it to Nevermined. Never sent to any merchant. |
+| **A Delegation** | A hard cap in cents, plus an expiry. Here: **9¢**, valid one hour. |
+
+It is **not** given: a wallet, a private key, a merchant account, an API key for any service it buys from, or any knowledge of which payment protocol a service speaks.
+
+## 1. Discover
+
+The catalog is public. No key, no account, no signup:
+
+```bash
+curl -s "$NVM_API_URL/api/v1/catalog/services?search=crypto&limit=20"
+```
+
+```
+search 'crypto' → 14 services, e.g.
+  · Kraken Crypto Signals  [x402]  $0.01
+  · 2s                     [x402]  $0.001–$0.144 per call (USDC)
+  · CoinGecko via MPP      [mpp]   $0.06
+  · Laevitas x402          [x402]  $0.001
+```
+
+142 services, listing their protocol, network and price up front. Each entry carries everything needed to place a call — `targetUrl`, the endpoint `path` and `method`, and a `priceLabel`:
+
+```bash
+curl -s "$NVM_API_URL/api/v1/catalog/services/coingecko-via-mpp"
+```
+
+```json
+{
+  "slug": "coingecko-via-mpp",
+  "title": "CoinGecko via MPP",
+  "protocol": "mpp",
+  "network": "Tempo",
+  "targetUrl": "https://coingecko.mpp.paywithlocus.com",
+  "priceLabel": "$0.06",
+  "endpoints": [
+    { "path": "/coingecko/simple-price", "method": "POST", "priceLabel": "$0.06" }
+  ]
+}
+```
+
+<Note>
+`?search=` matches titles, descriptions and categories — **not** slugs. To fetch one known service, use the by-slug route above. `limit` is capped server-side at 20, so paginating the whole catalog client-side isn't the answer either.
+</Note>
+
+The agent picked two services with deliberately different plumbing:
+
+| Service | Protocol | Chain | Price |
+| --- | --- | --- | --- |
+| CoinGecko via MPP | `mpp` | Tempo mainnet (4217) | $0.06 |
+| AgentOracle | `x402` | Base mainnet (8453) | $0.01 |
+
+## 2. Set the budget
+
+The cap is chosen so the **third** purchase cannot fit:
+
+```
+cap = 6¢ (CoinGecko) + 1¢ (AgentOracle) + 2¢ slack = 9¢
+```
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"provider":"erc4337","currency":"usdc","spendingLimitCents":9,"durationSecs":3600}'
+```
+
+The 2¢ of slack matters. A merchant's real charge can exceed its advertised price, because the Router converts the on-wire amount to cents and **rounds up**: CoinGecko's $0.06 arrives as 60001 atomic units and costs **7¢**, not 6¢. The slack absorbs that while staying far below the ~7¢ a third call needs — so the refusal in step 6 is arithmetic, not luck.
+
+## 3. Buy over MPP
+
+The agent sends a URL and a delegation id. Nothing else:
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "delegationId": "'"$NVM_DELEGATION_ID"'",
+    "url": "https://coingecko.mpp.paywithlocus.com/coingecko/simple-price",
+    "method": "POST",
+    "body": { "ids": "bitcoin", "vs_currencies": "usd" },
+    "requestId": "demo-mpp-1"
+  }'
+```
+
+```json
+{
+  "status": 200,
+  "paid": true,
+  "body": { "success": true, "data": { "bitcoin": { "usd": 64794 } } },
+  "payment": {
+    "status": "Settled",
+    "txHash": "0xd25f25cc162f347e2e0374841a1270b61f7dff53d5c6af0fbcacdab2caaf5bb8",
+    "settlement": {
+      "scheme": "charge",
+      "network": "tempo",
+      "asset": "0x20c000000000000000000000b9537d11c60e8b50",
+      "approxCents": "7"
+    }
+  }
+}
+```
+
+One call in, the data and a settled on-chain payment out. Budget left: **2¢ of 9¢**.
+
+## 4. Buy over x402
+
+Now the same call shape against a service on a **different protocol and a different chain**:
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "delegationId": "'"$NVM_DELEGATION_ID"'",
+    "url": "https://aiagentoracle.ai/api/v1/tokens",
+    "method": "GET",
+    "requestId": "demo-x402-1"
+  }'
+```
+
+```json
+{
+  "status": 200,
+  "paid": true,
+  "body": { "tokens": [ { "symbol": "BTC", "priceUsd": 64798 } ] },
+  "payment": {
+    "status": "Settled",
+    "txHash": "0x44136dc5348e5442770ad1ebeb9cb4e641225f8d4abdcf9e4b2f82f33a054214",
+    "settlement": {
+      "scheme": "exact",
+      "network": "eip155:8453",
+      "asset": "USDC",
+      "approxCents": "1"
+    }
+  }
+}
+```
+
+**This is the part worth pausing on.** Steps 3 and 4 are the same request, to the same endpoint, differing only in the URL. The agent never named a protocol. The Router fetched each merchant, read `WWW-Authenticate: Payment` on one and `PAYMENT-REQUIRED` on the other, and chose the rail itself — signing an EIP-3009 authorization on Base for one and a native Tempo charge for the other.
+
+The agent does not know, and does not need to know, which chain it just paid on.
+
+<Warning>
+Because the Router picks the protocol in this mode, a merchant advertising **both** rails will be paid over MPP. If you're specifically verifying x402 behaviour, pin a merchant that offers only x402 — otherwise a green run can be exercising the other rail entirely. Check with `curl -sD - -o /dev/null "$URL" | grep -ci '^www-authenticate: *Payment'` — it must be `0`.
+</Warning>
+
+## 5. Report
+
+One ledger, regardless of protocol or chain:
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+| Protocol | Network | Asset | Amount | Status | Tx |
+| --- | --- | --- | --- | --- | --- |
+| `x402` | `eip155:8453` | `USDC` | 10000 | Settled | `0x44136dc5…` |
+| `mpp` | `tempo` | `0x20c0…8b50` | 60001 | Settled | `0xd25f25cc…` |
+
+Both reconcile exactly against the chains: Base **−0.010000 USDC**, Tempo **−0.060029 USDC.e** (the 0.060001 payment plus 28 units of gas, which Tempo bills in the stablecoin itself).
+
+<Note>
+On the MPP rail, `network` is a bare name — `"tempo"` — with no chain id. It does not distinguish Tempo mainnet (4217) from the Moderato testnet (42431). If you need to verify *which* chain a payment settled on, check the `asset` address: USDC.e on mainnet is `0x20c0…b9537d11c60e8b50`, while Moderato's PathUSD is `0x20c0…0000`. Both begin `0x20c0` — compare the whole string, don't eyeball it.
+</Note>
+
+Add `&format=csv` for a downloadable file. This is the same record whether you spent over one protocol or five.
+
+## 6. Refused
+
+The agent tries the CoinGecko call once more. It has **1¢** left; the call costs **7¢**:
+
+```json
+{
+  "code": "BCK.ROUTER.0003",
+  "message": "Delegation budget exceeded, expired, or inactive"
+}
+```
+
+`402`. No payment minted, no credential issued, nothing to unwind — the ledger still holds exactly two payments. The cap is enforced server-side inside the same transaction that records the spend, so an agent cannot get past it by retrying, looping, or being confidently wrong about its own remaining budget.
+
+That is the property that makes an autonomous agent something you can leave running: **the ceiling is not enforced by the agent's good behaviour.**
+
+<Note>
+`0003` covers exhausted, expired **and** revoked. Read `remainingBudgetCents` and `expiresAt` from `GET /api/v1/delegation/{id}` to tell them apart — a long-running agent that worked yesterday has very often just aged out rather than overspent. See [Guardrails](/products/router/guardrails).
+</Note>
+
+## What this demonstrates
+
+- **Discovery needs no account.** The catalog is public and machine-readable, and carries enough to place a call.
+- **One integration, many protocols.** The agent wrote no protocol-specific code. Adding a rail is the Router's problem, not the agent's.
+- **The agent holds nothing.** No wallet, no private key, no merchant credentials. Funds sit in a custodial wallet it cannot reach except through a capped Delegation.
+- **Spending is bounded by construction.** The cap is checked server-side on every payment, and refusing costs nothing.
+- **Everything is auditable.** One ledger across every rail, with on-chain hashes that reconcile.
+
+## Reproducing it
+
+The full runnable version — a preflight that checks every precondition, plus the six-step run — ships in the `nvm-monorepo` repository at `.claude/skills/nvm-router-demo/`:
+
+```bash
+cd .claude/skills/nvm-router-demo
+./demo.sh --dry-run              # discovery and the plan; spends nothing
+CONFIRM_LIVE=yes ./preflight.sh  # every precondition, ~20s
+CONFIRM_LIVE=yes ./demo.sh       # the run, ~$0.08
+```
+
+<Warning>
+**This spends real money.** There is no testnet variant, and that's structural rather than an oversight: the catalog lists mainnet merchants, so a testnet run would have nothing real to discover. Both `preflight.sh` and `demo.sh` refuse to touch a live key without `CONFIRM_LIVE=yes`.
+</Warning>
+
+Run `./preflight.sh` first, always. It resolves your wallet address from the API rather than from anything you wrote down, checks the balance on **both** chains, confirms each merchant still answers `402` on the rail you expect, and verifies the catalog is actually loaded rather than serving placeholder rows. Every one of those has caused a failed run that looked like a Router bug.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+    Every check the Router makes before it signs, and every error code it can return.
+  </Card>
+  <Card title="Ledger" icon="receipt" href="/products/router/ledger">
+    The unified payment record, its fields, and CSV export.
+  </Card>
+</CardGroup>
