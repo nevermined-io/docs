@@ -30,7 +30,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.METRIC`](#bck-metric) — 5 codes
 - [`BCK.METRICS`](#bck-metrics) — 1 code
 - [`BCK.NOTIF`](#bck-notif) — 9 codes
-- [`BCK.OAUTH`](#bck-oauth) — 29 codes
+- [`BCK.OAUTH`](#bck-oauth) — 30 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
 - [`BCK.ORGANIZATIONS`](#bck-organizations) — 36 codes
 - [`BCK.ORG_INTEGRATION`](#bck-org_integration) — 2 codes
@@ -356,6 +356,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-oauth-0027"></a>`BCK.OAUTH.0027` | 403 | auth | ❌ | This credential cannot create authorizations or spend mandates | An `account_access` credential is minted to SPEND against the card delegation it is bound to (via x402), NOT to run a new authorization ceremony or create another card mandate. It could otherwise mint itself a second, larger mandate on the same card, defeating the consented cap. Authorize from the human browser session, or use an agent-specific key for agent flows. #2574 B1. |
 | <a id="bck-oauth-0029"></a>`BCK.OAUTH.0029` | 500 | internal | ❌ | Internal error creating the agent binding | A server-side data-integrity condition — an agent-specific (credits_purchase) binding reached persistence without an agent id, which the database CHECK forbids. No action is required from the caller; inspect the API logs (the failing authorization request id is on the error `details`/`params`). #2578. |
 | <a id="bck-oauth-0030"></a>`BCK.OAUTH.0030` | 403 | auth | ❌ | This credential cannot use the Router spend rails or create delegations | An OAuth-minted credential (`credits_purchase` or `account_access`) may not call `POST /router/{payments,route,proxy}` or `POST /delegation/create`: those routes sign from the account wallet, outside the session-key policy the credential advertises — and a `credits_purchase` key owns no delegation, so any delegation it reaches was never consented for. Use a plain API key from the account owner, or the credential’s own x402 spend rail. #2575. |
+| <a id="bck-oauth-0031"></a>`BCK.OAUTH.0031` | 400 | auth | ❌ | Invalid client metadata document | The `client_id` was treated as a CIMD (Client ID Metadata Document) URL but did not resolve to a valid document. It must be an https URL on a public host that returns a JSON document whose `client_id` equals the URL and which declares a non-empty `client_name` and `redirect_uris`. If your host uses static registration instead, register it out-of-band and use its issued `client_id`. |
 
 ## <span id="bck-observability"></span>`BCK.OBSERVABILITY`
 
