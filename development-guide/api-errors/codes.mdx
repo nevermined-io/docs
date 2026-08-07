@@ -106,7 +106,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-auth-0001"></a>`BCK.AUTH.0001` | 500 | internal | — | Error registering API Key | Inspect the underlying error in the logs by correlation id. API-key registration failed with an unexpected server-side error (usually a DB-layer fault). |
-| <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid | Send an Authorization: Bearer <token> header or a valid Nevermined API key. Anonymous access is not permitted on this endpoint. |
+| <a id="bck-auth-0002"></a>`BCK.AUTH.0002` | 401 | auth | — | Authentication required: credentials are missing, expired or invalid | Send an `Authorization: Bearer <token>` header or a valid Nevermined API key. Anonymous access is not permitted on this endpoint. |
 | <a id="bck-auth-0003"></a>`BCK.AUTH.0003` | 403 | auth | — | Forbidden: caller is not the owner of this resource and lacks an admin role | Authenticate as the resource owner or an admin who has access to it. Cross-account access is rejected unless you carry an admin role. |
 | <a id="bck-auth-0004"></a>`BCK.AUTH.0004` | 403 | auth | ❌ | Organisation admin privileges required | The caller is not an active admin of the target organisation. Prefer the more specific siblings (BCK.AUTH.0005-0009) at new throw sites; this code remains as a catch-all. |
 | <a id="bck-auth-0005"></a>`BCK.AUTH.0005` | 403 | auth | ✅ | Unable to verify organisation membership | The membership lookup itself failed (e.g. transient DB error). Check the cause field on the server log; retry once. |
@@ -307,7 +307,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
-| <a id="bck-metrics-0001"></a>`BCK.METRICS.0001` | 401 | auth | ❌ | Unauthorized metrics scrape | The internal metrics endpoint is token-protected (METRICS_SCRAPE_TOKEN is set). Send "Authorization: Bearer <token>" matching the configured scrape token. |
+| <a id="bck-metrics-0001"></a>`BCK.METRICS.0001` | 401 | auth | ❌ | Unauthorized metrics scrape | The internal metrics endpoint is token-protected (METRICS_SCRAPE_TOKEN is set). Send `Authorization: Bearer <token>` matching the configured scrape token. |
 
 ## <span id="bck-notif"></span>`BCK.NOTIF`
 
