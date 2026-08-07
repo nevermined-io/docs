@@ -43,14 +43,35 @@ If MPP payments fail with that code on a deployment where x402 works fine, an un
 | Tempo Moderato (public testnet) | `42431` | `tempo-moderato` |
 
 <Warning>
-The stablecoin contract address is **not the same on both chains**. Allowlisting a testnet address on mainnet, or vice versa, produces a `400` that looks like the rail is broken. Read the address off a real challenge from the service you intend to pay.
+The stablecoin contract address is **not the same on both chains**. Allowlisting a testnet address on mainnet, or vice versa, produces a `400` that looks like the rail is broken.
 </Warning>
+
+The two chains settle in genuinely different tokens — the mainnet address is not derivable from the testnet one:
+
+| Chain | Token | Address | Decimals |
+| --- | --- | --- | --- |
+| Tempo mainnet (`4217`) | `USDC.e` — Bridged USDC (Stargate) | `0x20c000000000000000000000b9537d11c60e8b50` | 6 |
+| Tempo Moderato (`42431`) | PathUSD — a Tempo system predeploy | `0x20c0000000000000000000000000000000000000` | 6 |
+
+Both begin `0x20c0` and differ only in the tail, so they are easy to misread. Confirm against a real challenge from the service you intend to pay before sending funds anywhere.
 
 ## Funding your wallet
 
-Like x402, MPP `charge` is a **pull**: the merchant takes the amount from your own custodial wallet on the Tempo chain in question. Fund the address on your Delegation (`providerPaymentMethodId`) with the allowlisted token before you call.
+Like x402, MPP `charge` is a **pull**: the merchant takes the amount from your own custodial wallet on the Tempo chain in question. Fund the address on your Delegation (`providerPaymentMethodId`) with the token for that chain before you call.
 
 An underfunded wallet fails with **`402 BCK.ROUTER.0009`**, checked *before* signing — nothing is minted and no budget is reserved.
+
+On **Moderato** you can fund yourself in one RPC call — no faucet UI, no wallet, no signing:
+
+```bash
+curl -sX POST https://rpc.moderato.tempo.xyz \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tempo_fundAddress","params":["0xYOUR_WALLET"]}'
+```
+
+It returns transaction hashes and lands test tokens. The balance needs a block to appear, so a `balanceOf` read immediately afterwards can still show zero — wait a few seconds and read again before concluding it did nothing.
+
+On **mainnet there is no faucet**: you have to bridge or transfer real USDC.e in yourself.
 
 ## What the Router refuses
 
