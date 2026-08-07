@@ -22,10 +22,16 @@ Two things. That's the whole grant:
 
 | | |
 | --- | --- |
-| **An API key** | Authenticates it to Nevermined. Never sent to any merchant. |
+| **An API key** | Authenticates it to Nevermined. Never sent to any merchant. Must be for a **live** deployment — see below. |
 | **A Delegation** | A hard cap in cents, plus an expiry. Here: **9¢**, valid one hour. |
 
 It is **not** given: a wallet, a private key, a merchant account, an API key for any service it buys from, or any knowledge of which payment protocol a service speaks.
+
+<Warning>
+**This run requires a live deployment.** Every service below settles on mainnet — Base `8453` and Tempo `4217` — and a sandbox deployment funds testnets only. That split is the real-money firewall and an operator cannot widen it, so pointing `$NVM_API_URL` at `api.sandbox.nevermined.app` makes step 3 fail with **`400 BCK.ROUTER.0001`**: no `accepts` entry survives the network filter.
+
+Watch for that code specifically. It is *not* the refusal in step 6 — that one is a `402 BCK.ROUTER.0003` and means the guardrail worked. A `400` here means the wrong deployment. See [the x402 rail](/products/router/rails-x402) for the firewall itself.
+</Warning>
 
 ## 1. Discover
 
@@ -187,7 +193,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
 Both reconcile exactly against the chains: Base **−0.010000 USDC**, Tempo **−0.060029 USDC.e** (the 0.060001 payment plus 28 units of gas, which Tempo bills in the stablecoin itself).
 
 <Note>
-On the MPP rail, `network` is a bare name — `"tempo"` — with no chain id. It does not distinguish Tempo mainnet (4217) from the Moderato testnet (42431). If you need to verify *which* chain a payment settled on, check the `asset` address: USDC.e on mainnet is `0x20c0…b9537d11c60e8b50`, while Moderato's PathUSD is `0x20c0…0000`. Both begin `0x20c0` — compare the whole string, don't eyeball it.
+On the MPP rail, `network` comes back as a bare name — `"tempo"` — with no chain id, so it does **not** distinguish Tempo mainnet (`4217`) from the Moderato testnet (`42431`). That makes the `asset` address the only field that tells you which chain a payment actually settled on. The two token addresses, and why they are easy to misread, are in [the MPP rail](/products/router/rails-mpp#the-asset-allowlist).
 </Note>
 
 Add `&format=csv` for a downloadable file. This is the same record whether you spent over one protocol or five.
@@ -221,20 +227,22 @@ That is the property that makes an autonomous agent something you can leave runn
 
 ## Reproducing it
 
-The full runnable version — a preflight that checks every precondition, plus the six-step run — ships in the `nvm-monorepo` repository at `.claude/skills/nvm-router-demo/`:
-
-```bash
-cd .claude/skills/nvm-router-demo
-./demo.sh --dry-run              # discovery and the plan; spends nothing
-CONFIRM_LIVE=yes ./preflight.sh  # every precondition, ~20s
-CONFIRM_LIVE=yes ./demo.sh       # the run, ~$0.08
-```
+**The six `curl` calls above are the whole run.** There is nothing else to install — a live API key, a Delegation, a funded wallet, and the requests on this page reproduce it end to end in any shell or language.
 
 <Warning>
-**This spends real money.** There is no testnet variant, and that's structural rather than an oversight: the catalog lists mainnet merchants, so a testnet run would have nothing real to discover. Both `preflight.sh` and `demo.sh` refuse to touch a live key without `CONFIRM_LIVE=yes`.
+**This spends real money.** There is no testnet variant, and that is structural rather than an oversight: the catalog lists mainnet merchants, so a testnet run would have nothing real to discover. Sanity-check the price on each catalog entry before you buy — a legitimate service can charge over a dollar a call — and keep the Delegation cap tight enough that a mistake is refused rather than paid.
 </Warning>
 
-Run `./preflight.sh` first, always. It resolves your wallet address from the API rather than from anything you wrote down, checks the balance on **both** chains, confirms each merchant still answers `402` on the rail you expect, and verifies the catalog is actually loaded rather than serving placeholder rows. Every one of those has caused a failed run that looked like a Router bug.
+Before a first run, check the things that most often turn into a "Router bug" that was nothing of the sort:
+
+- **Read the wallet address back from the live Delegation** (`providerPaymentMethodId`), never from anything you wrote down — funding a stale address fails as `402 BCK.ROUTER.0009`, which deliberately does not name the address it checked.
+- **Fund it on both chains** you intend to pay on. Base and Tempo are separate balances.
+- **Confirm the merchant still answers `402`** on the rail you expect. A service that stops charging is relayed with `paid: false`, and a run can otherwise "succeed" having bought nothing.
+- **Check the catalog is loaded**, not serving placeholder rows — compare `total` and look at the `targetUrl`s.
+
+<Note>
+**Nevermined staff:** a scripted version of exactly this run — the six steps plus a preflight covering every point above — lives in the internal `nvm-monorepo` repository at `.claude/skills/nvm-router-demo/`. It adds `--dry-run` (spends nothing) and `--selfcheck` (offline). It is not public, and nothing on this page depends on it.
+</Note>
 
 ## Next
 
