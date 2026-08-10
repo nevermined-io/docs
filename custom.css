@@ -30,9 +30,9 @@ a.nav-tabs-item {
   background: transparent !important;
 }
 
-/* Hover */
+/* Hover — brand teal, matching the webapp's teal-forward nav (nevermined-io/nvm-monorepo#2789) */
 a.nav-tabs-item:hover {
-  color: #111827 !important;
+  color: #0f766e !important;
   background: transparent !important;
 }
 
@@ -44,7 +44,7 @@ a.nav-tabs-item:hover {
 
 .dark a.nav-tabs-item:hover,
 [data-theme="dark"] a.nav-tabs-item:hover {
-  color: #f3f4f6 !important;
+  color: #5eead4 !important;
 }
 
 /* Mobile */
@@ -234,4 +234,104 @@ ul.sidebar-group {
 /* Navigation items container */
 #navigation-items {
   font-size: 13px !important;
+}
+
+/* =====================================================
+   Focus visibility — solid brand-teal ring (WCAG 2.4.7).
+   Ports the headline nevermined-io/nvm-monorepo#2789 remediation, where the
+   webapp's focus ring was an invisible grey (~1.5:1) and became a solid brand
+   teal. Mintlify's default focus outline is likewise faint, so make keyboard
+   focus unmistakable in both themes. Ring contrast (WCAG 1.4.11, 3:1 non-text):
+   #0f766e is 5.47:1 on the light ground; #5eead4 is 13.1:1 on the dark ground.
+   Scoped to interactive elements only (and never tabindex="-1") so a
+   programmatically focused scroll container — e.g. base-ui viewports — is not
+   ringed.
+   ===================================================== */
+:is(a, button, input, select, textarea, summary,
+  [tabindex]:not([tabindex="-1"]), [role="button"], [role="link"],
+  [role="tab"], [role="menuitem"], [role="option"], [role="checkbox"],
+  [role="switch"]):focus-visible {
+  outline: 2px solid #0f766e !important;
+  outline-offset: 2px !important;
+}
+
+.dark :is(a, button, input, select, textarea, summary,
+  [tabindex]:not([tabindex="-1"]), [role="button"], [role="link"],
+  [role="tab"], [role="menuitem"], [role="option"], [role="checkbox"],
+  [role="switch"]):focus-visible,
+[data-theme="dark"] :is(a, button, input, select, textarea, summary,
+  [tabindex]:not([tabindex="-1"]), [role="button"], [role="link"],
+  [role="tab"], [role="menuitem"], [role="option"], [role="checkbox"],
+  [role="switch"]):focus-visible {
+  outline-color: #5eead4 !important;
+}
+
+/* =====================================================
+   Header — give the sticky navbar real presence.
+   It shipped fully transparent with a 0px bottom border, so it read as no bar
+   at all and page content ghosted under it on scroll. The opaque background
+   (Mintlify's own --background-* page-background var) fixes the ghosting; a
+   neutral hairline (gray-200) marks the boundary so the bar reads as defined.
+   ===================================================== */
+#navbar {
+  background-color: rgb(var(--background-light, 255 255 255)) !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.dark #navbar,
+[data-theme="dark"] #navbar {
+  background-color: rgb(var(--background-dark, 11 14 15)) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* =====================================================
+   Header — App "Ledger" background (nevermined-io/nvm-monorepo#2801): faint guilloché arcs bleeding from
+   the top-right corner + a fine 45° engraving hatch, teal ink. Same SVG+CSS
+   system as the webapp. Drawn on #navbar pseudo-elements (the navbar's inner
+   wrapper paints over #navbar's own background, so a pseudo above it is the only
+   layer that shows); pointer-events:none so the texture never intercepts clicks.
+   Arc assets live in /images. Ink: deep teal on light, brighter teal on dark.
+   ===================================================== */
+#navbar {
+  --nvmbg-ink: #0d3f48;
+}
+.dark #navbar,
+[data-theme="dark"] #navbar {
+  --nvmbg-ink: #4ac6bf;
+}
+
+/* Guilloché arcs — top-right. */
+#navbar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: url("/images/header-arcs-light.svg");
+  background-repeat: no-repeat;
+  background-position: top right;
+  background-size: 600px 130px;
+}
+.dark #navbar::after,
+[data-theme="dark"] #navbar::after {
+  background-image: url("/images/header-arcs-dark.svg");
+}
+
+/* Corner engraving hatch — hairlines fading in from the top-left. */
+#navbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.06;
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--nvmbg-ink) 0,
+    var(--nvmbg-ink) 0.5px,
+    transparent 0.5px,
+    transparent 5px
+  );
+  -webkit-mask-image: radial-gradient(120% 140% at 0 0, #000 0%, transparent 55%);
+  mask-image: radial-gradient(120% 140% at 0 0, #000 0%, transparent 55%);
 }
