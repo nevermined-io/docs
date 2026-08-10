@@ -30,7 +30,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.METRIC`](#bck-metric) — 5 codes
 - [`BCK.METRICS`](#bck-metrics) — 1 code
 - [`BCK.NOTIF`](#bck-notif) — 9 codes
-- [`BCK.OAUTH`](#bck-oauth) — 29 codes
+- [`BCK.OAUTH`](#bck-oauth) — 30 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
 - [`BCK.ORGANIZATIONS`](#bck-organizations) — 36 codes
 - [`BCK.ORG_INTEGRATION`](#bck-org_integration) — 2 codes
@@ -40,7 +40,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.PLANS`](#bck-plans) — 1 code
 - [`BCK.POINT`](#bck-point) — 19 codes
 - [`BCK.PROTOCOL`](#bck-protocol) — 57 codes
-- [`BCK.ROUTER`](#bck-router) — 9 codes
+- [`BCK.ROUTER`](#bck-router) — 10 codes
 - [`BCK.STRIPE`](#bck-stripe) — 34 codes
 - [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 8 codes
 - [`BCK.TRANSCODING`](#bck-transcoding) — 4 codes
@@ -356,6 +356,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-oauth-0027"></a>`BCK.OAUTH.0027` | 403 | auth | ❌ | This credential cannot create authorizations or spend mandates | An `account_access` credential is minted to SPEND against the card delegation it is bound to (via x402), NOT to run a new authorization ceremony or create another card mandate. It could otherwise mint itself a second, larger mandate on the same card, defeating the consented cap. Authorize from the human browser session, or use an agent-specific key for agent flows. #2574 B1. |
 | <a id="bck-oauth-0029"></a>`BCK.OAUTH.0029` | 500 | internal | ❌ | Internal error creating the agent binding | A server-side data-integrity condition — an agent-specific (credits_purchase) binding reached persistence without an agent id, which the database CHECK forbids. No action is required from the caller; inspect the API logs (the failing authorization request id is on the error `details`/`params`). #2578. |
 | <a id="bck-oauth-0030"></a>`BCK.OAUTH.0030` | 403 | auth | ❌ | This credential cannot use the Router spend rails or create delegations | An OAuth-minted credential (`credits_purchase` or `account_access`) may not call `POST /router/{payments,route,proxy}` or `POST /delegation/create`: those routes sign from the account wallet, outside the session-key policy the credential advertises — and a `credits_purchase` key owns no delegation, so any delegation it reaches was never consented for. Use a plain API key from the account owner, or the credential’s own x402 spend rail. #2575. |
+| <a id="bck-oauth-0031"></a>`BCK.OAUTH.0031` | 400 | auth | ❌ | Invalid client metadata document | The `client_id` was treated as a CIMD (Client ID Metadata Document) URL but did not resolve to a valid document. It must be an https URL on a public host that returns a JSON document whose `client_id` equals the URL and which declares a non-empty `client_name` and `redirect_uris`. If your host uses static registration instead, register it out-of-band and use its issued `client_id`. |
 
 ## <span id="bck-observability"></span>`BCK.OBSERVABILITY`
 
@@ -550,6 +551,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-router-0007"></a>`BCK.ROUTER.0007` | 429 | business | ✅ | Too many concurrent routed requests | You have too many in-flight mode-B routed requests (/route, /proxy) open at once. Let some complete before starting more, or slow the request rate. |
 | <a id="bck-router-0008"></a>`BCK.ROUTER.0008` | 403 | business | ❌ | Router requires an EIP-7702 (v2) API key | This is a legacy (v1) API key bound to the old smart account, which cannot sign EIP-3009 from the unified funded wallet. Create a new API key — it will be issued as v2 (EIP-7702) and works with the Router. Existing v1 keys keep working for credit-based (nvm:erc4337) flows until they expire. |
 | <a id="bck-router-0009"></a>`BCK.ROUTER.0009` | 402 | business | ❌ | Insufficient wallet balance to fund the payment | The buyer's custodial wallet does not hold enough of the payment asset on the target network to cover this charge. This is distinct from the delegation cap (BCK.ROUTER.0003): the cap authorizes the spend, but the wallet must also actually hold the funds. Fund the wallet on the target chain and retry. (MPP-tempo / crypto pulls settle from the wallet's own balance; the router never holds funds.) |
+| <a id="bck-router-0010"></a>`BCK.ROUTER.0010` | 500 | internal | ❌ | Router could not determine the amount to charge against the delegation cap | The payment handler reported a settlement amount in cents that is not a non-negative integer, so the routing-fee arithmetic (#2191) cannot compute what to reserve. This is an internal invariant violation, not a bad request — the value is produced by Nevermined, not the caller. It deliberately fails rather than defaulting to zero, which would reserve nothing and let the payment through free. DO NOT BLIND-RETRY: no budget was reserved and no payment record was written, but a payment credential WAS already minted (on the card rail, a Stripe Shared Payment Token that will auto-expire). Because no record exists, your requestId will not suppress a retry — and the cause is a deterministic defect in the rail's approxCents derivation, so a retry re-mints a fresh credential and fails identically. Report it instead. |
 
 ## <span id="bck-stripe"></span>`BCK.STRIPE`
 
