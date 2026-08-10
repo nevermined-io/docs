@@ -253,3 +253,22 @@ ul.sidebar-group {
 [data-theme="dark"] *:focus-visible {
   outline-color: #5eead4 !important;
 }
+
+/* =====================================================
+   Header — give the sticky navbar real presence.
+   It shipped fully transparent with a 0px bottom border, so it read as
+   no bar at all and page content ghosted under it on scroll. Make it a
+   defined, opaque bar using the system's OWN tokens: Mintlify's
+   --background-* page background, and the divider colour (#eef1f1) the
+   navbar already declared but had zeroed. No new colours introduced.
+   ===================================================== */
+#navbar {
+  background-color: rgb(var(--background-light, 255 255 255)) !important;
+  border-bottom: 1px solid #eef1f1 !important;
+}
+
+.dark #navbar,
+[data-theme="dark"] #navbar {
+  background-color: rgb(var(--background-dark, 11 14 15)) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
