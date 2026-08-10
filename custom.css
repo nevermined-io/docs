@@ -30,9 +30,9 @@ a.nav-tabs-item {
   background: transparent !important;
 }
 
-/* Hover */
+/* Hover — brand teal, matching the webapp's teal-forward nav (#2789) */
 a.nav-tabs-item:hover {
-  color: #111827 !important;
+  color: #0f766e !important;
   background: transparent !important;
 }
 
@@ -44,7 +44,7 @@ a.nav-tabs-item:hover {
 
 .dark a.nav-tabs-item:hover,
 [data-theme="dark"] a.nav-tabs-item:hover {
-  color: #f3f4f6 !important;
+  color: #5eead4 !important;
 }
 
 /* Mobile */
@@ -234,4 +234,22 @@ ul.sidebar-group {
 /* Navigation items container */
 #navigation-items {
   font-size: 13px !important;
+}
+
+/* =====================================================
+   Focus visibility — solid brand-teal ring (WCAG 2.4.7)
+   Ports the headline #2789 remediation: the webapp's focus ring
+   was an invisible grey (~1.5:1); it became solid brand teal (11.5:1).
+   Mintlify's default focus outline is likewise faint, so make keyboard
+   focus unmistakable in both themes. Scoped to :focus-visible so mouse
+   clicks don't draw rings.
+   ===================================================== */
+*:focus-visible {
+  outline: 2px solid #0f766e !important;
+  outline-offset: 2px !important;
+}
+
+.dark *:focus-visible,
+[data-theme="dark"] *:focus-visible {
+  outline-color: #5eead4 !important;
 }
