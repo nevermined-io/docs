@@ -1,6 +1,6 @@
-# Nevermined Payments SDK
+# Nevermined — Payments SDK and Router
 
-This repository contains documentation for Nevermined, an AI payment infrastructure platform. When assisting with code that integrates Nevermined payments, follow these patterns.
+This repository contains documentation for Nevermined, an AI payment infrastructure platform. It covers two halves: **receiving** payments (the SDK and REST patterns below) and **spending** at external x402 / MPP services through the **Nevermined Router** (last section). When assisting with code that integrates Nevermined, follow these patterns.
 
 ## SDK Packages
 
@@ -82,6 +82,73 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 
 When an agent must act on its own behalf at runtime (buy a plan, enroll a card, check credits/revenue), call the REST API directly with `Authorization: Bearer $NVM_API_KEY` against `https://api.sandbox.nevermined.app` (sandbox) or `https://api.live.nevermined.app` (live). Buy in two calls — `POST /api/v1/x402/permissions` (→ `accessToken`) then `POST /api/v1/x402/settle` (→ `creditsRedeemed`, `remainingBalance`). Crypto uses `scheme: "nvm:erc4337"` / `network: "eip155:84532"`; cards use `scheme: "nvm:card-delegation"` / `network: "stripe"`. A human is needed only for one-time setup — the first API key, plus card enrollment if paying by card (the stablecoin path needs neither). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.
 
+## Nevermined Router — paying external services
+
+Use the Router when the agent must **pay** a service it has no account with — any x402 agent or MPP merchant. Everything above is the other half: *receiving* payments and buying Nevermined plans. Plain HTTP, no SDK: `Authorization: Bearer $NVM_API_KEY` against `$NVM_API_URL` (`https://api.sandbox.nevermined.app` sandbox, `https://api.live.nevermined.app` live). **Never send `NVM_API_KEY` to the merchant** — it authenticates you to Nevermined only; the merchant's own auth goes in `headers`. The Router pays a price quoted **on the wire**, so a service answering `401`/`403` rather than `402` wants authentication, not payment — say so, don't route it.
+
+### 1. Create a Delegation (the budget)
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"provider":"erc4337","currency":"usdc","spendingLimitCents":500,"durationSecs":604800}'
+# → { "delegationId": "5e7481c3-…" }
+```
+
+All four fields are required — no defaults. `erc4337` is the crypto-funded Delegation both stablecoin rails need. Create it once and reuse the id.
+
+### 2. Fund the buyer wallet
+
+Both rails **pull** from your own custodial wallet: a Delegation authorizes a spend, it does not supply funds. Read the address off the live Delegation every time — `GET /api/v1/delegation/{id}` → `providerPaymentMethodId` — and fund it with the payment asset on the network you intend to pay on. **Never reuse a cached address**: a stale one is the most common cause of `402 BCK.ROUTER.0009`, and that error deliberately does not echo the address it checked.
+
+### 3. Discover a service (public catalog, no API key)
+
+```bash
+curl -s "$NVM_API_URL/api/v1/catalog/services?protocol=x402&search=web+search"
+```
+
+Only `protocol` of `x402` or `mpp` is routable — filter for them. **`targetUrl` is the default endpoint's complete URL, not a base** (it may already carry the path), so concatenating yields `/search/search`. Resolve instead:
+
+```ts
+const url = endpoint ? new URL(endpoint.path, service.targetUrl).toString() : service.targetUrl
+```
+
+### 4. Pay
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"delegationId":"'"$NVM_DELEGATION_ID"'","url":"https://service.example/api/resource",
+       "method":"POST","body":{"query":"…"},"requestId":"search-nevermined-router-v1"}'
+# → { "status": 200, "body": {…}, "paid": true,
+#     "payment": { "paymentId": "…", "settlement": { "approxCents": "1" }, "status": "Settled" } }
+```
+
+The Router probes the merchant, auto-detects the protocol from the 402, pays and relays. `status`/`body` are the merchant's own; `paid: false` with no `payment` block means the resource was free — handle that. For streaming use `ALL /api/v1/router/proxy` with `X-Router-Target-Url`, `X-Router-Delegation-Id` and `X-Router-Request-Id` headers.
+
+- **`requestId` is an idempotency key, not a request counter.** Use one stable id per logical purchase, reused across retries of that purchase: the same id returns the original payment, a fresh id buys again. **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.**
+- Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs $10.00, not $1.00. `settlement.approxCents` is what was actually reserved; trust it over any catalog `priceLabel`.
+
+### 5. Read what you spent
+
+`GET /api/v1/router/payments` (filters `delegationId`, `from`, `to`, `format=csv`) and `/api/v1/router/payments/summary`. `amount` is the asset's smallest unit, not cents. A record at `Issued` is **not** an error — the money moved; do not retry it.
+
+### Guardrails — a refusal is the system working
+
+| Code | Status | Meaning | Retry? |
+| --- | --- | --- | --- |
+| `BCK.ROUTER.0001` | 400 | Bad input / no fundable option / non-allowlisted asset; `details` names it | No |
+| `BCK.ROUTER.0002` | 409 | `requestId` already used; the original `paymentId` is in the response | No |
+| `BCK.ROUTER.0003` | 402 | Delegation over cap, expired, exhausted or revoked | No — **stop** |
+| `BCK.ROUTER.0006` | 500 | Transient failure building the payments summary | **Yes** |
+| `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight | **Yes**, after backoff |
+| `BCK.ROUTER.0008` | 403 | Legacy API key — create a new one | No |
+| `BCK.ROUTER.0009` | 402 | Wallet short on the target network; nothing was signed | No — **stop** |
+
+**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. Only `0006` and `0007` are retryable — everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
+
 ## Full Reference
 
 See `skills/nevermined-payments/SKILL.md` for complete integration patterns (Track A = operate autonomously via REST; Track B = add payments to your code via SDK) and its reference files.
+
+See `skills/nevermined-router/SKILL.md` and its `references/` for the Router half — discovery, mode A vs mode B, the ledger, and every guardrail.
