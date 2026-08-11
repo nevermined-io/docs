@@ -164,15 +164,22 @@ Three things are worth knowing about how a fee is applied.
 
 **It's reserved against your Delegation cap together with the merchant amount**, as a single combined charge. So your cap headroom drains by merchant + fee, which is why the merchant amounts on your ledger won't add up to the budget you've spent unless you count the fee too. `fee.capChargedCents` is the figure your cap was actually debited.
 
-**It's truncated, never rounded up.** The fee is computed in the settlement asset's smallest unit and rounded *down*, so a payment too small to earn a single atomic unit of fee is charged nothing at all.
+**The atomic fee rounds down; the cap charge rounds up.** These are two different numbers, rounded in opposite directions, and conflating them will understate what a payment costs you:
+
+- `fee.amount` — the fee in the asset's smallest unit — is rounded **down**, so a fee is never rounded up in Nevermined's favour.
+- `fee.capChargedCents` — what your Delegation cap is debited — is a **cents** figure, and cents always round up.
+
+How much that costs depends on what the rail can tell the Router about converting its asset to cents. When it can, the merchant amount and the fee are rounded up **together**, as one figure — so a sub-cent fee only costs you an extra cent when it tips the total across a cent boundary. When it can't, the fee is rounded up **on its own**, and then **any non-zero rate costs at least one whole cent of cap per payment** — a 1-cent purchase at 2% is debited 2 cents. That holds even when the fee rounded down to nothing in atomic terms: `fee.amount` can be `0` on a payment that still cost you a cent of budget.
+
+So don't derive the cap charge from the amount and the rate. Read `fee.capChargedCents` — it's the figure your budget actually moved by.
 
 Every mint response — `POST /payments` in mode A, `POST /route` in mode B — carries a `fee` object:
 
 | Field | What it is |
 | --- | --- |
 | `fee.bps` | The rate applied to this payment, in basis points over a 10,000 denominator. `0` means no routing fee was charged. |
-| `fee.amount` | The fee in the settlement asset's smallest unit — the same unit as `settlement.amount`. Reported atomically because cents are rounded up and can't express a sub-cent fee. |
-| `fee.cents` | What the fee added to the cap reserve, in cents. |
+| `fee.amount` | The fee in the settlement asset's smallest unit — the same unit as `settlement.amount`, rounded **down**. Reported atomically because cents are rounded up and can't express a sub-cent fee. |
+| `fee.cents` | What the fee added to the cap reserve, in cents, rounded **up**. |
 | `fee.capChargedCents` | The total debited from your Delegation cap for this payment: merchant leg + fee. |
 
 `settlement.approxCents` remains the **merchant** leg throughout — it is not the whole cap charge. With no fee configured the two are equal.

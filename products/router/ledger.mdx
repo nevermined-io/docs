@@ -52,16 +52,20 @@ An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ign
 
 ### The routing fee on a record
 
-`amount` is the **merchant** leg only. If a [routing fee](/products/router/how-it-works#the-routing-fee) applied, it was reserved against your cap on top of that amount, and four fields on the record say so:
+`amount` is the **merchant** leg only. If a [routing fee](/products/router/how-it-works#the-routing-fee) applied, it was reserved against your cap on top of that amount, and the record breaks it out:
 
 | Field | What it is |
 | --- | --- |
-| `feeAtomic` | The fee in the settlement asset's smallest unit — the same unit as `amount`. `0` when no fee applied. |
+| `feeAtomic` | The fee in the settlement asset's smallest unit — the same unit as `amount`. Rounded **down**. |
 | `feeBps` | The rate applied, in basis points over a 10,000 denominator. Pinned per row, so a later rate change never rewrites what an old payment was charged. |
-| `feeCents` | The cents this fee added to the cap reserve. |
+| `feeCents` | The cents this fee added to the cap reserve. Rounded **up**. |
 | `feeStatus` | The fee's own lifecycle, tracked independently of the record's `status`. |
 
-The fee is **configured per deployment and is currently `0`**, so today every row reads `feeBps: 0`, `feeStatus: "None"`, and a zero fee. Records created before the fee existed carry `null` in all four.
+<Warning>
+**`feeAtomic: "0"` doesn't mean the payment carried no fee.** The two figures round in opposite directions, so a fee that rounded down to nothing atomically can still have taken a whole cent of your cap. `feeCents` is the one that says what your budget paid — and it's the difference between `feeStatus: "None"` and `"Accrued"`, since `None` means *neither* figure was charged.
+</Warning>
+
+The fee is **configured per deployment and is currently `0`**, so today every row reads `feeBps: 0`, `feeStatus: "None"`, and a zero fee. Records created before the fee existed carry `null` in each of these.
 
 | `feeStatus` | Meaning |
 | --- | --- |
@@ -82,7 +86,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?from=2026-07-01T00:00:00Z&to=2026-0
   -H "Authorization: Bearer $NVM_API_KEY" -o router-payments-july.csv
 ```
 
-The CSV carries the same fields as the JSON, and the four fee columns sit at the **end** of the header row — so a consumer parsing by column index is unaffected by their arrival.
+The CSV carries the same fields as the JSON, and the fee columns sit at the **end** of the header row — so a consumer parsing by column index is unaffected by their arrival.
 
 ## Aggregate summary
 
