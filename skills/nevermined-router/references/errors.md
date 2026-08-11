@@ -27,7 +27,9 @@ unchanged produces the same answer.
 
 ### `0010` — the 500 you must not retry
 
-`0006` and `0010` are both 500s and behave in opposite ways, so "retry 5xx" is the wrong reflex here.
+`0006` and `0010` are both 500s and behave in opposite ways, so "retry 5xx" is the wrong reflex
+here. Note also that `0006` is raised **only by the payments summary read**, never by a payment —
+so on the paying path, `0007` is the only code worth retrying at all.
 
 `0010` means a payment handler reported a settlement amount in cents that isn't a non-negative
 integer, so the routing-fee arithmetic can't compute what to reserve. It deliberately fails rather
@@ -36,15 +38,21 @@ than defaulting to zero — reserving nothing would let the payment through free
 What that leaves behind is the important part:
 
 - **No budget was reserved and no payment record was written.**
-- **But a payment credential WAS already minted.** On the card rail that's a Stripe Shared Payment
-  Token, which auto-expires.
+- **But a payment credential WAS already minted**, because the fee is quoted after the signing step.
 - **Therefore your `requestId` cannot protect you.** Idempotency is enforced against the payment
   record, and there is no record — so a retry is treated as a brand-new purchase and mints a
   **fresh** credential.
 - The cause is a deterministic defect in that rail's `approxCents` derivation, not a transient
   blip, so the retry fails in exactly the same way.
 
-Report it to the human. Do not loop.
+**How much that actually costs you depends on the rail.** On the crypto rails the credential never
+leaves the Router process on this path, so no funds can move and nothing is at risk. On the card
+rail it is a Stripe Shared Payment Token that is left **stranded**: there is no revoke path, so it
+stands until `min(the merchant challenge's expiry, your Delegation's expiry, 89 days)`. You cannot
+clean it up from the outside.
+
+**Seeing `0010` at all is a Nevermined-side regression.** No rail emits a non-numeric amount today,
+so this is a bug to report, not a condition to handle. Report it to the human. Do not loop.
 
 Catalog codes: `BCK.CATALOG.0001` (404, unknown slug — case-sensitive), `BCK.CATALOG.0002` (500,
 transient, retryable), `BCK.CATALOG.0003` (400, bad `protocol` filter).

@@ -93,14 +93,16 @@ Exceeding the concurrency limit returns **`429 BCK.ROUTER.0007`**, which *is* re
 | `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight. | **Yes** |
 | `BCK.ROUTER.0008` | 403 | Legacy API key. Create a new one — see [the quickstart](/products/router/quickstart#1-get-an-api-key). | No |
 | `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on the target network. Nothing was signed. | No |
-| `BCK.ROUTER.0010` | 500 | Internal: a rail reported a charge amount the Router can't reserve against the cap. | No |
+| `BCK.ROUTER.0010` | 500 | Internal: a rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
 
 Only `0006` and `0007` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer.
 
 <Warning>
-**`0010` is a 500 that must never be retried** — which makes it the exception to "retry the 5xx". `0006` fails having done nothing; `0010` fails *after* a payment credential has already been minted, and because no payment record was written, your `requestId` can't suppress a retry. Idempotency is enforced against the record, and there isn't one — so a retry is treated as a fresh purchase, mints another credential, and then fails identically, because the cause is a deterministic defect rather than a transient blip.
+**`0010` is a 500 that must never be retried** — which makes it the exception to "retry the 5xx". In fact `0006`, the one retryable 500, is raised only by the payments *summary* read and never by a payment, so on the paying path **`0007` is the only code worth retrying at all**.
 
-Nothing was charged to your Delegation and no payment record exists, so there's no cleanup for you to do. On the card rail the stranded credential is a Stripe Shared Payment Token, which auto-expires. Report it rather than looping.
+`0010` fails *after* a payment credential has already been minted, and because no payment record was written, your `requestId` can't suppress a retry. Idempotency is enforced against the record, and there isn't one — so a retry is treated as a fresh purchase, mints another credential, and then fails identically, because the cause is a deterministic defect rather than a transient blip.
+
+Nothing was charged to your Delegation and no payment record exists. On the card rail the minted credential is a Stripe Shared Payment Token which is left stranded: there is no revoke path, so it stands until it expires, and that expiry is `min(the merchant challenge's expiry, your Delegation's expiry, 89 days)` — not necessarily soon. Nothing you can do about it from the outside, which is precisely why this should be reported rather than looped on.
 </Warning>
 
 ## Notes for autonomous agents
