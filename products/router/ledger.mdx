@@ -39,12 +39,41 @@ An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ign
     "delegationId": "5e7481c3-…",
     "requestId": "order-1234",
     "resourceUrl": "https://service.example/api/resource",
-    "buyer": "0x8D6A5233…"
+    "buyer": "0x8D6A5233…",
+    "feeAtomic": "0",
+    "feeBps": 0,
+    "feeCents": "0",
+    "feeStatus": "None"
   }
 ]
 ```
 
 `amount` is in the asset's smallest unit — divide by 10<sup>6</sup> for the 6-decimal stablecoins both rails use. The figure charged against your Delegation cap is the cents equivalent, **rounded up**, which is why a long run of sub-cent calls costs more budget than the raw amounts suggest.
+
+### The routing fee on a record
+
+`amount` is the **merchant** leg only. If a [routing fee](/products/router/how-it-works#the-routing-fee) applied, it was reserved against your cap on top of that amount, and four fields on the record say so:
+
+| Field | What it is |
+| --- | --- |
+| `feeAtomic` | The fee in the settlement asset's smallest unit — the same unit as `amount`. `0` when no fee applied. |
+| `feeBps` | The rate applied, in basis points over a 10,000 denominator. Pinned per row, so a later rate change never rewrites what an old payment was charged. |
+| `feeCents` | The cents this fee added to the cap reserve. |
+| `feeStatus` | The fee's own lifecycle, tracked independently of the record's `status`. |
+
+The fee is **configured per deployment and is currently `0`**, so today every row reads `feeBps: 0`, `feeStatus: "None"`, and a zero fee. Records created before the fee existed carry `null` in all four.
+
+| `feeStatus` | Meaning |
+| --- | --- |
+| `None` | No fee was charged — neither an atomic fee nor a cent of cap. The normal state while no rate is configured. |
+| `Accrued` | A fee was computed and reserved against the Delegation cap. Nothing has been submitted anywhere. |
+| `Submitted` | The fee movement was submitted and its outcome isn't confirmed yet. |
+| `Settled` | The fee movement landed on-chain. |
+| `Failed` | The fee movement was refused. |
+
+<Note>
+**This is why merchant amounts and spent budget don't reconcile on their own.** `amount` on this record is the merchant leg, so the combined cap charge isn't derivable from the ledger alone. It's recorded as `amountCents` on `GET /api/v1/delegation/{id}/transactions`, with the fee broken out in that row's `providerMetadata`.
+</Note>
 
 ### Export
 
@@ -52,6 +81,8 @@ An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ign
 curl -s "$NVM_API_URL/api/v1/router/payments?from=2026-07-01T00:00:00Z&to=2026-07-31T23:59:59Z&format=csv" \
   -H "Authorization: Bearer $NVM_API_KEY" -o router-payments-july.csv
 ```
+
+The CSV carries the same fields as the JSON, and the four fee columns sit at the **end** of the header row — so a consumer parsing by column index is unaffected by their arrival.
 
 ## Aggregate summary
 
@@ -85,6 +116,8 @@ The summary counts **payment requests**, not amounts. Use the list endpoint when
 | `Issued` | The credential was minted and the budget reserved. Either the call is still in flight, or it succeeded without a usable settlement reference. |
 | `Settled` | The merchant accepted the credential and returned a settlement reference, now stored as `txHash`. |
 | `Failed` | The merchant rejected the credential — it answered the paid request with another 402. |
+
+`status` describes the **merchant** leg. A routing fee has its own `feeStatus`, and the two move independently — see [the routing fee on a record](#the-routing-fee-on-a-record).
 
 <Warning>
 **`Issued` is not an error.** On a paid mode-B call it means the resource came back fine but the settlement anchor didn't — a missing, oversized, or malformed receipt. The Router deliberately will not fail an already-paid hop over a bad receipt. In mode A it's simply the state a record sits in until you report the settlement yourself.

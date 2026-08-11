@@ -14,7 +14,7 @@ Every Router payment follows the same five beats, whatever protocol the merchant
     The Router reads the challenge and works out which protocol it is — an `accepts` array means x402, a `WWW-Authenticate: Payment` header means MPP.
   </Step>
   <Step title="Mint">
-    The Router checks the spend against your Delegation, checks your wallet actually holds the funds, signs the payment from your custodial wallet, and reserves the amount against the cap.
+    The Router checks the spend against your Delegation, checks your wallet actually holds the funds, signs the payment from your custodial wallet, and reserves the amount — plus any [routing fee](#the-routing-fee) — against the cap.
   </Step>
   <Step title="Pay">
     The credential goes to the merchant as an HTTP header. The merchant verifies it, settles, and returns the resource.
@@ -57,6 +57,12 @@ Content-Type: application/json
       "network": "base-sepolia",
       "approxCents": "1",
       "scheme": "exact"
+    },
+    "fee": {
+      "bps": 0,
+      "amount": "0",
+      "cents": "0",
+      "capChargedCents": "1"
     },
     "txHash": "0xfc8af37b…",
     "status": "Settled"
@@ -109,7 +115,7 @@ Use mode A when your agent needs to make the upstream call itself — a client y
     }
     ```
 
-    You get back a `credential` — `{ transport, name, value }` — plus a `settlement` descriptor and a `paymentId`. The record is created `Issued`.
+    You get back a `credential` — `{ transport, name, value }` — plus a `settlement` descriptor, a [`fee`](#the-routing-fee) object, and a `paymentId`. The record is created `Issued`.
   </Step>
   <Step title="Attach it and re-request">
     Set the HTTP header named by `credential.name` to `credential.value`, and send your original request again. The merchant verifies, settles, and returns the resource.
@@ -143,6 +149,35 @@ Two independent things therefore have to be true for a payment to succeed:
 2. **The wallet actually holds the money** — on the specific network and in the specific asset the merchant demanded. Otherwise: `402 BCK.ROUTER.0009`.
 
 A cap is permission, not funds. You can hold a $50 Delegation and still fail to buy something for a penny if your wallet is empty on that chain. The Router checks the balance *before* signing, so an underfunded wallet costs you nothing — no credential is minted and no budget is reserved.
+
+## The routing fee
+
+Nevermined may charge a **routing fee** on each payment the Router makes for you. It's quoted in **basis points** over the amount you're paying the merchant — 100 basis points is 1% — and it's disclosed on the payment response, alongside what the merchant charged.
+
+<Note>
+**The fee is configured per deployment, and it is currently `0`.** Every payment today reserves exactly the merchant's amount, and every response comes back with `fee.bps: 0`. The fields below are already on the wire so your reconciliation doesn't have to change on the day a rate is set.
+</Note>
+
+Three things are worth knowing about how a fee is applied.
+
+**It's a separate movement, not a bigger one.** The credential the Router signs authorizes the merchant's exact amount and nothing more — a fee never rides the merchant's authorization, and a merchant is never paid more than it asked for. The fee is charged as its own movement.
+
+**It's reserved against your Delegation cap together with the merchant amount**, as a single combined charge. So your cap headroom drains by merchant + fee, which is why the merchant amounts on your ledger won't add up to the budget you've spent unless you count the fee too. `fee.capChargedCents` is the figure your cap was actually debited.
+
+**It's truncated, never rounded up.** The fee is computed in the settlement asset's smallest unit and rounded *down*, so a payment too small to earn a single atomic unit of fee is charged nothing at all.
+
+Every mint response — `POST /payments` in mode A, `POST /route` in mode B — carries a `fee` object:
+
+| Field | What it is |
+| --- | --- |
+| `fee.bps` | The rate applied to this payment, in basis points over a 10,000 denominator. `0` means no routing fee was charged. |
+| `fee.amount` | The fee in the settlement asset's smallest unit — the same unit as `settlement.amount`. Reported atomically because cents are rounded up and can't express a sub-cent fee. |
+| `fee.cents` | What the fee added to the cap reserve, in cents. |
+| `fee.capChargedCents` | The total debited from your Delegation cap for this payment: merchant leg + fee. |
+
+`settlement.approxCents` remains the **merchant** leg throughout — it is not the whole cap charge. With no fee configured the two are equal.
+
+The streaming `/proxy` variant returns its payment metadata as response headers, and there is no fee header among them. For those calls, read the fee from [the ledger record](/products/router/ledger#the-routing-fee-on-a-record).
 
 ## How settlement gets recorded
 
