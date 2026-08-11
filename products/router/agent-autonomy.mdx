@@ -240,6 +240,15 @@ Before a first run, check the things that most often turn into a "Router bug" th
 - **Confirm the merchant still answers `402`** on the rail you expect. A service that stops charging is relayed with `paid: false`, and a run can otherwise "succeed" having bought nothing.
 - **Check the catalog is loaded**, not serving placeholder rows — compare `total` and look at the `targetUrl`s.
 
+If you'd rather have *your* agent do the run than drive it yourself, give it the public **`nevermined-router` skill** — the same six steps plus the guardrails, written for an assistant to act on:
+
+```bash
+/plugin marketplace add nevermined-io/docs      # Claude Code
+/plugin install nevermined-router@nevermined
+```
+
+Other tools are covered in [AI Coding Skill](/development-guide/build-using-nvm-skill). The skill teaches the loop; it does not lift the cap, and an agent following it will stop on a refusal exactly as described above.
+
 <Note>
 **Nevermined staff:** a scripted version of exactly this run — the six steps plus a preflight covering every point above — lives in the internal `nvm-monorepo` repository at `.claude/skills/nvm-router-demo/`. It adds `--dry-run` (spends nothing) and `--selfcheck` (offline). It is not public, and nothing on this page depends on it.
 </Note>
