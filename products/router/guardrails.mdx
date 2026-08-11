@@ -95,7 +95,7 @@ Exceeding the concurrency limit returns **`429 BCK.ROUTER.0007`**, which *is* re
 | `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on the target network. Nothing was signed. | No |
 | `BCK.ROUTER.0010` | 500 | Internal: a rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
 
-Only `0006` and `0007` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer.
+Across the whole Router surface, only `0006` and `0007` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer. On the *paying* path the set is narrower still — see below.
 
 <Warning>
 **`0010` is a 500 that must never be retried** — which makes it the exception to "retry the 5xx". In fact `0006`, the one retryable 500, is raised only by the payments *summary* read and never by a payment, so on the paying path **`0007` is the only code worth retrying at all**.
