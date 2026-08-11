@@ -192,7 +192,7 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
 `status` and `body` are the merchant's own, unchanged. `paid: false` with no `payment` block means the resource was free — the Router relayed it and charged nothing.
 
 <a id="requestid"></a>
-**`requestId` is required, and it is an idempotency key — not a request counter.** Use **one stable id per logical purchase** and reuse it across retries of that purchase. Retrying a dropped call with the same id returns the original payment instead of buying twice; a fresh id buys twice, on purpose. Derive it from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per HTTP attempt — a fresh UUID on every retry is how an agent double-spends.
+**`requestId` is required, and it is an idempotency key — not a request counter.** Use **one stable id per logical purchase** and reuse it across retries of that purchase. Retrying a dropped call with the same id returns `409 BCK.ROUTER.0002` carrying the original `paymentId` — **not the resource** — instead of buying twice; a fresh id buys twice, on purpose. **Never answer that 409 by minting a fresh id**: that is the double-spend the key just prevented. If the purchase genuinely failed, report it. Derive it from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per HTTP attempt — a fresh UUID on every retry is how an agent double-spends.
 
 Mode A (you call the merchant yourself), the streaming `/proxy` variant, and passing the merchant's own auth: `references/paying.md`.
 

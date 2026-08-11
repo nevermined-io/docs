@@ -82,7 +82,7 @@ you actually wanted.
 
 **Use one stable id per logical purchase, reused across retries of that purchase.**
 
-- Same id on retry → returns the original payment. Safe.
+- Same id on retry → `409 BCK.ROUTER.0002` with the original `paymentId`, **not the resource**. Safe — and never escape that 409 with a fresh id.
 - Fresh id on retry → buys again. Also safe, *if that is what you meant*.
 
 Derive it from the work (`"search-nevermined-router-v1"`, a hash of the query, a task id). **A fresh

@@ -54,7 +54,7 @@ At most one payment is minted per `(caller, requestId)`. A duplicate returns **`
 
 Use **one stable id per logical purchase**, not per HTTP attempt:
 
-- Retrying a timed-out call with the **same** id → returns the original payment. Safe.
+- Retrying a timed-out call with the **same** id → `409 BCK.ROUTER.0002` with the original `paymentId`, **not the resource**. Safe — but don't escape that 409 by minting a fresh id.
 - Retrying with a **fresh** id → buys again. Also safe, but only if that's what you meant.
 
 ## What the Router won't fetch
