@@ -146,9 +146,15 @@ Both rails are **pull-based**. The credential the Router signs authorizes the *m
 Two independent things therefore have to be true for a payment to succeed:
 
 1. **The Delegation authorizes the spend** — enough cap remains and it hasn't expired. Otherwise: `402 BCK.ROUTER.0003`.
-2. **The wallet actually holds the money** — on the specific network and in the specific asset the merchant demanded. Otherwise: `402 BCK.ROUTER.0009`.
+2. **The wallet actually holds the money** — on the specific network and in the specific asset the merchant demanded.
 
-A cap is permission, not funds. You can hold a $50 Delegation and still fail to buy something for a penny if your wallet is empty on that chain. The Router checks the balance *before* signing, so an underfunded wallet costs you nothing — no credential is minted and no budget is reserved.
+A cap is permission, not funds. You can hold a $50 Delegation and still fail to buy something for a penny if your wallet is empty on that chain.
+
+<Warning>
+**How an underfunded wallet fails depends on the rail.** On **MPP** the Router reads your balance *before* signing, so a short wallet costs you nothing — you get `402 BCK.ROUTER.0009`, no credential is minted and no budget is reserved.
+
+On **x402 there is no balance pre-check.** The Router signs, your budget is reserved, and the shortfall only surfaces when the transfer is attempted on-chain — at which point the reserved cap is **not** given back. Fund the wallet before you call; don't rely on being stopped.
+</Warning>
 
 ## The routing fee
 
@@ -185,6 +191,12 @@ Every mint response — `POST /payments` in mode A, `POST /route` in mode B — 
 `settlement.approxCents` remains the **merchant** leg throughout — it is not the whole cap charge. With no fee configured the two are equal.
 
 The streaming `/proxy` variant returns its payment metadata as response headers, and there is no fee header among them. For those calls, read the fee from [the ledger record](/products/router/ledger#the-routing-fee-on-a-record).
+
+### Fund for the amount plus the fee
+
+Because the fee is its own movement, the merchant's amount and the fee are **two separate transfers** pulled from the same wallet in the same asset. A wallet holding exactly the merchant's quoted price does not cover both, and the two succeed or fail independently — one failing doesn't roll the other back.
+
+So size your funding by **amount + fee**, not by the quoted price. On x402, where [nothing checks your balance up front](#where-custody-sits), that's the difference between a shortfall being impossible and it being discovered after your budget is already committed.
 
 ## How settlement gets recorded
 

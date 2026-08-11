@@ -75,7 +75,13 @@ The `settlement.approxCents` field on every response tells you what the merchant
 
 The payment is a **pull**: your signature authorizes the merchant to take the amount from your own wallet. So the wallet must already hold that asset **on that chain** before you call.
 
-Get the address from your Delegation's `providerPaymentMethodId` — see [step 3 of the quickstart](/products/router/quickstart#3-fund-your-wallet). If it's short, the mint fails with **`402 BCK.ROUTER.0009`** and nothing is signed: no credential, no reserved budget, no partial state to clean up.
+Get the address from your Delegation's `providerPaymentMethodId` — see [step 3 of the quickstart](/products/router/quickstart#3-fund-your-wallet).
+
+<Warning>
+**On x402 the Router does not check your balance before signing.** A short wallet isn't refused up front: the credential is minted, your Delegation budget is reserved, and the shortfall only appears when the merchant attempts the transfer on-chain. The payment then lands as `Failed` — and the reserved cap is **not** given back. (The `402 BCK.ROUTER.0009` pre-check is [MPP-only](/products/router/rails-mpp#funding-your-wallet).)
+
+Fund for the merchant's amount **plus** any [routing fee](/products/router/how-it-works#fund-for-the-amount-plus-the-fee) — the fee is a second transfer from the same wallet, so the quoted price alone doesn't cover both.
+</Warning>
 
 The asset to send is the one the service's 402 advertises — `USDC` or `EURC`, 6 decimals, on the network in that entry. Base mainnet USDC is `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`.
 
