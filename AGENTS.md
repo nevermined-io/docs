@@ -144,6 +144,9 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 | `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight | **Yes**, after backoff |
 | `BCK.ROUTER.0008` | 403 | Legacy API key — create a new one | No |
 | `BCK.ROUTER.0009` | 402 | Wallet short on the target network; nothing was signed | No — **stop** |
+| `BCK.ROUTER.0010` | 500 | Internal: the rail reported an unusable charge amount | **No — never blind-retry** |
+
+**`0010` is the one 500 you must not retry.** Unlike `0006`, a payment credential **was already minted** before it failed, and because no payment record was written your `requestId` will *not* suppress a retry — so retrying re-mints a fresh credential and fails identically. Report it instead.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. Only `0006` and `0007` are retryable — everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
 
