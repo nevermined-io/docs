@@ -59,7 +59,7 @@ Both begin `0x20c0` and differ only in the tail, so they are easy to misread. Co
 
 Like x402, MPP `charge` is a **pull**: the merchant takes the amount from your own custodial wallet on the Tempo chain in question. Fund the address on your Delegation (`providerPaymentMethodId`) with the token for that chain before you call.
 
-An underfunded wallet fails with **`402 BCK.ROUTER.0009`**, checked *before* signing — nothing is minted and no budget is reserved.
+An underfunded wallet fails with **`402 BCK.ROUTER.0009`**, checked *before* signing — nothing is minted and no budget is reserved. That pre-check is specific to this chain-funded rail; [card-funded MPP](#card-funded-mpp) reaches the same error by a different route.
 
 On **Moderato** you can fund yourself in one RPC call — no faucet UI, no wallet, no signing:
 
@@ -112,6 +112,7 @@ The differences that matter:
 - It's funded by a **card** Delegation, not a crypto one. A crypto Delegation fails on this rail and vice versa.
 - There's **no recipient allowlist** — a card Delegation is deliberately not bound to a seller, so the guardrails are the spending cap and the expiry.
 - Settlement is a payment-processor reference rather than a transaction hash, and it isn't known until the merchant redeems — so the record stays `Issued` pending reconciliation.
+- **There's no balance to pre-check, so there isn't one.** Where the chain-funded rail reads your balance before signing, this one simply attempts the card. A decline surfaces as the same **`402 BCK.ROUTER.0009`**, and nothing is minted and no budget is reserved — but you've had a real decline on your card, not a check that spared you one.
 
 <Warning>
 This rail is **feature-flagged off by default and sandbox-only** while the underlying token issuance is still in limited availability. With the flag off, a card-funded payment is refused with `400 BCK.ROUTER.0001` before anything is minted. Don't build against it in production yet.
