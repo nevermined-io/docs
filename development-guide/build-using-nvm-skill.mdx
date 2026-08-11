@@ -17,11 +17,11 @@ There are two, and which one you want depends on which side of the payment you'r
 | **`nevermined-payments`** | **receiving** money, or buying a Nevermined plan | SDK integration, middleware, plans, credits — the rest of this page |
 | **`nevermined-router`** | **spending** money at external services | Discovering services in the catalog, creating a spending Delegation, paying any x402 or MPP endpoint through the [Nevermined Router](/products/router/overview) |
 
-Installing both is fine — they don't overlap. How you install the Router one depends on your tool:
+Installing both is fine — they don't overlap. Every supported tool can now get either skill:
 
-- **Claude Code, Cursor, Windsurf, Cline, Amazon Q** — swap `nevermined-payments` for `nevermined-router` in the paths below, or run the extra command shown in each tab.
-- **Codex CLI** — its `AGENTS.md` route is a *single* file with no skill name in it, and that file carries the **payments** guidance only. Use the tab's **"install as a Codex skill"** alternative instead: `.agents/skills/` takes a skill directory, so `nevermined-router` works there.
-- **GitHub Copilot** — `.github/copilot-instructions.md` is a single file with nothing to swap, and it carries the **payments** guidance only. Until that changes, use the [full skill on GitHub](https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router) or paste it in manually.
+- **Claude Code** — install them as plugins, one command each. See the tab below.
+- **Cursor, Windsurf, Cline, Amazon Q** — swap `nevermined-payments` for `nevermined-router` in the paths below, or run the extra command shown in each tab.
+- **Codex CLI and GitHub Copilot** — `AGENTS.md` and `.github/copilot-instructions.md` are *single* files with no skill name to swap, so each one carries **both** halves: the payments guidance and a condensed Router section. Take the whole file. Codex can also install `nevermined-router` as a proper skill directory under `.agents/skills/` — see its tab.
 
 ## What's Included
 
@@ -34,6 +34,13 @@ The skill provides your coding assistant with:
 - **Client-side** integration — ordering plans, generating tokens, calling protected APIs
 - **Troubleshooting** for common errors (402, `-32003`, `-32002`)
 
+And, from the Router skill:
+
+- **Service discovery** in the public Agent Services Catalog
+- **Spending Delegations** — creating a capped budget and funding the buyer wallet
+- **Paid calls** over x402 and MPP through one endpoint, with the protocol auto-detected
+- **Guardrails** — every `BCK.ROUTER.*` code, what's retryable, and why a refusal must not be worked around
+
 ## Install the Skill
 
 Choose your AI coding tool below for step-by-step installation instructions.
@@ -42,7 +49,20 @@ Choose your AI coding tool below for step-by-step installation instructions.
   <Tab title="Claude Code">
     ### Claude Code
 
-    **Commands to install** from the Nevermined repository:
+    Install from the Nevermined plugin marketplace — two commands, and Claude Code keeps the skills up to date for you:
+
+    ```bash
+    /plugin marketplace add nevermined-io/docs
+
+    /plugin install nevermined-payments@nevermined    # charging for your agent
+    /plugin install nevermined-router@nevermined      # buying from external services
+    ```
+
+    Install either or both. The marketplace is named `nevermined` (that's the `@nevermined` suffix); `nevermined-io/docs` is just the repository it's served from.
+
+    Claude Code loads each skill when it's relevant to your work, and refreshes it in the background when we publish changes. To update by hand, run `/plugin marketplace update nevermined`.
+
+    **Alternative — copy the files directly.** Use this if you'd rather pin a version, or you're on a Claude Code build without plugin support:
 
     ```bash
     mkdir -p ~/.claude/skills
@@ -57,27 +77,32 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
     cd -
     rm -rf "$tmpdir"
-
     ```
 
-    This downloads the `SKILL.md` and all reference files into your local Claude Code skills directory. Claude Code automatically loads the skill when it's relevant to your work.
+    Claude Code discovers skills automatically from `~/.claude/skills/` (personal) and `.claude/skills/` (project). Copied this way they're a snapshot — you re-run the command to update.
+  </Tab>
 
-    **Alternative — manual installation:**
+  <Tab title="ClawHub">
+    ### ClawHub
 
-    1. Clone or download the skill files:
-       ```bash
-       git clone https://github.com/nevermined-io/docs.git /tmp/nvm-docs
-       ```
-    2. Copy to your personal skills directory:
-       ```bash
-       cp -r /tmp/nvm-docs/skills/nevermined-payments ~/.claude/skills/
-       ```
-    3. Or copy to a project-specific location:
-       ```bash
-       cp -r /tmp/nvm-docs/skills/nevermined-payments .claude/skills/
-       ```
+    Both skills are published to the [ClawHub](https://clawhub.ai) registry under the `nevermined-io` publisher, so any tool that reads a `skills/` directory can pull them with one command:
 
-    Claude Code discovers skills automatically from `~/.claude/skills/` (personal) and `.claude/skills/` (project).
+    ```bash
+    npx clawhub install nevermined-router     # buying through the Router
+    npx clawhub install nevermined            # the payments skill
+    ```
+
+    This writes to `skills/<slug>/` in the current directory. `--dir` sets a different target — it's a global flag, so it goes **before** the subcommand:
+
+    ```bash
+    npx clawhub --dir ~/.claude/skills install nevermined-router
+    ```
+
+    No account or login is needed to install. Run `npx clawhub update` to pull the latest published version, and `npx clawhub inspect nevermined-router` to see what you'd get without installing it.
+
+    <Note>
+    ClawHub publishes the payments skill under the slug **`nevermined`**, not `nevermined-payments`. The Router skill's slug matches its name.
+    </Note>
   </Tab>
 
   <Tab title="Cursor">
@@ -238,13 +263,18 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
 | Tool | Config File | Router available? | Auto-Activates |
 |---|---|---|---|
-| **Claude Code** | `~/.claude/skills/<skill>/SKILL.md` | Yes | Yes — when relevant |
+| **Claude Code** | plugin, or `~/.claude/skills/<skill>/SKILL.md` | Yes | Yes — when relevant |
 | **Cursor** | `.cursor/rules/<skill>.mdc` | Yes | Yes — on `.ts`, `.js`, `.py` files |
 | **Windsurf** | `.windsurf/rules/<skill>.md` | Yes | Yes — model decides |
-| **GitHub Copilot** | `.github/copilot-instructions.md` | **No** — single file, payments only | Yes — always |
-| **Codex CLI** | `AGENTS.md` or `.agents/skills/<skill>/` | Yes — via `.agents/skills/`; **not** via `AGENTS.md` (single file, payments only) | Yes — always or when relevant |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | Yes — condensed, in the same single file | Yes — always |
+| **Codex CLI** | `AGENTS.md` or `.agents/skills/<skill>/` | Yes — condensed in `AGENTS.md`, in full via `.agents/skills/` | Yes — always or when relevant |
 | **Cline** | `.clinerules/<skill>.md` | Yes | Yes — on `.ts`, `.js`, `.py` files |
 | **Amazon Q** | `.amazonq/rules/<skill>.md` | Yes | Yes — always |
+| **Any** (ClawHub) | `skills/<slug>/SKILL.md` | Yes | Depends on the tool |
+
+<Note>
+The Copilot and Codex files are **condensed** — they carry the buy loop, the money traps and every guardrail, but not the full reference set. For the complete Router skill, install it as a directory (Claude Code plugin, ClawHub, or `.agents/skills/`).
+</Note>
 
 ## Example Prompts
 

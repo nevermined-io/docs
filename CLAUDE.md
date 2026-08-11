@@ -43,8 +43,10 @@ They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, C
 | `.windsurf/rules/<skill>.md` | payments, router (**6,000-char limit per file**) |
 | `.clinerules/<skill>.md` | payments, router |
 | `.amazonq/rules/<skill>.md` | payments, router |
-| `.github/copilot-instructions.md` | payments only — single file, no skill segment |
-| `AGENTS.md` | payments only — single file, no skill segment |
+| `.github/copilot-instructions.md` | payments + a condensed Router section — single file, no per-skill split |
+| `AGENTS.md` | payments + a condensed Router section — single file, no per-skill split |
+
+Both skills are also distributed as **Claude Code plugins** via `.claude-plugin/marketplace.json` at the repo root (`/plugin marketplace add nevermined-io/docs`), and to the **ClawHub** registry by `.github/workflows/publish-skill-clawhub.yml`. The marketplace entries use `source: "./skills"` with an explicit per-plugin `skills` array, so each plugin ships only `skills/` and not the whole 33 MB docs repo — do not change `source` to `"./"`. Validate any edit with `claude plugin validate .` before committing.
 
 `.cursor/` is otherwise gitignored; `.gitignore` re-includes `.cursor/rules/` specifically, because those files are published — users `curl` them from `main`, so one that fails to commit becomes a 404 in their editor. Both `development-guide/build-using-nvm-skill.mdx` (the install page) and its "Supported Tools at a Glance" table must be updated when this set changes.
 
