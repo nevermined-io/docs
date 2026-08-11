@@ -110,7 +110,7 @@ curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
 # → { "delegationId": "5e7481c3-…" }
 ```
 
-All four fields are required — no defaults. `erc4337` is the crypto-funded Delegation both stablecoin rails need. Create it once and reuse the id.
+All four fields are required — no defaults. `erc4337` is the crypto-funded Delegation both stablecoin rails need. Create it once and reuse the id. `allowedRecipients` is optional and **omitting it means no recipient restriction at all** — the budget can pay any merchant the Router can reach, bounded only by the cap and expiry.
 
 ### 2. Fund the buyer wallet
 
@@ -142,7 +142,7 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
 
 The Router probes the merchant, auto-detects the protocol from the 402, pays and relays. `status`/`body` are the merchant's own; `paid: false` with no `payment` block means the resource was free — handle that. For streaming use `ALL /api/v1/router/proxy` with `X-Router-Target-Url`, `X-Router-Delegation-Id` and `X-Router-Request-Id` headers.
 
-- **`requestId` is an idempotency key, not a request counter.** Use one stable id per logical purchase, reused across retries of that purchase: the same id returns the original payment, a fresh id buys again. **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.**
+- **`requestId` is an idempotency key, not a request counter.** Use one stable id per logical purchase, reused across retries of that purchase. **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.** Note what a same-id retry actually returns: `409 BCK.ROUTER.0002` carrying the original `paymentId` — **not the resource**. That is the protection working. **Never answer that 409 by minting a fresh id**, which is exactly the double-spend you avoided a moment ago; if the purchase genuinely failed, report it.
 - Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs $10.00, not $1.00. `settlement.approxCents` is what was actually reserved; trust it over any catalog `priceLabel`.
 
 ### 5. Read what you spent

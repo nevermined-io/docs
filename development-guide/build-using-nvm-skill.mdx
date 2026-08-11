@@ -1,6 +1,6 @@
 ---
 title: "AI Coding Skill"
-description: "Import Nevermined payment knowledge into your AI coding assistant and start building monetizable agents in minutes."
+description: "Import Nevermined payment and Router knowledge into your AI coding assistant — build agents that charge, and agents that buy."
 icon: "wand-magic-sparkles"
 ---
 
@@ -15,9 +15,9 @@ There are two, and which one you want depends on which side of the payment you'r
 | Skill | Your agent is… | Covers |
 | --- | --- | --- |
 | **`nevermined-payments`** | **receiving** money, or buying a Nevermined plan | SDK integration, middleware, plans, credits — the rest of this page |
-| **`nevermined-router`** | **spending** money at external services | Discovering services in the catalog, creating a spending Delegation, paying any x402 or MPP endpoint through the [Nevermined Router](/products/router/overview) |
+| **`nevermined-router`** | **spending** money at external services | Discovering services in the catalog, creating a spending Delegation, paying any x402 or MPP endpoint through the [Nevermined Router](/products/router/overview), and the guardrails an autonomous buyer must respect |
 
-Installing both is fine — they don't overlap. Every supported tool can now get either skill:
+Installing both is fine — they don't overlap. Every supported tool can now reach the Router:
 
 - **Claude Code** — install them as plugins, one command each. See the tab below.
 - **Cursor, Windsurf, Cline, Amazon Q** — swap `nevermined-payments` for `nevermined-router` in the paths below, or run the extra command shown in each tab.
@@ -25,7 +25,7 @@ Installing both is fine — they don't overlap. Every supported tool can now get
 
 ## What's Included
 
-The skill provides your coding assistant with:
+The skills provide your coding assistant with:
 
 - **SDK initialization** patterns for TypeScript and Python
 - **Framework-specific middleware** (Express.js, FastAPI, Strands, MCP, Google A2A)
@@ -51,18 +51,20 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
     Install from the Nevermined plugin marketplace — two commands, and Claude Code keeps the skills up to date for you:
 
-    ```bash
+    ```text
     /plugin marketplace add nevermined-io/docs
 
     /plugin install nevermined-payments@nevermined    # charging for your agent
     /plugin install nevermined-router@nevermined      # buying from external services
     ```
 
+    Those are Claude Code commands — type them in Claude Code, not in a shell.
+
     Install either or both. The marketplace is named `nevermined` (that's the `@nevermined` suffix); `nevermined-io/docs` is just the repository it's served from.
 
-    Claude Code loads each skill when it's relevant to your work, and refreshes it in the background when we publish changes. To update by hand, run `/plugin marketplace update nevermined`.
+    Claude Code loads each skill when it's relevant to your work, and refreshes it in the background when we publish changes. To update by hand it takes two steps — `/plugin marketplace update nevermined` refreshes the catalogue, then `/plugin update nevermined-router@nevermined` updates the installed plugin itself (restart to apply).
 
-    **Alternative — copy the files directly.** Use this if you'd rather pin a version, or you're on a Claude Code build without plugin support:
+    **Alternative — copy the files directly.** Use this if you'd rather take a snapshot you control, or you're on a Claude Code build without plugin support:
 
     ```bash
     mkdir -p ~/.claude/skills
@@ -88,8 +90,8 @@ Choose your AI coding tool below for step-by-step installation instructions.
     Both skills are published to the [ClawHub](https://clawhub.ai) registry under the `nevermined-io` publisher, so any tool that reads a `skills/` directory can pull them with one command:
 
     ```bash
-    npx clawhub install nevermined-router     # buying through the Router
     npx clawhub install nevermined            # the payments skill
+    npx clawhub install nevermined-router     # buying through the Router
     ```
 
     This writes to `skills/<slug>/` in the current directory. `--dir` sets a different target — it's a global flag, so it goes **before** the subcommand:
@@ -98,10 +100,12 @@ Choose your AI coding tool below for step-by-step installation instructions.
     npx clawhub --dir ~/.claude/skills install nevermined-router
     ```
 
-    No account or login is needed to install. Run `npx clawhub update` to pull the latest published version, and `npx clawhub inspect nevermined-router` to see what you'd get without installing it.
+    You don't need an account to install. `npx clawhub update --all` pulls the latest published versions (the bare `update` errors — it wants a slug or `--all`), and `npx clawhub inspect nevermined-router` shows what you'd get without installing it.
+
+    The install lock is per working directory, so if you installed with `--dir`, run the update from that same directory with the same flag: `npx clawhub --dir ~/.claude/skills update --all`.
 
     <Note>
-    ClawHub publishes the payments skill under the slug **`nevermined`**, not `nevermined-payments`. The Router skill's slug matches its name.
+    Two ClawHub surprises worth knowing. The payments skill is published under the slug **`nevermined`**, not `nevermined-payments` (the Router skill's slug matches its name). And the version `clawhub inspect` reports for the payments skill won't match the `Skill version` in its own `SKILL.md` header — the registry assigns its own numbering. Trust the registry's version for "is my copy current", and the file's for what changed.
     </Note>
   </Tab>
 
@@ -273,7 +277,7 @@ Choose your AI coding tool below for step-by-step installation instructions.
 | **Any** (ClawHub) | `skills/<slug>/SKILL.md` | Yes | Depends on the tool |
 
 <Note>
-The Copilot and Codex files are **condensed** — they carry the buy loop, the money traps and every guardrail, but not the full reference set. For the complete Router skill, install it as a directory (Claude Code plugin, ClawHub, or `.agents/skills/`).
+The Copilot and Codex files are **condensed** — they carry the buy loop, the money traps and every `BCK.ROUTER.*` retry decision, but not the full reference set: they omit `0004`/`0005`, everything the Router refuses outright (MPP splits, internal targets, redirects, forged `X-Router-*`), and the relay limits. For the complete Router skill, install it as a directory (Claude Code plugin, ClawHub, or `.agents/skills/`).
 </Note>
 
 ## Example Prompts
