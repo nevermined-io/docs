@@ -32,11 +32,13 @@ Delegations **expire silently**. A long-running agent that worked yesterday and 
 
 A cap authorizes a spend; it doesn't provide funds. Both rails **pull** from your own custodial wallet, so it has to hold the asset on the target network before you call — and what happens when it doesn't differs by rail.
 
-On **MPP**, the Router reads the balance *before* signing. If it's short you get **`402 BCK.ROUTER.0009`**, and nothing happens: no credential is minted, no budget is reserved, no partial state exists to clean up.
+On **MPP-tempo**, the Router reads your on-chain balance *before* signing. If it's short you get **`402 BCK.ROUTER.0009`**, and nothing happens: no credential is minted, no budget is reserved, no partial state exists to clean up.
 
-On **x402 there is no balance pre-check.** The Router signs and reserves your budget, and the shortfall surfaces only when the transfer is attempted on-chain — the payment lands as `Failed` and the reserved cap is **not** given back. Fund for the merchant's amount **plus** any [routing fee](/products/router/how-it-works#fund-for-the-amount-plus-the-fee), which is a second transfer from the same wallet.
+On **MPP-stripe** no balance is read at all — the card is attempted, and a decline comes back as that *same* `402 BCK.ROUTER.0009`. The outcome matches (nothing minted, nothing reserved), but it's a real decline on your card rather than a check that spared you one.
 
-On either rail, read the wallet address from the live Delegation (`providerPaymentMethodId`) rather than from anything you saved earlier. Funding a stale address is the most common cause of an underfunded wallet and the one that takes longest to spot — `0009` deliberately doesn't echo the address it checked, so it can't tell you that's what happened.
+On **x402 there is no balance check anywhere.** The Router signs and reserves your budget, and the shortfall surfaces only when the transfer is attempted on-chain — the payment lands as `Failed` and the reserved cap is **not** given back. Fund for the merchant's amount **plus** any [routing fee](/products/router/how-it-works#fund-for-the-amount-plus-the-fee), which is a second transfer from the same wallet.
+
+On any rail, read the wallet address from the live Delegation (`providerPaymentMethodId`) rather than from anything you saved earlier. Funding a stale address is the most common cause of an underfunded wallet and the one that takes longest to spot — `0009` deliberately doesn't echo the address it checked, so it can't tell you that's what happened.
 
 ## Who can be paid
 
@@ -94,7 +96,7 @@ Exceeding the concurrency limit returns **`429 BCK.ROUTER.0007`**, which *is* re
 | `BCK.ROUTER.0006` | 500 | Transient failure building the payments summary. | **Yes** |
 | `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight. | **Yes** |
 | `BCK.ROUTER.0008` | 403 | Legacy API key. Create a new one — see [the quickstart](/products/router/quickstart#1-get-an-api-key). | No |
-| `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on the target network. MPP only — nothing was signed and no budget was reserved. x402 has no balance pre-check, so a short wallet there fails on-chain instead. | No |
+| `BCK.ROUTER.0009` | 402 | You couldn't fund the payment. MPP only, and it covers two cases: MPP-tempo read your balance and found it short, or MPP-stripe attempted your card and it declined. Either way nothing was signed and no budget was reserved. x402 never raises this — it has no balance check, so a short wallet fails on-chain instead. | No |
 
 Only `0006` and `0007` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer.
 

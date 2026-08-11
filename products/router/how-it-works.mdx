@@ -150,10 +150,16 @@ Two independent things therefore have to be true for a payment to succeed:
 
 A cap is permission, not funds. You can hold a $50 Delegation and still fail to buy something for a penny if your wallet is empty on that chain.
 
-<Warning>
-**How an underfunded wallet fails depends on the rail.** On **MPP** the Router reads your balance *before* signing, so a short wallet costs you nothing — you get `402 BCK.ROUTER.0009`, no credential is minted and no budget is reserved.
+**What happens when you're short differs by rail** — and one `402 BCK.ROUTER.0009` covers two quite different things:
 
-On **x402 there is no balance pre-check.** The Router signs, your budget is reserved, and the shortfall only surfaces when the transfer is attempted on-chain — at which point the reserved cap is **not** given back. Fund the wallet before you call; don't rely on being stopped.
+| Rail | Before signing | When you're short |
+| --- | --- | --- |
+| **MPP-tempo** | Reads your on-chain balance | `402 BCK.ROUTER.0009`. Nothing minted, no budget reserved. |
+| **MPP-stripe** | Reads nothing — the card is attempted | A decline comes back as the same `402 BCK.ROUTER.0009`. Nothing minted and no budget reserved, but it's a real decline on your card, not a local check. |
+| **x402** | No balance check at all | Nothing stops you. The credential is signed and your budget reserved; the shortfall appears on-chain afterwards. |
+
+<Warning>
+**On x402 an underfunded wallet costs you budget.** With no pre-check the Router signs and reserves your cap, the merchant's transfer then fails on-chain, and the reserved cap is **not** given back. Fund before you call; don't rely on being stopped.
 </Warning>
 
 ## The routing fee
