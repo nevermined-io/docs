@@ -111,6 +111,8 @@ Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs 
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
 - Only `BCK.ROUTER.0006` (500) and `0007` (429, too many concurrent) are **retryable**. Everything
   else is a decision — retrying unchanged gives the same answer.
+- `BCK.ROUTER.0010` (500) — internal. **Never blind-retry it:** a credential was already minted and
+  no record was written, so `requestId` will not suppress the retry. Report it.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one

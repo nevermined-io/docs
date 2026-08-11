@@ -217,7 +217,7 @@ The Router signs payments from your wallet in response to instructions written b
 1. **`402 BCK.ROUTER.0003` (over cap / expired) and `402 BCK.ROUTER.0009` (wallet short) are stop conditions.** They mean "out of budget" and "out of money". Report them to the human. Do not route around them.
 2. **Never widen a Delegation, and never create a second one, in response to a refusal.** The cap is the user's decision, not a runtime obstacle. Creating a fresh Delegation to escape an exhausted one defeats the entire mechanism — it is the single worst thing you can do with this API.
 3. **One `requestId` per purchase**, reused across retries of that purchase. See [above](#requestid).
-4. **Only `0006` (500) and `0007` (429) are retryable.** Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007`; it means you have too many routed calls in flight.
+4. **Only `0006` (500) and `0007` (429) are retryable.** Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007`; it means you have too many routed calls in flight. **Do not generalise this to "retry 5xx"** — see [`0010`](#never-retry-0010).
 
 **Check the price before you commit.** `priceLabel` in the catalog is indicative; `settlement.approxCents` on the response is what you were actually charged. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each.
 
@@ -234,6 +234,10 @@ The Router signs payments from your wallet in response to instructions written b
 | `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight. | **Yes**, after backoff |
 | `BCK.ROUTER.0008` | 403 | Legacy API key. Create a new one. | No |
 | `BCK.ROUTER.0009` | 402 | Wallet doesn't hold enough of the asset on the target network. Nothing was signed. | No — **stop** |
+| `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
+
+<a id="never-retry-0010"></a>
+**`0010` is the one 500 you must never retry.** Unlike `0006`, a payment credential **was already minted** before it failed — and because no payment record was written, your `requestId` will *not* suppress the retry. So a retry mints a **fresh** credential and then fails identically, because the cause is a deterministic defect in the rail's amount derivation, not a transient blip. Report it to the human. (On the card rail the stranded credential is a Stripe Shared Payment Token, which auto-expires.)
 
 Catalog errors: `BCK.CATALOG.0001` (404, no listed service with that slug — slugs are case-sensitive), `BCK.CATALOG.0002` (500, transient, retryable), `BCK.CATALOG.0003` (400, `protocol` filter must be one of `x402`, `mpp`, `rest`, `a2a`, `other`).
 

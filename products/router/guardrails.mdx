@@ -93,8 +93,15 @@ Exceeding the concurrency limit returns **`429 BCK.ROUTER.0007`**, which *is* re
 | `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight. | **Yes** |
 | `BCK.ROUTER.0008` | 403 | Legacy API key. Create a new one — see [the quickstart](/products/router/quickstart#1-get-an-api-key). | No |
 | `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on the target network. Nothing was signed. | No |
+| `BCK.ROUTER.0010` | 500 | Internal: a rail reported a charge amount the Router can't reserve against the cap. | No |
 
 Only `0006` and `0007` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer.
+
+<Warning>
+**`0010` is a 500 that must never be retried** — which makes it the exception to "retry the 5xx". `0006` fails having done nothing; `0010` fails *after* a payment credential has already been minted, and because no payment record was written, your `requestId` can't suppress a retry. Idempotency is enforced against the record, and there isn't one — so a retry is treated as a fresh purchase, mints another credential, and then fails identically, because the cause is a deterministic defect rather than a transient blip.
+
+Nothing was charged to your Delegation and no payment record exists, so there's no cleanup for you to do. On the card rail the stranded credential is a Stripe Shared Payment Token, which auto-expires. Report it rather than looping.
+</Warning>
 
 ## Notes for autonomous agents
 

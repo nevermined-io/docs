@@ -20,9 +20,31 @@ obstacles is exactly the failure mode this design exists to prevent.
 | `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight | **Yes**, after backoff |
 | `BCK.ROUTER.0008` | 403 | Legacy API key — create a new one | No |
 | `BCK.ROUTER.0009` | 402 | Wallet doesn't hold enough of the asset on the target network. **Nothing was signed** | No — **stop** |
+| `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount that isn't a non-negative integer, so the Router can't reserve anything against the cap | No — **never blind-retry** |
 
 **Only `0006` and `0007` are worth retrying automatically.** The rest are decisions; retrying them
 unchanged produces the same answer.
+
+### `0010` — the 500 you must not retry
+
+`0006` and `0010` are both 500s and behave in opposite ways, so "retry 5xx" is the wrong reflex here.
+
+`0010` means a payment handler reported a settlement amount in cents that isn't a non-negative
+integer, so the routing-fee arithmetic can't compute what to reserve. It deliberately fails rather
+than defaulting to zero — reserving nothing would let the payment through free.
+
+What that leaves behind is the important part:
+
+- **No budget was reserved and no payment record was written.**
+- **But a payment credential WAS already minted.** On the card rail that's a Stripe Shared Payment
+  Token, which auto-expires.
+- **Therefore your `requestId` cannot protect you.** Idempotency is enforced against the payment
+  record, and there is no record — so a retry is treated as a brand-new purchase and mints a
+  **fresh** credential.
+- The cause is a deterministic defect in that rail's `approxCents` derivation, not a transient
+  blip, so the retry fails in exactly the same way.
+
+Report it to the human. Do not loop.
 
 Catalog codes: `BCK.CATALOG.0001` (404, unknown slug — case-sensitive), `BCK.CATALOG.0002` (500,
 transient, retryable), `BCK.CATALOG.0003` (400, bad `protocol` filter).
