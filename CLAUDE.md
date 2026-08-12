@@ -46,6 +46,8 @@ They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, C
 | `.github/copilot-instructions.md` | payments + a condensed Router section — single file, no per-skill split |
 | `AGENTS.md` | payments + a condensed Router section — single file, no per-skill split |
 
+⚠️ **`AGENTS.md` is parsed by Mintlify as MDX, so it must not contain HTML comments.** A `<!-- … -->` there fails the Mintlify Deployment check with *"Unexpected character `!` … to create a comment in MDX, use `{/* text */}`"* — verified on docs#289. Use `{/* … */}` in `AGENTS.md`. `.github/copilot-instructions.md` is **not** in Mintlify's content set (it appears in no `docs.json` route and there is no `.mintignore`), so plain HTML comments are fine there — which is why the two files legitimately differ on this one point.
+
 `.cursor/` is otherwise gitignored; `.gitignore` re-includes `.cursor/rules/` specifically, because those files are published — users `curl` them from `main`, so one that fails to commit becomes a 404 in their editor. Both `development-guide/build-using-nvm-skill.mdx` (the install page) and its "Supported Tools at a Glance" table must be updated when this set changes.
 
 ### Plugin and registry distribution
