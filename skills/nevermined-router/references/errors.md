@@ -21,9 +21,25 @@ obstacles is exactly the failure mode this design exists to prevent.
 | `BCK.ROUTER.0008` | 403 | Legacy API key — create a new one | No |
 | `BCK.ROUTER.0009` | 402 | Wallet doesn't hold enough of the asset on the target network. **Nothing was signed** | No — **stop** |
 | `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount that isn't a non-negative integer, so the Router can't reserve anything against the cap | No — **never blind-retry** |
+| `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
 
 **Only `0006` and `0007` are worth retrying automatically.** The rest are decisions; retrying them
 unchanged produces the same answer.
+
+### `0011` — the 402 that needs a human, not a retry
+
+Card rail only. The issuer demands **3-D Secure / SCA** before the charge can be used, and the Router
+has no human at a browser to complete it. **Nothing was charged, and the seller never received a
+usable credential** — the one Stripe created cannot be charged while it awaits authentication.
+
+Do **not** auto-retry. 3DS is often mandated per charge by industry rules, so every attempt
+re-demands it and mints another single-use card credential that is then abandoned — each expiring on
+its own at `min(the merchant's quoted expiry, your Delegation's expiry, 89 days)`. A later attempt
+*may* succeed, since whether authentication is demanded is decided per charge by the issuer, the card
+networks and Stripe's risk checks — but treat that as a human decision, not a loop.
+
+It is distinct from both other 402s: `0003` is your cap, `0009` is a card refused for lack of funds.
+Here the card is fine; it simply has not been authenticated for this charge.
 
 ### `0010` — the 500 you must not retry
 

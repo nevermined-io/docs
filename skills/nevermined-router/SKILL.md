@@ -217,7 +217,7 @@ The Router signs payments from your wallet in response to instructions written b
 1. **`402 BCK.ROUTER.0003` (over cap / expired) and `402 BCK.ROUTER.0009` (wallet short) are stop conditions.** They mean "out of budget" and "out of money". Report them to the human. Do not route around them.
 2. **Never widen a Delegation, and never create a second one, in response to a refusal.** The cap is the user's decision, not a runtime obstacle. Creating a fresh Delegation to escape an exhausted one defeats the entire mechanism — it is the single worst thing you can do with this API.
 3. **One `requestId` per purchase**, reused across retries of that purchase. See [above](#requestid).
-4. **Only `0006` (500) and `0007` (429) are retryable.** Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007`; it means you have too many routed calls in flight. **Do not generalise this to "retry 5xx"** — see [`0010`](#never-retry-0010).
+4. **Only `0006` (500) and `0007` (429) are retryable.** Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007`; it means you have too many routed calls in flight. **The HTTP status does not tell you whether to retry** — `0010` is a 500 you must not retry and `0011` is a 402 you must not retry. Read the code, not the status.
 
 **Check the price before you commit.** `priceLabel` in the catalog is indicative; `settlement.approxCents` on the response is what you were actually charged. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each.
 
@@ -235,8 +235,11 @@ The Router signs payments from your wallet in response to instructions written b
 | `BCK.ROUTER.0008` | 403 | Legacy API key. Create a new one. | No |
 | `BCK.ROUTER.0009` | 402 | Wallet doesn't hold enough of the asset on the target network. Nothing was signed. | No — **stop** |
 | `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
+| `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
 
 <a id="never-retry-0010"></a>
+**`0011` needs a human, not a retry.** The card issuer is demanding 3-D Secure and the Router has no browser to answer it. Nothing was charged. Do **not** loop: 3DS is often mandated per charge, so every attempt re-demands it and mints a fresh single-use card credential that is then abandoned. A later *human-driven* attempt may succeed — that is a decision, not a retry.
+
 **`0010` is the one 500 you must never retry.** A payment credential **was already minted** before it failed — and because no payment record was written, your `requestId` will *not* suppress the retry. So a retry mints a **fresh** credential and then fails identically, because the cause is a deterministic defect in the rail's amount derivation, not a transient blip. Report it to the human.
 
 Note `0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. **On the paying path `0007` is the only code worth retrying at all.** And seeing `0010` at all means a Nevermined-side regression: no rail emits a non-numeric amount today, so it is a bug report, not a condition to handle. (On the card rail the minted credential is a Stripe Shared Payment Token, left stranded with no revoke path until `min(challenge expiry, Delegation expiry, 89 days)`.)
