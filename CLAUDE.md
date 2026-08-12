@@ -43,10 +43,24 @@ They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, C
 | `.windsurf/rules/<skill>.md` | payments, router (**6,000-char limit per file**) |
 | `.clinerules/<skill>.md` | payments, router |
 | `.amazonq/rules/<skill>.md` | payments, router |
-| `.github/copilot-instructions.md` | payments only — single file, no skill segment |
-| `AGENTS.md` | payments only — single file, no skill segment |
+| `.github/copilot-instructions.md` | payments + a condensed Router section — single file, no per-skill split |
+| `AGENTS.md` | payments + a condensed Router section — single file, no per-skill split |
+
+⚠️ **`AGENTS.md` is parsed by Mintlify as MDX, so it must not contain HTML comments.** A `<!-- … -->` there fails the Mintlify Deployment check with *"Unexpected character `!` … to create a comment in MDX, use `{/* text */}`"* — verified on docs#289. Use `{/* … */}` in `AGENTS.md`. `.github/copilot-instructions.md` is **not** in Mintlify's content set (it appears in no `docs.json` route and there is no `.mintignore`), so plain HTML comments are fine there — which is why the two files legitimately differ on this one point.
 
 `.cursor/` is otherwise gitignored; `.gitignore` re-includes `.cursor/rules/` specifically, because those files are published — users `curl` them from `main`, so one that fails to commit becomes a 404 in their editor. Both `development-guide/build-using-nvm-skill.mdx` (the install page) and its "Supported Tools at a Glance" table must be updated when this set changes.
+
+### Plugin and registry distribution
+
+Both skills are also distributed as **Claude Code plugins** via `.claude-plugin/marketplace.json` at the repo root (`/plugin marketplace add nevermined-io/docs`), and to the **ClawHub** registry by `.github/workflows/publish-skill-clawhub.yml`. The install page must be updated for these surfaces too.
+
+The marketplace entries use `source: "./skills"` with an explicit per-plugin `skills` array. **`source` is a copy boundary, not just a lookup path**: it is the directory copied into `~/.claude/plugins/cache/<marketplace>/<plugin>/`, and it becomes that plugin's root. With `source: "./"` every plugin would carry the entire repo — `video/` and `images/` are ~94% of it — and would carry it *again* for the second plugin. Scoped to `./skills`, each plugin carries the skills tree only (~200 KB against ~32 MiB for the repo). Do not change it to `"./"`.
+
+⚠️ **Do not justify this by the download size, and do not expect `marketplace add` to get smaller.** `/plugin marketplace add` materializes a **full-content snapshot of the repo's default branch** into `~/.claude/plugins/marketplaces/<name>/` — every top-level directory, no `.git` — *regardless of what `source` says* (verified against the installed `anthropics/claude-plugins-official`). So the repo lands on disk either way; what `source` controls is what each installed **plugin** copies and loads on top of that. A maintainer who adds the marketplace, watches ~32 MiB arrive anyway, and concludes "the `source` trick does nothing" would be drawing the right conclusion from the wrong claim — which is why the argument here is about plugin content, not bandwidth.
+
+⚠️ **Nothing enforces that.** `claude plugin validate` checks the manifest's *shape* only — verified by mutation, it passes a `source` of `"./"`, a removed `strict`, and even a `skills` entry pointing at a directory that does not exist. Run it to catch malformed JSON, but the `source`/`skills` invariant is on the reviewer. The honest test is a round trip: add the marketplace from a local path, install, and check the footprint with `du -sh ~/.claude/plugins/cache/<marketplace>/*/*/`.
+
+`strict: false` is load-bearing too: it tells the marketplace entry — rather than a `plugin.json` inside the skill directory — to define which skills the plugin exposes. The skill directories have no `plugin.json`, so removing `strict` would leave the entries claiming components nothing declares.
 
 ---
 

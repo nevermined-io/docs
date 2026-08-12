@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "nevermined",
+  "description": "Nevermined's AI coding skills: monetize an agent with the Payments SDK, or let one buy from external x402 / MPP services through the Nevermined Router.",
+  "owner": {
+    "name": "Nevermined",
+    "url": "https://nevermined.ai"
+  },
+  "plugins": [
+    {
+      "name": "nevermined-payments",
+      "displayName": "Nevermined Payments",
+      "description": "Charge for your AI agent or API. Covers the Nevermined Payments SDK (TypeScript and Python), the x402 protocol, payment plans and credits, and middleware for Express, FastAPI, Strands, MCP and Google A2A.",
+      "author": {
+        "name": "Nevermined",
+        "url": "https://nevermined.ai"
+      },
+      "homepage": "https://nevermined.ai/docs/development-guide/build-using-nvm-skill",
+      "license": "MIT-0",
+      "category": "development",
+      "keywords": [
+        "payments",
+        "x402",
+        "agents",
+        "monetization",
+        "mcp"
+      ],
+      "source": "./skills",
+      "strict": false,
+      "skills": [
+        "./nevermined-payments"
+      ]
+    },
+    {
+      "name": "nevermined-router",
+      "displayName": "Nevermined Router",
+      "description": "Let your agent pay external services it has no account with. Covers discovering services in the Agent Services Catalog, creating a capped spending Delegation, paying any x402 or MPP endpoint through the Nevermined Router, reading the payment ledger, and the guardrails an autonomous buyer must respect.",
+      "author": {
+        "name": "Nevermined",
+        "url": "https://nevermined.ai"
+      },
+      "homepage": "https://nevermined.ai/docs/products/router/overview",
+      "license": "MIT-0",
+      "category": "development",
+      "keywords": [
+        "payments",
+        "x402",
+        "mpp",
+        "agents",
+        "autonomous-buying"
+      ],
+      "source": "./skills",
+      "strict": false,
+      "skills": [
+        "./nevermined-router"
+      ]
+    }
+  ]
+}
