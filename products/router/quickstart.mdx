@@ -103,7 +103,7 @@ curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
 The address is the same on every EVM chain — it's one key-derived wallet, so there is nothing extra to create on Tempo. But **the balances are per-chain**: funding Base does nothing for an MPP payment. See [the x402 rail](/products/router/rails-x402) and [the MPP rail](/products/router/rails-mpp) for the full picture.
 
 <Note>
-**Funding is manual today.** There is no on-ramp — you cannot top this wallet up from a card or from a Nevermined credit balance, and the agent cannot refill itself. When the wallet runs dry, payments stop with `402 BCK.ROUTER.0009` until a human sends more. Budget for that when you decide how much to fund: an agent is autonomous *after* it is funded, and only until the balance runs out.
+**Funding is manual today.** There is no on-ramp — you cannot top this wallet up from a card or from a Nevermined credit balance, and the agent cannot refill itself. When the wallet runs dry, payments stop until a human sends more: on MPP with a clean `402 BCK.ROUTER.0009`, on x402 [less kindly](/products/router/rails-x402#funding-your-wallet), because that rail doesn't check the balance before signing. Budget for that when you decide how much to fund — and fund for the merchant's price **plus** any [routing fee](/products/router/how-it-works#the-routing-fee). An agent is autonomous *after* it is funded, and only until the balance runs out.
 </Note>
 
 <Warning>
@@ -207,7 +207,7 @@ Refusals are the system working. The three you're most likely to meet:
 | Code | Status | What happened |
 | --- | --- | --- |
 | `BCK.ROUTER.0003` | 402 | The spend would exceed your Delegation cap, or the Delegation expired. |
-| `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on that network. Nothing was signed. |
+| `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on that network. MPP only — nothing was signed. x402 has no balance pre-check and fails on-chain instead. |
 | `BCK.ROUTER.0002` | 409 | That `requestId` already bought something. The original `paymentId` is in the response. |
 
 [Guardrails](/products/router/guardrails) covers every code and, more usefully, why widening a cap in response to a refusal is almost always the wrong move.

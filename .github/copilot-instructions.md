@@ -96,6 +96,7 @@ Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is 
 - **Seller analytics:** discover your `orgId` from `.orgId` on `GET /protocol/plans` / `/protocol/agents` records (no separate lookup endpoint). A malformed/placeholder `orgId` returns a silent 200-of-zeros; a non-Premium org returns `403 BCK.ORGANIZATIONS.0022`; a non-admin org returns `403 BCK.AUTH.0004`.
 
 ## Nevermined Router — paying external services
+<!-- Keep this Router section in sync with the identical one in AGENTS.md (and vice-versa). -->
 
 Use the Router when the agent must **pay** a service it has no account with — any x402 agent or MPP merchant. Everything above is the other half: *receiving* payments and buying Nevermined plans. Plain HTTP, no SDK: `Authorization: Bearer $NVM_API_KEY` against `$NVM_API_URL` (`https://api.sandbox.nevermined.app` sandbox, `https://api.live.nevermined.app` live). **Never send `NVM_API_KEY` to the merchant** — it authenticates you to Nevermined only; the merchant's own auth goes in `headers`.
 
@@ -110,7 +111,7 @@ curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
 # → { "delegationId": "5e7481c3-…" }
 ```
 
-All four fields are required — no defaults. `erc4337` is the crypto-funded Delegation both stablecoin rails need. Create it once and reuse the id.
+All four fields are required — no defaults. `erc4337` is the crypto-funded Delegation both stablecoin rails need. Create it once and reuse the id. `allowedRecipients` is optional and **omitting it means no recipient restriction at all** — the budget can pay any merchant the Router can reach, bounded only by the cap and expiry.
 
 ### 2. Fund the buyer wallet
 
@@ -142,7 +143,7 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
 
 The Router probes the merchant, auto-detects the protocol from the 402, pays and relays. `status`/`body` are the merchant's own; `paid: false` with no `payment` block means the resource was free — handle that. For streaming use `ALL /api/v1/router/proxy` with `X-Router-Target-Url`, `X-Router-Delegation-Id` and `X-Router-Request-Id` headers.
 
-- **`requestId` is an idempotency key, not a request counter.** Use one stable id per logical purchase, reused across retries of that purchase: the same id returns the original payment, a fresh id buys again. **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.**
+- **`requestId` is an idempotency key, not a request counter.** Use one stable id per logical purchase, reused across retries of that purchase. **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.** Note what a same-id retry actually returns: `409 BCK.ROUTER.0002` carrying the original `paymentId` — **not the resource**. That is the protection working. **Never answer that 409 by minting a fresh id**, which is exactly the double-spend you avoided a moment ago; if the purchase genuinely failed, report it.
 - Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs $10.00, not $1.00. `settlement.approxCents` is what was actually reserved; trust it over any catalog `priceLabel`.
 
 ### 5. Read what you spent
@@ -160,8 +161,16 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 | `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight | **Yes**, after backoff |
 | `BCK.ROUTER.0008` | 403 | Legacy API key — create a new one | No |
 | `BCK.ROUTER.0009` | 402 | Wallet short on the target network; nothing was signed | No — **stop** |
+| `BCK.ROUTER.0010` | 500 | Internal: the rail reported an unusable charge amount | **No — never blind-retry** |
+| `BCK.ROUTER.0011` | 402 | Card rail: needs cardholder 3-D Secure, which an agent can't complete. Nothing charged, no usable credential | No — **needs a human** |
 
-**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. Only `0006` and `0007` are retryable — everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
+**Neither `0010` nor `0011` may be auto-retried, and the HTTP status won't tell you that** — one is a 500, the other a 402 that reads like a routine payment error. Read the code, not the status.
+
+**`0011`** means the card issuer wants 3-D Secure and the agent has no browser to answer it. Nothing was charged. Don't loop: 3DS is often mandated per charge, so each attempt re-demands it and strands a fresh single-use card credential. Surface it to a human.
+
+**`0010` is the one 500 you must not retry.** A payment credential **was already minted** before it failed, and because no payment record was written your `requestId` will *not* suppress a retry — so retrying re-mints a fresh credential and fails identically. Report it instead. (`0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. On the paying path `0007` is the only code worth retrying at all.)
+
+**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. **On the paying path `0007` is the only retryable code** — `0006` can only come from the summary read, so any *other* 500 from `/route` is a stop. Everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
 
 ## Full Reference
 
