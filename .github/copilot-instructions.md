@@ -96,6 +96,7 @@ Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is 
 - **Seller analytics:** discover your `orgId` from `.orgId` on `GET /protocol/plans` / `/protocol/agents` records (no separate lookup endpoint). A malformed/placeholder `orgId` returns a silent 200-of-zeros; a non-Premium org returns `403 BCK.ORGANIZATIONS.0022`; a non-admin org returns `403 BCK.AUTH.0004`.
 
 ## Nevermined Router — paying external services
+<!-- Keep this Router section in sync with the identical one in AGENTS.md (and vice-versa). -->
 
 Use the Router when the agent must **pay** a service it has no account with — any x402 agent or MPP merchant. Everything above is the other half: *receiving* payments and buying Nevermined plans. Plain HTTP, no SDK: `Authorization: Bearer $NVM_API_KEY` against `$NVM_API_URL` (`https://api.sandbox.nevermined.app` sandbox, `https://api.live.nevermined.app` live). **Never send `NVM_API_KEY` to the merchant** — it authenticates you to Nevermined only; the merchant's own auth goes in `headers`.
 
