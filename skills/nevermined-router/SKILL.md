@@ -237,7 +237,6 @@ The Router signs payments from your wallet in response to instructions written b
 | `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
 | `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
 
-<a id="never-retry-0010"></a>
 **`0011` needs a human, not a retry.** The card issuer is demanding 3-D Secure and the Router has no browser to answer it. Nothing was charged. Do **not** loop: 3DS is often mandated per charge, so every attempt re-demands it and mints a fresh single-use card credential that is then abandoned. A later *human-driven* attempt may succeed — that is a decision, not a retry.
 
 **`0010` is the one 500 you must never retry.** A payment credential **was already minted** before it failed — and because no payment record was written, your `requestId` will *not* suppress the retry. So a retry mints a **fresh** credential and then fails identically, because the cause is a deterministic defect in the rail's amount derivation, not a transient blip. Report it to the human.
