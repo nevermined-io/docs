@@ -20,9 +20,55 @@ obstacles is exactly the failure mode this design exists to prevent.
 | `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight | **Yes**, after backoff |
 | `BCK.ROUTER.0008` | 403 | Legacy API key — create a new one | No |
 | `BCK.ROUTER.0009` | 402 | Wallet doesn't hold enough of the asset on the target network. **Nothing was signed** | No — **stop** |
+| `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount that isn't a non-negative integer, so the Router can't reserve anything against the cap | No — **never blind-retry** |
+| `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
 
 **Only `0006` and `0007` are worth retrying automatically.** The rest are decisions; retrying them
 unchanged produces the same answer.
+
+### `0011` — the 402 that needs a human, not a retry
+
+Card rail only. The issuer demands **3-D Secure / SCA** before the charge can be used, and the Router
+has no human at a browser to complete it. **Nothing was charged, and the seller never received a
+usable credential** — the one Stripe created cannot be charged while it awaits authentication.
+
+Do **not** auto-retry. 3DS is often mandated per charge by industry rules, so every attempt
+re-demands it and mints another single-use card credential that is then abandoned — each expiring on
+its own at `min(the merchant's quoted expiry, your Delegation's expiry, 89 days)`. A later attempt
+*may* succeed, since whether authentication is demanded is decided per charge by the issuer, the card
+networks and Stripe's risk checks — but treat that as a human decision, not a loop.
+
+It is distinct from both other 402s: `0003` is your cap, `0009` is a card refused for lack of funds.
+Here the card is fine; it simply has not been authenticated for this charge.
+
+### `0010` — the 500 you must not retry
+
+`0006` and `0010` are both 500s and behave in opposite ways, so "retry 5xx" is the wrong reflex
+here. Note also that `0006` is raised **only by the payments summary read**, never by a payment —
+so on the paying path, `0007` is the only code worth retrying at all.
+
+`0010` means a payment handler reported a settlement amount in cents that isn't a non-negative
+integer, so the routing-fee arithmetic can't compute what to reserve. It deliberately fails rather
+than defaulting to zero — reserving nothing would let the payment through free.
+
+What that leaves behind is the important part:
+
+- **No budget was reserved and no payment record was written.**
+- **But a payment credential WAS already minted**, because the fee is quoted after the signing step.
+- **Therefore your `requestId` cannot protect you.** Idempotency is enforced against the payment
+  record, and there is no record — so a retry is treated as a brand-new purchase and mints a
+  **fresh** credential.
+- The cause is a deterministic defect in that rail's `approxCents` derivation, not a transient
+  blip, so the retry fails in exactly the same way.
+
+**How much that actually costs you depends on the rail.** On the crypto rails the credential never
+leaves the Router process on this path, so no funds can move and nothing is at risk. On the card
+rail it is a Stripe Shared Payment Token that is left **stranded**: there is no revoke path, so it
+stands until `min(the merchant challenge's expiry, your Delegation's expiry, 89 days)`. You cannot
+clean it up from the outside.
+
+**Seeing `0010` at all is a Nevermined-side regression.** No rail emits a non-numeric amount today,
+so this is a bug to report, not a condition to handle. Report it to the human. Do not loop.
 
 Catalog codes: `BCK.CATALOG.0001` (404, unknown slug — case-sensitive), `BCK.CATALOG.0002` (500,
 transient, retryable), `BCK.CATALOG.0003` (400, bad `protocol` filter).
