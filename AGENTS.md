@@ -145,6 +145,11 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 | `BCK.ROUTER.0008` | 403 | Legacy API key — create a new one | No |
 | `BCK.ROUTER.0009` | 402 | Wallet short on the target network; nothing was signed | No — **stop** |
 | `BCK.ROUTER.0010` | 500 | Internal: the rail reported an unusable charge amount | **No — never blind-retry** |
+| `BCK.ROUTER.0011` | 402 | Card rail: needs cardholder 3-D Secure, which an agent can't complete. Nothing charged, no usable credential | No — **needs a human** |
+
+**Neither `0010` nor `0011` may be auto-retried, and the HTTP status won't tell you that** — one is a 500, the other a 402 that reads like a routine payment error. Read the code, not the status.
+
+**`0011`** means the card issuer wants 3-D Secure and the agent has no browser to answer it. Nothing was charged. Don't loop: 3DS is often mandated per charge, so each attempt re-demands it and strands a fresh single-use card credential. Surface it to a human.
 
 **`0010` is the one 500 you must not retry.** A payment credential **was already minted** before it failed, and because no payment record was written your `requestId` will *not* suppress a retry — so retrying re-mints a fresh credential and fails identically. Report it instead. (`0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. On the paying path `0007` is the only code worth retrying at all.)
 
