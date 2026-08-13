@@ -72,6 +72,11 @@ export NVM_API_KEY="<your-api-key>"
 
 Everything is plain HTTP with `Authorization: Bearer $NVM_API_KEY`. There is **no SDK for the Router yet** — that is deliberate here, because it means any agent in any language can drive it with an HTTP client. The one exception is the catalog, which is public and needs no key at all.
 
+<a id="rail-availability"></a>
+**The two rails are enabled independently per deployment, and the MPP rail is not on everywhere.** x402 (Base) is available by default. MPP (Tempo) requires the operator to allowlist the payment token for that chain, and the allowlist is **fail-closed** — where it is unset, *every* MPP service is refused with `400 BCK.ROUTER.0001 … not allowlisted`, before anything is signed.
+
+**As of 2026-08-13 the MPP rail is not enabled on the Nevermined production deployments above**, so the catalog's `mpp` services — the majority of its rows — are not payable there, while x402 works normally. That is a deployment setting, not something you can fix from the client and not a reason to retry. If you need MPP, ask the operator of your deployment. **Filter the catalog by `protocol=x402` unless you know your deployment has MPP enabled**, and treat `0001 … not allowlisted` on an MPP service as "this rail is off here" rather than a problem with the service. See `references/errors.md`.
+
 **Never send `NVM_API_KEY` to the service you are paying.** It authenticates you to Nevermined and nothing else. If a merchant needs its own auth, pass it in `headers` (mode B) — see `references/paying.md`.
 
 ---
