@@ -77,6 +77,13 @@ only. **Filter with `?protocol=x402` or `?protocol=mpp` anyway.** Listing is a c
 can change, the `protocol` filter accepts values the Router cannot pay, and an explicit filter makes
 your agent's assumption visible instead of load-bearing-and-implicit.
 
+**Routable is not the same as payable on *your* deployment.** The two rails are enabled
+independently, and the MPP rail is fail-closed: where the operator has not allowlisted a Tempo
+payment token, every `mpp` service is refused with `400 BCK.ROUTER.0001 … not allowlisted`. The
+catalog lists them regardless — it describes services, not your deployment's configuration — so
+read a `0001` on an MPP service as "this rail is off here", not "this service is broken". Trying
+another MPP service will fail identically. See `references/errors.md`.
+
 If you ever do hold a non-routable entry, do not call `/route` on it — tell the user that service
 needs its own account.
 
