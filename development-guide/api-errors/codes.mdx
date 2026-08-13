@@ -36,7 +36,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.LEGAL_DOCS`](#bck-legal_docs) — 6 codes
 - [`BCK.METRIC`](#bck-metric) — 5 codes
 - [`BCK.METRICS`](#bck-metrics) — 1 code
-- [`BCK.MPP`](#bck-mpp) — 5 codes
+- [`BCK.MPP`](#bck-mpp) — 6 codes
 - [`BCK.NOTIF`](#bck-notif) — 9 codes
 - [`BCK.OAUTH`](#bck-oauth) — 30 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
@@ -326,6 +326,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-mpp-0003"></a>`BCK.MPP.0003` | 402 | business | — | Invalid payment credential | The credential did not verify. Request a fresh challenge and present a new credential. The reason is deliberately not disclosed — reporting which check failed would let a caller forge one iteratively. |
 | <a id="bck-mpp-0004"></a>`BCK.MPP.0004` | 402 | business | — | Payment challenge expired | Challenges are short-lived. Re-request the protected resource to obtain a fresh 402 challenge and present a credential against that one. |
 | <a id="bck-mpp-0005"></a>`BCK.MPP.0005` | 402 | business | — | Request body does not match the payment challenge | The challenge is bound to a digest of the request body. Send the exact body the challenge was issued for, or request a new challenge for the body you intend to send. |
+| <a id="bck-mpp-0006"></a>`BCK.MPP.0006` | 500 | internal | — | Could not mint the MPP payment challenge | The challenge could not be built. Retry; if it persists this is a server-side fault and the correlation id in this response identifies it in the logs. |
 
 ## <span id="bck-notif"></span>`BCK.NOTIF`
 
