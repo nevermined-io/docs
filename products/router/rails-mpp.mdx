@@ -38,13 +38,13 @@ This is **fail-closed**: an unset or empty allowlist rejects *every* asset on th
 If MPP payments fail with that code on a deployment where x402 works fine, an unconfigured allowlist is the first thing to check — the two rails are configured independently.
 
 <Warning>
-  **The MPP rail is not enabled on the Nevermined production deployments** as of 2026-08-13. Every
-  MPP service in the Agent Services Catalog — the majority of its rows — is therefore refused there
-  with `400 BCK.ROUTER.0001 … not allowlisted`, while x402 services pay normally.
+  **A service appearing in the Agent Services Catalog does not mean your deployment can pay it.**
+  The catalog describes services; the allowlist is a property of the deployment. Where the MPP rail
+  is not enabled, *every* MPP service is refused with `400 BCK.ROUTER.0001 … not allowlisted` while
+  x402 services pay normally — which reads like a broken merchant and is not one.
 
-  This is a deployment setting, not a client-side problem and not a fault in the merchant, so
-  retrying or trying a different MPP service will not help. Filter the catalog by `protocol=x402`
-  unless you know your deployment has the rail enabled.
+  Retrying will not help, and neither will trying a different MPP service: they all fail the same
+  way. Check the allowlist for the chain, or ask whoever operates your deployment.
 </Warning>
 
 | Chain | Chain id | Ledger network |

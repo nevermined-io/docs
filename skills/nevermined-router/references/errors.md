@@ -121,9 +121,8 @@ check tripped. Common causes, in rough order:
   unsupported asset, or used a scheme other than `exact`. A mixed-chain 402 is fine as long as *one*
   option survives — this only fires when none does.
 - **Non-allowlisted MPP asset.** Fail-closed per chain. If MPP fails with `0001` where x402 works,
-  check this first — the rails are configured independently. **This is the expected result on a
-  deployment where the MPP rail is simply not enabled**, which as of 2026-08-13 includes the
-  Nevermined production deployments: *every* MPP service fails this way there, whatever the
+  check this first — the rails are configured independently. **On a deployment where the MPP rail
+  is simply not enabled this is the expected result for _every_ MPP service**, whatever the
   service. It says nothing about the merchant, and no amount of trying other MPP services will
   find one that works. Switch to `protocol=x402`, or ask the operator to enable the rail.
 - **Recipient outside the Delegation's scope**, when it carries an `allowedRecipients` list.
