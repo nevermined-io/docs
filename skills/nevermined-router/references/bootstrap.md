@@ -79,9 +79,14 @@ Check it up front with `GET /api/v1/legal-documents/me/consent-status` (same bea
 returns `never` · `outdated` · `current` per slug.
 
 **Accepting is a human's act, not yours.** `POST /api/v1/legal-documents/me/consents` does accept an
-API key, but agreeing to terms on someone's behalf is not a step in a retry loop — report the 412 and
-stop. It is also why an agent that ran for weeks can fail at step ② one morning having changed
-nothing: a document was updated on Nevermined's side.
+API key, so you *can* clear this yourself — and you must not. **Accepting terms is the account
+holder agreeing to be bound by them, and that is consent you have no standing to give on their
+behalf**; an API key authorises you to spend within a cap, not to enter agreements for the person
+who issued it. Calling that endpoint would also erase the only signal that the human never saw the
+new document. Report the 412, name the slugs in `outdated[]`, and stop.
+
+This is also why an agent that ran for weeks can fail at step ② one morning having changed nothing:
+a document was updated on Nevermined's side.
 
 ### Recipient scope is optional, and unset means unrestricted
 

@@ -48,8 +48,9 @@ lapsed, and `POST /delegation/create` is blocked until a human accepts. ⚠️ *
 identify it.** It is deliberately not an `NVMException`, so it has no `BCK.LEGAL_DOCS.…` code of its
 own — the error filter stamps the generic **`BCK.HTTP.412`**, which restates the status and says
 nothing about the cause. Branch on **`body.error === "consent_required"`**; `body.outdated[]` names
-the document slugs (`terms`, `privacy`). Report it and stop — accepting terms on a human's behalf is
-not a retry step. Details in `bootstrap.md`.
+the document slugs (`terms`, `privacy`). Report it and stop: an endpoint to accept exists and takes
+your API key, but **accepting terms is the account holder agreeing to be bound by them — consent you
+have no standing to give on their behalf.** Details in `bootstrap.md`.
 
 Note the same normalisation applies to any other bare `HttpException` you might hit (a
 `ValidationPipe` 400, for instance): the envelope is there, but `code` reads `BCK.HTTP.<status>`

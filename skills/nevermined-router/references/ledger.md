@@ -50,17 +50,59 @@ totals.
 
 | Field | Notes |
 | --- | --- |
-| `amount` | The asset's **smallest unit**, not cents — `1000` = 0.001 USDC at 6 decimals. **Merchant leg only**; the fee is not in it |
-| `asset` | As persisted at mint, and it differs per rail: a symbol for x402, the token **contract address** for MPP-tempo, an ISO currency code for MPP-stripe. Prefer the two fields below for display |
-| `assetSymbol` | Ticker to display for `asset` — `USDC`, `EURC`, `USDC.e`, `pathUSD`. `null` when unrecognised on this row's chain: show the (truncated) `asset` instead, never a guess |
-| `assetDecimals` | Decimal scale of `amount`, so you never have to assume one. `null` when unrecognised — then treat `amount` as raw atomic units rather than defaulting to 6, which renders a wrong *number* instead of a wrong label |
+| `amount` | The settlement asset's **smallest unit** — but **the scale differs per rail**, so read `assetDecimals` and never assume one. **Merchant leg only**; the fee is not in it |
+| `asset` | As persisted at mint, and it differs per rail: a symbol for x402, the token **contract address** for MPP-tempo, an ISO currency code (`usd`/`eur`) for MPP-stripe. Prefer the two fields below for display |
+| `assetSymbol` | Ticker to render for `asset`. **A value here is not proof we recognised the asset** — see below |
+| `assetDecimals` | Decimal scale of `amount` — **this is the recognition signal.** `null` means "we do not know the scale": show raw units, never a guess |
 | `merchantAddress` | Pay-to identifier: a `0x` address on the crypto rails, or a `profile_…` processor id on the card rail |
 | `buyer` | Payer identity: the on-chain EOA (`0x…`) on crypto rails, or a `cus_…` customer id on the card rail |
 | `txHash` | Settlement reference for the **merchant** leg. **Not always a `0x` hash** — see reconciliation below |
 | `requestId` | Your idempotency key, echoed. The join key back to your own records |
 
-**`amount` is not cents.** The cap is in cents, the ledger is in atomic units; converting needs
-`assetDecimals` from the same row. And `amount` is only the **merchant** leg, so the combined cap
+### Scale: read `assetDecimals`, never assume 6
+
+⚠️ **On the card rail, `amount` IS cents.** MPP-stripe settles in ISO currencies at **scale 2**, so a
+$60.00 card payment is `amount: "6000"`. On x402 and MPP-tempo the stablecoins are **6-decimal**, so
+`1000` = 0.001 USDC. One rule covers both:
+
+```
+displayed = Number(amount) / 10 ** assetDecimals      // and if assetDecimals is null, don't
+```
+
+Dividing a card row by 10⁶ because "the ledger is in atomic units" turns $60.00 into `0.00006` — a
+plausible-looking **wrong number** that lands in a spend total, which is far worse than a visibly
+missing one. That is why the scale is on the row. A card row looks like this:
+
+```json
+{ "protocol": "mpp", "network": "stripe", "asset": "usd", "amount": "6000",
+  "assetSymbol": "usd", "assetDecimals": 2,
+  "merchantAddress": "profile_1S…", "buyer": "cus_T…" }
+```
+
+`network: "stripe"` names a rail, not a chain.
+
+`assetDecimals` is `null` whenever the asset is not one we can scale — an unrecognised token on that
+row's chain, or a card-rail currency outside the two the mint path admits. Treat it as "cannot render
+an amount": show the raw `amount` and the truncated `asset`, and do **not** fall back to 6.
+
+### `assetSymbol` is not a recognition check
+
+It is `null` on only **two** of the four resolution paths — an empty `asset`, and a hex address that
+is not in that chain's table. On the other two — the **card rail**, and an `asset` already stored as
+a symbol — it **echoes the persisted value whether or not we recognise it**. So a non-null
+`assetSymbol` tells you nothing about whether the row is understood. **Branch on `assetDecimals`.**
+
+The tickers we resolve are `USDC` and `EURC` (Base, Base Sepolia), `USDC.e`, `EURC.e` and
+`pathUSD` (Tempo), plus whatever ISO code the card rail persisted.
+
+⚠️ **`pathUSD` is spelled with a different capital per chain** — `pathUSD` on Tempo mainnet, `PathUSD`
+on Tempo Moderato — because each chain's token reports its own casing. **Compare tickers
+case-insensitively.** Matching one spelling exactly misses every row on the other chain, and the
+symptom is a silently short total rather than an error.
+
+### `amount` is not the cap charge
+
+The cap is in cents; `amount` is the merchant leg in the settlement asset's units. The combined cap
 charge is not derivable from this resource at all: that is `fee.capChargedCents` on the original
 payment response (see `paying.md`), or `amountCents` on
 `GET /api/v1/delegation/{id}/transactions` — the ledger does not repeat either.

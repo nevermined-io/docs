@@ -143,8 +143,13 @@ defeats the whole mechanism. Report and stop.
 ## Accounting
 
 `GET /api/v1/router/payments` (filters `delegationId`, `from`, `to`, `format=csv`) and
-`/payments/summary`. `amount` is in the asset's smallest unit, not cents, and is the **merchant leg
-only** — rows also carry `feeAtomic`, `feeBps`, `feeCents`, `feeStatus`, `feeTxHash`, `feeNonce`.
+`/payments/summary`. `amount` is the **merchant leg only**, in the asset's smallest unit — and ⚠️ the
+**scale differs per rail**: 6 decimals on the crypto rails, but the card rail (`network: "stripe"`)
+is **scale 2, so its `amount` IS cents**. Read `assetDecimals` off the row, never assume 6; `null`
+there means unrecognised, so show raw units. `assetSymbol` is echoed even when unrecognised, so it
+is not a recognition check, and `pathUSD`/`PathUSD` differ in case across the two Tempo chains —
+compare tickers case-insensitively. Rows also carry `feeAtomic`, `feeBps`, `feeCents`, `feeStatus`,
+`feeTxHash`, `feeNonce`.
 `feeStatus` (`None|Accrued|Submitted|Settled|Failed|Released`) is a **separate lifecycle** from the
 payment `status`, which shares `Settled`/`Failed` — never read one for the other. A record at
 `Issued` is **not** an error — the money moved; do not retry it.
