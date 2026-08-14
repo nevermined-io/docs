@@ -36,7 +36,7 @@ On **MPP-tempo**, the Router reads your on-chain balance *before* signing. If it
 
 On **MPP-stripe** no balance is read at all — the card is attempted, and a decline comes back as that *same* `402 BCK.ROUTER.0009`. The outcome matches (nothing minted, nothing reserved), but it's a real decline on your card rather than a check that spared you one.
 
-On **x402 there is no balance check anywhere.** The Router signs and reserves your budget, and the shortfall surfaces only when the transfer is attempted on-chain — the payment lands as `Failed` and the reserved cap is **not** given back. Fund for the merchant's amount **plus** any [routing fee](/products/router/how-it-works#fund-for-the-amount-plus-the-fee), which is a second transfer from the same wallet.
+On **x402 there is no balance check anywhere.** The Router signs and reserves your budget, and the shortfall surfaces only when the transfer is attempted on-chain — the payment lands as `Failed` and the reserved **merchant** amount is **not** given back. Only a [routing fee](/products/router/how-it-works#when-a-fee-is-not-collected) reserved on top of it is ever credited back, and only when the fee provably wasn't collected. Fund for the merchant's amount **plus** any [routing fee](/products/router/how-it-works#fund-for-the-amount-plus-the-fee), which is a second transfer from the same wallet.
 
 On any rail, read the wallet address from the live Delegation (`providerPaymentMethodId`) rather than from anything you saved earlier. Funding a stale address is the most common cause of an underfunded wallet and the one that takes longest to spot — `0009` deliberately doesn't echo the address it checked, so it can't tell you that's what happened.
 

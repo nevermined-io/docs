@@ -159,7 +159,7 @@ A cap is permission, not funds. You can hold a $50 Delegation and still fail to 
 | **x402** | No balance check at all | Nothing stops you. The credential is signed and your budget reserved; the shortfall appears on-chain afterwards. |
 
 <Warning>
-**On x402 an underfunded wallet costs you budget.** With no pre-check the Router signs and reserves your cap, the merchant's transfer then fails on-chain, and the reserved cap is **not** given back. Fund before you call; don't rely on being stopped.
+**On x402 an underfunded wallet costs you budget.** With no pre-check the Router signs and reserves your cap, the merchant's transfer then fails on-chain, and the reserved **merchant** amount is **not** given back. Only a [routing fee](#when-a-fee-is-not-collected) reserved on top can come back, and only when the fee provably wasn't collected. Fund before you call; don't rely on being stopped.
 </Warning>
 
 ## The routing fee
@@ -197,6 +197,16 @@ Every mint response — `POST /payments` in mode A, `POST /route` in mode B — 
 `settlement.approxCents` remains the **merchant** leg throughout — it is not the whole cap charge. With no fee configured the two are equal.
 
 The streaming `/proxy` variant returns its payment metadata as response headers, and there is no fee header among them. For those calls, read the fee from [the ledger record](/products/router/ledger#the-routing-fee-on-a-record).
+
+### When a fee is not collected
+
+A reserved fee isn't always collected, and the two legs of the reserve are treated differently when it isn't.
+
+**The merchant portion is never given back.** Once the credential is minted, the merchant may have taken the payment and then errored — so the reservation stands whatever the call did afterwards.
+
+**The fee portion is given back whenever the fee provably wasn't collected.** A mode-B hop that never returned 2xx, a facilitator that adjudicated and refused, a fee movement that couldn't be signed: on each of those the fee's cents are credited back to your Delegation cap, and the ledger row reads [`feeStatus: "Released"`](/products/router/ledger#fee-lifecycle). What is *not* released is a fee whose outcome is unknown — money may have moved, so those rows stay `Submitted` and are resolved against the chain instead.
+
+The mode decides when that question is even asked. Mode B settles the fee only after the merchant returns 2xx, so a hop that fails releases the fee. Mode A settles it at mint, before your credential is ever presented — so on mode A a wallet holding only the merchant's price typically pays the fee and then loses the merchant leg on-chain, and there is nothing to release.
 
 ### Fund for the amount plus the fee
 
