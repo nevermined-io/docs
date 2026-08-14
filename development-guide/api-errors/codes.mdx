@@ -36,7 +36,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.LEGAL_DOCS`](#bck-legal_docs) — 6 codes
 - [`BCK.METRIC`](#bck-metric) — 5 codes
 - [`BCK.METRICS`](#bck-metrics) — 1 code
-- [`BCK.MPP`](#bck-mpp) — 5 codes
+- [`BCK.MPP`](#bck-mpp) — 6 codes
 - [`BCK.NOTIF`](#bck-notif) — 9 codes
 - [`BCK.OAUTH`](#bck-oauth) — 30 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
@@ -60,7 +60,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
 - [`BCK.WIDGET_SESSION`](#bck-widget_session) — 13 codes
-- [`BCK.X402`](#bck-x402) — 53 codes
+- [`BCK.X402`](#bck-x402) — 54 codes
 
 ## <span id="bck-account_provisioning"></span>`BCK.ACCOUNT_PROVISIONING`
 
@@ -326,6 +326,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-mpp-0003"></a>`BCK.MPP.0003` | 402 | business | — | Invalid payment credential | The credential did not verify. Request a fresh challenge and present a new credential. The reason is deliberately not disclosed — reporting which check failed would let a caller forge one iteratively. |
 | <a id="bck-mpp-0004"></a>`BCK.MPP.0004` | 402 | business | — | Payment challenge expired | Challenges are short-lived. Re-request the protected resource to obtain a fresh 402 challenge and present a credential against that one. |
 | <a id="bck-mpp-0005"></a>`BCK.MPP.0005` | 402 | business | — | Request body does not match the payment challenge | The challenge is bound to a digest of the request body. Send the exact body the challenge was issued for, or request a new challenge for the body you intend to send. |
+| <a id="bck-mpp-0006"></a>`BCK.MPP.0006` | 500 | internal | — | Could not mint the MPP payment challenge | The challenge could not be built. Retry; if it persists this is a server-side fault and the correlation id in this response identifies it in the logs. |
 
 ## <span id="bck-notif"></span>`BCK.NOTIF`
 
@@ -795,4 +796,5 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-x402-0054"></a>`BCK.X402.0054` | 402 | business | ❌ | account_access credential may only spend via the card-delegation scheme | This access token was minted for account-wide card spending, so it can only pay through the card-delegation scheme against its own pinned card delegation — not the crypto (nvm:erc4337) scheme, nor an inline-created or foreign delegation. Retry with the card-delegation scheme. #2568 §6.3. |
 | <a id="bck-x402-0055"></a>`BCK.X402.0055` | 500 | internal | ❌ | Internal error: account_access binding has no delegation to spend against | A server-side data-integrity condition — an account_access binding always carries a card delegation (funding is required at authorize time). A null here should be unreachable; inspect the API logs. #2578. |
 | <a id="bck-x402-0056"></a>`BCK.X402.0056` | 500 | internal | ❌ | EIP-7702 authorization was signed by a different account than the requested authority | The account recovered from the EIP-7702 authorization signature is not the authority whose on-chain nonce it was signed against, so the delegation would be rejected by the bundler or silently ignored on-chain. The usual cause is a stale stored EOA — the user profile’s `privyWalletAddress`, or an org wallet’s `address` column — pointing at a different account than the Privy wallet id actually resolves to. Retrying does not help until the stored address is repaired. The API logs for this error id name both the requested authority and the recovered signer. See #2740. |
+| <a id="bck-x402-0057"></a>`BCK.X402.0057` | 403 | business | ❌ | This credential does not own the referenced payment method or delegation | A card delegation must be created and spent by the SAME identity that enrolled the card. The credential you presented is not the owner of this payment method / delegation, so it can neither create nor spend it. Enroll the card, create the delegation, and spend under one identity. This is NOT a card decline, and NOT an allow-list problem — allow-listing a key cannot grant ownership (see BCK.X402.0029 for the allow-list / key-pin case). |
 
