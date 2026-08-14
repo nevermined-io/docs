@@ -1,7 +1,7 @@
 ---
 name: nevermined-router
-version: "0.1.1"
-lastUpdated: "2026-08-04"
+version: "0.1.2"
+lastUpdated: "2026-08-14"
 description: >
   Use when an AI agent needs to PAY an external service it does not have an account
   with — any x402 agent or MPP merchant — using the Nevermined Router. Covers
@@ -28,7 +28,7 @@ metadata:
 
 # Nevermined Router — buy from any x402 or MPP service
 
-> **Skill version**: 0.1.1 | **Last updated**: 2026-08-04 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
+> **Skill version**: 0.1.2 | **Last updated**: 2026-08-14 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 >
 > **⚠️ Use the latest version.** If you have a cached copy, check its **Last updated** date against the canonical source and refresh if older.
 >
@@ -104,7 +104,12 @@ That is a $5.00 cap for 7 days. `provider: "erc4337"` is the crypto-funded Deleg
 <a id="never-widen"></a>
 **You may create a Delegation. You must never widen one to get past a refusal.** The cap is the human's decision; a refusal is that decision taking effect. See [Guardrails](#guardrails).
 
-Full field list, recipient scoping, and reading a Delegation's live state: `references/bootstrap.md`.
+Two guards can refuse this call before your fields are read, and **neither is retryable**:
+
+- **`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony and may not create Delegations *or* use the paying routes. Use a plain API key issued by the account owner.
+- **`412 {"error":"consent_required","outdated":[…]}`** — the account's legal-document consent has lapsed. ⚠️ Its only `code` is the generic **`BCK.HTTP.412`**, which names the status and not the cause, so branch on `body.error === "consent_required"` — the one place "branch on `code`" needs a second field. A human must accept; report it and stop.
+
+Full field list, recipient scoping, both guards in detail, and reading a Delegation's live state: `references/bootstrap.md`.
 
 ## ③ Fund the buyer wallet — *may need a human*
 
@@ -117,6 +122,8 @@ curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
 ```
 
 `providerPaymentMethodId` is the address to fund, with the payment asset, **on the network you intend to pay on**.
+
+**Your deployment funds exactly one x402 network, fixed by its environment: sandbox → `base-sepolia`, live → `base`.** A merchant on the other chain is unpayable from where you are and fails with `400 BCK.ROUTER.0001 … no fundable option`, which reads like a broken service and is not. Check the environment before blaming the merchant — see `references/bootstrap.md`.
 
 **Always read this address back from the live Delegation — never from a value you cached.** Funding a stale address is the most common cause of `402 BCK.ROUTER.0009`, and the error deliberately does not echo the address it checked, so it cannot tell you that is what happened.
 
@@ -188,6 +195,7 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
   "payment": {
     "paymentId": "b1f9c2e4-…",
     "settlement": { "amount": "1000", "asset": "USDC", "network": "base", "approxCents": "1" },
+    "fee": { "bps": 0, "amount": "0", "cents": "0", "capChargedCents": "1" },
     "txHash": "0xfc8af37b…",
     "status": "Settled"
   }
@@ -195,6 +203,9 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
 ```
 
 `status` and `body` are the merchant's own, unchanged. `paid: false` with no `payment` block means the resource was free — the Router relayed it and charged nothing.
+
+<a id="fee"></a>
+**`settlement.approxCents` is the merchant leg, not your bill.** Nevermined charges a routing fee on top, disclosed in the **always-present `fee` object** (zeroed when no fee applied, so never branch on its absence): `fee.capChargedCents` is the **total debited from your Delegation cap** — `settlement.approxCents + fee.cents`. Sum `capChargedCents`, not `approxCents`, or your own budget accounting drifts by exactly the fee. Full field list: `references/paying.md`.
 
 <a id="requestid"></a>
 **`requestId` is required, and it is an idempotency key — not a request counter.** Use **one stable id per logical purchase** and reuse it across retries of that purchase. Retrying a dropped call with the same id returns `409 BCK.ROUTER.0002` carrying the original `paymentId` — **not the resource** — instead of buying twice; a fresh id buys twice, on purpose. **Never answer that 409 by minting a fresh id**: that is the double-spend the key just prevented. If the purchase genuinely failed, report it. Derive it from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per HTTP attempt — a fresh UUID on every retry is how an agent double-spends.
@@ -224,7 +235,7 @@ The Router signs payments from your wallet in response to instructions written b
 3. **One `requestId` per purchase**, reused across retries of that purchase. See [above](#requestid).
 4. **Only `0006` (500) and `0007` (429) are retryable.** Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007`; it means you have too many routed calls in flight. **The HTTP status does not tell you whether to retry** — `0010` is a 500 you must not retry and `0011` is a 402 you must not retry. Read the code, not the status.
 
-**Check the price before you commit.** `priceLabel` in the catalog is indicative; `settlement.approxCents` on the response is what you were actually charged. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each.
+**Check the price before you commit.** `priceLabel` in the catalog is indicative; on the response, `settlement.approxCents` is what the **merchant** charged and [`fee.capChargedCents`](#fee) is what your **cap** was actually debited — they differ whenever a routing fee applies. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each.
 
 **Delegations expire silently.** A long-running agent that worked yesterday and fails today with `0003` has very often just aged out — check `expiresAt` before assuming anything is broken.
 
@@ -241,6 +252,8 @@ The Router signs payments from your wallet in response to instructions written b
 | `BCK.ROUTER.0009` | 402 | Wallet doesn't hold enough of the asset on the target network. Nothing was signed. | No — **stop** |
 | `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
 | `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
+| `BCK.OAUTH.0030` | 403 | This API key was OAuth-minted and may not create Delegations or use `/router/{payments,route,proxy}`. Use a plain account-owner key. | No |
+| `BCK.HTTP.412` | 412 | `{"error":"consent_required"}` on `POST /delegation/create` — the account's legal-document consent lapsed. The code is generic; branch on `body.error`. | No — **needs a human** |
 
 **`0011` needs a human, not a retry.** The card issuer is demanding 3-D Secure and the Router has no browser to answer it. Nothing was charged. Do **not** loop: 3DS is often mandated per charge, so every attempt re-demands it and mints a fresh single-use card credential that is then abandoned. A later *human-driven* attempt may succeed — that is a decision, not a retry.
 

@@ -26,6 +26,36 @@ obstacles is exactly the failure mode this design exists to prevent.
 **Only `0006` and `0007` are worth retrying automatically.** The rest are decisions; retrying them
 unchanged produces the same answer.
 
+### Two refusals that are not `BCK.ROUTER.*` at all
+
+They guard the *caller* rather than the request, and they can end a run before a single payment is
+attempted — so handle them even though neither carries a `BCK.ROUTER.*` code.
+
+| | Code | Status | Applies to | Retry? |
+| --- | --- | --- | --- | --- |
+| **OAuth-minted key** | `BCK.OAUTH.0030` | 403 | `POST /delegation/create`, `POST /router/payments`, `POST /router/route`, `ALL /router/proxy` | No |
+| **Consent lapsed** | `BCK.HTTP.412` (generic — see below) | 412 | `POST /delegation/create` | No |
+
+**`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony
+(`credits_purchase` / `account_access`) and may not touch the Router spend rails or create
+Delegations: those routes sign from the account's full wallet, outside the narrow session-key policy
+such a credential advertises. The fix is a **plain API key issued by the account owner**. No request
+change and no other Router endpoint will work around it — do not retry.
+
+<a id="consent-412"></a>
+**`412 {"error":"consent_required","outdated":[…]}`** — the account's legal-document consent has
+lapsed, and `POST /delegation/create` is blocked until a human accepts. ⚠️ **`code` alone will not
+identify it.** It is deliberately not an `NVMException`, so it has no `BCK.LEGAL_DOCS.…` code of its
+own — the error filter stamps the generic **`BCK.HTTP.412`**, which restates the status and says
+nothing about the cause. Branch on **`body.error === "consent_required"`**; `body.outdated[]` names
+the document slugs (`terms`, `privacy`). Report it and stop — accepting terms on a human's behalf is
+not a retry step. Details in `bootstrap.md`.
+
+Note the same normalisation applies to any other bare `HttpException` you might hit (a
+`ValidationPipe` 400, for instance): the envelope is there, but `code` reads `BCK.HTTP.<status>`
+rather than a catalogued `BCK.ROUTER.*`. **A `BCK.HTTP.*` code means "no catalogued code for this" —
+look at the rest of the body.**
+
 ### `0011` — the 402 that needs a human, not a retry
 
 Card rail only. The issuer demands **3-D Secure / SCA** before the charge can be used, and the Router
@@ -87,10 +117,11 @@ retry loop.
 **3. One `requestId` per logical purchase**, reused across retries of that purchase. A fresh UUID
 per HTTP attempt is how an agent double-spends.
 
-**4. Check what you actually spent.** `settlement.approxCents` on each response, and the ledger
-periodically. Budget is debited in whole cents **rounded up**, so a long loop of sub-cent calls
-burns a cent each — the arithmetic that says "1000 calls at $0.001 = $1.00" is wrong here; it is
-$10.00.
+**4. Check what you actually spent.** `fee.capChargedCents` on each response — **not**
+`settlement.approxCents`, which is only the merchant leg and excludes Nevermined's routing fee — and
+the ledger periodically. Budget is debited in whole cents **rounded up**, so a long loop of sub-cent
+calls burns a cent each — the arithmetic that says "1000 calls at $0.001 = $1.00" is wrong here; it
+is $10.00. See `paying.md` for the `fee` object.
 
 ## Distinguishing the two 402s
 
@@ -119,7 +150,10 @@ check tripped. Common causes, in rough order:
 
 - **No fundable option in the 402.** Every advertised option was on an unfunded network, in an
   unsupported asset, or used a scheme other than `exact`. A mixed-chain 402 is fine as long as *one*
-  option survives — this only fires when none does.
+  option survives — this only fires when none does. **Check the environment first:** a deployment
+  funds exactly one x402 network — sandbox `base-sepolia`, live `base` — so a `base` merchant is
+  simply unpayable from sandbox and vice versa. That is the single most common cause here, and it
+  looks like a broken merchant. See `bootstrap.md`.
 - **Non-allowlisted MPP asset.** Fail-closed per chain. If MPP fails with `0001` where x402 works,
   check this first — the rails are configured independently. **On a deployment where the MPP rail
   is simply not enabled this is the expected result for _every_ MPP service**, whatever the
@@ -197,6 +231,11 @@ Errors carry a structured body — branch on `code`, not on message text:
 
 `hint` is written for a human reading a log. `details`, when present, names the specific check that
 tripped — that is the field worth logging on a `0001`.
+
+**One documented exception to that rule:** the [`412 consent_required`](#consent-412) on
+`POST /delegation/create` carries only the generic `BCK.HTTP.412`, so `code` identifies the status
+but not the cause — `body.error` does. Keep `code` as your primary branch, and treat any
+`BCK.HTTP.*` as "uncatalogued, read the body".
 
 Error responses always reflect the **current** API shape; they are not version-pinned. Treat them as
 latest-shape diagnostics and tolerate the code set growing over time.

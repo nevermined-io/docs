@@ -58,6 +58,7 @@ failure. You can omit it entirely and send the same call for both rails.
       "recipient": "0x209693Bc…", "amount": "1000", "asset": "USDC",
       "network": "base", "approxCents": "1", "scheme": "exact"
     },
+    "fee": { "bps": 0, "amount": "0", "cents": "0", "capChargedCents": "1" },
     "txHash": "0xfc8af37b…",
     "status": "Settled"
   }
@@ -68,10 +69,39 @@ failure. You can omit it entirely and send the same call for both rails.
   merchant returned JSON, otherwise a string.
 - `paid: false` and **no `payment` block** means the resource was free — the Router relayed it and
   charged nothing. Handle this; not every URL you route is actually paid.
-- `settlement.approxCents` is what was reserved against your cap. Trust this over any catalog
+- `settlement.approxCents` is the **merchant leg only**. What came off your cap is
+  `fee.capChargedCents` — see [the fee object](#the-fee-object) below. Trust either over any catalog
   `priceLabel`.
 - `status: "Issued"` (rather than `Settled`) means the hop succeeded and you have your resource, but
   the settlement anchor is still pending. Normal, not a failure — see `ledger.md`.
+
+<a id="the-fee-object"></a>
+### The `fee` object — read `capChargedCents`, not `approxCents`
+
+Nevermined charges its own routing fee on top of the merchant's price. Both modes return a **`fee`
+object next to `settlement`**, and it is **always present** — zeroed when no fee applied, so you
+never branch on its absence.
+
+| Field | Meaning |
+| --- | --- |
+| `bps` | The rate applied to this payment, in basis points over 10,000 (`200` = 2%). `0` = no fee |
+| `amount` | The fee in the settlement asset's **smallest unit** — same unit as `settlement.amount`. Atomic rather than cents, because cents are ceiling-rounded and cannot express a sub-cent fee |
+| `cents` | Cents the fee added to the cap reserve, i.e. `capChargedCents - settlement.approxCents` |
+| `capChargedCents` | **Total debited from the Delegation cap** for this payment — merchant leg + routing fee |
+
+```
+capChargedCents  =  settlement.approxCents  +  fee.cents
+```
+
+**If you keep your own budget ledger, sum `fee.capChargedCents`.** Summing `approxCents` under-reports
+your spend by exactly the fee, and the drift compounds silently over a long run. With no fee
+configured the two are equal — which is why an agent that only ever ran against a zero-fee deployment
+will not notice until one has a rate set.
+
+The credential itself pays the **merchant only** — the fee never rides the merchant's authorization
+and settles as its own leg, signed separately from the same buyer wallet. So the wallet has to cover
+`settlement.amount` **plus** `fee.amount`, and the fee's settlement is tracked independently on the
+ledger (`feeStatus`, `feeTxHash`) rather than by the payment's own `status`. See `ledger.md`.
 
 ### `requestId` — the rule that prevents double-spending
 
@@ -188,12 +218,16 @@ above is v1, so this one comes back v1 with the v1 header:
   "credential": { "transport": "header", "name": "X-PAYMENT", "value": "eyJ4NDAy…" },
   "settlement": { "recipient": "0x2096…", "amount": "1000", "asset": "USDC",
                   "network": "base", "approxCents": "1" },
+  "fee": { "bps": 0, "amount": "0", "cents": "0", "capChargedCents": "1" },
   "status": "Issued"
 }
 ```
 
 Had you passed a v2 `target` (the default), the same call would return `"x402Version": 2` and
 `"name": "PAYMENT-SIGNATURE"`.
+
+Mode A charges the routing fee exactly as mode B does, so [the `fee` object](#the-fee-object) is on
+this response too — `fee.capChargedCents` is what your cap was debited.
 
 ### 3 · Attach it and re-send
 

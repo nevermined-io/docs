@@ -16,7 +16,8 @@ GET /api/v1/catalog/services
 | --- | --- | --- |
 | `search` | string | Free-text over **title and description only** — not tags, not provider |
 | `protocol` | enum | `x402` · `mpp` · `rest` · `a2a` · `other`. Anything else → `400 BCK.CATALOG.0003` |
-| `category` | string | Exact match. Discover valid values from `/categories` |
+| `category` | enum | **Closed set of 13** — see below. Anything else → `400` |
+| `subCategory` | string | Granular label under a `category`. Free text, exact match — discover values from `/categories` |
 | `tag` | string | Exact match against one entry of `tags[]` |
 | `page` | int ≥ 1 | Default 1 |
 | `offset` | int ≥ 1 | Page **size**, not a skip count. Default 10, capped server-side |
@@ -52,7 +53,9 @@ across two calls; if you need determinism, pass an explicit `sortBy`.
 | `endpoints[]` | `{ path, method, description, priceLabel, docsUrl }` — the other callable paths |
 | `priceLabel` | Human string like `"$0.001"`. **Indicative only** — the wire price governs |
 | `network` | Display name (`"Base"`, `"Tempo"`). Not a chain id |
-| `tags[]`, `category`, `features[]` | Selection signals |
+| `category` | One of the **13 curated values** — see [Categories](#categories) |
+| `subCategory` | Granular label under `category`, or `null` for the generic top bucket |
+| `tags[]`, `features[]` | Selection signals |
 | `discovery` | Machine-readable pointers: `x402` manifest, `mcp`, `a2a` agent card, `openapi`, `llmsTxt`, `mppRegistry`. `{}` when none |
 
 `isListed` is always `true` on this API — unlisted rows are never exposed, so you cannot use it to
@@ -121,13 +124,42 @@ url = urljoin(service["targetUrl"], endpoint["path"]) if endpoint else service["
 
 ## Categories
 
+`category` is a **closed set of exactly 13 curated values**, validated server-side — an unrecognised
+string is a plain `400`, not an empty result. Match them **verbatim**, ampersands and spacing
+included:
+
+- `Data & Enrichment`
+- `Sales & Business Intelligence`
+- `Web Scraping & Automation`
+- `Search & Research`
+- `Crypto & Blockchain`
+- `Finance & Markets`
+- `AI & Media`
+- `Communication & Voice`
+- `Social & Creator`
+- `Identity & Compliance`
+- `Infrastructure & Compute`
+- `Weather`
+- `Travel`
+
+The obvious guesses are wrong: it is `"Search & Research"`, not `"Search"`. Do not shorten, split on
+`&`, or invent one. The list is curated by hand and can grow, so read it from `/categories` rather
+than hardcoding this one.
+
+`subCategory` is the granular label *under* a category (`"Browser automation"`), and unlike
+`category` it is free text. A service with no granular label has `subCategory: null` — the generic
+top bucket.
+
 ```
 GET /api/v1/catalog/categories
-# → [ { "category": "Search", "count": 3 }, … ]
+# → [ { "category": "Search & Research", "count": 3,
+#       "subCategories": [ { "subCategory": "Browser automation", "count": 2 }, … ] }, … ]
 ```
 
-Distinct categories over listed services, with counts. Use it to populate a `category` filter rather
-than guessing a string.
+Counts are over listed services. **Each entry carries a `subCategories[]` array**, so one call gives
+you both filter levels — build your filters from this response rather than guessing a string.
+Services whose `subCategory` is null are counted in `count` but appear in no `subCategories[]` entry,
+so the sub-counts do not have to add up to `count`.
 
 ## One service by slug
 
@@ -163,7 +195,8 @@ with no filtering or pagination. The feed is for registries crawling you, not fo
 ## Choosing well
 
 1. Filter to `protocol=x402` or `protocol=mpp`.
-2. Narrow with `search` (title + description) or `category` / `tag` for precision.
+2. Narrow with `search` (title + description), or `category` / `subCategory` / `tag` for precision —
+   taking the category values from `/categories`, never from memory.
 3. Read `endpoints[]` — pick the one whose `description` and `method` match your need, and note its
    `priceLabel`.
 4. Build the URL per the rule above.

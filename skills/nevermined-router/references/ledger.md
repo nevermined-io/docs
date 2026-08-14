@@ -36,24 +36,79 @@ totals.
   "delegationId": "5e7481c3-…",
   "requestId": "search-nevermined-router-v1",
   "resourceUrl": "https://agent.example/resource",
-  "buyer": "0x8D6A5233…"
+  "buyer": "0x8D6A5233…",
+  "feeAtomic": "0",
+  "feeBps": 0,
+  "feeCents": "0",
+  "feeStatus": "None",
+  "feeTxHash": null,
+  "feeNonce": null,
+  "assetSymbol": "USDC",
+  "assetDecimals": 6
 }
 ```
 
 | Field | Notes |
 | --- | --- |
-| `amount` | The asset's **smallest unit** — 6-decimal stablecoins, so `1000` = 0.001 USDC. Not cents |
+| `amount` | The asset's **smallest unit**, not cents — `1000` = 0.001 USDC at 6 decimals. **Merchant leg only**; the fee is not in it |
+| `asset` | As persisted at mint, and it differs per rail: a symbol for x402, the token **contract address** for MPP-tempo, an ISO currency code for MPP-stripe. Prefer the two fields below for display |
+| `assetSymbol` | Ticker to display for `asset` — `USDC`, `EURC`, `USDC.e`, `pathUSD`. `null` when unrecognised on this row's chain: show the (truncated) `asset` instead, never a guess |
+| `assetDecimals` | Decimal scale of `amount`, so you never have to assume one. `null` when unrecognised — then treat `amount` as raw atomic units rather than defaulting to 6, which renders a wrong *number* instead of a wrong label |
 | `merchantAddress` | Pay-to identifier: a `0x` address on the crypto rails, or a `profile_…` processor id on the card rail |
 | `buyer` | Payer identity: the on-chain EOA (`0x…`) on crypto rails, or a `cus_…` customer id on the card rail |
-| `txHash` | Settlement reference. **Not always a `0x` hash** — see reconciliation below |
+| `txHash` | Settlement reference for the **merchant** leg. **Not always a `0x` hash** — see reconciliation below |
 | `requestId` | Your idempotency key, echoed. The join key back to your own records |
 
-**`amount` is not cents.** The cap is in cents, the ledger is in atomic units. Converting needs the
-asset's decimals (6 for USDC/EURC). If you want what was charged against the budget, that is
-`settlement.approxCents` on the original response — the ledger does not repeat it.
+**`amount` is not cents.** The cap is in cents, the ledger is in atomic units; converting needs
+`assetDecimals` from the same row. And `amount` is only the **merchant** leg, so the combined cap
+charge is not derivable from this resource at all: that is `fee.capChargedCents` on the original
+payment response (see `paying.md`), or `amountCents` on
+`GET /api/v1/delegation/{id}/transactions` — the ledger does not repeat either.
 
 Neither `merchantAddress` nor `buyer` is safely a blockchain address: branch on `network` before
 rendering either as an explorer link.
+
+### The fee columns
+
+Nevermined's routing fee is recorded on every row, on both the JSON rows and the CSV export.
+
+| Field | Notes |
+| --- | --- |
+| `feeAtomic` | The fee in the asset's **smallest unit**, like `amount`. `"0"` when no fee applied; `null` on rows predating the fee |
+| `feeBps` | Rate applied, in basis points over 10,000 (`200` = 2%). `null` on rows predating the fee |
+| `feeCents` | Cents the fee added to the cap reserve |
+| `feeStatus` | The fee leg's own lifecycle — **not** the payment `status`. See below |
+| `feeTxHash` | Settlement reference for the **fee** leg, distinct from `txHash`. Reported verbatim by the facilitator, so third-party text, not a validated `0x` shape. Often `null` — including on some `Settled` rows |
+| `feeNonce` | The fee leg's EIP-3009 nonce, recorded on submission. The audit key that ties an on-chain transfer back to this payment. `null` until submitted. Not spendable on its own |
+
+⚠️ **`feeStatus` is a separate lifecycle from the payment `status`, and `Settled` / `Failed` appear
+in both.** A row can read `status: "Settled"` with `feeStatus: "Accrued"` — the merchant was paid and
+the fee has not moved yet. Never read one as the other, and never infer the payment state from
+`feeStatus`.
+
+| `feeStatus` | Meaning |
+| --- | --- |
+| `None` | No fee applied to this payment |
+| `Accrued` | Fee owed and reserved against your cap; nothing submitted anywhere, so nothing can have moved |
+| `Submitted` | Handed to the facilitator, outcome not yet known. A fee sits here for the whole round trip; **not** terminal |
+| `Settled` | The fee leg landed on-chain |
+| `Failed` | Collection provably did not happen. Terminal as an *outcome* — retrying changes nothing — but the row may still advance to `Released` |
+| `Released` | The fee's cap reserve was **given back**, because collection reached a terminal not-collected state. Terminal |
+
+⚠️ **`Failed` does not imply `Released`.** A `Failed` row can still have its reserve charged against
+your cap. If you are reconciling budget, key off `Released`, not `Failed`.
+
+**The two legs settle independently — reconcile them separately.** `txHash` anchors the merchant
+payment, `feeTxHash` the fee; neither implies the other. A `Settled` fee reconciled on-chain rather
+than reported by the facilitator has **no `feeTxHash` at all** — the chain answers "was this
+authorization consumed" with a boolean, not a transaction — so `feeNonce` is the audit key for those
+rows. A null `feeTxHash` is not evidence the fee did not settle.
+
+**For CSV consumers:** every column added since the original set — the six fee ones, then
+`assetSymbol` and `assetDecimals` — was **appended after** it, so a parser reading the original
+columns by **index from the left** is unaffected. One that **asserts a header count**, or maps
+positionally **from the right**, breaks: the set has grown twice already and `feeNonce` is no longer
+the last column. Key off the header names.
 
 ## Aggregate summary
 

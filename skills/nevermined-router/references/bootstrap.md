@@ -44,6 +44,45 @@ curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
 Delegations use a different provider and are refused on those rails (and vice versa) with
 `400 BCK.ROUTER.0001`.
 
+### Two ways creation is refused before your fields are even read
+
+Both guard the *caller*, not the request body, so a perfectly valid payload still fails. Neither is
+retryable and neither can be fixed from your side alone.
+
+**`403 BCK.OAUTH.0030` — this API key may not create Delegations.** An **OAuth-minted** credential
+(one issued through an OAuth consent ceremony, `credits_purchase` or `account_access`) is refused on
+`POST /delegation/create` *and* on all three paying routes — `POST /router/payments`, `POST
+/router/route`, `ALL /router/proxy`. Those routes sign from the account's full wallet, outside the
+narrow policy such a credential advertises, so the advertised scope would not be the real spend
+boundary. The fix is a **plain API key issued by the account owner** from the Nevermined app. Nothing
+about the request will make an OAuth-minted key work — do not retry, and do not fall back to a
+different Router endpoint.
+
+**`412` with `{"error":"consent_required"}` — the account's legal-document consent has lapsed.**
+
+```json
+{ "error": "consent_required", "outdated": ["terms", "privacy"],
+  "code": "BCK.HTTP.412", "httpStatus": 412, "category": "validation",
+  "retryable": false, "correlationId": "…" }
+```
+
+<a id="consent-412"></a>
+⚠️ **`code` alone will not identify this one.** It is deliberately *not* an `NVMException`, so it has
+no `BCK.LEGAL_DOCS.…` code of its own; the global error filter normalises it and stamps the generic
+**`BCK.HTTP.412`**, which restates the status and says nothing about the cause. The cause is in
+`body.error === "consent_required"` — branch on that, and read `body.outdated[]` for the document
+slugs (`terms`, `privacy`) not yet accepted at their current version. This is the one place the
+"branch on `code`" rule in `errors.md` needs a second field.
+
+It applies to the whole account, so **every** Delegation-creating call fails until it is resolved.
+Check it up front with `GET /api/v1/legal-documents/me/consent-status` (same bearer key), which
+returns `never` · `outdated` · `current` per slug.
+
+**Accepting is a human's act, not yours.** `POST /api/v1/legal-documents/me/consents` does accept an
+API key, but agreeing to terms on someone's behalf is not a step in a retry loop — report the 412 and
+stop. It is also why an agent that ran for weeks can fail at step ② one morning having changed
+nothing: a document was updated on Nevermined's side.
+
 ### Recipient scope is optional, and unset means unrestricted
 
 If `allowedRecipients` is present, the merchant's pay-to address must be on it — checked *before*
@@ -110,8 +149,27 @@ Decided by **what the merchant advertises**, not by which Nevermined environment
 | **x402** | `base` (8453, **mainnet — real funds**), `base-sepolia` (84532, testnet) | `USDC`, `EURC` — 6 decimals |
 | **MPP** | Tempo mainnet (4217), Tempo Moderato testnet (42431) | Whatever the operator allowlisted for that chain |
 
-`base` moves real money, and both networks are enabled by default. Read `settlement.network` on the
-response if you want certainty about what just happened.
+`base` moves real money. Read `settlement.network` on the response if you want certainty about what
+just happened.
+
+**Only one x402 network is funded per deployment, and which one is fixed by the environment.** It is
+not a per-deployment toggle and you cannot widen it:
+
+| Your `$NVM_API_URL` | x402 network the Router will fund |
+| --- | --- |
+| `https://api.sandbox.nevermined.app` (sandbox) | `base-sepolia` only |
+| `https://api.live.nevermined.app` (live) | `base` only |
+
+The permissive "both networks" pair survives **only on a local dev deployment**. An operator's
+`ROUTER_FUNDED_NETWORKS` can now only *narrow* that set, never widen it — sandbox/live is the
+real-money firewall, and an env var must not move a box across it.
+
+So **a `base` merchant is unpayable from sandbox and a `base-sepolia` merchant is unpayable from
+live** — in both cases with `400 BCK.ROUTER.0001 … no fundable option`, because every advertised
+option was on an unfunded network. That reads like a broken merchant and is not: it is the wrong
+environment for that service. Point at the other `$NVM_API_URL` (with a key issued for it), or pick a
+service on your environment's network. Do not retry, and do not go looking for a different merchant
+on the same chain — it will fail identically.
 
 Amounts are in the asset's smallest unit. For 6-decimal stablecoins:
 
@@ -122,8 +180,9 @@ Amounts are in the asset's smallest unit. For 6-decimal stablecoins:
 
 Your cap is in **cents**, so every payment is converted and **rounded up** to the next whole cent
 before being checked. A 5,000-unit (half-cent) payment reserves 1 cent — a long loop of sub-cent
-calls burns a full cent of budget each. `settlement.approxCents` tells you what was actually
-reserved.
+calls burns a full cent of budget each. `settlement.approxCents` is the **merchant** leg;
+`fee.capChargedCents` on the same response is the total actually reserved against the cap, including
+Nevermined's routing fee. See `paying.md`.
 
 MPP additionally requires the payment token to be on the operator's per-chain allowlist
 (`ROUTER_TEMPO_ASSETS_<chainId>`), which is **fail-closed**: unset rejects everything on that chain
