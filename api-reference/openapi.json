@@ -3667,7 +3667,6 @@
             "description": "Headers to forward to the upstream (e.g. the agent’s own auth). Optional."
           },
           "body": {
-            "type": "object",
             "description": "Request body to forward (JSON). Optional."
           },
           "protocol": {
@@ -4174,17 +4173,7 @@
           "code": {
             "type": "string",
             "description": "Router error code. `BCK.ROUTER.0001` invalid request / no fundable option / bad 402 (400); `BCK.ROUTER.0002` requestId already used — idempotency conflict (409); `BCK.ROUTER.0003` delegation budget exceeded, expired, or inactive (402); `BCK.ROUTER.0004` payment record not found (404); `BCK.ROUTER.0005` payment not in a settleable state (409). Framework-level `BCK.HTTP.*` codes (e.g. `BCK.HTTP.400` request validation, `BCK.HTTP.429` throttling) may also appear — see the base `code` field.",
-            "example": "BCK.ROUTER.0003",
-            "enum": [
-              "BCK.ROUTER.0001",
-              "BCK.ROUTER.0002",
-              "BCK.ROUTER.0003",
-              "BCK.ROUTER.0004",
-              "BCK.ROUTER.0005",
-              "BCK.HTTP.400",
-              "BCK.HTTP.429",
-              "BCK.HTTP.404"
-            ]
+            "example": "BCK.ROUTER.0003"
           },
           "httpStatus": {
             "type": "number",
