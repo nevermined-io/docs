@@ -45,12 +45,30 @@ An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ign
     "feeCents": "0",
     "feeStatus": "None",
     "feeTxHash": null,
-    "feeNonce": null
+    "feeNonce": null,
+    "assetSymbol": "USDC",
+    "assetDecimals": 6
   }
 ]
 ```
 
-`amount` is in the asset's smallest unit — divide by 10<sup>6</sup> for the 6-decimal stablecoins both rails use. The figure charged against your Delegation cap is the cents equivalent, **rounded up**, which is why a long run of sub-cent calls costs more budget than the raw amounts suggest.
+`amount` is in the asset's smallest unit, and `assetDecimals` is the scale to divide it by. The figure charged against your Delegation cap is the cents equivalent, **rounded up**, which is why a long run of sub-cent calls costs more budget than the raw amounts suggest.
+
+### Reading the asset
+
+Three fields describe what was paid in, because the raw one isn't the same kind of value on every rail:
+
+| Field | What it is |
+| --- | --- |
+| `asset` | The settlement asset **as persisted at mint**, which differs by rail: a symbol (`USDC`/`EURC`) on x402, the ERC-20 contract address on MPP-tempo, an ISO currency code on the card rail. Kept as-is for consumers that already parse it. |
+| `assetSymbol` | The ticker to display — `USDC`, `EURC`, `USDC.e`, `pathUSD` — resolved from `asset` on this row's `network`. `null` when it isn't an asset recognised there. |
+| `assetDecimals` | The decimal scale of `amount` for this asset, so you never have to assume one. `null` when the asset is unrecognised. |
+
+`assetSymbol` and `assetDecimals` are resolved when you read the record rather than stored on it, so rows written before they existed carry them too.
+
+<Warning>
+**When `assetSymbol` or `assetDecimals` is `null`, don't substitute a default.** Render the (truncated) `asset` rather than a guessed ticker, and treat `amount` as raw atomic units rather than assuming a scale. Assuming is worse than degrading: a wrong label is visibly wrong, whereas a wrong scale renders a plausible, wrong **number** and then sits in a spend total next to correctly scaled ones. In particular, not every row is a 6-decimal stablecoin — a card-rail row's `amount` is already in cents, at scale 2.
+</Warning>
 
 ### The routing fee on a record
 
@@ -111,7 +129,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?from=2026-07-01T00:00:00Z&to=2026-0
   -H "Authorization: Bearer $NVM_API_KEY" -o router-payments-july.csv
 ```
 
-The CSV carries the same fields as the JSON, and the fee columns sit at the **end** of the header row — so a consumer parsing by column index is unaffected by their arrival.
+The CSV carries the same fields as the JSON. New columns are only ever **appended** to the header row — the fee columns first, then `assetSymbol` and `assetDecimals` — so a consumer parsing by column index is unaffected by their arrival.
 
 ## Aggregate summary
 
