@@ -86,6 +86,8 @@ Exceeding the concurrency limit returns **`429 BCK.ROUTER.0007`**, which *is* re
 
 ## Every error code
 
+Every code below also appears in the canonical [API error catalogue](/development-guide/api-errors/codes#bck-router), which carries the `category` and `retryable` fields your client can branch on without parsing a message. [Error handling](/development-guide/api-errors/overview) describes the envelope they arrive in.
+
 | Code | Status | Meaning | Retry? |
 | --- | --- | --- | --- |
 | `BCK.ROUTER.0001` | 400 | Bad input: unsupported protocol, malformed or empty challenge, no fundable option, a recipient outside the Delegation's scope, a non-allowlisted asset, a wrong-provider Delegation, or a missing `delegationId`. The `details` field names the specific problem. | No |
@@ -129,5 +131,11 @@ If you're writing an agent that spends without a human in the loop, four rules:
   </Card>
   <Card title="How it works" icon="diagram-project" href="/products/router/how-it-works">
     Where these checks sit in the flow.
+  </Card>
+  <Card title="Full error catalogue" icon="circle-exclamation" href="/development-guide/api-errors/codes#bck-router">
+    The catalogue entry for each `BCK.ROUTER.*` code, with its category and remediation hint.
+  </Card>
+  <Card title="Router API reference" icon="code" href="/api-reference/router/mint-payment-credential">
+    The five endpoints these rules apply to, with request and response shapes you can try.
   </Card>
 </CardGroup>
