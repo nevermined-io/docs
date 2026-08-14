@@ -181,7 +181,7 @@ Three things are worth knowing about how a fee is applied.
 - `fee.amount` — the fee in the asset's smallest unit — is rounded **down**, so a fee is never rounded up in Nevermined's favour.
 - `fee.capChargedCents` — what your Delegation cap is debited — is a **cents** figure, and cents always round up.
 
-How much that costs depends on what the rail can tell the Router about converting its asset to cents. When it can, the merchant amount and the fee are rounded up **together**, as one figure — so a sub-cent fee only costs you an extra cent when it tips the total across a cent boundary. When it can't, the fee is rounded up **on its own**, and then **any non-zero rate costs at least one whole cent of cap per payment** — a 1-cent purchase at 2% is debited 2 cents. That holds even when the fee rounded down to nothing in atomic terms: `fee.amount` can be `0` on a payment that still cost you a cent of budget.
+How much that costs depends on what the rail can tell the Router about converting its asset to cents. When it can, the merchant amount and the fee are rounded up **together**, as one figure — so a sub-cent fee only costs you an extra cent when it tips the total across a cent boundary. When it can't, the fee is rounded up **on its own**, and then **any non-zero rate costs at least one whole cent of cap per payment** — a 1-cent purchase at 2% is debited 2 cents. The one case that does *not* cost you a cent is a fee that truncates below a single atomic unit: it could never be transferred, so it is dropped outright rather than reserved, and you are charged the merchant amount alone.
 
 So don't derive the cap charge from the amount and the rate. Read `fee.capChargedCents` — it's the figure your budget actually moved by.
 
@@ -200,13 +200,18 @@ The streaming `/proxy` variant returns its payment metadata as response headers,
 
 ### When a fee is not collected
 
-A reserved fee isn't always collected, and the two legs of the reserve are treated differently when it isn't.
+A reserved fee isn't always collected, and what happens to the reserve then differs by leg.
 
-**The merchant portion is never given back.** Once the credential is minted, the merchant may have taken the payment and then errored — so the reservation stands whatever the call did afterwards.
+**The merchant leg is never given back.** Once the credential is minted, the merchant may have taken the payment and then errored — so the reservation stands whatever the call did afterwards.
 
-**The fee portion is given back whenever the fee provably wasn't collected.** A mode-B hop that never returned 2xx, a facilitator that adjudicated and refused, a fee movement that couldn't be signed: on each of those the fee's cents are credited back to your Delegation cap, and the ledger row reads [`feeStatus: "Released"`](/products/router/ledger#fee-lifecycle). What is *not* released is a fee whose outcome is unknown — money may have moved, so those rows stay `Submitted` and are resolved against the chain instead.
+**The fee leg can come back — but only on a closed list of paths.** A mode-B hop that never returned 2xx, a facilitator that adjudicated and refused, or a fee movement that couldn't be signed: on each of those the fee's cents are credited back to your Delegation cap and the ledger row reads [`feeStatus: "Released"`](/products/router/ledger#fee-lifecycle). Nothing else releases. A fee whose outcome is *unknown* stays `Submitted` and is resolved against the chain — and **resolving is not releasing**: a row the chain shows was never consumed becomes `Failed` with its reserve **still charged**. Read `feeStatus` for the credit; never infer it from a failure.
 
-The mode decides when that question is even asked. Mode B settles the fee only after the merchant returns 2xx, so a hop that fails releases the fee. Mode A settles it at mint, before your credential is ever presented — so on mode A a wallet holding only the merchant's price typically pays the fee and then loses the merchant leg on-chain, and there is nothing to release.
+Two preconditions decide whether the question is even asked, and both are easy to miss:
+
+- **Only the x402 rail can collect a routing fee at all.** MPP payments cannot produce a second settleable authorization, so they reserve the merchant leg alone.
+- **Mode A collects only on calls that pass a `requestId`.** Without one a retry cannot be deduplicated, so the fee is neither collected nor reserved (`feeStatus: "None"`). `requestId` is optional in mode A and required in mode B, so this is the common case rather than an edge one.
+
+The mode then decides when the fee settles. Mode B settles it only after the merchant returns 2xx, so a hop that fails releases the fee. Mode A settles it at mint, before your credential is ever presented — so on mode A a wallet holding only the merchant's price typically pays the fee and then loses the merchant leg on-chain, and there is nothing to release.
 
 ### Fund for the amount plus the fee
 

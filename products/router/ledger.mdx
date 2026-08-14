@@ -61,13 +61,13 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 | Field | What it is |
 | --- | --- |
 | `asset` | The settlement asset **as persisted at mint**, which differs by rail: a symbol (`USDC`/`EURC`) on x402, the ERC-20 contract address on MPP-tempo, an ISO currency code on the card rail. Kept as-is for consumers that already parse it. |
-| `assetSymbol` | The ticker to display — `USDC`, `EURC`, `USDC.e`, `pathUSD` — resolved from `asset` on this row's `network`. `null` when it isn't an asset recognised there. |
-| `assetDecimals` | The decimal scale of `amount` for this asset, so you never have to assume one. `null` when the asset is unrecognised. |
+| `assetSymbol` | The ticker to display, resolved from `asset` on this row's `network`. `null` **only** when the row carries no asset, or an address we don't recognise on that chain — a symbol-shaped value is echoed as-is even when it isn't one we know, so a non-null `assetSymbol` is not proof the asset was recognised. Tickers and their **casing** vary by chain, so compare case-insensitively. |
+| `assetDecimals` | The decimal scale of `amount` for this asset, so you never have to assume one. `null` whenever the asset isn't recognised — making this, not `assetSymbol`, the field that tells you so. |
 
 `assetSymbol` and `assetDecimals` are resolved when you read the record rather than stored on it, so rows written before they existed carry them too.
 
 <Warning>
-**When `assetSymbol` or `assetDecimals` is `null`, don't substitute a default.** Render the (truncated) `asset` rather than a guessed ticker, and treat `amount` as raw atomic units rather than assuming a scale. Assuming is worse than degrading: a wrong label is visibly wrong, whereas a wrong scale renders a plausible, wrong **number** and then sits in a spend total next to correctly scaled ones. In particular, not every row is a 6-decimal stablecoin — a card-rail row's `amount` is already in cents, at scale 2.
+**When `assetDecimals` is `null`, don't substitute a default.** It is the reliable "we don't recognise this" signal — `assetSymbol` can be non-null on the very same row. Treat `amount` as raw atomic units rather than assuming a scale, and render the (truncated) `asset` rather than a guessed ticker. Assuming is worse than degrading: a wrong label is visibly wrong, whereas a wrong scale renders a plausible, wrong **number** and then sits in a spend total next to correctly scaled ones. In particular, not every row is a 6-decimal stablecoin — a card-rail row's `amount` is already in cents, at scale 2.
 </Warning>
 
 ### The routing fee on a record
@@ -80,17 +80,19 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 | `feeBps` | The rate applied, in basis points over a 10,000 denominator. Pinned per row, so a later rate change never rewrites what an old payment was charged. |
 | `feeCents` | The cents this fee added to the cap reserve. Rounded **up**. |
 | `feeStatus` | The fee's own lifecycle, tracked independently of the record's `status`. |
-| `feeTxHash` | The settlement reference for the **fee** movement — e.g. `"0x9c4d6f1e…"`. `null` until the fee settles. |
+| `feeTxHash` | The settlement reference for the **fee** movement — e.g. `"0x9c4d6f1e…"`. `null` until the fee settles, **and permanently `null`** on rows confirmed by on-chain reconciliation (see below). Read `feeStatus`, not this field, to know whether the fee settled. |
 | `feeNonce` | The EIP-3009 nonce the fee movement was signed with — e.g. `"0x7b1e2c…"`. `null` until the fee is submitted. |
 
 <Warning>
-**`feeAtomic: "0"` doesn't mean the payment carried no fee.** The two figures round in opposite directions, so a fee that rounded down to nothing atomically can still have taken a whole cent of your cap. `feeCents` is the one that says what your budget paid — and it's the difference between `feeStatus: "None"` and `"Accrued"`, since `None` means *neither* figure was charged.
+**`feeCents: "0"` doesn't mean the payment carried no fee.** The two figures round in opposite directions, so a fee can apply in atomic units yet add no cent to your cap reserve — an `Accrued`, or `Released`, row can legitimately read `feeCents: "0"`. `feeAtomic` is the one that answers "did a fee apply": a fee too small to transfer is dropped outright rather than reserved, so `feeAtomic: "0"` means no routing fee was charged at all, and the row reads `feeStatus: "None"`.
 </Warning>
 
 The fee is **configured per deployment and is currently `0`**, so today every row reads `feeBps: 0`, `feeStatus: "None"`, and a zero fee. Records created before the fee existed carry `null` in each of these.
 
 <Note>
 **This is why merchant amounts and spent budget don't reconcile on their own.** `amount` on this record is the merchant leg, so the combined cap charge isn't derivable from the ledger alone. It's recorded as `amountCents` on `GET /api/v1/delegation/{id}/transactions`, with the fee broken out in that row's `providerMetadata`.
+
+If the fee is later [`Released`](#fee-lifecycle), that row's `amountCents` is reduced by the fee and `providerMetadata.feeReleased: true` is set — but the `feeCents` breakout **stays**. So when that flag is present, don't add the breakout back on top: the total has already moved.
 </Note>
 
 ### Auditing the fee leg
@@ -114,9 +116,9 @@ The fee is **configured per deployment and is currently `0`**, so today every ro
 | `Submitted` | The fee movement was submitted and its outcome isn't confirmed yet. Money **may** have moved — this is the bucket that gets reconciled against the chain, using `feeNonce`. |
 | `Settled` | The fee movement landed on-chain. |
 | `Failed` | Collection provably did not happen. Terminal as an outcome — retrying changes nothing — but the row can still advance to `Released`. |
-| `Released` | The fee's share of the cap reserve was **credited back**, because collection reached a terminal not-collected state. Terminal. |
+| `Released` | The fee's share of the cap reserve, **if any**, was credited back, because collection reached a terminal not-collected state. Terminal. |
 
-**`Released` is the one that returns budget to you.** It's reached when the fee provably will not be collected — the facilitator adjudicated and refused, a mode-B hop never returned 2xx, or the fee movement couldn't be signed — and the fee's cents go back on your Delegation cap and on every ledger that mirrored the reserve, together. It's only reachable from `Accrued` and `Failed`, never from `Submitted` or `Settled`: there money may have moved or definitely did, and handing back headroom for money that already left your wallet is the one direction this must never fail in.
+**`Released` is the one that returns budget to you.** It's reached when the fee provably will not be collected — the facilitator adjudicated and refused, a mode-B hop never returned 2xx, or the fee movement couldn't be signed — and the fee's cents go back on your Delegation cap and on the ledgers that mirrored it (an org group budget is corrected separately, and can lag). A fee that applied atomically but added no cent still lands here, with nothing to credit back. It's only reachable from `Accrued` and `Failed`, never from `Submitted` or `Settled`: there money may have moved or definitely did, and handing back headroom for money that already left your wallet is the one direction this must never fail in.
 
 <Warning>
 **`Failed` does not imply `Released`.** They are separate steps, and the reserve comes back only on the paths listed above. A fee that failed some other way stays charged against your cap, so read `feeStatus` for the release rather than inferring it from a failure. And an *unknown* outcome is never released at all — those rows stay `Submitted` until the chain settles the question.
@@ -129,7 +131,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?from=2026-07-01T00:00:00Z&to=2026-0
   -H "Authorization: Bearer $NVM_API_KEY" -o router-payments-july.csv
 ```
 
-The CSV carries the same fields as the JSON. New columns are only ever **appended** to the header row — the fee columns first, then `assetSymbol` and `assetDecimals` — so a consumer parsing by column index is unaffected by their arrival.
+The CSV carries the same fields as the JSON, and new columns are only ever **appended** to the header row — so a consumer parsing by column index is unaffected by their arrival.
 
 ## Aggregate summary
 

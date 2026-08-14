@@ -78,9 +78,9 @@ The payment is a **pull**: your signature authorizes the merchant to take the am
 Get the address from your Delegation's `providerPaymentMethodId` — see [step 3 of the quickstart](/products/router/quickstart#3-fund-your-wallet).
 
 <Warning>
-**On x402 the Router does not check your balance before signing.** A short wallet isn't refused up front: the credential is minted, your Delegation budget is reserved, and the shortfall only appears when the merchant attempts the transfer on-chain. The payment then lands as `Failed` — and the reserved **merchant** amount is **not** given back. (`402 BCK.ROUTER.0009` is an [MPP-only](/products/router/rails-mpp#funding-your-wallet) error; this rail never raises it.)
+**On x402 the Router does not check your balance before signing.** A short wallet isn't refused up front: the credential is minted, your Delegation budget is reserved, and the shortfall only appears when the merchant attempts the transfer on-chain. The payment then lands as `Failed` — and the reserved **merchant** leg is **not** given back. (`402 BCK.ROUTER.0009` is an [MPP-only](/products/router/rails-mpp#funding-your-wallet) error; this rail never raises it.)
 
-Only a [routing fee](/products/router/how-it-works#when-a-fee-is-not-collected) reserved on top is ever credited back, and only when the fee provably wasn't collected — never the merchant's amount.
+Only a routing fee reserved on top can be credited back, and only on [the closed list of paths that release one](/products/router/how-it-works#when-a-fee-is-not-collected) — never the merchant leg.
 
 Fund for the merchant's amount **plus** any [routing fee](/products/router/how-it-works#fund-for-the-amount-plus-the-fee) — the fee is a second transfer from the same wallet, so the quoted price alone doesn't cover both.
 </Warning>
