@@ -89,6 +89,24 @@ curl -X POST https://api.nevermined.app/api/v1/mpp/settle \
 
 `resource` and `httpVerb` **must match the values the challenge was issued for**. That pair is sealed into the challenge and re-asserted here, so a credential minted for a cheap endpoint cannot be spent at an expensive one on the same plan. A mismatch is refused.
 
+### Binding a challenge to one request body
+
+Optional, and off unless you ask for it. Pass a `digest` when you mint the challenge, and the digest of the body you actually received when you settle:
+
+```jsonc
+// POST /api/v1/mpp/challenge
+{ "planId": "…", "credits": "2", "resource": "…", "httpVerb": "POST",
+  "digest": "sha-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=" }
+
+// POST /api/v1/mpp/settle
+{ "credential": "Payment …", "resource": "…", "httpVerb": "POST",
+  "bodyDigest": "sha-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=" }
+```
+
+The digest travels inside the challenge HMAC, so the buyer cannot change which body the challenge was issued for. If the two disagree, the settle is refused with `BCK.MPP.0005` and nothing is burned.
+
+Both must be formatted `sha-256=<base64>`. A challenge minted **without** a digest binds no body — that is the seller's choice at mint time, and not something a buyer can downgrade by omitting `bodyDigest`.
+
 ## What the receipt says — and what it deliberately omits
 
 The `Payment-Receipt` attests the settlement and nothing else:
@@ -152,5 +170,4 @@ MPP support is the Nevermined custom method — a buyer pays with a Nevermined d
 
 - Stock MPP clients paying with native `evm` or `stripe` methods
 - Sessions, subscriptions and metered streams — a challenge advertising one is refused rather than approximated
-- Binding a challenge to a specific request body
 - MPP over MCP or A2A transports
