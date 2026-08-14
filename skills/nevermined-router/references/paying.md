@@ -85,7 +85,7 @@ never branch on its absence.
 | Field | Meaning |
 | --- | --- |
 | `bps` | The rate applied to this payment, in basis points over 10,000 (`200` = 2%). `0` = no fee |
-| `amount` | The fee in the settlement asset's **smallest unit** — same unit as `settlement.amount`. Atomic rather than cents, because cents are ceiling-rounded and cannot express a sub-cent fee |
+| `amount` | The fee in the settlement asset's **smallest unit** — same unit as `settlement.amount`. Reported in that unit rather than cents because cents are ceiling-rounded and cannot express a sub-cent fee |
 | `cents` | Cents the fee added to the cap reserve, i.e. `capChargedCents - settlement.approxCents` |
 | `capChargedCents` | **Total debited from the Delegation cap** for this payment — merchant leg + routing fee |
 
@@ -93,10 +93,27 @@ never branch on its absence.
 capChargedCents  =  settlement.approxCents  +  fee.cents
 ```
 
-**If you keep your own budget ledger, sum `fee.capChargedCents`.** Summing `approxCents` under-reports
-your spend by exactly the fee, and the drift compounds silently over a long run. With no fee
-configured the two are equal — which is why an agent that only ever ran against a zero-fee deployment
-will not notice until one has a rate set.
+**If you keep your own budget ledger, sum `fee.capChargedCents`, not `approxCents`.** Summing
+`approxCents` under-reports your spend by exactly the fee, and the drift compounds silently over a
+long run. With no fee configured the two are equal — which is why an agent that only ever ran against
+a zero-fee deployment will not notice until one has a rate set.
+
+<a id="reserve-not-final"></a>
+⚠️ **`capChargedCents` is what was reserved at MINT, and the fee half can come back.** On mode B, if
+the upstream does not answer `2xx`, the routing fee is released to your cap and the row goes
+`feeStatus: Released` — the **merchant** leg's reserve stays charged, by design. So a running total of
+`capChargedCents` *over*-reports on exactly those calls, by the fee.
+
+Which figure you want depends on the question:
+
+| You want | Read |
+| --- | --- |
+| What this call reserved, at the moment it was made | `fee.capChargedCents` on the response |
+| What you have actually spent, net of releases | `amountSpentCents` / `remainingBudgetCents` on `GET /api/v1/delegation/{id}` |
+| Whether a specific call's fee came back | `feeStatus` on its ledger row — `Released` means refunded (see `ledger.md`) |
+
+**The Delegation is the authority on spend; the response is the authority on what one call reserved.**
+Reconcile against the Delegation, not against your own sum, and the two agreeing is the check.
 
 The credential itself pays the **merchant only** — the fee never rides the merchant's authorization
 and settles as its own leg, signed separately from the same buyer wallet. So the wallet has to cover
@@ -203,7 +220,7 @@ Call the merchant with no payment. It answers `402` with its requirements:
 | `protocol` | **yes** | `x402` or `mpp`. **Not auto-detected here** — unlike mode B, you must get this right |
 | `target` | **yes** | x402 → `{ accepts, x402Version? }` (defaults to **2**; set `1` for x402-express). MPP → `{ challenge }`, the raw header value |
 | `resourceUrl` | no | Absolute URL, recorded on the ledger |
-| `requestId` | no | **Optional here**, unlike mode B. Still recommended |
+| `requestId` | no | **Optional here**, unlike mode B — but pass one anyway: it is the only thing that dedupes a retry, and [the routing fee is charged only when it is present](#mode-a-fee) |
 
 Pass `target` **verbatim** from the 402. Do not normalise, reorder or re-encode it.
 
@@ -226,8 +243,16 @@ above is v1, so this one comes back v1 with the v1 header:
 Had you passed a v2 `target` (the default), the same call would return `"x402Version": 2` and
 `"name": "PAYMENT-SIGNATURE"`.
 
-Mode A charges the routing fee exactly as mode B does, so [the `fee` object](#the-fee-object) is on
-this response too — `fee.capChargedCents` is what your cap was debited.
+<a id="mode-a-fee"></a>
+[The `fee` object](#the-fee-object) is on this response too — but ⚠️ **mode A charges the routing fee
+only when you pass a `requestId`.** Fee collection is refused outright without one, *before* the cap
+is touched, so no fee is quoted and none is reserved: `fee` comes back zeroed and
+`capChargedCents == settlement.approxCents`.
+
+That is a safety rule, not a discount. `requestId` is optional on mode A (see the field table above) and it is
+the only thing that dedupes a retry, so without it a re-mint would settle a **second** real fee
+transfer for one purchase. Pass one anyway — the double-spend it prevents costs far more than the
+fee. Mode B requires it and is unaffected.
 
 ### 3 · Attach it and re-send
 

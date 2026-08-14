@@ -1,8 +1,7 @@
 # Nevermined Router — paying external services
 
 You are writing an agent that must **pay** an external service it has no account with — any x402
-agent or MPP merchant. If you are *receiving* payments or buying a plan, use the
-`nevermined-payments` rules instead.
+agent or MPP merchant. If you are *receiving* payments or buying a plan, use `nevermined-payments`.
 
 Full skill: https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router ·
 https://nevermined.ai/docs/products/router/overview
@@ -45,7 +44,7 @@ live → `base`.** A merchant on the other chain is unpayable from where you are
 - **Only `protocol` of `x402` or `mpp` is routable.** Filter for them.
 - **`targetUrl` is the default endpoint's COMPLETE URL, not a base** — it may already contain the
   path, so concatenating yields `/search/search`. Use `new URL(endpoint.path, service.targetUrl)`.
-- `offset` is the page **size**, not a skip count; default ordering is shuffled within each tier, so
+- `offset` is the page **size**, not a skip count; ordering is shuffled within each tier, so
   `services[0]` is not stable.
 - `category` is a **closed 13-value enum** (`"Search & Research"`, not `"Search"`); `subCategory` is
   free text under it. Take both from `GET /api/v1/catalog/categories` →
@@ -66,8 +65,9 @@ fresh `uuid4()` per attempt is how an agent double-spends.**
 
 **Money.** Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs **$10.00,
 not $1.00**. `settlement.approxCents` is only the **merchant** leg; the routing fee rides on top in
-the always-present `payment.fee` (`{ bps, amount, cents, capChargedCents }`). Sum
-**`fee.capChargedCents`**, the actual cap debit, not `approxCents`.
+`payment.fee` (`{ bps, amount, cents, capChargedCents }`), always present. `fee.capChargedCents` is
+what the call **reserved**, not a final figure — a mode-B hop missing `2xx` releases the fee half
+back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 
 ## Guardrails — a refusal is the system working
 
@@ -81,7 +81,7 @@ the always-present `payment.fee` (`{ bps, amount, cents, capChargedCents }`). Su
 - `BCK.ROUTER.0011` (402) — card rail: needs 3-D Secure, which an agent can't complete. Nothing
   charged; each retry strands a single-use credential. **Don't auto-retry.**
 - Only `0006` (500) and `0007` (429, too many concurrent) are **retryable**; everything else is a
-  decision — retrying it unchanged gives the same answer.
+  decision, and retrying it unchanged gives the same answer.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision; a fresh one to escape an exhausted Delegation defeats the mechanism.
@@ -89,9 +89,9 @@ user's decision; a fresh one to escape an exhausted Delegation defeats the mecha
 ## Accounting
 
 `GET /api/v1/router/payments` (filters `delegationId`, `from`, `to`, `format=csv`) and
-`/payments/summary`. `amount` is the **merchant leg only**, in the asset's smallest unit — and the
-**scale differs per rail**: 6dp on the crypto rails, but the card rail (`network: "stripe"`) is
-scale 2, so its `amount` **IS cents**. Read `assetDecimals`; never assume 6. Rows also carry six
+`/payments/summary`. `amount` is the **merchant leg only**, and the **scale differs per rail**: 6dp
+on the crypto rails, but the card rail (`network: "stripe"`) is scale 2, so its `amount` **IS
+cents**. Read `assetDecimals`; never assume 6. Rows also carry six
 `fee*` columns plus `assetSymbol`/`assetDecimals`; `feeStatus`
 (`None|Accrued|Submitted|Settled|Failed|Released`) is a **separate lifecycle** from the payment
 `status`, which shares `Settled`/`Failed` — never read one for the other. A record at `Issued` is

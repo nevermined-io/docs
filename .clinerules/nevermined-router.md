@@ -118,8 +118,10 @@ again. Derive it from the work being done.
 Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs **$10.00, not $1.00**.
 `settlement.approxCents` is only the **merchant** leg; Nevermined's routing fee rides on top in the
 always-present `payment.fee` (`{ bps, amount, cents, capChargedCents }`). **`fee.capChargedCents` is
-what your cap was actually debited** — sum that, not `approxCents`, or your own accounting
-under-reports spend by exactly the fee. Trust either over any catalog `priceLabel`.
+what the call reserved against your cap** — sum that, not `approxCents`, or your accounting
+under-reports by exactly the fee. ⚠️ It is the reserve **at mint**: a mode-B hop that does not return
+`2xx` releases the fee half back, so a running total over-reports on those calls. For spend to date
+read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 
 ## Guardrails — a refusal is the system working
 

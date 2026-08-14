@@ -205,7 +205,9 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
 `status` and `body` are the merchant's own, unchanged. `paid: false` with no `payment` block means the resource was free — the Router relayed it and charged nothing.
 
 <a id="fee"></a>
-**`settlement.approxCents` is the merchant leg, not your bill.** Nevermined charges a routing fee on top, disclosed in the **always-present `fee` object** (zeroed when no fee applied, so never branch on its absence): `fee.capChargedCents` is the **total debited from your Delegation cap** — `settlement.approxCents + fee.cents`. Sum `capChargedCents`, not `approxCents`, or your own budget accounting drifts by exactly the fee. Full field list: `references/paying.md`.
+**`settlement.approxCents` is the merchant leg, not your bill.** Nevermined charges a routing fee on top, disclosed in the **always-present `fee` object** (zeroed when no fee applied, so never branch on its absence): `fee.capChargedCents` is what this call **reserved** against your Delegation cap — `settlement.approxCents + fee.cents`. Sum `capChargedCents`, not `approxCents`, or your accounting drifts by exactly the fee.
+
+⚠️ It is the **reserve at mint**, not the final figure: if a mode-B hop does not return `2xx` the fee half is given back (the merchant leg stays charged), so a running total over-reports on those calls. **`GET /api/v1/delegation/{id}` is the authority on what you have actually spent** — reconcile against `amountSpentCents` rather than your own sum. Full field list: `references/paying.md`.
 
 <a id="requestid"></a>
 **`requestId` is required, and it is an idempotency key — not a request counter.** Use **one stable id per logical purchase** and reuse it across retries of that purchase. Retrying a dropped call with the same id returns `409 BCK.ROUTER.0002` carrying the original `paymentId` — **not the resource** — instead of buying twice; a fresh id buys twice, on purpose. **Never answer that 409 by minting a fresh id**: that is the double-spend the key just prevented. If the purchase genuinely failed, report it. Derive it from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per HTTP attempt — a fresh UUID on every retry is how an agent double-spends.
@@ -235,7 +237,7 @@ The Router signs payments from your wallet in response to instructions written b
 3. **One `requestId` per purchase**, reused across retries of that purchase. See [above](#requestid).
 4. **Only `0006` (500) and `0007` (429) are retryable.** Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007`; it means you have too many routed calls in flight. **The HTTP status does not tell you whether to retry** — `0010` is a 500 you must not retry and `0011` is a 402 you must not retry. Read the code, not the status.
 
-**Check the price before you commit.** `priceLabel` in the catalog is indicative; on the response, `settlement.approxCents` is what the **merchant** charged and [`fee.capChargedCents`](#fee) is what your **cap** was actually debited — they differ whenever a routing fee applies. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each.
+**Check the price before you commit.** `priceLabel` in the catalog is indicative; on the response, `settlement.approxCents` is what the **merchant** charged and [`fee.capChargedCents`](#fee) is what your **cap** reserved — they differ whenever a routing fee applies. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each. For spend to date, read the Delegation, not a sum of responses.
 
 **Delegations expire silently.** A long-running agent that worked yesterday and fails today with `0003` has very often just aged out — check `expiresAt` before assuming anything is broken.
 

@@ -50,7 +50,9 @@ Both guard the *caller*, not the request body, so a perfectly valid payload stil
 retryable and neither can be fixed from your side alone.
 
 **`403 BCK.OAUTH.0030` — this API key may not create Delegations.** An **OAuth-minted** credential
-(one issued through an OAuth consent ceremony, `credits_purchase` or `account_access`) is refused on
+(one issued through an OAuth consent ceremony — today `credits_purchase` or `account_access`, but the
+guard keys on the binding rather than the consent type, so any future ceremony type is refused too)
+is refused on
 `POST /delegation/create` *and* on all three paying routes — `POST /router/payments`, `POST
 /router/route`, `ALL /router/proxy`. Those routes sign from the account's full wallet, outside the
 narrow policy such a credential advertises, so the advertised scope would not be the real spend
@@ -74,7 +76,8 @@ no `BCK.LEGAL_DOCS.…` code of its own; the global error filter normalises it a
 slugs (`terms`, `privacy`) not yet accepted at their current version. This is the one place the
 "branch on `code`" rule in `errors.md` needs a second field.
 
-It applies to the whole account, so **every** Delegation-creating call fails until it is resolved.
+It applies to the whole account — the same guard gates ten routes across delegation creation, card
+enrolment and fiat checkout — so **every** Delegation-creating call fails until it is resolved.
 Check it up front with `GET /api/v1/legal-documents/me/consent-status` (same bearer key), which
 returns `never` · `outdated` · `current` per slug.
 
@@ -186,8 +189,9 @@ Amounts are in the asset's smallest unit. For 6-decimal stablecoins:
 Your cap is in **cents**, so every payment is converted and **rounded up** to the next whole cent
 before being checked. A 5,000-unit (half-cent) payment reserves 1 cent — a long loop of sub-cent
 calls burns a full cent of budget each. `settlement.approxCents` is the **merchant** leg;
-`fee.capChargedCents` on the same response is the total actually reserved against the cap, including
-Nevermined's routing fee. See `paying.md`.
+`fee.capChargedCents` on the same response is the total this call **reserved** against the cap,
+including Nevermined's routing fee. The reserve is not final — a failed mode-B hop releases the fee
+half — so read `amountSpentCents` here for spend to date. See `paying.md`.
 
 MPP additionally requires the payment token to be on the operator's per-chain allowlist
 (`ROUTER_TEMPO_ASSETS_<chainId>`), which is **fail-closed**: unset rejects everything on that chain

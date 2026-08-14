@@ -34,10 +34,11 @@ attempted — so handle them even though neither carries a `BCK.ROUTER.*` code.
 | | Code | Status | Applies to | Retry? |
 | --- | --- | --- | --- | --- |
 | **OAuth-minted key** | `BCK.OAUTH.0030` | 403 | `POST /delegation/create`, `POST /router/payments`, `POST /router/route`, `ALL /router/proxy` | No |
-| **Consent lapsed** | `BCK.HTTP.412` (generic — see below) | 412 | `POST /delegation/create` | No |
+| **Consent lapsed** | `BCK.HTTP.412` (generic — see below) | 412 | Account-wide; `POST /delegation/create` is the one on this path | No |
 
-**`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony
-(`credits_purchase` / `account_access`) and may not touch the Router spend rails or create
+**`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony (today,
+`credits_purchase` or `account_access`; the guard keys on the binding, not the consent type, so a
+future ceremony type is refused too) and may not touch the Router spend rails or create
 Delegations: those routes sign from the account's full wallet, outside the narrow session-key policy
 such a credential advertises. The fix is a **plain API key issued by the account owner**. No request
 change and no other Router endpoint will work around it — do not retry.
@@ -118,11 +119,12 @@ retry loop.
 **3. One `requestId` per logical purchase**, reused across retries of that purchase. A fresh UUID
 per HTTP attempt is how an agent double-spends.
 
-**4. Check what you actually spent.** `fee.capChargedCents` on each response — **not**
-`settlement.approxCents`, which is only the merchant leg and excludes Nevermined's routing fee — and
-the ledger periodically. Budget is debited in whole cents **rounded up**, so a long loop of sub-cent
-calls burns a cent each — the arithmetic that says "1000 calls at $0.001 = $1.00" is wrong here; it
-is $10.00. See `paying.md` for the `fee` object.
+**4. Check what you actually spent.** Per call, `fee.capChargedCents` — **not**
+`settlement.approxCents`, which is only the merchant leg and excludes Nevermined's routing fee. For
+spend to date, `GET /api/v1/delegation/{id}` → `amountSpentCents`, because `capChargedCents` is the
+reserve at mint and a failed mode-B hop gives the fee half back. Budget is debited in whole cents
+**rounded up**, so a long loop of sub-cent calls burns a cent each — the arithmetic that says "1000
+calls at $0.001 = $1.00" is wrong here; it is $10.00. See `paying.md` for the `fee` object.
 
 ## Distinguishing the two 402s
 

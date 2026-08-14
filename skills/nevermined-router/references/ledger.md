@@ -118,8 +118,8 @@ Nevermined's routing fee is recorded on every row, on both the JSON rows and the
 | --- | --- |
 | `feeAtomic` | The fee in the asset's **smallest unit**, like `amount`. `"0"` when no fee applied; `null` on rows predating the fee |
 | `feeBps` | Rate applied, in basis points over 10,000 (`200` = 2%). `null` on rows predating the fee |
-| `feeCents` | Cents the fee added to the cap reserve |
-| `feeStatus` | The fee leg's own lifecycle — **not** the payment `status`. See below |
+| `feeCents` | Cents the fee added to the cap reserve. `null` on rows predating the fee |
+| `feeStatus` | The fee leg's own lifecycle — **not** the payment `status`. `null` on rows predating the fee, so a switch over the six values below needs a `null` branch. See below |
 | `feeTxHash` | Settlement reference for the **fee** leg, distinct from `txHash`. Reported verbatim by the facilitator, so third-party text, not a validated `0x` shape. Often `null` — including on some `Settled` rows |
 | `feeNonce` | The fee leg's EIP-3009 nonce, recorded on submission. The audit key that ties an on-chain transfer back to this payment. `null` until submitted. Not spendable on its own |
 
@@ -149,8 +149,9 @@ rows. A null `feeTxHash` is not evidence the fee did not settle.
 **For CSV consumers:** every column added since the original set — the six fee ones, then
 `assetSymbol` and `assetDecimals` — was **appended after** it, so a parser reading the original
 columns by **index from the left** is unaffected. One that **asserts a header count**, or maps
-positionally **from the right**, breaks: the set has grown twice already and `feeNonce` is no longer
-the last column. Key off the header names.
+positionally **from the right**, breaks: the set has grown **three times** already — #2191 added the
+first four fee columns, #2840 added `feeTxHash`/`feeNonce`, #2779 added the derived pair — and
+`feeNonce` is no longer the last column. Key off the header names.
 
 ## Aggregate summary
 
