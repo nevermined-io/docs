@@ -115,6 +115,10 @@ Instead of embedding an EIP-3009 transfer, the payload includes:
 
 When a server requires payment, it returns a `402` response with a `payment-required` header. The scheme depends on the plan's pricing configuration:
 
+<Note>
+  **`network` is the settlement *rail*, not the environment.** Send `eip155:<chainId>` (e.g. `eip155:84532`) for a crypto/ERC-4337 plan, or one of `stripe` / `braintree` / `visa` for a card-delegation plan. It is **not** the environment name — do **not** put `sandbox` or `live` here (that value fails validation). The environment is selected by your API key and base URL, never by this field.
+</Note>
+
 **Crypto plan (`nvm:erc4337`):**
 
 ```json
