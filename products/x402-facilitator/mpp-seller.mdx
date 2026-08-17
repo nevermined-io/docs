@@ -1,0 +1,177 @@
+---
+title: "Accepting MPP payments"
+description: "Advertise your plan-protected endpoint as MPP-payable, and let Nevermined meter the request exactly as it does for x402."
+icon: "handshake"
+---
+
+The **Machine Payments Protocol (MPP)** is an open HTTP-402 standard for agent-to-agent payments. If your endpoint is already protected by a Nevermined plan, you can advertise MPP as an accepted protocol on it — and every request is metered identically to x402: same plan, same credits, same delegation.
+
+<Note>
+This page is the **seller** side: your endpoint gets paid. For the opposite direction — paying an external MPP merchant through the Router — see [the MPP rail](/products/router/rails-mpp). Only the wire format is shared.
+</Note>
+
+## What the buyer sees
+
+An unpaid request gets an RFC 7235 challenge instead of your content:
+
+```
+HTTP/1.1 402 Payment Required
+WWW-Authenticate: Payment id="…", realm="api.sandbox.nevermined.app", method="nevermined",
+                  intent="charge", request="<base64url>", expires="…"
+```
+
+The buyer wraps that challenge into a credential and retries:
+
+```
+Authorization: Payment <base64url credential>
+```
+
+On success your response carries the receipt:
+
+```
+Payment-Receipt: <base64url receipt>
+```
+
+The `method="nevermined"` is the point. MPP lets a seller register a custom payment method, and paying a Nevermined endpoint is a **credit burn against a plan**, not a token transfer — so there is no wallet, no signature and no on-chain settlement in the buyer's half. The access token *is* the payment instrument.
+
+## The three endpoints
+
+Your endpoint does not implement the protocol. It calls three routes, and the backend holds every secret:
+
+| Route | Who calls it | What it does |
+| --- | --- | --- |
+| `POST /api/v1/mpp/challenge` | your endpoint | Mints the HMAC-bound challenge to return with the 402 |
+| `POST /api/v1/mpp/verify` | your endpoint | Checks a credential without burning anything |
+| `POST /api/v1/mpp/settle` | your endpoint | Verifies **and** burns the credits, returning the receipt |
+
+A buyer mints their access token at `POST /api/v1/mpp/permissions`, the MPP counterpart of the x402 route.
+
+<Note>
+**The signing secret never leaves the backend.** A challenge cannot be minted at your edge, which is deliberate: it means an integration ships no secret in any binary, and a compromised seller process cannot forge challenges for anyone else.
+</Note>
+
+### Minting a challenge
+
+```bash
+curl -X POST https://api.sandbox.nevermined.app/api/v1/mpp/challenge \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "planId": "447427630760474976400802302367814741299709927278965938619973471356131355710",
+    "credits": "2",
+    "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
+    "resource": "/api/v1/agents/:agentId/tasks",
+    "httpVerb": "POST"
+  }'
+```
+
+```json
+{
+  "challenge": "Payment id=\"k7Hs…\", realm=\"api.sandbox.nevermined.app\", method=\"nevermined\", …",
+  "id": "k7HsQ1cQ0m8bF3xw0Yy2Zr9Xv1sT4pL6nA8dC2eG0hI"
+}
+```
+
+Return `challenge` verbatim as your `WWW-Authenticate` header. It is HMAC-bound, so **any edit invalidates it**.
+
+### Settling
+
+```bash
+curl -X POST https://api.sandbox.nevermined.app/api/v1/mpp/settle \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "credential": "Payment eyJjaGFsbGVuZ2Ui…",
+    "resource": "/api/v1/agents/:agentId/tasks",
+    "httpVerb": "POST"
+  }'
+```
+
+`resource` and `httpVerb` **must match the values the challenge was issued for**. That pair is sealed into the challenge and re-asserted here, so a credential minted for a cheap endpoint cannot be spent at an expensive one on the same plan. A mismatch is refused.
+
+### Binding a challenge to one request body
+
+Optional, and off unless you ask for it. Pass a `digest` when you mint the challenge, and the digest of the body you actually received when you settle:
+
+```jsonc
+// POST /api/v1/mpp/challenge
+{ "planId": "…", "credits": "2", "resource": "…", "httpVerb": "POST",
+  "digest": "sha-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=" }
+
+// POST /api/v1/mpp/settle
+{ "credential": "Payment …", "resource": "…", "httpVerb": "POST",
+  "bodyDigest": "sha-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=" }
+```
+
+The digest travels inside the challenge HMAC, so the buyer cannot change which body the challenge was issued for. If the two disagree, the settle is refused with `BCK.MPP.0005` and nothing is burned.
+
+Both must be formatted `sha-256=<base64>`. A challenge minted **without** a digest binds no body — that is the seller's choice at mint time, and not something a buyer can downgrade by omitting `bodyDigest`.
+
+## What the receipt says — and what it deliberately omits
+
+The `Payment-Receipt` attests the settlement and nothing else:
+
+```json
+{
+  "method": "nevermined",
+  "reference": "k7HsQ1cQ0m8bF3xw0Yy2Zr9Xv1sT4pL6nA8dC2eG0hI",
+  "status": "success",
+  "timestamp": "2026-08-13T10:04:11.117Z"
+}
+```
+
+It carries **no remaining balance**. A buyer's credit balance is not the seller's to disclose, and the receipt schema has no field it could travel in — the minimization is structural, not a matter of discipline.
+
+<Warning>
+**A receipt implies no refund.** The burn is not escrowed and cannot be reversed. MPP refunds are not supported.
+</Warning>
+
+## Behaviour worth knowing before you integrate
+
+**Settling twice burns once.** The challenge id is the burn's idempotency key, so a retried settle is absorbed and returns success without moving credits again. That is what makes a settle safe to retry when the response is lost.
+
+**A failed settle leaves the credential spendable.** Nothing is consumed and no receipt is minted, so the buyer is never charged for a request you could not serve.
+
+**Every challenge is unique.** Two identical requests produce two distinct challenges. Since the id doubles as the settlement id, sharing one would collapse two payments into a single burn.
+
+**Credits are protocol-independent.** The same request burns the same credits whether it was paid over MPP or x402 — the two protocols share one meter and one delegation budget.
+
+## Protocol isolation
+
+An MPP access token and an x402 one are **byte-identical on the wire**. What separates them is the EIP-712 domain they are signed under, and that is fixed by the endpoint that minted them — it is not a value a caller can select.
+
+The consequence is the property the design exists for: a token minted for MPP is refused by the x402 routes, and an x402 token is refused by the MPP routes. Posting a token to the wrong family of routes fails closed.
+
+## Operator configuration
+
+MPP needs two deployment values, set where your other secrets live — never in application code:
+
+| Variable | What it is |
+| --- | --- |
+| `MPP_SECRET_KEY` | Signs and verifies the challenge HMAC. **Use a distinct value per environment** — it is the isolation boundary between them. |
+| `MPP_REALM` | The realm advertised in the challenge. Part of the HMAC input. |
+
+<Warning>
+Rotating `MPP_SECRET_KEY` **invalidates every outstanding challenge**. Challenges are short-lived, so the blast radius is small, but roll it when traffic is quiet rather than mid-peak.
+</Warning>
+
+When either value is missing, the MPP routes answer `BCK.MPP.0002` and **the rest of the API is unaffected** — a missing value degrades one protocol instead of causing an outage.
+
+## Environments
+
+| Environment | API base | Key prefix |
+| --- | --- | --- |
+| **Sandbox** | `https://api.sandbox.nevermined.app` | `sandbox:` |
+| **Live** | `https://api.live.nevermined.app` | `live:` |
+
+<Warning>
+**The key and the host must match.** A `sandbox:` key only works against `api.sandbox.nevermined.app`, and a `live:` key only against `api.live.nevermined.app`. Crossing them fails on the very first call — see [getting an API key](/agents-guide/get-api-key).
+</Warning>
+
+## Current scope
+
+MPP support is the Nevermined custom method — a buyer pays with a Nevermined delegation, framed as MPP. Not yet supported:
+
+- Stock MPP clients paying with native `evm` or `stripe` methods
+- Sessions, subscriptions and metered streams — a challenge advertising one is refused rather than approximated
+- MPP over MCP or A2A transports
