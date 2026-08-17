@@ -1797,7 +1797,7 @@
     },
     "/router/payments": {
       "post": {
-        "description": "Pay any x402-compatible agent WITHOUT that agent integrating Nevermined. Returns a signed\ncredential you attach to your own request to the agent.\n\nPrerequisite: a spending **Delegation**. Create one once via `POST /api/v1/delegation/create`\nwith `provider: 'erc4337'`, a `spendingLimitCents`, and a `durationSecs`; pass its `id` as\n`delegationId` here. The Router signs with your custodial wallet and enforces the cap.\n\nSteps:\n1. Call the agent once WITHOUT payment → it replies HTTP 402 with requirements. x402 v1 puts\n   them in the JSON body `{ x402Version: 1, accepts: [...] }`; x402 v2 puts them in a base64\n   `PAYMENT-REQUIRED` response header (decode to an object). Pass what you got as `target`.\n2. POST here. The Router selects a fundable option, signs an x402 `exact` (EIP-3009) payment,\n   reserves the amount against your Delegation, and returns `credential` + `settlement`.\n3. Re-send your original request to the agent with the HTTP header named `credential.name`\n   (`PAYMENT-SIGNATURE` for v2, `X-PAYMENT` for v1) set to `credential.value`. The agent\n   verifies, settles on-chain, and returns the resource.\n\nOptionally call `POST /api/v1/router/payments/{paymentId}/settled` with the on-chain tx to\ncomplete the audit record. Pass a stable `requestId` for idempotency (one credential per id).\nPrefer `POST /api/v1/router/route` to have the Router call the agent and pay in one step (mode B).\n\nMPP: set `protocol: \"mpp\"` and pass the raw `WWW-Authenticate: Payment …` header value as\n`target.challenge` to pay a Merchant-Payment-Protocol (tempo `charge`) merchant. The Router\nreturns an `Authorization: Payment <…>` credential (attach it under header `credential.name`).",
+        "description": "Pay any x402-compatible agent WITHOUT that agent integrating Nevermined. Returns a signed\ncredential you attach to your own request to the agent.\n\nPrerequisite: a spending **Delegation**. Create one once via `POST /api/v1/delegation/create`\nwith `provider: 'erc4337'`, a `spendingLimitCents`, and a `durationSecs`; pass its `id` as\n`delegationId` here. The Router signs with your custodial wallet and enforces the cap.\n\nSteps:\n1. Call the agent once WITHOUT payment → it replies HTTP 402 with requirements. x402 v1 puts\n   them in the JSON body `{ x402Version: 1, accepts: [...] }`; x402 v2 puts them in a base64\n   `PAYMENT-REQUIRED` response header (decode to an object). Pass what you got as `target`.\n2. POST here. The Router selects a fundable option, signs an x402 `exact` (EIP-3009) payment,\n   reserves the amount against your Delegation, and returns `credential` + `settlement`.\n3. Re-send your original request to the agent with the HTTP header named `credential.name`\n   (`PAYMENT-SIGNATURE` for v2, `X-PAYMENT` for v1) set to `credential.value`. The agent\n   verifies, settles on-chain, and returns the resource.\n\nOptionally call `POST /api/v1/router/payments/{id}/settled` with the on-chain tx to\ncomplete the audit record. Pass a stable `requestId` for idempotency (one credential per id).\nPrefer `POST /api/v1/router/route` to have the Router call the agent and pay in one step (mode B).\n\nMPP: set `protocol: \"mpp\"` and pass the raw `WWW-Authenticate: Payment …` header value as\n`target.challenge` to pay a Merchant-Payment-Protocol (tempo `charge`) merchant. The Router\nreturns an `Authorization: Payment <…>` credential (attach it under header `credential.name`).",
         "operationId": "mintX402PaymentCredential",
         "parameters": [],
         "requestBody": {
@@ -1975,6 +1975,12 @@
                     "$ref": "#/components/schemas/RouterPaymentRecordDto"
                   }
                 }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "description": "CSV export of the same records, served as a file download (`Content-Disposition: attachment; filename=\"router-payments.csv\"`). Columns carry the JSON field names; new ones are always appended at the end — `assetSymbol` and `assetDecimals` are the most recent — so a consumer reading by column index is unaffected when the record grows."
+                }
               }
             }
           },
@@ -2007,7 +2013,7 @@
     },
     "/router/route": {
       "post": {
-        "description": "Hand the Router the request you want made to an upstream x402 agent; it probes, pays any 402\nwith your Delegation (same engine as `POST /payments`), and relays the agent’s response in ONE\ncall — you never see the 402 or handle the credential yourself.\n\nPrerequisite: a Delegation `id` (`POST /api/v1/delegation/create`, provider `erc4337`).\n\nProvide the target `url` (+ optional `method`, `headers`, `body`). A free (non-402) upstream is\nrelayed unchanged with `paid=false` and no `payment`. `requestId` is REQUIRED (the Router pays automatically, so a retry must be idempotency-keyed); a duplicate returns 409 with the original paymentId.\n\nFor LARGE or STREAMED responses, a transparent streaming variant exists at `ALL /api/v1/router/proxy`:\npoint your HTTP client at it with headers `X-Router-Target-Url` and `X-Router-Delegation-Id`\n(optional `X-Router-Upstream-Authorization` for the agent’s own auth). Method/body/headers pass\nthrough and the response streams back, with payment metadata in `X-Router-Payment-Id`,\n`X-Router-Payment-Status`, and `X-Router-Tx-Hash` response headers. Use this JSON endpoint when\nyou want a single structured result instead.",
+        "description": "Hand the Router the request you want made to an upstream x402 agent; it probes, pays any 402\nwith your Delegation (same engine as `POST /router/payments`), and relays the agent’s response in ONE\ncall — you never see the 402 or handle the credential yourself.\n\nPrerequisite: a Delegation `id` (`POST /api/v1/delegation/create`, provider `erc4337`).\n\nProvide the target `url` (+ optional `method`, `headers`, `body`). A free (non-402) upstream is\nrelayed unchanged with `paid=false` and no `payment`. `requestId` is REQUIRED (the Router pays automatically, so a retry must be idempotency-keyed); a duplicate returns 409 with the original paymentId.\n\nFor LARGE or STREAMED responses, a transparent streaming variant exists at `ALL /api/v1/router/proxy`:\npoint your HTTP client at it with headers `X-Router-Target-Url` and `X-Router-Delegation-Id`\n(optional `X-Router-Upstream-Authorization` for the agent’s own auth). Method/body/headers pass\nthrough and the response streams back, with payment metadata in `X-Router-Payment-Id`,\n`X-Router-Payment-Status`, and `X-Router-Tx-Hash` response headers. Use this JSON endpoint when\nyou want a single structured result instead.",
         "operationId": "routeAndPayRequest",
         "parameters": [],
         "requestBody": {
@@ -2108,9 +2114,9 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "The `paymentId` returned by POST /payments.",
+            "description": "The `paymentId` returned by `POST /router/payments`.",
             "schema": {
-              "example": "b1f9c2e4-...",
+              "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13",
               "type": "string"
             }
           }
@@ -3643,7 +3649,7 @@
         "properties": {
           "delegationId": {
             "type": "string",
-            "description": "The caller's erc4337 delegation to spend against (as in POST /payments)."
+            "description": "The caller's erc4337 delegation to spend against (as in `POST /router/payments`)."
           },
           "url": {
             "type": "string",
@@ -3817,8 +3823,8 @@
         "properties": {
           "paymentId": {
             "type": "string",
-            "description": "Router payment record id (use it with `POST /payments/{id}/settled`).",
-            "example": "b1f9c2e4-..."
+            "description": "Router payment record id (use it with `POST /router/payments/{id}/settled`).",
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
           },
           "protocol": {
             "type": "string",
@@ -3897,7 +3903,7 @@
         "properties": {
           "paymentId": {
             "type": "string",
-            "example": "b1f9c2e4-..."
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
           },
           "settlement": {
             "$ref": "#/components/schemas/SettlementDescriptorDto"
@@ -3971,7 +3977,7 @@
         "properties": {
           "paymentId": {
             "type": "string",
-            "example": "b1f9c2e4-..."
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
           },
           "status": {
             "type": "string",
@@ -3996,7 +4002,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "example": "b1f9c2e4-..."
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
           },
           "createdAt": {
             "type": "string",
@@ -4084,7 +4090,7 @@
           },
           "feeCents": {
             "type": "string",
-            "description": "Cents the fee added to the delegation-cap reserve. Note `amount` on this record is the MERCHANT leg in atomic units, so the combined cap charge is not derivable from this resource alone — it is recorded as `amountCents` on `GET /delegation/{id}/transactions`, with this fee broken out in that row’s `providerMetadata`.",
+            "description": "Cents the fee added to the delegation-cap reserve. Note `amount` on this record is the MERCHANT leg in atomic units, so the combined cap charge is not derivable from this resource alone — it is recorded as `amountCents` on `GET /delegation/{delegationId}/transactions`, with this fee broken out in that row’s `providerMetadata`.",
             "example": "0",
             "nullable": true
           },
