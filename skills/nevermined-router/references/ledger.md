@@ -85,6 +85,9 @@ missing one. That is why the scale is on the row. A card row looks like this:
 row's chain, or a card-rail currency outside the two the mint path admits. Treat it as "cannot render
 an amount": show the raw `amount` and the truncated `asset`, and do **not** fall back to 6.
 
+⚠️ **Guard the `null` explicitly.** `Number(amount) / 10 ** null` evaluates to `Infinity`, not an
+error — so an unguarded divide does not fail loudly, it produces a figure and puts it in a total.
+
 ### `assetSymbol` is not a recognition check
 
 It is `null` on only **two** of the four resolution paths — an empty `asset`, and a hex address that
@@ -137,8 +140,11 @@ the fee has not moved yet. Never read one as the other, and never infer the paym
 | `Failed` | Collection provably did not happen. Terminal as an *outcome* — retrying changes nothing — but the row may still advance to `Released` |
 | `Released` | The fee's cap reserve was **given back**, because collection reached a terminal not-collected state. Terminal |
 
-⚠️ **`Failed` does not imply `Released`.** A `Failed` row can still have its reserve charged against
-your cap. If you are reconciling budget, key off `Released`, not `Failed`.
+⚠️ **`Failed` does not imply `Released`, and a non-2xx hop does not always end at either.** A
+`Failed` row can still have its reserve charged; and a fee whose outcome the facilitator could not
+adjudicate is **never** released — money may have moved — so it stays at `Submitted`, reserve
+charged, pending on-chain reconciliation. Reconciling budget therefore has **three** answers, not
+two: `Released` means refunded, `Failed`/`Submitted` mean still charged. Key off `Released`.
 
 **The two legs settle independently — reconcile them separately.** `txHash` anchors the merchant
 payment, `feeTxHash` the fee; neither implies the other. A `Settled` fee reconciled on-chain rather

@@ -49,14 +49,20 @@ They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, C
 ⚠️ **Windsurf's 6,000-character cap is a hard truncation, and `nevermined-router.md` is at its
 ceiling.** Windsurf silently drops everything past 6,000 characters — it does not error, and what it
 drops is the **end** of the file, which is where the guardrails and accounting sections live. As of
-2026-08-14 `.windsurf/rules/nevermined-router.md` is **5,979 of 6,000** characters (its payments
+2026-08-17 `.windsurf/rules/nevermined-router.md` is **5,980 of 6,000** characters (its payments
 sibling is 3,759; the 12,000 all-files cap is not the binding one).
 
 The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser and is
-the only one that diverges.** So adding a fact to the shared body means deciding, up front, what
-Windsurf drops in exchange — there is no room left to absorb it by tightening prose, and the failure
-mode of ignoring this is not a lint error but the safety content disappearing from the file. Check
-the size after editing:
+the only one that diverges.** What it trades away is *presentation*, never a rule: it carries every
+gotcha and guardrail the others do, but **not the worked examples** (`curl` blocks and the
+`new URL(...)` snippet become prose), **not literal enum members** (`feeStatus`'s six values), and
+**not spelled-out column lists** (`fee*` / `asset*` instead of naming all eight). For those it relies
+on the full-skill link at the top of the file.
+
+Keep that invariant when editing: **a fact may not be the thing that gets cut.** Adding one means
+deciding up front which example or list it displaces — there is no room left to absorb it by
+tightening prose, and the failure mode of ignoring this is not a lint error but the safety content
+silently disappearing. Check the size after editing:
 
 ```bash
 python3 -c "print(len(open('.windsurf/rules/nevermined-router.md',encoding='utf-8').read()))"

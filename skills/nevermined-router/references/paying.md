@@ -102,7 +102,8 @@ a zero-fee deployment will not notice until one has a rate set.
 ⚠️ **`capChargedCents` is what was reserved at MINT, and the fee half can come back.** On mode B, if
 the upstream does not answer `2xx`, the routing fee is released to your cap and the row goes
 `feeStatus: Released` — the **merchant** leg's reserve stays charged, by design. So a running total of
-`capChargedCents` *over*-reports on exactly those calls, by the fee.
+`capChargedCents` *over*-reports on exactly those calls, by the fee. (A fee leg that could not be
+signed is released on **both** modes; only the merchant-hop trigger is mode-B's.)
 
 Which figure you want depends on the question:
 
@@ -110,7 +111,7 @@ Which figure you want depends on the question:
 | --- | --- |
 | What this call reserved, at the moment it was made | `fee.capChargedCents` on the response |
 | What you have actually spent, net of releases | `amountSpentCents` / `remainingBudgetCents` on `GET /api/v1/delegation/{id}` |
-| Whether a specific call's fee came back | `feeStatus` on its ledger row — `Released` means refunded (see `ledger.md`) |
+| Whether a specific call's fee came back | `feeStatus` on its ledger row: **only** `Released` means refunded. `Failed` and an unadjudicated `Submitted` are both still charged (see `ledger.md`) |
 
 **The Delegation is the authority on spend; the response is the authority on what one call reserved.**
 Reconcile against the Delegation, not against your own sum, and the two agreeing is the check.

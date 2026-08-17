@@ -139,7 +139,8 @@ defeats the whole mechanism. Report and stop.
 `/payments/summary`. `amount` is the **merchant leg only**, in the asset's smallest unit — and ⚠️ the
 **scale differs per rail**: 6 decimals on the crypto rails, but the card rail (`network: "stripe"`)
 is **scale 2, so its `amount` IS cents**. Read `assetDecimals` off the row, never assume 6; `null`
-there means unrecognised, so show raw units. `assetSymbol` is echoed even when unrecognised, so it
+there means unrecognised, so show raw units — and guard that branch, because
+`amount / 10 ** null` is `Infinity`, not an error. `assetSymbol` is echoed even when unrecognised, so it
 is not a recognition check, and `pathUSD`/`PathUSD` differ in case across the two Tempo chains —
 compare tickers case-insensitively. Rows also carry `feeAtomic`, `feeBps`, `feeCents`, `feeStatus`,
 `feeTxHash`, `feeNonce`.

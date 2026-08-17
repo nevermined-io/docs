@@ -20,7 +20,7 @@ GET /api/v1/catalog/services
 | `subCategory` | string | Granular label under a `category`. Free text, exact match — discover values from `/categories` |
 | `tag` | string | Exact match against one entry of `tags[]` |
 | `page` | int ≥ 1 | Default 1 |
-| `offset` | int ≥ 1 | Page **size**, not a skip count. Default 10, capped server-side |
+| `offset` | int ≥ 1 | Page **size**, not a skip count. Default **20**, capped at **100** |
 | `sortBy` | enum | Omit for the curated default. Unknown value → 400 |
 | `sortOrder` | `asc`/`desc` | |
 
@@ -38,7 +38,7 @@ across two calls; if you need determinism, pass an explicit `sortBy`.
 ### Response
 
 ```json
-{ "total": 9, "page": 1, "offset": 10, "services": [ /* CatalogService */ ] }
+{ "total": 9, "page": 1, "offset": 20, "services": [ /* CatalogService */ ] }
 ```
 
 `total` is the count **matching your filters**, not the catalog size.
