@@ -78,6 +78,12 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
   written, so `requestId` won't suppress it.
 - `BCK.ROUTER.0011` (402) — card rail: needs 3-D Secure, which an agent can't complete. Nothing
   charged; each retry strands a single-use credential. **Don't auto-retry.**
+- `BCK.ROUTER.0012` (400) — the seller's 402 advertises an EIP-712 domain its own settlement
+  token does not sign under. Nothing signed, charged or reserved. It is the seller's bug and a
+  retry gives the same answer: report it and pay someone else.
+- `BCK.ROUTER.0013` (500) — Nevermined holds no EIP-712 domain for the selected token: OUR
+  table is incomplete, not the seller's bug. Nothing signed, charged or reserved. Report it
+  to Nevermined; a retry fails identically.
 - Only `BCK.ROUTER.0006` (500) and `0007` (429, too many concurrent) are **retryable**; everything
   else is a decision, and retrying it unchanged gives the same answer.
 

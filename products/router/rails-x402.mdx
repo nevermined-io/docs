@@ -62,7 +62,11 @@ Given several fundable entries, the Router filters to `scheme: "exact"` on a fun
 
 `extra.name` and `extra.version` are the settlement token's **EIP-712 domain** — the `name()` and `version()` the token contract itself signs under, and what the payment authorization is signed against. They are frequently *not* the ticker: canonical Base-mainnet USDC signs under `"USD Coin"`, while the Base Sepolia deployment signs under `"USDC"`.
 
-Both fields are **required**. If you are the seller, copy them from the token contract's `name()` and `version()` exactly — an authorization signed under the wrong domain produces a signature the token cannot recover, so guessing the ticker yields a payment that simply cannot settle.
+Both fields are **required**, and the Router checks them **byte for byte** against the domain it holds for that token. It signs under its own value, never one taken from the 402. A service that advertises a domain its own token does not sign under gets `400 BCK.ROUTER.0012`, with nothing signed, charged or reserved — such an authorization is unspendable anyway, so there is nothing to lose by stopping.
+
+<Note>
+**If you're the seller:** copy `extra.name`/`extra.version` from the token contract's `name()` and `version()`, exactly. Guessing the ticker is the usual way to trip this.
+</Note>
 
 ## Money and budget
 

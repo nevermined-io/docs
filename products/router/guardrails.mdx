@@ -101,6 +101,8 @@ Every code below also appears in the canonical [API error catalogue](/developmen
 | `BCK.ROUTER.0009` | 402 | You couldn't fund the payment. MPP only, and it covers two cases: MPP-tempo read your balance and found it short, or MPP-stripe attempted your card and it declined. Either way nothing was signed and no budget was reserved. x402 never raises this — it has no balance check, so a short wallet fails on-chain instead. | No |
 | `BCK.ROUTER.0010` | 500 | Internal: a rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
 | `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
+| `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
+| `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
 
 Across the whole Router surface, only `0006` and `0007` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer. On the *paying* path the set is narrower still — see below.
 

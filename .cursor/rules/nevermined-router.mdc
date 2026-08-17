@@ -133,6 +133,12 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0011` (402) — card rail: needs cardholder 3-D Secure, which an agent can't complete.
   Nothing was charged. **Don't auto-retry** — each attempt re-demands 3DS and strands a fresh
   single-use card credential. Surface it to a human.
+- `BCK.ROUTER.0012` (400) — the seller's 402 advertises an EIP-712 domain its own settlement
+  token does not sign under. Nothing signed, charged or reserved. It is the seller's bug and a
+  retry gives the same answer: report it and pay someone else.
+- `BCK.ROUTER.0013` (500) — Nevermined holds no EIP-712 domain for the selected token: OUR
+  table is incomplete, not the seller's bug. Nothing signed, charged or reserved. Report it
+  to Nevermined; a retry fails identically.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
