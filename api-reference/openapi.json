@@ -1794,6 +1794,468 @@
           "Payment Methods"
         ]
       }
+    },
+    "/router/payments": {
+      "post": {
+        "description": "Pay any x402-compatible agent WITHOUT that agent integrating Nevermined. Returns a signed\ncredential you attach to your own request to the agent.\n\nPrerequisite: a spending **Delegation**. Create one once via `POST /api/v1/delegation/create`\nwith `provider: 'erc4337'`, a `spendingLimitCents`, and a `durationSecs`; pass its `id` as\n`delegationId` here. The Router signs with your custodial wallet and enforces the cap.\n\nSteps:\n1. Call the agent once WITHOUT payment → it replies HTTP 402 with requirements. x402 v1 puts\n   them in the JSON body `{ x402Version: 1, accepts: [...] }`; x402 v2 puts them in a base64\n   `PAYMENT-REQUIRED` response header (decode to an object). Pass what you got as `target`.\n2. POST here. The Router selects a fundable option, signs an x402 `exact` (EIP-3009) payment,\n   reserves the amount against your Delegation, and returns `credential` + `settlement`.\n3. Re-send your original request to the agent with the HTTP header named `credential.name`\n   (`PAYMENT-SIGNATURE` for v2, `X-PAYMENT` for v1) set to `credential.value`. The agent\n   verifies, settles on-chain, and returns the resource.\n\nOptionally call `POST /api/v1/router/payments/{id}/settled` with the on-chain tx to\ncomplete the audit record. Pass a stable `requestId` for idempotency (one credential per id).\nPrefer `POST /api/v1/router/route` to have the Router call the agent and pay in one step (mode B).\n\nMPP: set `protocol: \"mpp\"` and pass the raw `WWW-Authenticate: Payment …` header value as\n`target.challenge` to pay a Merchant-Payment-Protocol (tempo `charge`) merchant. The Router\nreturns an `Authorization: Payment <…>` credential (attach it under header `credential.name`).",
+        "operationId": "mintX402PaymentCredential",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentDto"
+              },
+              "examples": {
+                "x402-v1": {
+                  "summary": "Pay a v1 (x402-express) agent",
+                  "value": {
+                    "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
+                    "protocol": "x402",
+                    "resourceUrl": "https://agent.example/paid",
+                    "requestId": "order-1234",
+                    "target": {
+                      "x402Version": 1,
+                      "accepts": [
+                        {
+                          "scheme": "exact",
+                          "network": "base-sepolia",
+                          "maxAmountRequired": "1000",
+                          "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                          "payTo": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+                          "maxTimeoutSeconds": 60,
+                          "extra": {
+                            "name": "USDC",
+                            "version": "2"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "mpp-tempo": {
+                  "summary": "Pay an MPP (tempo charge) merchant",
+                  "value": {
+                    "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
+                    "protocol": "mpp",
+                    "resourceUrl": "https://merchant.example/paid",
+                    "requestId": "order-5678",
+                    "target": {
+                      "challenge": "Payment id=\"ch_abc\", realm=\"merchant.example\", method=\"tempo\", intent=\"charge\", request=\"<base64url>\""
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "A signed credential + settlement descriptor + record id. Attach `credential.value` under header `credential.name` to your request to the agent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MintPaymentResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, no fundable option in `target`, or a malformed 402 (BCK.ROUTER.0001).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Delegation budget exceeded, expired, or inactive (BCK.ROUTER.0003).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Credential barred from the Router spend rails — an OAuth-minted key (device/auth-code ceremony) may not spend here; use a plain account key (BCK.OAUTH.0030). Permanent, do not retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The `requestId` was already used — idempotency conflict (BCK.ROUTER.0002).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mint an x402 payment credential for an upstream agent (mode A)",
+        "tags": [
+          "Router"
+        ]
+      },
+      "get": {
+        "description": "Returns your Router payments (newest first, capped at 1000) across every agent and delegation —\nthe unified audit trail. Filter by `delegationId` and by `from`/`to` (ISO-8601, inclusive on\n`createdAt`). `format=csv` returns a CSV file download instead of the JSON array.",
+        "operationId": "listRouterPayments",
+        "parameters": [
+          {
+            "name": "delegationId",
+            "required": false,
+            "in": "query",
+            "description": "Only payments spent against this delegation id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ISO-8601 lower bound on createdAt (inclusive).",
+            "schema": {
+              "example": "2026-07-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ISO-8601 upper bound on createdAt (inclusive).",
+            "schema": {
+              "example": "2026-07-31T23:59:59Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "description": "Response format. Defaults to JSON; `csv` returns a downloadable file.",
+            "schema": {
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment record — a JSON array (or a CSV file when `format=csv`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouterPaymentRecordDto"
+                  }
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "description": "CSV export of the same records, served as a file download (`Content-Disposition: attachment; filename=\"router-payments.csv\"`). Columns carry the JSON field names; new ones are always appended at the end — `assetSymbol` and `assetDecimals` are the most recent — so a consumer reading by column index is unaffected when the record grows."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`from`/`to` are not valid ISO-8601 timestamps (BCK.ROUTER.0001).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List / export the buyer’s unified payment record across all agents",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
+    "/router/route": {
+      "post": {
+        "description": "Hand the Router the request you want made to an upstream x402 agent; it probes, pays any 402\nwith your Delegation (same engine as `POST /router/payments`), and relays the agent’s response in ONE\ncall — you never see the 402 or handle the credential yourself.\n\nPrerequisite: a Delegation `id` (`POST /api/v1/delegation/create`, provider `erc4337`).\n\nProvide the target `url` (+ optional `method`, `headers`, `body`). A free (non-402) upstream is\nrelayed unchanged with `paid=false` and no `payment`. `requestId` is REQUIRED (the Router pays automatically, so a retry must be idempotency-keyed); a duplicate returns 409 with the original paymentId.\n\nFor LARGE or STREAMED responses, a transparent streaming variant exists at `ALL /api/v1/router/proxy`:\npoint your HTTP client at it with headers `X-Router-Target-Url` and `X-Router-Delegation-Id`\n(optional `X-Router-Upstream-Authorization` for the agent’s own auth). Method/body/headers pass\nthrough and the response streams back, with payment metadata in `X-Router-Payment-Id`,\n`X-Router-Payment-Status`, and `X-Router-Tx-Hash` response headers. Use this JSON endpoint when\nyou want a single structured result instead.",
+        "operationId": "routeAndPayRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyRequestDto"
+              },
+              "examples": {
+                "get-paid-resource": {
+                  "summary": "GET a paid resource through the Router",
+                  "value": {
+                    "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
+                    "url": "https://agent.example/paid",
+                    "method": "GET",
+                    "requestId": "order-1234"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The relayed upstream response (`status` + `body`) plus the `payment` that was made.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, no fundable option, or an upstream/402 error (BCK.ROUTER.0001).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Delegation budget exceeded, expired, or inactive (BCK.ROUTER.0003).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Credential barred from the Router spend rails — an OAuth-minted key (device/auth-code ceremony) may not spend here; use a plain account key (BCK.OAUTH.0030). Permanent, do not retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The `requestId` was already used — idempotency conflict (BCK.ROUTER.0002).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Route a request through the Router, paying the agent’s 402 and relaying the reply (mode B)",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
+    "/router/payments/{id}/settled": {
+      "post": {
+        "description": "After you attached a mode-A credential and the agent settled on-chain, report the settlement\n`txHash` (from the agent’s `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE` header) so the payment\nrecord moves `Issued → Settled`. Idempotent: re-reporting the same txHash is a no-op; a\ndifferent txHash, or a record not in `Issued`, is rejected. NOT needed for mode B\n(`/route` and `/proxy` self-complete the record from the upstream settlement header).",
+        "operationId": "reportPaymentSettlement",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "The `paymentId` returned by `POST /router/payments`.",
+            "schema": {
+              "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlePaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The record is now `Settled`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettleResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment record with that id for this caller (BCK.ROUTER.0004).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Record not settleable — already settled with a different tx, or not in `Issued` (BCK.ROUTER.0005).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Report the on-chain settlement tx for a minted payment (completes the record)",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
+    "/router/payments/summary": {
+      "get": {
+        "description": "Returns the buyer’s total number of Router payment requests (uncapped — unlike the 1000-row\nlist endpoint) plus a per-bucket time-series for a dashboard chart. Filter by `from`/`to`\n(ISO-8601, inclusive on `createdAt`); choose the bucket size with `granularity` (day/week/month).",
+        "operationId": "routerPaymentsSummary",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ISO-8601 lower bound on createdAt (inclusive).",
+            "schema": {
+              "example": "2026-07-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ISO-8601 upper bound on createdAt (inclusive).",
+            "schema": {
+              "example": "2026-07-31T23:59:59Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "granularity",
+            "required": false,
+            "in": "query",
+            "description": "Bucket size. Defaults to day.",
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Total + time-series.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsSummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`from`/`to` are not valid ISO-8601 timestamps (BCK.ROUTER.0001).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Aggregate count + time-series of the buyer’s payment requests",
+        "tags": [
+          "Router"
+        ]
+      }
     }
   },
   "components": {
@@ -3128,6 +3590,677 @@
           "transactionCount",
           "expiresAt",
           "createdAt"
+        ]
+      },
+      "CreatePaymentDto": {
+        "type": "object",
+        "properties": {
+          "delegationId": {
+            "type": "string",
+            "description": "Delegation id (the caller's individual spend authority) to spend against — created via POST /api/v1/delegation/create and validated as the caller’s own erc4337 delegation."
+          },
+          "protocol": {
+            "type": "string",
+            "description": "Payment protocol. `x402` (EIP-3009 exact) or `mpp` (Merchant Payment Protocol, tempo `charge`). The `target` shape depends on this: x402 → `{ accepts, x402Version? }`; mpp → `{ challenge }`.",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "example": "x402"
+          },
+          "target": {
+            "type": "object",
+            "description": "The upstream's payment requirements, taken verbatim from its HTTP 402 response — its shape depends on `protocol`.\n\n• **x402** — pass `{ accepts: [...], x402Version? }`: `accepts` is the array of payment options the agent advertised (each with `scheme`, `network`, `asset`, `payTo`, `maxAmountRequired`/`amount`, and `extra.name`/`extra.version` for the EIP-712 domain). Get it from the 402 body (x402 v1: `{ x402Version: 1, accepts }`) or by base64-decoding the `PAYMENT-REQUIRED` response header (x402 v2). `x402Version` defaults to 2 when omitted — set it to 1 for x402-express agents.\n\n• **mpp** — pass `{ challenge }`, where `challenge` is the raw `WWW-Authenticate: Payment …` header value from the merchant’s 402, verbatim — e.g. `Payment id=\"…\", method=\"tempo\", intent=\"charge\", request=\"<base64url>\"`. The Router decodes it, verifies the buyer wallet can fund the tempo `charge`, signs a native Tempo transaction, and returns an `Authorization: Payment <…>` credential (the ledger scheme is `charge`). The tempo payment currency (token address) must be on the operator’s per-chain allowlist.",
+            "example": {
+              "x402Version": 1,
+              "accepts": [
+                {
+                  "scheme": "exact",
+                  "network": "base-sepolia",
+                  "maxAmountRequired": "1000",
+                  "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                  "payTo": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+                  "maxTimeoutSeconds": 60,
+                  "extra": {
+                    "name": "USDC",
+                    "version": "2"
+                  }
+                }
+              ]
+            }
+          },
+          "resourceUrl": {
+            "type": "string",
+            "description": "Upstream resource URL (absolute http(s)) — recorded with the payment."
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Caller correlation / idempotency id — at most one credential is minted per requestId; recorded."
+          }
+        },
+        "required": [
+          "delegationId",
+          "protocol",
+          "target"
+        ]
+      },
+      "ProxyRequestDto": {
+        "type": "object",
+        "properties": {
+          "delegationId": {
+            "type": "string",
+            "description": "The caller's erc4337 delegation to spend against (as in `POST /router/payments`)."
+          },
+          "url": {
+            "type": "string",
+            "description": "Absolute upstream URL to route to (http/https only).",
+            "example": "https://agent.example/api/resource"
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method to use for the upstream request.",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "default": "GET"
+          },
+          "headers": {
+            "type": "object",
+            "description": "Headers to forward to the upstream (e.g. the agent’s own auth). Optional."
+          },
+          "body": {
+            "description": "Request body to forward (JSON). Optional."
+          },
+          "protocol": {
+            "type": "string",
+            "description": "Payment protocol. On the mode-B proxy (`/route`, `/proxy`) this is ADVISORY: the Router AUTO-DETECTS the protocol from the upstream 402 — `WWW-Authenticate: Payment` → `mpp`; `accepts` / `PAYMENT-REQUIRED` → `x402` — and the DETECTED protocol is authoritative for the mint (a mismatching hint here does not change what gets paid).",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "default": "x402"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Idempotency key — REQUIRED for routed payments (mode B). The Router makes the upstream call and pays automatically, so a retry after a dropped connection must not double-spend. At most one payment is minted per (caller, requestId); a duplicate returns 409 (BCK.ROUTER.0002) carrying the original paymentId, rather than paying again.",
+            "example": "order-1234"
+          }
+        },
+        "required": [
+          "delegationId",
+          "url",
+          "requestId"
+        ]
+      },
+      "SettlePaymentDto": {
+        "type": "object",
+        "properties": {
+          "txHash": {
+            "type": "string",
+            "description": "On-chain settlement tx hash (from the upstream's PAYMENT-RESPONSE header).",
+            "example": "0xfc8af37baae588b5ee4a5e9212532b3d46702ac009b64c17e8ff810fd90ac493"
+          }
+        },
+        "required": [
+          "txHash"
+        ]
+      },
+      "PaymentCredentialDto": {
+        "type": "object",
+        "properties": {
+          "transport": {
+            "type": "string",
+            "description": "How the credential is delivered to the upstream. Always `header`.",
+            "enum": [
+              "header"
+            ],
+            "example": "header"
+          },
+          "name": {
+            "type": "string",
+            "description": "The exact HTTP header name to set on your request to the upstream agent. `PAYMENT-SIGNATURE` for x402 v2, `X-PAYMENT` for x402 v1, `Authorization` for mpp.",
+            "enum": [
+              "PAYMENT-SIGNATURE",
+              "X-PAYMENT",
+              "Authorization"
+            ],
+            "example": "PAYMENT-SIGNATURE"
+          },
+          "value": {
+            "type": "string",
+            "description": "The header VALUE to set. For x402 a base64-encoded signed payment payload; for mpp a `Payment <base64url>` credential. Opaque — attach it verbatim; do not modify.",
+            "example": "eyJ4NDAyVmVyc2lvbiI6MiwiYWNjZXB0ZWQiOnsuLi59LCJwYXlsb2FkIjp7Li4ufX0="
+          }
+        },
+        "required": [
+          "transport",
+          "name",
+          "value"
+        ]
+      },
+      "SettlementDescriptorDto": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "description": "The on-chain recipient (the agent’s `payTo` address from its 402).",
+            "example": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C"
+          },
+          "amount": {
+            "type": "string",
+            "description": "Amount in the asset’s smallest unit (USDC/EURC = 6 decimals).",
+            "example": "1000"
+          },
+          "asset": {
+            "type": "string",
+            "description": "For x402 the asset symbol (`USDC`/`EURC`); for mpp the tempo payment token contract address (mpp carries no on-wire symbol).",
+            "example": "USDC"
+          },
+          "network": {
+            "type": "string",
+            "description": "Network the payment settles on (name or CAIP-2).",
+            "example": "base-sepolia"
+          },
+          "approxCents": {
+            "type": "string",
+            "description": "The MERCHANT leg in cents (rounded up) — what this credential pays the upstream agent. This is not necessarily the whole cap charge: Nevermined’s routing fee is reserved on top, so the total debited from the delegation is `approxCents + fee.cents` (also reported directly as `fee.capChargedCents`). With no fee configured the two are equal.",
+            "example": "1"
+          },
+          "scheme": {
+            "type": "string",
+            "description": "Ledger settlement scheme: `exact` for x402 (EIP-3009), `charge` for mpp (native Tempo tx). Omitted (defaults to `exact`) on the x402 path.",
+            "enum": [
+              "exact",
+              "charge"
+            ],
+            "example": "exact"
+          }
+        },
+        "required": [
+          "recipient",
+          "amount",
+          "network",
+          "approxCents"
+        ]
+      },
+      "RouterFeeDto": {
+        "type": "object",
+        "properties": {
+          "bps": {
+            "type": "number",
+            "description": "Rate applied to this payment, in basis points over a 10,000 denominator (e.g. `200` = 2%). `0` means no routing fee was charged.",
+            "example": 0
+          },
+          "amount": {
+            "type": "string",
+            "description": "The fee in the settlement asset’s smallest unit — the same unit as `settlement.amount`. Reported atomically rather than in cents because cents are ceiling-rounded and cannot express a sub-cent fee.",
+            "example": "0"
+          },
+          "cents": {
+            "type": "string",
+            "description": "Cents this fee added to the delegation-cap reserve, i.e. `capChargedCents - settlement.approxCents`.",
+            "example": "0"
+          },
+          "capChargedCents": {
+            "type": "string",
+            "description": "Total debited from the delegation cap for this payment (merchant leg + routing fee), in cents.",
+            "example": "1"
+          }
+        },
+        "required": [
+          "bps",
+          "amount",
+          "cents",
+          "capChargedCents"
+        ]
+      },
+      "MintPaymentResponseDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "description": "Router payment record id (use it with `POST /router/payments/{id}/settled`).",
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
+          },
+          "protocol": {
+            "type": "string",
+            "description": "Payment protocol used.",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "example": "x402"
+          },
+          "x402Version": {
+            "type": "number",
+            "description": "Negotiated x402 version (1 or 2).",
+            "example": 2
+          },
+          "credential": {
+            "description": "The credential to attach to your upstream request.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentCredentialDto"
+              }
+            ]
+          },
+          "settlement": {
+            "description": "What this credential pays.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlementDescriptorDto"
+              }
+            ]
+          },
+          "fee": {
+            "description": "Nevermined’s routing fee charged on top of the merchant leg. The credential itself pays the merchant only — the fee never rides the merchant’s authorization.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RouterFeeDto"
+              }
+            ]
+          },
+          "delegationId": {
+            "type": "string",
+            "description": "The delegation this spend was reserved against.",
+            "example": "5e7481c3-..."
+          },
+          "resourceUrl": {
+            "type": "string",
+            "description": "The upstream resource URL recorded with the payment.",
+            "nullable": true
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Your idempotency id, echoed back.",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Record status at mint time.",
+            "enum": [
+              "Issued"
+            ],
+            "example": "Issued"
+          }
+        },
+        "required": [
+          "paymentId",
+          "protocol",
+          "credential",
+          "settlement",
+          "fee",
+          "delegationId",
+          "status"
+        ]
+      },
+      "RouteResultPaymentDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
+          },
+          "settlement": {
+            "$ref": "#/components/schemas/SettlementDescriptorDto"
+          },
+          "fee": {
+            "description": "Nevermined’s routing fee for this payment. Mode B charges it exactly as mode A does, so it is disclosed here too — `settlement.approxCents` is only the merchant leg, and `fee.capChargedCents` is what the delegation cap was actually debited.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RouterFeeDto"
+              }
+            ]
+          },
+          "txHash": {
+            "type": "string",
+            "description": "On-chain settlement tx, if the upstream reported one.",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Issued",
+              "Settled"
+            ],
+            "example": "Settled"
+          }
+        },
+        "required": [
+          "paymentId",
+          "settlement",
+          "fee",
+          "status"
+        ]
+      },
+      "RouteResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "number",
+            "description": "The upstream HTTP status code that was relayed.",
+            "example": 200
+          },
+          "body": {
+            "description": "The upstream response body (parsed JSON when the upstream returned JSON, else a string).",
+            "example": {
+              "ok": true,
+              "data": "the paid resource"
+            }
+          },
+          "paid": {
+            "type": "boolean",
+            "description": "Whether a payment was made (false = the upstream was free).",
+            "example": true
+          },
+          "payment": {
+            "description": "The payment made, when `paid` is true.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RouteResultPaymentDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "body",
+          "paid"
+        ]
+      },
+      "SettleResponseDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Settled"
+            ],
+            "example": "Settled"
+          },
+          "txHash": {
+            "type": "string",
+            "example": "0xfc8af37baae588b5ee4a5e9212532b3d46702ac009b64c17e8ff810fd90ac493"
+          }
+        },
+        "required": [
+          "paymentId",
+          "status",
+          "txHash"
+        ]
+      },
+      "RouterPaymentRecordDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-07-01T09:00:55.605Z"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Issued",
+              "Settled",
+              "Failed"
+            ],
+            "example": "Settled"
+          },
+          "protocol": {
+            "type": "string",
+            "example": "x402"
+          },
+          "network": {
+            "type": "string",
+            "example": "base-sepolia"
+          },
+          "asset": {
+            "type": "string",
+            "example": "USDC",
+            "nullable": true,
+            "description": "The settlement asset AS PERSISTED AT MINT, which differs per rail: a symbol for x402 (`USDC`/`EURC`), the ERC-20 contract ADDRESS from the challenge for MPP-tempo, and an ISO currency code for MPP-stripe. Prefer `assetSymbol`/`assetDecimals` below for display — they normalise all three. Kept as-is for consumers that already parse it."
+          },
+          "assetSymbol": {
+            "type": "string",
+            "description": "Ticker to display for `asset`, resolved from the asset address on this row’s chain — `USDC`, `EURC`, `USDC.e`, `pathUSD`. `null` when the asset is not one we recognise there; render the (truncated) `asset` instead, never a guess.",
+            "example": "USDC.e",
+            "nullable": true
+          },
+          "assetDecimals": {
+            "type": "number",
+            "description": "Decimal scale of `amount` for this asset, so a client never has to assume one. `null` when the asset is unrecognised — treat `amount` as raw atomic units rather than defaulting the scale, which would render a wrong NUMBER rather than a wrong label.",
+            "example": 6,
+            "nullable": true
+          },
+          "amount": {
+            "type": "string",
+            "description": "Amount in the asset’s smallest unit.",
+            "example": "1000"
+          },
+          "merchantAddress": {
+            "type": "string",
+            "description": "The merchant's pay-to identifier: a 0x address for the crypto rails (x402 / MPP-tempo), or the seller's Stripe network business profile id (profile_…) for the MPP-stripe / SPT card rail.",
+            "example": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C"
+          },
+          "txHash": {
+            "type": "string",
+            "nullable": true,
+            "example": "0xfc8af37b..."
+          },
+          "delegationId": {
+            "type": "string",
+            "example": "5e7481c3-..."
+          },
+          "requestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://agent.example/resource"
+          },
+          "buyer": {
+            "type": "string",
+            "description": "The buyer identity that funded the payment: the on-chain payer EOA (0x…) for the crypto rails (x402 / MPP-tempo), or the Stripe customer id (cus_…) for the MPP-stripe / SPT card rail.",
+            "example": "0x8D6A5233..."
+          },
+          "feeAtomic": {
+            "type": "string",
+            "description": "Nevermined’s routing fee for this payment, in the settlement asset’s smallest unit. `0` when no fee applied; `null` on rows that predate the fee.",
+            "example": "0",
+            "nullable": true
+          },
+          "feeBps": {
+            "type": "number",
+            "description": "Fee rate applied, in basis points over 10,000. `null` on rows that predate the fee.",
+            "example": 0,
+            "nullable": true
+          },
+          "feeCents": {
+            "type": "string",
+            "description": "Cents the fee added to the delegation-cap reserve. Note `amount` on this record is the MERCHANT leg in atomic units, so the combined cap charge is not derivable from this resource alone — it is recorded as `amountCents` on `GET /delegation/{delegationId}/transactions`, with this fee broken out in that row’s `providerMetadata`.",
+            "example": "0",
+            "nullable": true
+          },
+          "feeStatus": {
+            "type": "string",
+            "description": "Fee lifecycle, independent of the payment `status`.",
+            "enum": [
+              "None",
+              "Accrued",
+              "Submitted",
+              "Settled",
+              "Failed",
+              "Released"
+            ],
+            "example": "None",
+            "nullable": true
+          },
+          "feeTxHash": {
+            "type": "string",
+            "description": "Settlement reference for the FEE leg — distinct from `txHash`, which is the MERCHANT leg’s. The two legs are independent movements that settle separately, so reconcile them separately. Reported verbatim by the facilitator (third-party text, not validated to a `0x` shape). `null` until the fee actually settles.",
+            "example": "0x9c4d6f1e...",
+            "nullable": true
+          },
+          "feeNonce": {
+            "type": "string",
+            "description": "EIP-3009 nonce of the fee leg, recorded when the leg is submitted. This is the only key that ties an on-chain transfer back to this payment: `authorizationState(buyer, feeNonce)` answers definitively whether the leg was consumed, which is how a `Submitted` fee is resolved. `null` until the leg is submitted. Not spendable on its own — the signed authorization is deliberately never stored.",
+            "example": "0x7b1e2c...",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "createdAt",
+          "status",
+          "protocol",
+          "network",
+          "amount",
+          "merchantAddress",
+          "delegationId",
+          "buyer"
+        ]
+      },
+      "PaymentsSummaryPointDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Start of the time bucket (ISO-8601, UTC), truncated to the requested granularity.",
+            "example": "2026-07-01T00:00:00.000Z"
+          },
+          "value": {
+            "type": "number",
+            "description": "Number of payment requests issued in the bucket.",
+            "example": 12
+          }
+        },
+        "required": [
+          "date",
+          "value"
+        ]
+      },
+      "PaymentsSummaryDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "description": "Total payment requests in the period. Uncapped, unlike the (1000-row-capped) list endpoint.",
+            "example": 137
+          },
+          "series": {
+            "description": "Per-bucket counts, oldest first.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentsSummaryPointDto"
+            }
+          }
+        },
+        "required": [
+          "total",
+          "series"
+        ]
+      },
+      "RouterErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Router error code. `BCK.ROUTER.0001` invalid request / no fundable option / bad 402 (400); `BCK.ROUTER.0002` requestId already used — idempotency conflict (409); `BCK.ROUTER.0003` delegation budget exceeded, expired, or inactive (402); `BCK.ROUTER.0004` payment record not found (404); `BCK.ROUTER.0005` payment not in a settleable state (409). Framework-level `BCK.HTTP.*` codes (e.g. `BCK.HTTP.400` request validation, `BCK.HTTP.429` throttling) may also appear — see the base `code` field.",
+            "example": "BCK.ROUTER.0003"
+          },
+          "httpStatus": {
+            "type": "number",
+            "description": "HTTP status code",
+            "example": 500
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message for Router operations.",
+            "example": "delegation budget exceeded, expired, or inactive",
+            "examples": [
+              "delegationId is required — create one via POST /api/v1/delegation/create",
+              "no fundable option; offered: [...]",
+              "upstream pay-to address is not in this delegation's allowed recipients",
+              "delegation budget exceeded, expired, or inactive",
+              "payment already settled with a different txHash"
+            ]
+          },
+          "details": {
+            "type": "string",
+            "description": "Throw-site detail string supplementing the canonical message. Only set when the call site supplied an opts.message; absent otherwise.",
+            "example": "Hash JWT is not signed by the node account"
+          },
+          "error": {
+            "type": "string",
+            "description": "RFC 6749 §5.2 / RFC 8628 §3.5 top-level OAuth error string. Present only on the OAuth device-polling responses from `POST /oauth/token` (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`), so a standards-compliant OAuth/device client can branch on it directly instead of on the Nevermined `code`. Absent on every other error.",
+            "example": "authorization_pending"
+          },
+          "hint": {
+            "type": "string",
+            "description": "Actionable remediation hint, sourced from the catalogue or supplied at the throw site. Tells the caller what to fix or where to look.",
+            "example": "Verify the wallet has sufficient balance and that the plan is active."
+          },
+          "docsUrl": {
+            "type": "string",
+            "description": "Permalink to the docs page describing this error code.",
+            "example": "https://nevermined.ai/docs/development-guide/api-errors/codes#bck-x402-0008"
+          },
+          "category": {
+            "type": "string",
+            "description": "Coarse classification of the failure, useful for client-side branching without parsing the message.",
+            "enum": [
+              "validation",
+              "auth",
+              "business",
+              "integration",
+              "internal"
+            ],
+            "example": "integration"
+          },
+          "retryable": {
+            "type": "boolean",
+            "description": "Whether the failure is transient and the same call can be retried with identical inputs. Absent when the catalogue does not assert either way.",
+            "example": true
+          },
+          "correlationId": {
+            "type": "string",
+            "description": "Request-scoped correlation id stamped by the global filter. Echoed in the x-correlation-id response header. Quote this when reporting issues.",
+            "example": "a3f6b1c4-7d2e-4a9b-8e0c-12f4d8e6c5b9"
+          },
+          "uuid": {
+            "type": "string",
+            "description": "Per-error UUID generated at construction. Useful for log correlation.",
+            "example": "e-550e8400-e29b-41d4-a716-446655440000"
+          },
+          "date": {
+            "type": "string",
+            "description": "ISO timestamp at which the error was constructed.",
+            "example": "2026-05-09T12:34:56.789Z",
+            "format": "date-time"
+          },
+          "params": {
+            "type": "string",
+            "description": "JSON-stringified contextual parameters supplied at the throw site (e.g. IDs, state). Always a string in the wire format — parse with JSON.parse if needed.",
+            "example": "{\"planId\":\"43298432984329\",\"reason\":\"Invalid configuration\"}"
+          }
+        },
+        "required": [
+          "code",
+          "httpStatus",
+          "message"
         ]
       }
     },
