@@ -16,7 +16,7 @@ An unpaid request gets an RFC 7235 challenge instead of your content:
 
 ```
 HTTP/1.1 402 Payment Required
-WWW-Authenticate: Payment id="…", realm="api.nevermined.app", method="nevermined",
+WWW-Authenticate: Payment id="…", realm="api.sandbox.nevermined.app", method="nevermined",
                   intent="charge", request="<base64url>", expires="…"
 ```
 
@@ -53,7 +53,7 @@ A buyer mints their access token at `POST /api/v1/mpp/permissions`, the MPP coun
 ### Minting a challenge
 
 ```bash
-curl -X POST https://api.nevermined.app/api/v1/mpp/challenge \
+curl -X POST https://api.sandbox.nevermined.app/api/v1/mpp/challenge \
   -H "Authorization: Bearer $NVM_API_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -67,7 +67,7 @@ curl -X POST https://api.nevermined.app/api/v1/mpp/challenge \
 
 ```json
 {
-  "challenge": "Payment id=\"k7Hs…\", realm=\"api.nevermined.app\", method=\"nevermined\", …",
+  "challenge": "Payment id=\"k7Hs…\", realm=\"api.sandbox.nevermined.app\", method=\"nevermined\", …",
   "id": "k7HsQ1cQ0m8bF3xw0Yy2Zr9Xv1sT4pL6nA8dC2eG0hI"
 }
 ```
@@ -77,7 +77,7 @@ Return `challenge` verbatim as your `WWW-Authenticate` header. It is HMAC-bound,
 ### Settling
 
 ```bash
-curl -X POST https://api.nevermined.app/api/v1/mpp/settle \
+curl -X POST https://api.sandbox.nevermined.app/api/v1/mpp/settle \
   -H "Authorization: Bearer $NVM_API_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -159,10 +159,14 @@ When either value is missing, the MPP routes answer `BCK.MPP.0002` and **the res
 
 ## Environments
 
-| Environment | API base |
-| --- | --- |
-| **Sandbox** | `https://api.sandbox.nevermined.dev` |
-| **Live** | `https://api.nevermined.app` |
+| Environment | API base | Key prefix |
+| --- | --- | --- |
+| **Sandbox** | `https://api.sandbox.nevermined.app` | `sandbox:` |
+| **Live** | `https://api.live.nevermined.app` | `live:` |
+
+<Warning>
+**The key and the host must match.** A `sandbox:` key only works against `api.sandbox.nevermined.app`, and a `live:` key only against `api.live.nevermined.app`. Crossing them fails on the very first call — see [getting an API key](/agents-guide/get-api-key).
+</Warning>
 
 ## Current scope
 
