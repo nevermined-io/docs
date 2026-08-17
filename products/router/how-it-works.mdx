@@ -159,7 +159,7 @@ A cap is permission, not funds. You can hold a $50 Delegation and still fail to 
 | **x402** | No balance check at all | Nothing stops you. The credential is signed and your budget reserved; the shortfall appears on-chain afterwards. |
 
 <Warning>
-**On x402 an underfunded wallet costs you budget.** With no pre-check the Router signs and reserves your cap, the merchant's transfer then fails on-chain, and the reserved **merchant** amount is **not** given back. Only a [routing fee](#when-a-fee-is-not-collected) reserved on top can come back, and only when the fee provably wasn't collected. Fund before you call; don't rely on being stopped.
+**On x402 an underfunded wallet costs you budget.** With no pre-check the Router signs and reserves your cap, the merchant's transfer then fails on-chain, and the reserved **merchant leg** is **not** given back. Only a routing fee reserved on top can come back, and only on [the closed list of paths that release one](#when-a-fee-is-not-collected). Fund before you call; don't rely on being stopped.
 </Warning>
 
 ## The routing fee

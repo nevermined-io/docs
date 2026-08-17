@@ -115,13 +115,13 @@ If the fee is later [`Released`](#fee-lifecycle), that row's `amountCents` is re
 | `Accrued` | A fee was computed and reserved against the Delegation cap. Nothing has been submitted anywhere, so nothing can have moved. |
 | `Submitted` | The fee movement was submitted and its outcome isn't confirmed yet. Money **may** have moved — this is the bucket that gets reconciled against the chain, using `feeNonce`. |
 | `Settled` | The fee movement landed on-chain. |
-| `Failed` | Collection provably did not happen. Terminal as an outcome — retrying changes nothing — but the row can still advance to `Released`. |
+| `Failed` | Collection provably did not happen. Terminal as an outcome — retrying changes nothing — but an **adjudicated** `Failed` can still advance to `Released`; one resolved by on-chain reconciliation stays charged. |
 | `Released` | The fee's share of the cap reserve, **if any**, was credited back, because collection reached a terminal not-collected state. Terminal. |
 
-**`Released` is the one that returns budget to you.** It's reached when the fee provably will not be collected — the facilitator adjudicated and refused, a mode-B hop never returned 2xx, or the fee movement couldn't be signed — and the fee's cents go back on your Delegation cap and on the ledgers that mirrored it (an org group budget is corrected separately, and can lag). A fee that applied atomically but added no cent still lands here, with nothing to credit back. It's only reachable from `Accrued` and `Failed`, never from `Submitted` or `Settled`: there money may have moved or definitely did, and handing back headroom for money that already left your wallet is the one direction this must never fail in.
+**`Released` is the one that returns budget to you.** It's reached when the fee provably will not be collected — the facilitator adjudicated and refused, a mode-B hop never returned 2xx, or the fee movement couldn't be signed — and the fee's cents go back on your Delegation cap and on the ledgers that mirrored it (an org group budget is corrected separately, and can lag). A fee that applied atomically but added no cent still lands here, with nothing to credit back. It's only ever reached from `Accrued` or an **adjudicated** `Failed` — never from `Submitted` or `Settled`, where money may have moved or definitely did, and handing back headroom for money that already left your wallet is the one direction this must never fail in.
 
 <Warning>
-**`Failed` does not imply `Released`.** They are separate steps, and the reserve comes back only on the paths listed above. A fee that failed some other way stays charged against your cap, so read `feeStatus` for the release rather than inferring it from a failure. And an *unknown* outcome is never released at all — those rows stay `Submitted` until the chain settles the question.
+**`Failed` does not imply `Released`.** They are separate steps, and the reserve comes back only on the paths listed above. A fee that failed some other way stays charged against your cap — in particular one that on-chain reconciliation resolved as never consumed — so read `feeStatus` for the release rather than inferring it from a failure. And an *unknown* outcome is never released at all — those rows stay `Submitted` until the chain settles the question.
 </Warning>
 
 ### Export
