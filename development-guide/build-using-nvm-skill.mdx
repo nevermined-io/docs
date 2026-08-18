@@ -278,6 +278,8 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
 <Note>
 The Copilot and Codex files are **condensed** — they carry the buy loop, the money traps and every `BCK.ROUTER.*` retry decision, but not the full reference set: they omit `0004`/`0005`, everything the Router refuses outright (MPP splits, internal targets, redirects, forged `X-Router-*`), and the relay limits. For the complete Router skill, install it as a directory (Claude Code plugin, ClawHub, or `.agents/skills/`).
+
+The IDE rule files also omit `0007`. **Windsurf's copy additionally omits `BCK.ROUTER.0012`**, because Windsurf truncates a rule file at 6,000 characters and drops the *end* — where the guardrails live — so the file cannot grow without displacing something. `0012` is a 400 whose non-retryable verdict the file already states as a rule ("only `0006` and `0007` are retryable"); `BCK.ROUTER.0013` is kept because it is a **500**, the one shape an agent retries by default. Cursor, Cline and Amazon Q carry both.
 </Note>
 
 ## Example Prompts

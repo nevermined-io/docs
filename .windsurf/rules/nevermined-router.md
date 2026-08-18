@@ -45,8 +45,8 @@ live → `base`.** A merchant on the other chain is unpayable from here and fail
   path, so concatenating yields `/search/search`. Use `new URL(endpoint.path, service.targetUrl)`.
 - `offset` is the page **size**, not a skip count; ordering is shuffled within each tier, so
   `services[0]` is not stable.
-- `category` is a **closed 13-value enum** (`"Search & Research"`, not `"Search"`); read the values,
-  and the free-text `subCategory`, from `GET /api/v1/catalog/categories`.
+- `category` is a **closed 13-value enum**; read it and the free-text `subCategory` from
+  `GET /api/v1/catalog/categories`.
 
 ## 4. Pay
 
@@ -63,7 +63,7 @@ across its retries: the same id returns the original payment, a fresh id buys ag
 
 **Money.** Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs **$10.00,
 not $1.00**. `settlement.approxCents` is only the **merchant** leg; the routing fee rides on top in
-`payment.fee` (`{ bps, amount, cents, capChargedCents }`), always present. `fee.capChargedCents` is
+`payment.fee`, always present. `fee.capChargedCents` is
 what the call **reserved**, not a final figure — a mode-B hop missing `2xx` releases the fee half
 back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 
@@ -78,13 +78,9 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
   written, so `requestId` won't suppress it.
 - `BCK.ROUTER.0011` (402) — card rail: needs 3-D Secure, which an agent can't complete. Nothing
   charged; each retry strands a single-use credential. **Don't auto-retry.**
-- `BCK.ROUTER.0012` (400) — the seller's 402 advertises an EIP-712 domain its own settlement
-  token does not sign under. Nothing signed, charged or reserved. It is the seller's bug and a
-  retry gives the same answer: report it and pay someone else.
-- `BCK.ROUTER.0013` (500) — Nevermined holds no EIP-712 domain for the selected token: OUR
-  table is incomplete, not the seller's bug. Nothing signed, charged or reserved. Report it
-  to Nevermined; a retry fails identically.
-- Only `BCK.ROUTER.0006` (500) and `0007` (429, too many concurrent) are **retryable**; everything
+- `BCK.ROUTER.0013` (500) — we hold no EIP-712 domain for that token: ours, not theirs.
+  Nothing charged; report it.
+- Only `BCK.ROUTER.0006` (500) and `0007` (429) are **retryable**; everything
   else is a decision, and retrying it unchanged gives the same answer.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
