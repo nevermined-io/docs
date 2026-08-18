@@ -1,7 +1,7 @@
 ---
 name: nevermined-router
-version: "0.1.2"
-lastUpdated: "2026-08-14"
+version: "0.1.3"
+lastUpdated: "2026-08-17"
 description: >
   Use when an AI agent needs to PAY an external service it does not have an account
   with — any x402 agent or MPP merchant — using the Nevermined Router. Covers
@@ -28,7 +28,7 @@ metadata:
 
 # Nevermined Router — buy from any x402 or MPP service
 
-> **Skill version**: 0.1.2 | **Last updated**: 2026-08-14 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
+> **Skill version**: 0.1.3 | **Last updated**: 2026-08-17 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 >
 > **⚠️ Use the latest version.** If you have a cached copy, check its **Last updated** date against the canonical source and refresh if older.
 >
@@ -254,6 +254,8 @@ The Router signs payments from your wallet in response to instructions written b
 | `BCK.ROUTER.0009` | 402 | Wallet doesn't hold enough of the asset on the target network. Nothing was signed. | No — **stop** |
 | `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
 | `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
+| `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
+| `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
 | `BCK.OAUTH.0030` | 403 | This API key was OAuth-minted and may not create Delegations or use `/router/{payments,route,proxy}`. Use a plain account-owner key. | No |
 | `BCK.HTTP.412` | 412 | `{"error":"consent_required"}` on `POST /delegation/create` — the account's legal-document consent lapsed. The code is generic; branch on `body.error`. | No — **needs a human** |
 
