@@ -78,8 +78,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
   written, so `requestId` won't suppress it.
 - `BCK.ROUTER.0011` (402) — card rail: needs 3-D Secure, which an agent can't complete. Nothing
   charged; each retry strands a single-use credential. **Don't auto-retry.**
-- Only `0006` (500) and `0007` (429, too many concurrent) are **retryable**; everything else is a
-  decision, and retrying it unchanged gives the same answer.
+- Only `BCK.ROUTER.0006` (500) and `0007` (429, too many concurrent) are **retryable**; everything
+  else is a decision, and retrying it unchanged gives the same answer.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision; a fresh one to escape an exhausted Delegation defeats it.

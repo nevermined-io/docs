@@ -49,7 +49,7 @@ They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, C
 ⚠️ **Windsurf's 6,000-character cap is a hard truncation, and `nevermined-router.md` is at its
 ceiling.** Windsurf silently drops everything past 6,000 characters — it does not error, and what it
 drops is the **end** of the file, which is where the guardrails and accounting sections live. As of
-2026-08-17 `.windsurf/rules/nevermined-router.md` is **5,980 of 6,000** characters (its payments
+2026-08-17 `.windsurf/rules/nevermined-router.md` is **5,991 of 6,000** characters (its payments
 sibling is 3,759; the 12,000 all-files cap is not the binding one).
 
 The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser and is

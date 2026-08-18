@@ -56,7 +56,13 @@ A **mixed-chain 402 still works** as long as one option is fundable. If a servic
 
 ### How an option gets chosen
 
-Given several fundable entries, the Router filters to `scheme: "exact"` on a funded network with a funded asset, then prefers **USDC**. The asset symbol is read from the entry's **`extra.name`** field — a service that omits it won't match the symbol filter even if its `asset` address is USDC.
+Given several fundable entries, the Router filters to `scheme: "exact"` on a funded network with a funded asset, then prefers **USDC**. The asset symbol is resolved from the entry's **`asset` address**, matched against the canonical token addresses for that chain — never from `extra.name`, which is something else entirely (see below). A token the Router doesn't recognise on that chain isn't fundable, however the entry labels it.
+
+### `extra.name` is the EIP-712 domain, not a ticker
+
+`extra.name` and `extra.version` are the settlement token's **EIP-712 domain** — the `name()` and `version()` the token contract itself signs under, and what the payment authorization is signed against. They are frequently *not* the ticker: canonical Base-mainnet USDC signs under `"USD Coin"`, while the Base Sepolia deployment signs under `"USDC"`.
+
+Both fields are **required**. If you are the seller, copy them from the token contract's `name()` and `version()` exactly — an authorization signed under the wrong domain produces a signature the token cannot recover, so guessing the ticker yields a payment that simply cannot settle.
 
 ## Money and budget
 
