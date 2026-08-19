@@ -89,7 +89,9 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 
 The routing fee is **5%** (`feeBps: 500`). **Mode A now applies it to every call**; mode B applies it too, but only settles once the merchant returns 2xx — otherwise it is [`Released`](#fee-lifecycle). Two cases legitimately read `feeStatus: "None"` with a zero fee: an **MPP** payment, since that rail cannot carry a fee at all, and a payment whose fee rounds below one atomic unit (the case in the warning above).
 
-A third is rarer and worth knowing if you are reconciling: a **mode-A call sent without a `requestId`** carries no fee when an *identical* payment — same merchant, amount, asset, network and resource — was already charged one moments earlier. Without a `requestId` the two are indistinguishable from a retry of the same purchase, so Nevermined declines the second fee rather than risk charging you twice. Sending a stable `requestId` removes the ambiguity: it makes the payment itself idempotent, so a retry returns the original payment instead of minting a second one.
+**Use a stable `requestId`, and a retry costs you nothing extra.** Because mode A now bills every call, the way to avoid paying twice for one purchase is to make the purchase idempotent: reuse **one** `requestId` across every retry of it. A retry then returns `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting a second payment, so there is only ever one fee.
+
+Derive that id from the work you are doing, not from a fresh `uuid4()` per HTTP attempt — a new id on each attempt is indistinguishable from a new purchase, and will be minted and billed as one.
 
 <Note>
 **This is why merchant amounts and spent budget don't reconcile on their own.** `amount` on this record is the merchant leg, so the combined cap charge isn't derivable from the ledger alone. It's recorded as `amountCents` on `GET /api/v1/delegation/{id}/transactions`, with the fee broken out in that row's `providerMetadata`.
