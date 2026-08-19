@@ -87,7 +87,9 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 **`feeCents: "0"` doesn't mean the payment carried no fee.** The two figures round in opposite directions, so a fee can apply in atomic units yet add no cent to your cap reserve — an `Accrued`, or `Released`, row can legitimately read `feeCents: "0"`. `feeAtomic` is the one that answers "did a fee apply": a fee too small to transfer is dropped outright rather than reserved, so `feeAtomic: "0"` means no routing fee was charged at all, and the row reads `feeStatus: "None"`.
 </Warning>
 
-The routing fee is **5%** (`feeBps: 500`). Two cases legitimately read `feeStatus: "None"` with a zero fee: an **MPP** payment, since that rail cannot carry a fee at all, and a **mode-A** call made without a `requestId` — without one a retry cannot be deduplicated, so collecting would risk double-charging. Mode B always carries a `requestId`, so it always collects.
+The routing fee is **5%** (`feeBps: 500`), and both modes collect it on every call. Two cases legitimately read `feeStatus: "None"` with a zero fee: an **MPP** payment, since that rail cannot carry a fee at all, and a payment whose fee rounds below one atomic unit (the case in the warning above).
+
+A third is rarer and worth knowing if you are reconciling: a **mode-A call sent without a `requestId`** carries no fee when an *identical* payment — same merchant, amount, asset, network and resource — was already charged one moments earlier. Without a `requestId` the two are indistinguishable from a retry of the same purchase, so Nevermined declines the second fee rather than risk charging you twice. Sending a stable `requestId` removes the ambiguity: it makes the payment itself idempotent, so a retry returns the original payment instead of minting a second one.
 
 <Note>
 **This is why merchant amounts and spent budget don't reconcile on their own.** `amount` on this record is the merchant leg, so the combined cap charge isn't derivable from the ledger alone. It's recorded as `amountCents` on `GET /api/v1/delegation/{id}/transactions`, with the fee broken out in that row's `providerMetadata`.
