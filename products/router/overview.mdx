@@ -55,12 +55,12 @@ Services that authenticate with a conventional API key and bill you monthly are 
 A routed call can cost you more than the merchant's price, and the two are charged separately:
 
 - **The merchant's price** — whatever the service asked for in its `402`. Paid in full; the Router never takes a cut of it.
-- **A Nevermined routing fee**, where one applies. Added **on top**, so your Delegation cap is debited the merchant's price *plus* the fee, while the merchant still receives their full price.
+- **A Nevermined routing fee of 5%** of that price. Added **on top**, so a $1.00 call debits your Delegation cap $1.05 while the merchant still receives their full $1.00.
 
 Every payment response carries a `fee` object saying exactly what was charged, and `fee.capChargedCents` — not `settlement.approxCents` — is the figure your budget actually moved by. See [the routing fee](/products/router/how-it-works#the-routing-fee) for how it is applied and rounded, and [the ledger](/products/router/ledger#the-routing-fee-on-a-record) for reading it back per payment.
 
 <Note>
-Read `fee.bps` from the response rather than assuming a rate: it is resolved per payment and per deployment, so it is the authoritative answer for the environment you are calling.
+The rate is returned as `fee.bps` on every payment response — `500` basis points over a 10,000 denominator. Read it from there rather than hard-coding it.
 </Note>
 
 ## Environments

@@ -87,7 +87,7 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 **`feeCents: "0"` doesn't mean the payment carried no fee.** The two figures round in opposite directions, so a fee can apply in atomic units yet add no cent to your cap reserve — an `Accrued`, or `Released`, row can legitimately read `feeCents: "0"`. `feeAtomic` is the one that answers "did a fee apply": a fee too small to transfer is dropped outright rather than reserved, so `feeAtomic: "0"` means no routing fee was charged at all, and the row reads `feeStatus: "None"`.
 </Warning>
 
-The fee is **configured per deployment and is currently `0`**, so today every row reads `feeBps: 0`, `feeStatus: "None"`, and a zero fee. Records created before the fee existed carry `null` in each of these.
+The routing fee is **5%** (`feeBps: 500`). A row reads `feeStatus: "None"` and a zero fee where no fee applied — an MPP payment, or a mode-A call made without a `requestId`. Records created before the fee existed carry `null` in each of these fields.
 
 <Note>
 **This is why merchant amounts and spent budget don't reconcile on their own.** `amount` on this record is the merchant leg, so the combined cap charge isn't derivable from the ledger alone. It's recorded as `amountCents` on `GET /api/v1/delegation/{id}/transactions`, with the fee broken out in that row's `providerMetadata`.
