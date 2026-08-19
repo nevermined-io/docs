@@ -8,11 +8,15 @@ Agents are a new buyer of your API, and they don't onboard the way humans do. Th
 
 Nevermined turns that failure mode into revenue with a small server-side integration. Agents holding a delegated card mint an [x402](/development-guide/nevermined-x402) access token, send it to your endpoint, and you provision or top up access in response. You verify and settle through Nevermined's [x402 facilitator](/products/x402-facilitator/overview); the buyer's card is charged through Stripe, Braintree, or the Visa Trusted Agent Protocol depending on how it was enrolled. All three settle x402 charges through the same `nvm:card-delegation` scheme — your endpoint code doesn't change.
 
-## Featured provider
+## Featured providers
 
 [**Exa**](https://exa.ai) is the live reference. Agents pay Exa \$7 via a Nevermined-delegated card and receive an Exa API key with \$7 of credits. When the key runs out, the agent tops up through the same endpoint. Same key, more credits, no human touched it.
 
 - Exa integration guide: [/integrations/exa](/integrations/exa)
+
+[**You.com**](https://you.com) runs the same flow at \$5 a purchase, provisioning or topping up a You.com API key that works across its Web Search, Contents, Answer and Research APIs. It also publishes the agent-facing `.md` mirror described below, listed in its own `llms.txt`.
+
+- You.com integration guide: [/integrations/youdotcom](/integrations/youdotcom)
 
 ## What you build, in five steps
 

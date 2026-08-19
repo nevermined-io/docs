@@ -1,0 +1,192 @@
+---
+title: "You.com"
+description: "Buy You.com API credits with card delegation: a $5 x402 purchase provisions or tops up a You.com API key, fully agent-driven."
+icon: "binoculars"
+---
+
+[You.com](https://you.com) accepts autonomous payments through Nevermined's [x402 card-delegation](/specs/x402-card-delegation) scheme. An agent holding a Nevermined API key mints an x402 access token against the You.com plan and exchanges it at You.com's purchase endpoint for a working You.com API key. Repeat purchases top up the same key.
+
+Machine-readable instructions for agents live at [Nevermined agentic instructions](https://api.live.nevermined.app/api/v1/organizations/org-cf34dc7b-ec18-48f4-98fb-1697aafe0586/agentic-instructions.md). On the You.com side, the same flow is documented at [you.com/docs/administration/machine-payments/nevermined](https://you.com/docs/administration/machine-payments/nevermined.md), which is listed in [You.com's llms.txt](https://you.com/docs/llms.txt) so an agent can find it without being told.
+
+<Info>
+  You.com's Nevermined plan ID:<br />`29778596298820876231214801015161463950677497795586711453924479772330133054735`<br />[paygo: \$5.00 per request](https://api.live.nevermined.app/api/v1/protocol/plans/29778596298820876231214801015161463950677497795586711453924479772330133054735). The plan ID is used to purchase API credits, which are then spent on You.com API requests. This plan and purchase run on **live**; use a live-prefixed Nevermined API key. See [You.com pricing](https://you.com/pricing) for current rates.
+</Info>
+
+## Prerequisites (one time, done by the card owner)
+
+1. Enroll a card at [nevermined.app](https://nevermined.app) → Payment Methods.
+2. Create a **delegation** on the card: the spending permission an agent pays with. The owner sets the spending limit and duration, and can scope the delegation to a specific API key (recommended; it makes discovery deterministic for that key).
+3. Generate an API key and give it to the agent. Two ways:
+   * **Embedded login flow (no copy/paste):** the agent hosts a callback on `127.0.0.1` and sends its human this URL to sign in: `https://nevermined.app/auth/cli?callback_url=http://127.0.0.1:<port>/callback`. After sign-in, the browser redirects to the callback with `nvm_api_key=<api-key>` for the agent to read.
+   * **Manual:** [nevermined.app](https://nevermined.app) → Account → API Keys → create a key and paste it to the agent (or open `https://nevermined.app/auth/cli` with no `callback_url` and copy the key shown on screen).
+
+See the [x402 card-delegation spec](/specs/x402-card-delegation) for how enrollment and delegations work.
+
+## The flow
+
+Handled with the Nevermined Payments SDK (`npm install @nevermined-io/payments`; the package is ESM-only; in a fresh npm project set `"type": "module"` in `package.json`, or the import fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`). The package's bundled TypeScript definitions are the authoritative call reference for every method named below. For broader context, start from the [Payments overview](/products/payments/overview) and the [documentation index](https://nevermined.ai/docs/llms.txt).
+
+1. **Initialize** the SDK with your Nevermined API key only (`Payments.getInstance({ nvmApiKey })`). The environment is derived from the key prefix; do not pass an `environment` option.
+2. **Find the delegation to pay with**; see [Getting a delegation](#getting-a-delegation) below.
+3. **Mint the x402 access token** for the You.com plan ID via `payments.x402.getX402AccessToken`, using the `nvm:card-delegation` scheme and referencing the delegation by ID (`delegationConfig: { delegationId }`). No agentId is needed for this flow: the method's arguments are `(planId, agentId?, tokenOptions?)`, so pass the plan ID, `undefined`, and the token options. The call returns an object, `{ accessToken }`. Tokens cannot create delegations on the fly; the delegation must exist first.
+4. **POST the token to You.com** in the `payment-signature` header (endpoint below). The purchase endpoint for this plan lives on You.com, not on Nevermined, and it **verifies and settles the token for you**. Do not settle it yourself first, or the card is charged twice. The response contains the You.com API key. Check the HTTP status before reading the body.
+5. **Use the key** in the `X-API-Key` header against any You.com API. See [Authentication](https://documentation.you.com/docs/using-the-api/authentication).
+
+## Without the SDK: the REST calls
+
+Every SDK method above maps to an endpoint on `https://api.live.nevermined.app`. Send your Nevermined API key as `Authorization: Bearer <api-key>` on every call below.
+
+### 1. Create a delegation
+
+```http
+POST https://api.live.nevermined.app/api/v1/delegation/create
+```
+
+Body: `{ provider, providerPaymentMethodId, spendingLimitCents, durationSecs, currency }`.
+
+A delegation authorizes spending within a fixed budget and time window. Reuse it until it is spent or expires. Field values for this flow are in the [delegation table](#getting-a-delegation) below.
+
+### 2. Mint an x402 access token
+
+```http
+POST https://api.live.nevermined.app/api/v1/x402/permissions
+```
+
+```json
+{
+  "accepted": {
+    "scheme": "nvm:card-delegation",
+    "network": "stripe",
+    "planId": "<plan>"
+  },
+  "delegationConfig": { "delegationId": "<your delegation>" }
+}
+```
+
+Returns an `accessToken`. The delegation must already exist. Tokens cannot create one on the fly.
+
+### 3. Send the token to You.com
+
+```http
+POST https://api.you.com/payments/v1/nevermined/purchase-key
+payment-signature: <accessToken>
+```
+
+That is the last step. You.com's purchase endpoint **verifies and settles the token on your behalf** and returns the key in the same call. There is nothing to settle first.
+
+<Warning>
+  **Do not call `/x402/settle` yourself in this flow.** On this paygo plan, settling directly against Nevermined charges the card and hands back a bare settlement receipt with no You.com API key. If you then send the same token to `/purchase-key`, **you have paid twice for one key.**
+
+  `/x402/settle` and `/x402/verify` exist for calling a generic Nevermined-metered resource yourself, where you construct the `paymentRequired` object and settle against it. The You.com purchase flow does not use them.
+</Warning>
+
+### The general pattern
+
+You.com's endpoint is an x402-protected resource, and the rule generalizes: **when a service is x402-protected, send the access token in the `payment-signature` header and let the service verify and settle.** Its own `402` response is the `paymentRequired`, so you never build one by hand. Reach for `/x402/settle` only when you are metering a resource yourself and no merchant endpoint is doing it for you.
+
+When you *are* metering a resource yourself, you construct `paymentRequired` from the plan ID and pass it to `/x402/settle` or `/x402/verify`. **`resource.url` must be a non-empty URL** identifying what is being bought; for a plain plan top-up, use the plan's own URL.
+
+```json
+{
+  "x402Version": 2,
+  "resource": { "url": "<plan-url>" },
+  "accepts": [{
+    "scheme": "nvm:card-delegation",
+    "network": "stripe",
+    "planId": "<plan>",
+    "extra": {}
+  }],
+  "extensions": {}
+}
+```
+
+```http
+POST https://api.live.nevermined.app/api/v1/x402/settle
+```
+
+Body: `{ "paymentRequired": <that object>, "x402AccessToken": "<accessToken>" }`.
+
+Settling returns a `billingModel`. `credits` plans mint and burn, returning `creditsRedeemed` and `remainingBalance`. Pay-as-you-go plans charge per request, so both of those fields read `"0"` and the charge reference is in `orderTx` (fiat) or `transaction` (crypto). `POST /api/v1/x402/verify` with the same body is an optional dry run. Neither call belongs in the You.com purchase flow.
+
+## Getting a delegation
+
+Query the delegations accessible to your API key with `payments.delegation.getPurchasingPower()` and select one with at least 500 cents of remaining budget. Budget fields are returned as strings, in cents. Purchasing-power results contain only delegations that can still pay; exhausted ones are excluded. With several delegations, discovery is deterministic when the owner key-scoped one to your key; to designate a specific budget among several, reference its ID explicitly.
+
+**If discovery returns none**, the preferred path is for the card owner to create a delegation in the dashboard (Prerequisites, step 2); the agent then re-runs discovery. Nothing needs to be copied. If no operator is reachable (or the request goes unanswered), a fully autonomous agent can create one programmatically with `payments.delegation.createDelegation`. Its payload fields:
+
+| Field | Value for this flow |
+|---|---|
+| `provider` | `"stripe"` |
+| `providerPaymentMethodId` | The card's id from `payments.delegation.listPaymentMethods()` |
+| `spendingLimitCents` | N × 500 for N expected purchases; a 500-cent delegation is exhausted after a single purchase |
+| `durationSecs` | `3600` is a sensible default for a one-shot purchase; keep it short (least privilege) |
+| `currency` | `"usd"` |
+
+The response includes the `delegationId` to mint with (it also includes a `delegationToken`; not needed for this flow; treat it as a secret and do not log it). **Card selection:** `listPaymentMethods()` carries no ordering guarantee and cards may be indistinguishable by metadata; if several are enrolled and the owner's intent is unknown, prefer asking the owner; otherwise any Active card of the provider is acceptable, and you should record which payment-method id was chosen. Note the trade-off of this whole path: the agent chooses the card and sets its own budget. Prefer an owner-created delegation whenever an owner is available.
+
+## You.com's purchase contract
+
+```http
+POST https://api.you.com/payments/v1/nevermined/purchase-key
+payment-signature: <x402-token>
+```
+
+* **Cost:** \$5 per purchase, charged to the card behind the delegation referenced by the token.
+* **New payer:** a new You.com API key with \$5 of credits — `{ "status": "ok", "apiKey": "ydc-sk-…", "toppedUp": false }`.
+* **Returning payer:** the existing key is topped up with \$5 more credits. The key is not returned again — `{ "status": "ok", "apiKey": null, "toppedUp": true }`.
+* **Replayed token:** never charges twice, but what it returns depends on the original purchase. Replaying a first purchase mints a *new* key, because the original's plaintext cannot be recovered from cache. Replaying a top-up returns the same `apiKey: null` response again.
+* **Missing/invalid signature:** `402 Payment Required`.
+
+**When the key runs out:** You.com's API endpoints return `HTTP 402`, indicating more funds are needed. Mint a fresh x402 token with the same plan ID and delegation, POST it to the same endpoint, and You.com adds another \$5 of credits to the same key.
+
+## Pricing
+
+**The purchase is a flat \$5.** Every call to the purchase endpoint charges \$5 to the card behind the delegation, whether it provisions a new key or tops up an existing one. The amount does not vary by which You.com API the agent intends to call, and there is no volume tier or negotiated rate in this flow.
+
+The plan is labeled `paygo: $5.00 per request`. **"Request" there means one purchase request, not one API call.** A \$5 purchase buys You.com credits, which are then drawn down across Web Search, Contents, Answer, Research and Finance Research at You.com's own per-API rates. See [You.com pricing](https://you.com/pricing). Those rates are metered inside You.com's credit system after settlement; Nevermined neither sets nor observes them.
+
+Because the plan is typed pay-as-you-go, settle returns `creditsRedeemed: "0"` and `remainingBalance: "0"`. Those fields describe Nevermined credit plans and do *not* reflect your You.com balance. Your proof of charge is `orderTx` (fiat) or `transaction` (crypto).
+
+## What the key unlocks
+
+The purchase redeems for a standard You.com API key, valid anywhere an account-issued key is. Every request goes to `https://api.you.com` with the key in the same `X-API-Key` header, whichever API you call. Refer to You.com's API documentation for how to exercise each endpoint.
+
+```bash
+curl "https://api.you.com/v1/search?query=nvidia+earnings" \
+  -H "X-API-Key: $YDC_API_KEY"
+```
+
+* [Web Search API](https://documentation.you.com/docs/api-reference/search/v1-search): real-time web and news results for grounding LLM responses.
+* [Contents API](https://documentation.you.com/docs/api-reference/contents): clean HTML or Markdown for a target webpage.
+* [Answer API](https://documentation.you.com/docs/api-reference/answer/v1-answer): single-call cited answer to a query.
+* [Research API](https://documentation.you.com/docs/api-reference/research/v1-research): multi-step web research with a synthesized, cited answer.
+* [Finance Research API](https://documentation.you.com/docs/api-reference/finance-research/v1-finance_research): the Research API's multi-step approach over a financial-data index.
+
+## Verifying charges
+
+Use `payments.delegation.listDelegations()` to inspect spend per delegation (`amountSpentCents`, `transactionCount`, status); the response wraps a `delegations` array. Fully spent delegations are marked `Exhausted` and no longer appear in `getPurchasingPower()` results; purchasing power lists only delegations that can still pay.
+
+## Troubleshooting
+
+| Symptom | Meaning / fix |
+|---|---|
+| Token mint fails: `Required token-generation input is missing or incomplete (HTTP 402)` | The mint referenced no existing delegation (e.g., legacy create-on-the-fly `delegationConfig` with card details). Create or discover a delegation first and pass `delegationConfig: { delegationId }`. |
+| `ERR_PACKAGE_PATH_NOT_EXPORTED` on import | The SDK is ESM-only. Set `"type": "module"` in `package.json` or use `.mts`. |
+| Console warning: `The 'environment' option is deprecated…` | Something is still passing the deprecated `environment` option (a wrapper or copied example). Remove it; the environment is derived from your key prefix. On SDK 1.10.0 the warning can also self-fire with nothing passed ([payments#416](https://github.com/nevermined-io/payments/issues/416)); if you have removed the option and still see it, that issue is why. |
+| The plan ID above does not resolve, or token mint fails against it | Check your key prefix: this is a **live** plan, and a `sandbox:`-prefixed key targets a different environment where the plan does not exist. |
+| A delegation you spent from disappears from `getPurchasingPower()` | It is exhausted. Inspect it with `listDelegations()`; create or top up a delegation to continue. |
+| A You.com API returns `402` | The key's credits are spent. Repeat the purchase flow to top up the same key. |
+| Purchase succeeded but `apiKey` is `null` | Expected for a returning payer: `toppedUp: true` means the credits went to the key you already hold. Reuse the key from your first purchase. |
+| Card charged twice for one key | You called `/x402/settle` and then sent the same token to `/purchase-key`. The purchase endpoint settles for you. Mint the token and go straight there. |
+| `settle` rejects a hand-built `paymentRequired` | `resource.url` is required and must be a non-empty URL. For a plan top-up with no protected endpoint to call, use the plan's own URL. |
+| `settle` returns `creditsRedeemed: "0"` and `remainingBalance: "0"` | Expected on a pay-as-you-go plan, which charges per request rather than minting credits. The charge reference is in `orderTx` (fiat) or `transaction` (crypto), not in the balance fields. |
+
+## References
+
+* [Payments overview](/products/payments/overview)
+* [x402 card-delegation spec](/specs/x402-card-delegation)
+* [Nevermined agentic instructions (machine-readable)](https://api.live.nevermined.app/api/v1/organizations/org-cf34dc7b-ec18-48f4-98fb-1697aafe0586/agentic-instructions.md)
+* [x402 glossary entry](https://nevermined.ai/glossary/x402/)
+* [You.com's Nevermined page](https://you.com/docs/administration/machine-payments/nevermined.md) — the merchant-side counterpart to this one
+* [You.com pricing](https://you.com/pricing)
+* [You.com Web Search API](https://documentation.you.com/docs/api-reference/search/v1-search)
