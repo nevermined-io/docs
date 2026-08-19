@@ -208,10 +208,11 @@ A reserved fee isn't always collected, and what happens to the reserve then diff
 
 **The fee leg can come back — but only on a closed list of paths.** A mode-B hop that never returned 2xx, a facilitator that adjudicated and refused, or a fee movement that couldn't be signed: on each of those the fee's cents are credited back to your Delegation cap and the ledger row reads [`feeStatus: "Released"`](/products/router/ledger#fee-lifecycle). Nothing else releases. A fee whose outcome is *unknown* stays `Submitted` and is resolved against the chain — and **resolving is not releasing**: a row the chain shows was never consumed becomes `Failed` with its reserve **still charged**. Read `feeStatus` for the credit; never infer it from a failure.
 
-Two preconditions decide whether the question is even asked, and both are easy to miss:
+One precondition decides whether the question is even asked, and it is easy to miss:
 
 - **Only the x402 rail can collect a routing fee at all.** MPP payments cannot produce a second settleable authorization, so they reserve the merchant leg alone.
-- **Mode A collects only on calls that pass a `requestId`.** Without one a retry cannot be deduplicated, so the fee is neither collected nor reserved (`feeStatus: "None"`). `requestId` is optional in mode A and required in mode B, so this is the common case rather than an edge one.
+
+Both modes then charge on every call. `requestId` does not change *whether* you are charged — it changes whether a **retry** is charged again. Reuse one stable id across every retry of the same purchase and the retry returns `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting a second payment, so one purchase carries one fee. Omit it, or generate a fresh id per HTTP attempt, and the retry is billed as a new purchase. Mode B requires the id already; on mode A it is optional, which is exactly why it is worth passing.
 
 The mode then decides when the fee settles. Mode B settles it only after the merchant returns 2xx, so a hop that fails releases the fee. Mode A settles it at mint, before your credential is ever presented — so on mode A a wallet holding only the merchant's price typically pays the fee and then loses the merchant leg on-chain, and there is nothing to release.
 
