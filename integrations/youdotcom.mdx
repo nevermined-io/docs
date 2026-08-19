@@ -34,7 +34,7 @@ Handled with the Nevermined Payments SDK (`npm install @nevermined-io/payments`;
 
 ## Without the SDK: the REST calls
 
-Every SDK method above maps to an endpoint on `https://api.live.nevermined.app`. Send your Nevermined API key as `Authorization: Bearer <api-key>` on every call below.
+The Nevermined steps above map to endpoints on `https://api.live.nevermined.app`; send your Nevermined API key as `Authorization: Bearer <api-key>` on those two. The third call goes to You.com and is authenticated by the x402 token alone — do not send your Nevermined API key to a merchant.
 
 ### 1. Create a delegation
 
@@ -149,18 +149,20 @@ Because the plan is typed pay-as-you-go, settle returns `creditsRedeemed: "0"` a
 
 ## What the key unlocks
 
-The purchase redeems for a standard You.com API key, valid anywhere an account-issued key is. Every request goes to `https://api.you.com` with the key in the same `X-API-Key` header, whichever API you call. Refer to You.com's API documentation for how to exercise each endpoint.
+The purchase redeems for a standard You.com API key, valid anywhere an account-issued key is. Every API takes the key in the same `X-API-Key` header and is a `POST` with a JSON body — but they are served from **two hosts**: Web Search and Contents from `https://ydc-index.io`, the rest from `https://api.you.com`. Refer to You.com's API documentation for each endpoint's parameters.
 
 ```bash
-curl "https://api.you.com/v1/search?query=nvidia+earnings" \
-  -H "X-API-Key: $YDC_API_KEY"
+curl -X POST https://ydc-index.io/v1/search \
+  -H "X-API-Key: $YDC_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "nvidia earnings"}'
 ```
 
-* [Web Search API](https://documentation.you.com/docs/api-reference/search/v1-search): real-time web and news results for grounding LLM responses.
-* [Contents API](https://documentation.you.com/docs/api-reference/contents): clean HTML or Markdown for a target webpage.
-* [Answer API](https://documentation.you.com/docs/api-reference/answer/v1-answer): single-call cited answer to a query.
-* [Research API](https://documentation.you.com/docs/api-reference/research/v1-research): multi-step web research with a synthesized, cited answer.
-* [Finance Research API](https://documentation.you.com/docs/api-reference/finance-research/v1-finance_research): the Research API's multi-step approach over a financial-data index.
+* [Web Search API](https://documentation.you.com/docs/api-reference/search/v1-search) — `POST https://ydc-index.io/v1/search`: real-time web and news results for grounding LLM responses.
+* [Contents API](https://documentation.you.com/docs/api-reference/contents) — `POST https://ydc-index.io/v1/contents`: clean HTML or Markdown for a target webpage.
+* [Answer API](https://documentation.you.com/docs/api-reference/answer/v1-answer) — `POST https://api.you.com/v1/answer`: single-call cited answer to a query.
+* [Research API](https://documentation.you.com/docs/api-reference/research/v1-research) — `POST https://api.you.com/v1/research`: multi-step web research with a synthesized, cited answer.
+* [Finance Research API](https://documentation.you.com/docs/api-reference/finance-research/v1-finance_research) — `POST https://api.you.com/v1/finance_research`: the Research API's multi-step approach over a financial-data index.
 
 ## Verifying charges
 
