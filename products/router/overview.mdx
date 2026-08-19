@@ -50,6 +50,19 @@ You do **not** need to know which one a service speaks. In the recommended call 
 
 Services that authenticate with a conventional API key and bill you monthly are a different shape entirely — there is no per-request price on the wire and nothing for the Router to pay. Those aren't routable today.
 
+## What it costs
+
+A routed call can cost you more than the merchant's price, and the two are charged separately:
+
+- **The merchant's price** — whatever the service asked for in its `402`. Paid in full; the Router never takes a cut of it.
+- **A Nevermined routing fee**, where one applies. Added **on top**, so your Delegation cap is debited the merchant's price *plus* the fee, while the merchant still receives their full price.
+
+Every payment response carries a `fee` object saying exactly what was charged, and `fee.capChargedCents` — not `settlement.approxCents` — is the figure your budget actually moved by. See [the routing fee](/products/router/how-it-works#the-routing-fee) for how it is applied and rounded, and [the ledger](/products/router/ledger#the-routing-fee-on-a-record) for reading it back per payment.
+
+<Note>
+Read `fee.bps` from the response rather than assuming a rate: it is resolved per payment and per deployment, so it is the authoritative answer for the environment you are calling.
+</Note>
+
 ## Environments
 
 | Environment | API base | Purpose |
