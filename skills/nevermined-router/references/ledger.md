@@ -48,6 +48,11 @@ totals.
 }
 ```
 
+⚠️ **This sample is from a deployment with no routing fee configured** — that is what `feeBps: 0` /
+`feeStatus: "None"` mean here, and it is the shipped default. Do not read it as "an x402 payment
+carries no fee": where a rate **is** configured, every x402 payment carries one, mode A and mode B
+alike, and these fields come back populated. See [`paying.md`](./paying.md#mode-a-fee).
+
 | Field | Notes |
 | --- | --- |
 | `amount` | The settlement asset's **smallest unit** — but **the scale differs per rail**, so read `assetDecimals` and never assume one. **Merchant leg only**; the fee is not in it |
