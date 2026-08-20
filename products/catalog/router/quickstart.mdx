@@ -124,7 +124,7 @@ Hand the Router the request you want made. It probes the service, detects the pr
         "delegationId": "'"$NVM_DELEGATION_ID"'",
         "url": "https://service.example/api/resource",
         "method": "GET",
-        "requestId": "'"$(uuidgen)"'"
+        "requestId": "fetch-example-resource-v1"
       }'
     ```
   </Tab>
@@ -140,7 +140,7 @@ Hand the Router the request you want made. It probes the service, detects the pr
         delegationId: process.env.NVM_DELEGATION_ID,
         url: 'https://service.example/api/resource',
         method: 'GET',
-        requestId: crypto.randomUUID(),
+        requestId: 'fetch-example-resource-v1',
       }),
     })
 
@@ -150,7 +150,7 @@ Hand the Router the request you want made. It probes the service, detects the pr
   </Tab>
   <Tab title="Python">
     ```python
-    import os, uuid, requests
+    import os, requests
 
     res = requests.post(
         f"{os.environ['NVM_API_URL']}/api/v1/router/route",
@@ -159,7 +159,7 @@ Hand the Router the request you want made. It probes the service, detects the pr
             "delegationId": os.environ["NVM_DELEGATION_ID"],
             "url": "https://service.example/api/resource",
             "method": "GET",
-            "requestId": str(uuid.uuid4()),
+            "requestId": "fetch-example-resource-v1",
         },
     ).json()
 
