@@ -221,7 +221,7 @@ Call the merchant with no payment. It answers `402` with its requirements:
 | `protocol` | **yes** | `x402` or `mpp`. **Not auto-detected here** — unlike mode B, you must get this right |
 | `target` | **yes** | x402 → `{ accepts, x402Version? }` (defaults to **2**; set `1` for x402-express). MPP → `{ challenge }`, the raw header value |
 | `resourceUrl` | no | Absolute URL, recorded on the ledger |
-| `requestId` | no | **Optional here**, unlike mode B — but pass one anyway: it is the only thing that dedupes a retry, and [the routing fee is charged only when it is present](#mode-a-fee) |
+| `requestId` | no | **Optional here**, unlike mode B — but [always pass a stable one](#mode-a-fee): it is the only thing that dedupes a retry, and without it a retry is minted **and charged the routing fee** a second time |
 
 Pass `target` **verbatim** from the 402. Do not normalise, reorder or re-encode it.
 
@@ -245,15 +245,22 @@ Had you passed a v2 `target` (the default), the same call would return `"x402Ver
 `"name": "PAYMENT-SIGNATURE"`.
 
 <a id="mode-a-fee"></a>
-[The `fee` object](#the-fee-object) is on this response too — but ⚠️ **mode A charges the routing fee
-only when you pass a `requestId`.** Fee collection is refused outright without one, *before* the cap
-is touched, so no fee is quoted and none is reserved: `fee` comes back zeroed and
-`capChargedCents == settlement.approxCents`.
+[The `fee` object](#the-fee-object) is on this response too — **zeroed in the sample above because
+that is a deployment with no rate configured**, not because mode A is free. ⚠️ **Mode A charges the
+routing fee on every call**, whether or not you pass a `requestId`.
 
-That is a safety rule, not a discount. `requestId` is optional on mode A (see the field table above) and it is
-the only thing that dedupes a retry, so without it a re-mint would settle a **second** real fee
-transfer for one purchase. Pass one anyway — the double-spend it prevents costs far more than the
-fee. Mode B requires it and is unaffected.
+`requestId` no longer changes *whether* you are charged — it changes whether a **retry** is charged
+again. Reuse one stable id across every retry of the same purchase and the retry returns
+`409 BCK.ROUTER.0002` with the original `paymentId` instead of minting: one purchase, one fee. Omit it,
+or generate a fresh id per HTTP attempt, and the retry is a new purchase — a second credential and a
+second real fee transfer for one thing you meant to buy once.
+
+So derive the id from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per
+attempt. Mode B requires one already and is unaffected.
+
+> **Changed:** mode A used to collect *only* when a `requestId` was present, refusing the fee outright
+> without one. That is no longer true — omitting the key now costs you money on a retry rather than
+> saving you the fee.
 
 ### 3 · Attach it and re-send
 
