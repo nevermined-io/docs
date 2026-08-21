@@ -189,6 +189,8 @@ If the resource turned out to be free, you get `paid: false` and no `payment` bl
 
 <Note>
 **Use one stable `requestId` per logical purchase, not per HTTP attempt.** It's the idempotency key: retrying a dropped call with the same id returns the original payment instead of buying twice. Retrying with a fresh id buys twice, on purpose.
+
+That applies to the snippet above, which uses a fixed id: **run it a second time and you get `409 BCK.ROUTER.0002`**, carrying the original `paymentId`, rather than the response shown. That is the guarantee working, not a failure — change the id to buy again.
 </Note>
 
 ## 5. Check what you spent

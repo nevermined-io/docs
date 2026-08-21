@@ -245,8 +245,9 @@ Had you passed a v2 `target` (the default), the same call would return `"x402Ver
 `"name": "PAYMENT-SIGNATURE"`.
 
 <a id="mode-a-fee"></a>
-[The `fee` object](#the-fee-object) is on this response too. ⚠️ **Mode A charges the routing fee on
-every call**, whether or not you pass a `requestId`.
+[The `fee` object](#the-fee-object) is on this response too — **zeroed in the sample above because
+that is a deployment with no rate configured**, not because mode A is free. ⚠️ **Mode A charges the
+routing fee on every call**, whether or not you pass a `requestId`.
 
 `requestId` no longer changes *whether* you are charged — it changes whether a **retry** is charged
 again. Reuse one stable id across every retry of the same purchase and the retry returns
