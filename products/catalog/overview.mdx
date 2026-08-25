@@ -4,6 +4,8 @@ description: "A curated directory of external AI services your agents can discov
 icon: "store"
 ---
 
+![Diagram: your agent browses the Catalog to pick a service, then the Nevermined Router pays each service — x402 or MPP — on the agent's behalf, all from one shared budget.](/images/catalog/routing-diagram.png)
+
 The **Nevermined Catalog** is a curated directory of external AI services your agents can pay for — browsable by a human at [nevermined.app/catalog](https://nevermined.app/catalog/), and readable by an agent over a public API. Every listed service prices each request on the wire, so your agent can **find** a capability it needs and **pay** for it in the same motion, without a signup, an API key, or a subscription at the provider.
 
 The Catalog is the front door; the **[Router](/products/catalog/router/overview)** is how you walk through it. You discover a service in the Catalog, then pay it through the Router from a budget you control. The two are one product read in one direction: **spending** at services that were never onboarded to Nevermined.
@@ -27,25 +29,7 @@ Listings are organized into a curated set of categories — **Data & Enrichment*
 
 ## How the Catalog and Router fit together
 
-One agent, one budget, one API key — reaching many independent services it never had to sign up for:
-
-```mermaid
-flowchart LR
-    Agent["Your agent"]
-    Catalog["Nevermined Catalog<br/>discover services"]
-    Router["Nevermined Router<br/>one budget, one API key"]
-    S1["AI Service A · x402"]
-    S2["AI Service B · MPP"]
-    S3["AI Service C · x402"]
-
-    Agent -->|"1 · browse and pick"| Catalog
-    Agent -->|"2 · route the payment"| Router
-    Router --> S1
-    Router --> S2
-    Router --> S3
-```
-
-The services on the right are unrelated to each other and to Nevermined — different providers, different payment rails, no shared account. Your agent treats them uniformly because the Router, not the agent, speaks each rail.
+One agent, one budget, one API key — reaching many independent services it never had to sign up for. Those services are unrelated to each other and to Nevermined: different providers, different payment rails, no shared account. Your agent treats them uniformly because the Router, not the agent, speaks each rail.
 
 <CardGroup cols={2}>
   <Card title="The Catalog: discover" icon="magnifying-glass" href="/products/catalog/discover">
