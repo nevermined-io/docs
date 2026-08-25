@@ -1,0 +1,70 @@
+---
+title: "AI Services"
+description: "What's available in the Nevermined Catalog, and how to add your own AI service — validated healthy before it's listed."
+icon: "grid-2"
+---
+
+Every entry in the Catalog is an external AI service that prices each request **on the wire**, so your agent can pay per call — no signup, no API key at the provider, no subscription. This page covers what's in the Catalog today and how to get your own service into it.
+
+## What's available
+
+Listings span a curated set of categories, each with granular sub-categories:
+
+<CardGroup cols={2}>
+  <Card title="Data & Enrichment" icon="database" />
+  <Card title="Search & Research" icon="magnifying-glass" />
+  <Card title="Crypto & Blockchain" icon="link" />
+  <Card title="Finance & Markets" icon="chart-line" />
+  <Card title="AI & Media" icon="wand-magic-sparkles" />
+  <Card title="Web Scraping & Automation" icon="robot" />
+  <Card title="Communication & Voice" icon="phone" />
+  <Card title="…and more" icon="ellipsis" />
+</CardGroup>
+
+The full set also includes Sales & Business Intelligence, Social & Creator, Identity & Compliance, Infrastructure & Compute, Weather, and Travel. Browse or query the live set — the current categories and their counts come from the read API, never a hard-coded list. See [Discovering services](/products/catalog/discover).
+
+Each service settles on one of two payment rails the Router can pay:
+
+| Protocol | What it is | In the Catalog |
+| --- | --- | --- |
+| **x402** | The service answers `HTTP 402` advertising an `accepts` array | ✅ Listed |
+| **MPP** | The service answers `HTTP 402` with a `WWW-Authenticate: Payment` challenge | ✅ Listed |
+
+### What gets listed
+
+The Catalog only lists services the Router can actually pay — those that price each request on the wire (**x402** and **MPP**). Services that authenticate with a long-lived API key and bill you monthly aren't listed: there's no per-call price on the wire for the Router to settle. The Catalog surfaces only what an autonomous agent can buy, so it's never handed a service it can't pay for.
+
+## Add your AI Service
+
+The Catalog is also where you list a service **you** own so other buyers' agents discover and pay for it. From an organization in the [Nevermined app](https://nevermined.app), publish one of your registered agents into the Catalog with a category, its callable endpoint, and presentation details (title, description, logo, tags, features).
+
+You supply only presentation and the endpoint. Trust-sensitive facts are derived server-side rather than accepted from you — the payment **protocol** and **price** are detected from your endpoint, and ownership is taken from the agent — so a listing can't misrepresent what it charges or who runs it.
+
+### Listed only once it's validated healthy
+
+Before your service goes live, a monitor **probes the endpoint to confirm it actually responds** — a listing is never published on your word alone. It also keeps checking after launch, so the Catalog stays a directory of services that currently work, not ones that used to.
+
+Each listing moves through a simple lifecycle:
+
+| State | Meaning |
+| --- | --- |
+| **Validating** | The monitor is checking that your endpoint responds before it goes live. |
+| **Live** | Healthy and listed in the public Catalog, discoverable by buyers. |
+| **Action needed** | The monitor never got a healthy response within 24h, so the agent stays unlisted. |
+| **Degraded** | Still listed, but failing health checks. If no healthy probe arrives within 72h the listing is **unlisted automatically** — any healthy probe inside that window restores it. |
+| **Removed** | The listing has been taken down. |
+
+<Note>
+Publishing requires an **organization**. See [Agentic integration](/solutions/organizations/agentic-integration) for the organization API context, and [Register a plan and agent](/agents-guide/register-plan-and-agent) for creating the agent you'll list.
+</Note>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Discovering services" icon="magnifying-glass" href="/products/catalog/discover">
+    Browse the app and query the public read API to find what you need.
+  </Card>
+  <Card title="Router quickstart" icon="rocket" href="/products/catalog/router/quickstart">
+    From an API key to a paid call against a service you found here, in five steps.
+  </Card>
+</CardGroup>

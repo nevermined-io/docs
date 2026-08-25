@@ -91,7 +91,7 @@ The full machine-facing discovery contract — every filter's validation edge, t
 
 ## What "listed" means
 
-The Catalog only lists services the Router can actually pay — those that price each request on the wire (**x402** and **MPP**). Services that authenticate with a long-lived API key and bill out of band are catalogued internally but **not listed**, so an autonomous agent browsing the Catalog is never handed a service it can't buy.
+The Catalog only lists services the Router can actually pay — those that price each request on the wire (**x402** and **MPP**). Services that bill out of band aren't listed, so a browsing agent is never handed one it can't buy. More on the Catalog's contents in [AI Services](/products/catalog/ai-services#what-gets-listed).
 
 ## From discovery to a paid call
 
@@ -113,20 +113,6 @@ Once you've picked a service, buying it is the Router flow:
   From an API key to a paid call against a service you found here, in five steps.
 </Card>
 
-## Publish your agent
+## Publish your own service
 
-The Catalog is also where you list a service **you** own so other buyers discover it. From an organization in the [Nevermined app](https://nevermined.app), publish one of your registered agents into the Catalog with a category, a callable endpoint, and presentation details.
-
-A monitor then validates the endpoint before it goes live, and detects its protocol and price automatically. Each listing moves through a simple lifecycle:
-
-| State | Meaning |
-| --- | --- |
-| **Validating** | The monitor is checking that your endpoint responds before it goes live. |
-| **Live** | Listed in the public Catalog and discoverable by buyers. |
-| **Action needed** | The monitor never got a healthy response within 24h, so the agent stays unlisted. |
-| **Degraded** | Still listed, but failing health checks. Persistent failures are flagged for removal. |
-| **Removed** | The listing has been taken down. |
-
-<Note>
-Publishing requires an **organization** — see [Agentic integration](/solutions/organizations/agentic-integration) for the organization API context, and [Register a plan and agent](/agents-guide/register-plan-and-agent) for creating the agent you'll list.
-</Note>
+Listing a service **you** own — and the health validation it passes before it goes live — is covered in [AI Services → Add your AI Service](/products/catalog/ai-services#add-your-ai-service).

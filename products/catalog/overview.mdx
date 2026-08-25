@@ -1,5 +1,5 @@
 ---
-title: "Nevermined Catalog"
+title: "Catalog Overview"
 description: "A curated directory of external AI services your agents can discover and pay for — through one budget, over the Nevermined Router."
 icon: "store"
 ---
@@ -9,7 +9,7 @@ The **Nevermined Catalog** is a curated directory of external AI services your a
 The Catalog is the front door; the **[Router](/products/catalog/router/overview)** is how you walk through it. You discover a service in the Catalog, then pay it through the Router from a budget you control. The two are one product read in one direction: **spending** at services that were never onboarded to Nevermined.
 
 <Note>
-The Catalog lists services you **buy from**. If instead you want your own API to *get paid* by callers, that's the seller side — see the **[x402 Facilitator](/products/x402-facilitator/overview)**. You can be on both sides at once, and you can even **[publish your own agent](/products/catalog/discover#publish-your-agent)** into the Catalog so other buyers discover it.
+The Catalog lists services you **buy from**. If instead you want your own API to *get paid* by callers, that's the seller side — see the **[x402 Facilitator](/products/x402-facilitator/overview)**. You can be on both sides at once, and you can even **[add your own AI service](/products/catalog/ai-services#add-your-ai-service)** to the Catalog so other buyers discover it.
 </Note>
 
 ## What's in it
@@ -23,9 +23,29 @@ Every listing is an external service that charges **per request**, on one of two
 
 Services that authenticate with a long-lived API key and bill you monthly aren't in the listed set — there's no per-call price on the wire for the Router to pay. The Catalog only surfaces what an autonomous agent can actually buy.
 
-Listings are organized into a curated set of categories — **Data & Enrichment**, **Search & Research**, **Crypto & Blockchain**, **Finance & Markets**, **AI & Media**, **Web Scraping & Automation**, and more — each with granular sub-categories. See [Discovering services](/products/catalog/discover) for browsing and filtering.
+Listings are organized into a curated set of categories — **Data & Enrichment**, **Search & Research**, **Crypto & Blockchain**, **Finance & Markets**, **AI & Media**, **Web Scraping & Automation**, and more — each with granular sub-categories. See [AI Services](/products/catalog/ai-services) for the full offering and how to add your own, or [Discovering services](/products/catalog/discover) for browsing and filtering.
 
 ## How the Catalog and Router fit together
+
+One agent, one budget, one API key — reaching many independent services it never had to sign up for:
+
+```mermaid
+flowchart LR
+    Agent["Your agent"]
+    Catalog["Nevermined Catalog<br/>discover services"]
+    Router["Nevermined Router<br/>one budget, one API key"]
+    S1["AI Service A · x402"]
+    S2["AI Service B · MPP"]
+    S3["AI Service C · x402"]
+
+    Agent -->|"1 · browse and pick"| Catalog
+    Agent -->|"2 · route the payment"| Router
+    Router --> S1
+    Router --> S2
+    Router --> S3
+```
+
+The services on the right are unrelated to each other and to Nevermined — different providers, different payment rails, no shared account. Your agent treats them uniformly because the Router, not the agent, speaks each rail.
 
 <CardGroup cols={2}>
   <Card title="The Catalog: discover" icon="magnifying-glass" href="/products/catalog/discover">
