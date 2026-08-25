@@ -51,7 +51,7 @@ Each listing moves through a simple lifecycle:
 | **Validating** | The monitor is checking that your endpoint responds before it goes live. |
 | **Live** | Healthy and listed in the public Catalog, discoverable by buyers. |
 | **Action needed** | The monitor never got a healthy response within 24h, so the agent stays unlisted. |
-| **Degraded** | Still listed, but failing health checks. Persistent failures are flagged for removal. |
+| **Degraded** | Still listed, but failing health checks. If no healthy probe arrives within 72h the listing is **unlisted automatically** — any healthy probe inside that window restores it. |
 | **Removed** | The listing has been taken down. |
 
 <Note>
