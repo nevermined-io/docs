@@ -98,12 +98,12 @@ curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
 | x402 | Base mainnet (`8453`) | USDC — `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
 | x402 | Base Sepolia (`84532`) | testnet USDC, from a public faucet |
 | MPP | Tempo mainnet (`4217`) | USDC.e — `0x20c000000000000000000000b9537d11c60e8b50` |
-| MPP | Tempo Moderato (`42431`) | PathUSD — `0x20c0000000000000000000000000000000000000`, self-funded via [one RPC call](/products/router/rails-mpp#funding-your-wallet) |
+| MPP | Tempo Moderato (`42431`) | PathUSD — `0x20c0000000000000000000000000000000000000`, self-funded via [one RPC call](/products/catalog/router/rails-mpp#funding-your-wallet) |
 
-The address is the same on every EVM chain — it's one key-derived wallet, so there is nothing extra to create on Tempo. But **the balances are per-chain**: funding Base does nothing for an MPP payment. See [the x402 rail](/products/router/rails-x402) and [the MPP rail](/products/router/rails-mpp) for the full picture.
+The address is the same on every EVM chain — it's one key-derived wallet, so there is nothing extra to create on Tempo. But **the balances are per-chain**: funding Base does nothing for an MPP payment. See [the x402 rail](/products/catalog/router/rails-x402) and [the MPP rail](/products/catalog/router/rails-mpp) for the full picture.
 
 <Note>
-**Funding is manual today.** There is no on-ramp — you cannot top this wallet up from a card or from a Nevermined credit balance, and the agent cannot refill itself. When the wallet runs dry, payments stop until a human sends more: on MPP with a clean `402 BCK.ROUTER.0009`, on x402 [less kindly](/products/router/rails-x402#funding-your-wallet), because that rail doesn't check the balance before signing. Budget for that when you decide how much to fund — and fund for the merchant's price **plus** any [routing fee](/products/router/how-it-works#the-routing-fee). An agent is autonomous *after* it is funded, and only until the balance runs out.
+**Funding is manual today.** There is no on-ramp — you cannot top this wallet up from a card or from a Nevermined credit balance, and the agent cannot refill itself. When the wallet runs dry, payments stop until a human sends more: on MPP with a clean `402 BCK.ROUTER.0009`, on x402 [less kindly](/products/catalog/router/rails-x402#funding-your-wallet), because that rail doesn't check the balance before signing. Budget for that when you decide how much to fund — and fund for the merchant's price **plus** any [routing fee](/products/catalog/router/how-it-works#the-routing-fee). An agent is autonomous *after* it is funded, and only until the balance runs out.
 </Note>
 
 <Warning>
@@ -198,7 +198,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
   -H "Authorization: Bearer $NVM_API_KEY"
 ```
 
-Every payment across every protocol is on one ledger — see [the ledger page](/products/router/ledger) for filters, CSV export, and the aggregate summary.
+Every payment across every protocol is on one ledger — see [the ledger page](/products/catalog/router/ledger) for filters, CSV export, and the aggregate summary.
 
 ## When something is refused
 
@@ -210,15 +210,15 @@ Refusals are the system working. The three you're most likely to meet:
 | `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on that network. MPP only — nothing was signed. x402 has no balance pre-check and fails on-chain instead. |
 | `BCK.ROUTER.0002` | 409 | That `requestId` already bought something. The original `paymentId` is in the response. |
 
-[Guardrails](/products/router/guardrails) covers every code and, more usefully, why widening a cap in response to a refusal is almost always the wrong move.
+[Guardrails](/products/catalog/router/guardrails) covers every code and, more usefully, why widening a cap in response to a refusal is almost always the wrong move.
 
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="The x402 rail" icon="coins" href="/products/router/rails-x402">
+  <Card title="The x402 rail" icon="coins" href="/products/catalog/router/rails-x402">
     Networks, assets, and what "exact" means.
   </Card>
-  <Card title="The MPP rail" icon="credit-card" href="/products/router/rails-mpp">
+  <Card title="The MPP rail" icon="credit-card" href="/products/catalog/router/rails-mpp">
     Tempo charges, receipts, and the asset allowlist.
   </Card>
 </CardGroup>

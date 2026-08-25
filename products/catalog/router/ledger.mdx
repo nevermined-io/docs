@@ -72,7 +72,7 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 
 ### The routing fee on a record
 
-`amount` is the **merchant** leg only. If a [routing fee](/products/router/how-it-works#the-routing-fee) applied, it was reserved against your cap on top of that amount, and the record breaks it out:
+`amount` is the **merchant** leg only. If a [routing fee](/products/catalog/router/how-it-works#the-routing-fee) applied, it was reserved against your cap on top of that amount, and the record breaks it out:
 
 | Field | What it is |
 | --- | --- |
@@ -174,7 +174,7 @@ The summary counts **payment requests**, not amounts. Use the list endpoint when
 
 ## Closing a mode-A record
 
-In [mode A](/products/router/how-it-works) the Router only signs — it never sees the merchant's response, so it can't know whether you redeemed the credential. Report the settlement to close the record:
+In [mode A](/products/catalog/router/how-it-works) the Router only signs — it never sees the merchant's response, so it can't know whether you redeemed the credential. Report the settlement to close the record:
 
 ```bash
 curl -sX POST "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/settled" \
@@ -192,7 +192,7 @@ Take the hash from the merchant's `PAYMENT-RESPONSE` header. Two things to know:
 - Only an `Issued` payment can be settled. Re-reporting the **same** hash is a harmless no-op; a **different** hash, or a record that isn't `Issued`, returns `409 BCK.ROUTER.0005`.
 - A payment id that isn't yours returns `404 BCK.ROUTER.0004`.
 
-[Mode B does this for you](/products/router/how-it-works), which is one of the better reasons to prefer it.
+[Mode B does this for you](/products/catalog/router/how-it-works), which is one of the better reasons to prefer it.
 
 ## Reconciling against the chain
 
@@ -205,10 +205,10 @@ Note also that a non-`0x` reference is legitimate: settlement identifiers are pr
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+  <Card title="Guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
     Every error code, and what to do about each.
   </Card>
-  <Card title="Overview" icon="route" href="/products/router/overview">
+  <Card title="Overview" icon="route" href="/products/catalog/router/overview">
     Back to the top.
   </Card>
 </CardGroup>

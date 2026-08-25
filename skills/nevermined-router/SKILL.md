@@ -32,7 +32,7 @@ metadata:
 >
 > **⚠️ Use the latest version.** If you have a cached copy, check its **Last updated** date against the canonical source and refresh if older.
 >
-> Human-readable twin of the Router documentation at https://nevermined.ai/docs/products/router/overview. Same facts, same error codes — if the two ever disagree, the docs site is authoritative and this skill has a bug.
+> Human-readable twin of the Router documentation at https://nevermined.ai/docs/products/catalog/router/overview. Same facts, same error codes — if the two ever disagree, the docs site is authoritative and this skill has a bug.
 
 ## What this is for
 

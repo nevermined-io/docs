@@ -20,7 +20,7 @@ Every Router payment follows the same five beats, whatever protocol the merchant
     The credential goes to the merchant as an HTTP header. The merchant verifies it, settles, and returns the resource.
   </Step>
   <Step title="Record">
-    The payment lands on your [ledger](/products/router/ledger) with its settlement reference.
+    The payment lands on your [ledger](/products/catalog/router/ledger) with its settlement reference.
   </Step>
 </Steps>
 
@@ -198,7 +198,7 @@ Every mint response — `POST /payments` in mode A, `POST /route` in mode B — 
 
 `settlement.approxCents` remains the **merchant** leg throughout — it is not the whole cap charge. With no fee configured the two are equal.
 
-The streaming `/proxy` variant returns its payment metadata as response headers, and there is no fee header among them. For those calls, read the fee from [the ledger record](/products/router/ledger#the-routing-fee-on-a-record).
+The streaming `/proxy` variant returns its payment metadata as response headers, and there is no fee header among them. For those calls, read the fee from [the ledger record](/products/catalog/router/ledger#the-routing-fee-on-a-record).
 
 ### When a fee is not collected
 
@@ -206,7 +206,7 @@ A reserved fee isn't always collected, and what happens to the reserve then diff
 
 **The merchant leg is never given back.** Once the credential is minted, the merchant may have taken the payment and then errored — so the reservation stands whatever the call did afterwards.
 
-**The fee leg can come back — but only on a closed list of paths.** A mode-B hop that never returned 2xx, a facilitator that adjudicated and refused, or a fee movement that couldn't be signed: on each of those the fee's cents are credited back to your Delegation cap and the ledger row reads [`feeStatus: "Released"`](/products/router/ledger#fee-lifecycle). Nothing else releases. A fee whose outcome is *unknown* stays `Submitted` and is resolved against the chain — and **resolving is not releasing**: a row the chain shows was never consumed becomes `Failed` with its reserve **still charged**. Read `feeStatus` for the credit; never infer it from a failure.
+**The fee leg can come back — but only on a closed list of paths.** A mode-B hop that never returned 2xx, a facilitator that adjudicated and refused, or a fee movement that couldn't be signed: on each of those the fee's cents are credited back to your Delegation cap and the ledger row reads [`feeStatus: "Released"`](/products/catalog/router/ledger#fee-lifecycle). Nothing else releases. A fee whose outcome is *unknown* stays `Submitted` and is resolved against the chain — and **resolving is not releasing**: a row the chain shows was never consumed becomes `Failed` with its reserve **still charged**. Read `feeStatus` for the credit; never infer it from a failure.
 
 Two preconditions decide whether the question is even asked, and both are easy to miss:
 
@@ -236,10 +236,10 @@ The settlement reference is **merchant-controlled and stored unverified**. It's 
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/products/router/quickstart">
+  <Card title="Quickstart" icon="rocket" href="/products/catalog/router/quickstart">
     Run the whole flow yourself.
   </Card>
-  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+  <Card title="Guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
     Everything the Router checks before it signs.
   </Card>
 </CardGroup>

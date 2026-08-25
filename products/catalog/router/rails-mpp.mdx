@@ -26,7 +26,7 @@ The Router decodes that challenge, signs the payment, and hands back an `Authori
 Other intents — sessions, subscriptions, metered streams — aren't supported yet. A challenge advertising one is refused rather than approximated.
 
 <Note>
-**You don't have to know a service speaks MPP.** In [mode B](/products/router/how-it-works) the Router detects the protocol from the 402 itself, and the detected protocol always wins over the optional `protocol` hint in your request. Send the same `/route` call you'd send for x402.
+**You don't have to know a service speaks MPP.** In [mode B](/products/catalog/router/how-it-works) the Router detects the protocol from the 402 itself, and the detected protocol always wins over the optional `protocol` hint in your request. Send the same `/route` call you'd send for x402.
 </Note>
 
 ## The asset allowlist
@@ -111,7 +111,7 @@ On a paid response an MPP merchant returns a **`Payment-Receipt`** header. In mo
 In **mode A** the Router isn't in the request path, so it never sees the receipt. Closing the record means decoding the receipt yourself and reporting the reference — which needs the MPP codec. This is the main reason to prefer mode B on this rail.
 </Note>
 
-The reference is merchant-controlled and stored **unverified** — see [how it works](/products/router/how-it-works#how-settlement-gets-recorded).
+The reference is merchant-controlled and stored **unverified** — see [how it works](/products/catalog/router/how-it-works#how-settlement-gets-recorded).
 
 ## Card-funded MPP
 
@@ -139,10 +139,10 @@ This rail is **feature-flagged off by default and sandbox-only** while the under
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="The x402 rail" icon="coins" href="/products/router/rails-x402">
+  <Card title="The x402 rail" icon="coins" href="/products/catalog/router/rails-x402">
     The other supported protocol.
   </Card>
-  <Card title="Payment ledger" icon="receipt" href="/products/router/ledger">
+  <Card title="Payment ledger" icon="receipt" href="/products/catalog/router/ledger">
     Reading and reconciling what you spent.
   </Card>
 </CardGroup>

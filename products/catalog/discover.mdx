@@ -1,0 +1,132 @@
+---
+title: "Discovering services"
+description: "Browse the Catalog in the app or query it over a public read API — then pay for what you find through the Router."
+icon: "magnifying-glass"
+---
+
+The Catalog is discoverable two ways: a human browses it in the app, and an agent reads it over a **public, unauthenticated** API. Both surface the same curated set of Router-payable services.
+
+## Browse in the app
+
+Open [nevermined.app/catalog](https://nevermined.app/catalog/) to explore listings visually:
+
+- **Categories** — filter by top-level category and sub-category (Search & Research, Crypto & Blockchain, AI & Media, and more).
+- **Search** — free-text over a service's title and description.
+- **Service detail** — each listing has a page with its description, protocol, indicative price, callable endpoints, tags, and links to the provider's homepage and docs.
+
+The app is a browsing surface. To actually *buy*, an agent drives the [Router](/products/catalog/router/quickstart) — the same directory, read programmatically.
+
+## Query the read API
+
+The Catalog read API is **public, unauthenticated, read-only, and cached for five minutes**. Send no `Authorization` header — none is required.
+
+Base URL is the environment API host: `https://api.sandbox.nevermined.app` or `https://api.live.nevermined.app`.
+
+### List services
+
+```bash
+curl -s "https://api.sandbox.nevermined.app/api/v1/catalog/services?category=Search%20%26%20Research&protocol=x402"
+```
+
+| Param | Notes |
+| --- | --- |
+| `search` | Free-text over **title and description only** |
+| `category` | One of the curated categories — an unknown value is rejected with `400` |
+| `subCategory` | Granular label under a category; discover values from `/categories` |
+| `protocol` | `x402` or `mpp` for payable services |
+| `tag` | Exact match against one entry of `tags[]` |
+| `page` | Page number, ≥ 1 (default 1) |
+| `offset` | Page **size**, not a skip count (default 20, capped at 100) |
+| `sortBy` / `sortOrder` | Omit for the curated default ordering |
+
+The response is a page of services plus the total matching your filters:
+
+```json
+{ "total": 9, "page": 1, "offset": 20, "services": [ /* … */ ] }
+```
+
+<Note>
+**`offset` is the page size, not a SQL offset.** To walk the whole catalog, hold `offset` fixed and increment `page`. And the default ordering is intentionally not stable — services rotate within their curation tier — so never assume `services[0]` is the same service across two calls.
+</Note>
+
+The fields you'll actually use on each service:
+
+| Field | Use |
+| --- | --- |
+| `slug` | Stable, case-sensitive id — use it for the per-slug lookup |
+| `protocol` | `x402` or `mpp` — payable through the Router |
+| `targetUrl` | The default endpoint's complete URL |
+| `endpoints[]` | Other callable paths, each with `priceLabel` and `docsUrl` |
+| `priceLabel` | Human string like `"$0.001"` — **indicative only**; the wire price governs |
+| `category` / `subCategory` | Curated category and its granular label |
+| `discovery` | Machine-readable pointers (x402 manifest, MCP, A2A agent card, OpenAPI, `llms.txt`) |
+
+### List categories
+
+```bash
+curl -s "https://api.sandbox.nevermined.app/api/v1/catalog/categories"
+```
+
+Returns each category with a count of listed services in it. It enumerates what is **populated**, not the full legal set — prefer it over hard-coding category names.
+
+### Get one service
+
+```bash
+curl -s "https://api.sandbox.nevermined.app/api/v1/catalog/services/<slug>"
+```
+
+Returns the full service by its `slug`, or `404 BCK.CATALOG.0001` if no listed service matches (the lookup is case-sensitive).
+
+### The agent-readable feed
+
+```
+GET /.well-known/agent-services-catalog.json
+```
+
+A single [Agentic Resource Discovery](/integrate/authentication/for-agents) document listing every service with its Router pay-through target and discovery pointers — the machine-readable twin of the browse experience.
+
+<Tip>
+The full machine-facing discovery contract — every filter's validation edge, the `discovery` pointer shapes, and the catalog error codes — ships in the **[Router AI coding skill](/development-guide/build-using-nvm-skill)** (`nevermined-router`), so your assistant already knows how to walk the Catalog.
+</Tip>
+
+## What "listed" means
+
+The Catalog only lists services the Router can actually pay — those that price each request on the wire (**x402** and **MPP**). Services that authenticate with a long-lived API key and bill out of band are catalogued internally but **not listed**, so an autonomous agent browsing the Catalog is never handed a service it can't buy.
+
+## From discovery to a paid call
+
+Once you've picked a service, buying it is the Router flow:
+
+<Steps>
+  <Step title="Read its targetUrl and protocol">
+    Straight off the catalog listing. You don't need to know x402 from MPP — the Router probes the service and detects the protocol from its `402`.
+  </Step>
+  <Step title="Get an API key, a Delegation, and funds">
+    A one-time setup — see the [Router quickstart](/products/catalog/router/quickstart).
+  </Step>
+  <Step title="Route the call">
+    Hand the Router the request. It pays the `402` from your wallet, enforces your cap, and relays the answer.
+  </Step>
+</Steps>
+
+<Card title="Router quickstart" icon="rocket" href="/products/catalog/router/quickstart">
+  From an API key to a paid call against a service you found here, in five steps.
+</Card>
+
+## Publish your agent
+
+The Catalog is also where you list a service **you** own so other buyers discover it. From an organization in the [Nevermined app](https://nevermined.app), publish one of your registered agents into the Catalog with a category, a callable endpoint, and presentation details.
+
+A monitor then validates the endpoint before it goes live, and detects its protocol and price automatically. Each listing moves through a simple lifecycle:
+
+| State | Meaning |
+| --- | --- |
+| **Validating** | The monitor is checking that your endpoint responds before it goes live. |
+| **Live** | Listed in the public Catalog and discoverable by buyers. |
+| **Action needed** | The monitor never got a healthy response within 24h, so the agent stays unlisted. |
+| **Degraded** | Still listed, but failing health checks. Persistent failures are flagged for removal. |
+| **Removed** | The listing has been taken down. |
+
+<Note>
+Publishing requires an **organization** — see [Agentic integration](/solutions/organizations/agentic-integration) for the organization API context, and [Register a plan and agent](/agents-guide/register-plan-and-agent) for creating the agent you'll list.
+</Note>

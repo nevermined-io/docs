@@ -14,7 +14,7 @@ agent or MPP merchant — through the Nevermined Router. If you are *receiving* 
 Nevermined plan, use the `nevermined-payments` rules instead.
 
 Full skill: https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
-Docs: https://nevermined.ai/docs/products/router/overview
+Docs: https://nevermined.ai/docs/products/catalog/router/overview
 
 ## When the Router does NOT apply
 

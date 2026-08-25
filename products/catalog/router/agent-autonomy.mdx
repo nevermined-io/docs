@@ -30,7 +30,7 @@ It is **not** given: a wallet, a private key, a merchant account, an API key for
 <Warning>
 **This run requires a live deployment.** Every service below settles on mainnet — Base `8453` and Tempo `4217` — and a sandbox deployment funds testnets only. That split is the real-money firewall and an operator cannot widen it, so pointing `$NVM_API_URL` at `api.sandbox.nevermined.app` makes step 3 fail with **`400 BCK.ROUTER.0001`**: no `accepts` entry survives the network filter.
 
-Watch for that code specifically. It is *not* the refusal in step 6 — that one is a `402 BCK.ROUTER.0003` and means the guardrail worked. A `400` here means the wrong deployment. See [the x402 rail](/products/router/rails-x402) for the firewall itself.
+Watch for that code specifically. It is *not* the refusal in step 6 — that one is a `402 BCK.ROUTER.0003` and means the guardrail worked. A `400` here means the wrong deployment. See [the x402 rail](/products/catalog/router/rails-x402) for the firewall itself.
 </Warning>
 
 ## 1. Discover
@@ -193,7 +193,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
 Both reconcile exactly against the chains: Base **−0.010000 USDC**, Tempo **−0.060029 USDC.e** (the 0.060001 payment plus 28 units of gas, which Tempo bills in the stablecoin itself).
 
 <Note>
-On the MPP rail, `network` comes back as a bare name — `"tempo"` — with no chain id, so it does **not** distinguish Tempo mainnet (`4217`) from the Moderato testnet (`42431`). That makes the `asset` address the only field that tells you which chain a payment actually settled on. The two token addresses, and why they are easy to misread, are in [the MPP rail](/products/router/rails-mpp#the-asset-allowlist).
+On the MPP rail, `network` comes back as a bare name — `"tempo"` — with no chain id, so it does **not** distinguish Tempo mainnet (`4217`) from the Moderato testnet (`42431`). That makes the `asset` address the only field that tells you which chain a payment actually settled on. The two token addresses, and why they are easy to misread, are in [the MPP rail](/products/catalog/router/rails-mpp#the-asset-allowlist).
 </Note>
 
 Add `&format=csv` for a downloadable file. This is the same record whether you spent over one protocol or five.
@@ -214,7 +214,7 @@ The agent tries the CoinGecko call once more. It has **1¢** left; the call cost
 That is the property that makes an autonomous agent something you can leave running: **the ceiling is not enforced by the agent's good behaviour.**
 
 <Note>
-`0003` covers exhausted, expired **and** revoked. Read `remainingBudgetCents` and `expiresAt` from `GET /api/v1/delegation/{id}` to tell them apart — a long-running agent that worked yesterday has very often just aged out rather than overspent. See [Guardrails](/products/router/guardrails).
+`0003` covers exhausted, expired **and** revoked. Read `remainingBudgetCents` and `expiresAt` from `GET /api/v1/delegation/{id}` to tell them apart — a long-running agent that worked yesterday has very often just aged out rather than overspent. See [Guardrails](/products/catalog/router/guardrails).
 </Note>
 
 ## What this demonstrates
@@ -256,10 +256,10 @@ Other tools are covered in [AI Coding Skill](/development-guide/build-using-nvm-
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+  <Card title="Guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
     Every check the Router makes before it signs, and every error code it can return.
   </Card>
-  <Card title="Ledger" icon="receipt" href="/products/router/ledger">
+  <Card title="Ledger" icon="receipt" href="/products/catalog/router/ledger">
     The unified payment record, its fields, and CSV export.
   </Card>
 </CardGroup>

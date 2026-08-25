@@ -10,6 +10,10 @@ Your agent authenticates with its Nevermined API key and spends against a **Dele
 
 Your agent never holds a private key, never learns a payment protocol, and never needs an account with the service it just paid.
 
+<Note>
+The Router is how you **pay** for services you find in the **[Nevermined Catalog](/products/catalog/overview)** — the curated directory of external x402 and MPP services. Discover a service there, then route the payment here.
+</Note>
+
 ## What this is not
 
 Nevermined has two halves, and it's worth being precise about which one you're reading:
@@ -43,8 +47,8 @@ If you're monetizing an API, you want the Facilitator. If you want your agent to
 
 | Protocol | What it looks like | Status |
 | --- | --- | --- |
-| **x402** | The service answers `HTTP 402` advertising an `accepts` array (in the body for v1, in a `PAYMENT-REQUIRED` header for v2) | Supported — see [the x402 rail](/products/router/rails-x402) |
-| **MPP** | The service answers `HTTP 402` with `WWW-Authenticate: Payment …` | Supported — see [the MPP rail](/products/router/rails-mpp) |
+| **x402** | The service answers `HTTP 402` advertising an `accepts` array (in the body for v1, in a `PAYMENT-REQUIRED` header for v2) | Supported — see [the x402 rail](/products/catalog/router/rails-x402) |
+| **MPP** | The service answers `HTTP 402` with `WWW-Authenticate: Payment …` | Supported — see [the MPP rail](/products/catalog/router/rails-mpp) |
 
 You do **not** need to know which one a service speaks. In the recommended call mode the Router probes the service, detects the protocol from its 402, and pays it. The detected protocol always wins over anything you declare.
 
@@ -57,7 +61,7 @@ A routed call can cost you more than the merchant's price, and the two are charg
 - **The merchant's price** — whatever the service asked for in its `402`. Paid in full; the Router never takes a cut of it.
 - **A Nevermined routing fee of 5%** of that price. Added **on top**, so a $1.00 call debits your Delegation cap $1.05 while the merchant still receives their full $1.00.
 
-Every payment response carries a `fee` object saying exactly what was charged, and `fee.capChargedCents` — not `settlement.approxCents` — is the figure your budget actually moved by. See [the routing fee](/products/router/how-it-works#the-routing-fee) for how it is applied and rounded, and [the ledger](/products/router/ledger#the-routing-fee-on-a-record) for reading it back per payment.
+Every payment response carries a `fee` object saying exactly what was charged, and `fee.capChargedCents` — not `settlement.approxCents` — is the figure your budget actually moved by. See [the routing fee](/products/catalog/router/how-it-works#the-routing-fee) for how it is applied and rounded, and [the ledger](/products/catalog/router/ledger#the-routing-fee-on-a-record) for reading it back per payment.
 
 <Note>
 The rate is returned as `fee.bps` on every payment response — `500` basis points over a 10,000 denominator. Read it from there rather than hard-coding it.
@@ -78,7 +82,7 @@ Both rails settle **real value on public networks**. The Router is a payment sys
 
 <Steps>
   <Step title="A Nevermined API key">
-    Sent as `Authorization: Bearer <your-api-key>` on every Router call. It must be a current-generation key — see [the quickstart](/products/router/quickstart) for how to tell.
+    Sent as `Authorization: Bearer <your-api-key>` on every Router call. It must be a current-generation key — see [the quickstart](/products/catalog/router/quickstart) for how to tell.
   </Step>
   <Step title="A Delegation">
     Your budget. Created once, reused for every payment until it's exhausted or expires.
@@ -114,16 +118,16 @@ Install `nevermined-router` when your agent is **spending** at external services
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/products/router/quickstart">
+  <Card title="Quickstart" icon="rocket" href="/products/catalog/router/quickstart">
     From an API key to a paid call, in five steps.
   </Card>
-  <Card title="How it works" icon="diagram-project" href="/products/router/how-it-works">
+  <Card title="How it works" icon="diagram-project" href="/products/catalog/router/how-it-works">
     The payment flow, the two call modes, and where custody sits.
   </Card>
-  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+  <Card title="Guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
     What the Router enforces, what it refuses, and every error code it can return.
   </Card>
-  <Card title="Payment ledger" icon="receipt" href="/products/router/ledger">
+  <Card title="Payment ledger" icon="receipt" href="/products/catalog/router/ledger">
     Query, export, and reconcile everything your agents have spent.
   </Card>
 </CardGroup>
