@@ -7,7 +7,7 @@ icon: "rocket"
 AI agents need to pay and get paid, but traditional payment infrastructure wasn't built for that. Three problems stand in the way:
 
 - **Agents can't spend autonomously** - no way to delegate a real payment method with controlled limits
-- **Merchants can't accept agentic payments** - no metering, no per-request settlement, no programmatic access control
+- **Sellers can't accept agentic payments** - no metering, no per-request settlement, no programmatic access control
 - **Everyone's locked to one provider** - rigid integrations that don't work across frameworks or payment processors
 
 Nevermined solves all three. Put a payment gate in front of any API, charge per request, and settle automatically. You handle the AI, we handle the rest.
@@ -35,8 +35,8 @@ Nevermined solves all three. Put a payment gate in front of any API, charge per 
 
   <Step title="Create a payment plan">
     - **Payment method** - Fiat ([cards](/products/payments/overview)) or crypto (USDC)
-    - **Pricing model** - Fixed per call, or dynamic (builder-defined or cost+margin)
-    - **Plan type** - Prepaid (users buy a plan upfront) or pay-as-you-go (charge per request)
+    - **Pricing model** - Fixed per call, or dynamic (seller-defined or cost+margin)
+    - **Plan type** - Prepaid (buyers buy a plan upfront) or pay-as-you-go (charge per request)
   </Step>
 
   <Step title="Validate, deliver, settle">
@@ -44,9 +44,9 @@ Nevermined solves all three. Put a payment gate in front of any API, charge per 
   </Step>
 </Steps>
 
-**Builders** register API endpoints, set pricing per call, and receive payouts. Add a few lines of validation to your server.
+**Sellers** register API endpoints, set pricing per call, and receive payouts. Add a few lines of validation to your server.
 
-**Users** purchase a plan (fiat or crypto) or go pay-as-you-go. No human in the loop.
+**Buyers** purchase a plan (fiat or crypto) or go pay-as-you-go. No human in the loop.
 
 ## Use Cases
 
@@ -101,7 +101,7 @@ Nevermined solves all three. Put a payment gate in front of any API, charge per 
 | Payment processing | Fiat ([card delegation](/products/payments/overview)) and crypto (USDC on-chain) |
 | Access control     | Gate API access per request via plans and x402   |
 | Usage metering     | Per-request tracking and settlement              |
-| Settlement         | Automatic payouts to providers                   |
+| Settlement         | Automatic payouts to sellers                     |
 
 ## Integration Options
 
@@ -110,7 +110,7 @@ Nevermined is framework-agnostic. It works with LangChain, CrewAI, Strands, Open
 - **Code-first** - TypeScript and Python SDKs, REST API, and CLI for full programmatic control
 - **[Nevermined App](https://nevermined.app)** - Card enrollment (Visa / Stripe / Braintree) and spending delegation management
 
-### Merchant Onboarding
+### Seller Onboarding
 
 Use the [Nevermined App](https://nevermined.app) for reporting, analytics, and plan management. To receive fiat payouts, connect a Stripe Connect account there. Stablecoin payouts settle directly to your wallet.
 
