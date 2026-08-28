@@ -1,0 +1,561 @@
+---
+title: 'MCP Integration'
+description: 'Build payment-protected MCP servers with OAuth 2.1 authentication and automatic credit management'
+icon: 'plug'
+---
+
+# MCP Integration
+
+The Model Context Protocol (MCP) integration provides a complete payment-protected MCP server with OAuth 2.1 support and automatic credit management. This is the simplest way to run a payment-protected AI agent.
+
+## Overview of MCP Integration
+
+The MCP integration automatically handles:
+
+- **OAuth 2.1 Discovery**: Auto-configured `.well-known` endpoints
+- **Paywall Protection**: Automatic token verification and credit burning
+- **Streaming Support**: SSE (Server-Sent Events) for streaming responses
+- **Credit Management**: Fixed or dynamic credit costs per tool/resource/prompt
+- **Client Registration**: Dynamic client registration for OAuth flows
+
+## OAuth 2.1 Discovery
+
+When you start an MCP server, the library automatically exposes OAuth 2.1 discovery endpoints required by the X402 spec:
+
+| Endpoint                                  | Description                   |
+| ----------------------------------------- | ----------------------------- |
+| `/.well-known/oauth-protected-resource`   | Protected resource metadata   |
+| `/.well-known/oauth-authorization-server` | Authorization server metadata |
+| `/.well-known/openid-configuration`       | OpenID Connect discovery      |
+| `POST /register`                          | Dynamic client registration   |
+
+These endpoints are generated automatically—no manual configuration required.
+
+## Configure MCP
+
+Initialize the MCP integration with your plan details:
+
+```typescript
+import { Payments, EnvironmentName } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox' as EnvironmentName,
+})
+
+// Configure MCP integration
+payments.mcp.configure({
+  planId: process.env.NVM_PLAN_ID!,
+  agentId: process.env.NVM_AGENT_ID, // optional — informational only
+  serverName: 'my-mcp-server',
+})
+```
+
+> **`planId` is required; `agentId` is optional.** The x402 facilitator is
+> plan-centric — verify/settle resolve everything from the plan and the
+> subscriber's token. `agentId` is informational only (it also populates the
+> OAuth `client_id` when present). A per-tool `planId` option overrides the
+> server-level plan.
+
+## Register Tools with Credits
+
+Register MCP tools and specify their credit cost:
+
+```typescript
+import { z } from 'zod'
+
+// Register a tool with fixed credit cost
+payments.mcp.registerTool(
+  'get_weather', // Tool name
+  {
+    title: 'Get Weather',
+    description: 'Get current weather for a city',
+    inputSchema: z.object({
+      city: z.string().describe('City name'),
+    }),
+  },
+  async (args) => {
+    // Handler function
+    // Your tool logic here
+    const weather = await getWeatherData(args.city)
+
+    return {
+      content: [{ type: 'text', text: `Weather in ${args.city}: ${weather}` }],
+    }
+  },
+  { credits: 1n }, // Fixed: 1 credit per call
+)
+```
+
+### Dynamic Credit Calculation
+
+For variable costs based on input/output:
+
+```typescript
+payments.mcp.registerTool(
+  'analyze_text',
+  {
+    title: 'Analyze Text',
+    description: 'Perform text analysis',
+    inputSchema: z.object({
+      text: z.string(),
+    }),
+  },
+  async (args) => {
+    const analysis = await analyzeText(args.text)
+    return {
+      content: [{ type: 'text', text: JSON.stringify(analysis) }],
+    }
+  },
+  {
+    // Dynamic credits based on text length
+    credits: (ctx) => {
+      const { text } = ctx.args as { text: string }
+      const textLength = text.length
+      return BigInt(Math.ceil(textLength / 1000)) // 1 credit per KB
+    },
+  },
+)
+```
+
+## Register Resources
+
+Register MCP resources with payment protection:
+
+```typescript
+payments.mcp.registerResource(
+  'weather-data', // Resource name
+  'weather://current', // Resource URI
+  {
+    title: 'Current Weather Data',
+    description: 'Real-time weather information',
+  },
+  async (uri, vars) => {
+    // Handler function
+    const data = await fetchWeatherData()
+
+    return {
+      contents: [
+        {
+          uri: 'weather://current',
+          mimeType: 'application/json',
+          text: JSON.stringify(data),
+        },
+      ],
+    }
+  },
+  { credits: 2n }, // 2 credits per access
+)
+```
+
+## Register Prompts
+
+Register MCP prompts with credit costs:
+
+```typescript
+payments.mcp.registerPrompt(
+  'weather-query', // Prompt name
+  {
+    title: 'Weather Query Template',
+    description: 'Generate weather queries',
+  },
+  async (args) => {
+    // Handler function
+    return {
+      messages: [
+        {
+          role: 'user',
+          content: {
+            type: 'text',
+            text: `What is the weather in ${args.city}?`,
+          },
+        },
+      ],
+    }
+  },
+  { credits: 1n }, // 1 credit per prompt
+)
+```
+
+## Start Managed Server
+
+Start a complete MCP server with all endpoints configured:
+
+```typescript
+import { Payments, EnvironmentName } from '@nevermined-io/payments'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox' as EnvironmentName,
+})
+
+// Configure
+payments.mcp.configure({
+  planId: process.env.NVM_PLAN_ID!,
+  agentId: process.env.NVM_AGENT_ID, // optional — informational only
+  serverName: 'weather-server',
+})
+
+// Register tools
+payments.mcp.registerTool(
+  'get_weather',
+  {
+    title: 'Get Weather',
+    description: 'Get current weather',
+    inputSchema: z.object({
+      city: z.string(),
+    }),
+  },
+  async (args) => ({
+    content: [{ type: 'text', text: `Weather in ${args.city}: Sunny` }],
+  }),
+  { credits: 1n },
+)
+
+// Start server (bind to localhost by default; expose via a reverse proxy with HTTPS for public traffic)
+const { info, stop } = await payments.mcp.start({
+  port: 5001,
+  host: process.env.MCP_HOST ?? '127.0.0.1',
+  planId: process.env.NVM_PLAN_ID!,
+  agentId: process.env.NVM_AGENT_ID, // optional — informational only
+  serverName: 'weather-server',
+  version: '1.0.0',
+})
+
+console.log(`MCP Server running at: ${info.baseUrl}`)
+console.log(`MCP endpoint: ${info.baseUrl}/mcp`)
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await stop()
+  console.log('Server stopped')
+  process.exit(0)
+})
+```
+
+> 🔐 **Bind to localhost in development.** The MCP server holds an OAuth issuer and accepts paid requests — exposing it directly on `0.0.0.0` is rarely what you want. Bind to `127.0.0.1` and front it with a reverse proxy (Caddy, nginx, Traefik) terminating TLS for any public traffic.
+
+## MCP Logical URIs
+
+When registering your agent at [nevermined.app](https://nevermined.app), use MCP logical URIs instead of HTTP URLs:
+
+### URI Format
+
+```
+mcp://<serverName>/<type>/<name>
+```
+
+### Examples
+
+| Type              | URI                                                | Description     |
+| ----------------- | -------------------------------------------------- | --------------- |
+| Tool              | `mcp://weather-server/tools/get_weather`           | Single tool     |
+| Tool Wildcard     | `mcp://weather-server/tools/*`                     | All tools       |
+| Resource          | `mcp://weather-server/resources/weather://current` | Single resource |
+| Resource Wildcard | `mcp://weather-server/resources/*`                 | All resources   |
+| Prompt            | `mcp://weather-server/prompts/weather-query`       | Single prompt   |
+
+### Wildcard Registration
+
+Use wildcards to register all tools/resources/prompts at once:
+
+```
+mcp://weather-server/tools/*
+mcp://weather-server/resources/*
+mcp://weather-server/prompts/*
+```
+
+## Auto-Configured Endpoints
+
+The `start()` method automatically creates these endpoints:
+
+```
+POST /mcp              - MCP JSON-RPC endpoint
+GET /mcp               - SSE streaming endpoint
+DELETE /mcp            - Session cleanup
+GET /                  - Server info
+GET /health            - Health check
+GET /.well-known/oauth-protected-resource
+GET /.well-known/oauth-authorization-server
+GET /.well-known/openid-configuration
+POST /register         - Dynamic client registration
+```
+
+## Complete Example: Weather Agent
+
+```typescript
+import { Payments, EnvironmentName } from '@nevermined-io/payments'
+import { z } from 'zod'
+
+const payments = Payments.getInstance({
+  nvmApiKey: process.env.NVM_API_KEY!,
+  environment: 'sandbox' as EnvironmentName,
+})
+
+// Configure MCP
+payments.mcp.configure({
+  planId: process.env.NVM_PLAN_ID!,
+  agentId: process.env.NVM_AGENT_ID, // optional — informational only
+  serverName: 'weather-agent',
+})
+
+// Register multiple tools
+payments.mcp.registerTool(
+  'get_current_weather',
+  {
+    title: 'Get Current Weather',
+    description: 'Get real-time weather for a location',
+    inputSchema: z.object({
+      city: z.string(),
+      country: z.string().optional(),
+    }),
+  },
+  async (args) => {
+    const weather = await fetchWeather(args.city, args.country)
+    return {
+      content: [{ type: 'text', text: JSON.stringify(weather) }],
+    }
+  },
+  { credits: 1n },
+)
+
+payments.mcp.registerTool(
+  'get_forecast',
+  {
+    title: 'Get Weather Forecast',
+    description: 'Get 7-day weather forecast',
+    inputSchema: z.object({
+      city: z.string(),
+      days: z.number().min(1).max(7).default(3),
+    }),
+  },
+  async (args) => {
+    const forecast = await fetchForecast(args.city, args.days)
+    return {
+      content: [{ type: 'text', text: JSON.stringify(forecast) }],
+    }
+  },
+  { credits: 2n }, // Forecasts cost more
+)
+
+// Register resource
+payments.mcp.registerResource(
+  'weather-alerts',
+  'weather://alerts',
+  {
+    title: 'Weather Alerts',
+    description: 'Active weather alerts',
+  },
+  async (uri) => {
+    const alerts = await fetchAlerts()
+    return {
+      contents: [
+        {
+          uri: 'weather://alerts',
+          mimeType: 'application/json',
+          text: JSON.stringify(alerts),
+        },
+      ],
+    }
+  },
+  { credits: 1n },
+)
+
+// Start server (bind to localhost by default; front with HTTPS reverse proxy for public traffic)
+const { info, stop } = await payments.mcp.start({
+  port: 5001,
+  host: process.env.MCP_HOST ?? '127.0.0.1',
+  planId: process.env.NVM_PLAN_ID!,
+  agentId: process.env.NVM_AGENT_ID, // optional — informational only
+  serverName: 'weather-agent',
+  version: '1.0.0',
+})
+
+console.log(`Weather MCP Agent running at ${info.baseUrl}`)
+console.log(`Register in Nevermined App with:`)
+console.log(`  - mcp://weather-agent/tools/*`)
+console.log(`  - mcp://weather-agent/resources/*`)
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await stop()
+  process.exit(0)
+})
+
+// Mock functions
+async function fetchWeather(city: string, country?: string) {
+  return { city, temp: 72, condition: 'sunny' }
+}
+
+async function fetchForecast(city: string, days: number) {
+  return { city, days, forecast: [] }
+}
+
+async function fetchAlerts() {
+  return { alerts: [] }
+}
+```
+
+## Handler Options
+
+| Option          | Type                   | Description                                                                                                                                                                                                                             |
+| --------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `credits`       | `bigint` or `function` | Credits to consume per call                                                                                                                                                                                                             |
+| `planId`        | `string`               | Per-handler plan ID override. A server-level `planId` (set via `configure`/`start`) is required; set this only to charge a different plan for this handler.                                                                               |
+| `maxAmount`     | `bigint`               | Max credits to verify during authentication (default: `1n`)                                                                                                                                                                             |
+| `onRedeemError` | `string`               | On post-execution settlement failure: `'ignore'` (default) returns the in-band payment error; `'propagate'` throws a JSON-RPC error. Tool content is always suppressed either way (paid content is never delivered without settlement). |
+
+## In-band x402 signaling (`_meta`)
+
+The MCP transport follows the [x402 v2 MCP transport spec](https://github.com/coinbase/x402/blob/main/specs/transports-v2/mcp.md): payments are signaled **in band** through the MCP tool-call machinery, not via HTTP status codes or headers.
+
+### Request — payment payload
+
+The client sends the x402 `PaymentPayload` in the request params `_meta["x402/payment"]` (plain JSON). Note this is the **payment** channel — separate from session auth: the MCP session is an OAuth-protected resource, so the client must also send an `Authorization: Bearer <accessToken>` header on the transport to establish the session (`initialize` returns `401` without it). For backwards compatibility the server also reads the payment from that header alone (no `_meta`) as a **deprecated fallback** for one release.
+
+```typescript
+import { decodeAccessToken } from '@nevermined-io/payments'
+
+// Mint a token against a delegation (create one first). `agentId` (2nd arg) is
+// optional, but `delegationConfig` is required.
+const { delegationId } = await payments.delegation.createDelegation({
+  provider: 'erc4337', // 'stripe' | 'braintree' | 'visa' for fiat plans
+  spendingLimitCents: 10000,
+  durationSecs: 604800,
+  currency: 'usdc', // 'usd' for fiat plans
+})
+const { accessToken } = await payments.x402.getX402AccessToken(planId, undefined, {
+  delegationConfig: { delegationId },
+})
+
+await client.callTool({
+  name: 'get_weather',
+  arguments: { city: 'Madrid' },
+  // Carry the payment in band (the spec-defined transport):
+  _meta: { 'x402/payment': decodeAccessToken(accessToken) },
+})
+```
+
+### Response — settlement receipt
+
+On a successful paid call, the SDK injects the settlement receipt under `_meta["x402/payment-response"]` (the spec key), and Nevermined-specific observability under a namespaced `_meta["nevermined/credits"]` key:
+
+```typescript
+{
+  content: [{ type: 'text', text: 'result' }],
+  _meta: {
+    // Spec-defined settlement receipt (x402 v2 MCP transport)
+    'x402/payment-response': {
+      success: true,
+      transaction: '0xabc...',
+      network: 'eip155:84532',
+      payer: '0x123...',
+      creditsRedeemed: '5',
+      remainingBalance: '95',
+    },
+    // Nevermined-namespaced observability (NOT part of the x402 spec)
+    'nevermined/credits': {
+      success: true,
+      txHash: '0xabc...',
+      creditsRedeemed: '5',
+      planId: 'plan-123',
+      subscriberAddress: '0x123...',
+    },
+  }
+}
+```
+
+Free / no-credit calls omit the `x402/payment-response` key (no settlement occurred); `nevermined/credits` is still attached with `creditsRedeemed: '0'`.
+
+### Payment required
+
+When payment is required (missing/invalid token, or no subscription), the tool returns an **error tool result** carrying the x402 `PaymentRequired` object — there is no HTTP `402` on `/mcp`:
+
+```typescript
+{
+  isError: true,
+  structuredContent: { x402Version: 2, error: 'payment required', resource: { /* ... */ }, accepts: [ /* ... */ ] },
+  content: [{ type: 'text', text: '<JSON-stringified PaymentRequired>' }],
+}
+```
+
+Both `structuredContent` (the object) and `content[0].text` (its JSON string) are populated, per spec. This applies to **tools** only — resources and prompts raise a JSON-RPC error instead (they have no tool-result error channel).
+
+## Error Handling
+
+Payment-required is signaled **in band** as an error tool result (see above) — there is no HTTP `402` on `/mcp`. OAuth and payment-required live at different layers and never collide: OAuth rejects at the HTTP layer (`401`), while payment-required is an MCP tool-call result. The in-band shape inherently disambiguates the two.
+
+`onRedeemError` controls only the _error type_ surfaced when settlement fails **after** the tool executed — it no longer controls whether content is returned. Per the spec, a paid result is never delivered without settlement landing, so the executed tool's content is always suppressed on settlement failure. `'ignore'` (default) surfaces the in-band payment error; `'propagate'` throws a JSON-RPC misconfiguration error.
+
+```typescript
+payments.mcp.registerTool('premium_tool', toolConfig, handler, {
+  credits: 5n,
+  onRedeemError: 'propagate', // throw a JSON-RPC error on settlement failure (default: 'ignore')
+})
+```
+
+## Advanced: Custom Express App
+
+For existing Express applications, use `createRouter`:
+
+```typescript
+import express from 'express'
+import { Payments } from '@nevermined-io/payments'
+
+const app = express()
+const payments = Payments.getInstance({...})
+
+payments.mcp.configure({
+  planId: process.env.NVM_PLAN_ID!,
+  agentId: process.env.NVM_AGENT_ID, // optional — informational only
+  serverName: 'my-server',
+})
+
+// Register tools...
+
+// Create MCP router
+const mcpRouter = payments.mcp.createRouter({
+  planId: process.env.NVM_PLAN_ID!,
+  agentId: process.env.NVM_AGENT_ID, // optional — informational only
+  serverName: 'my-server',
+})
+
+// Mount router
+app.use('/mcp', mcpRouter)
+
+// Your other routes
+app.get('/custom', (req, res) => {
+  res.json({ status: 'ok' })
+})
+
+// Bind to localhost; expose via a reverse proxy with HTTPS for public traffic
+const server = app.listen(5001, '127.0.0.1')
+
+process.on('SIGINT', () => {
+  server.close(() => process.exit(0))
+})
+```
+
+## Best Practices
+
+1. **Descriptive Names**: Use clear tool/resource/prompt names
+2. **Schema Validation**: Always define proper input schemas with Zod
+3. **Credit Pricing**: Set appropriate credits based on resource cost
+4. **Error Messages**: Provide clear error messages in responses
+5. **Graceful Shutdown**: Always implement `SIGINT` handlers
+6. **Wildcard URIs**: Use wildcards for simpler agent registration
+7. **Version Control**: Include version in server configuration
+
+## Related Documentation
+
+- [Agents](./agents) - Register your MCP agent in Nevermined
+- [Payment Plans](./payment-plans) - Configure pricing for your agent
+- [Validation of Requests](./validation-of-requests) - Understanding the validation flow
+
+---
+
+**Source References**:
+
+- `RUN.md` (MCP Server section, lines 16-86)
+- `src/mcp/index.ts` (MCP integration API)
+- `tests/integration/mcp-integration.test.ts` (integration examples)
