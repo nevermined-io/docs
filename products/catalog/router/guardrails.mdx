@@ -71,6 +71,14 @@ Operators can lift this for local development with `ROUTER_ALLOW_PRIVATE_TARGETS
 
 Control headers are also stripped in both directions: your `X-Router-*` headers aren't forwarded upstream, and any `X-Router-*` headers a merchant returns are removed before the response reaches you — so an upstream can't forge a payment signal that makes a free response look paid.
 
+## What the merchant sees of you
+
+`/proxy` relays a live request, so the headers reaching it are not only the ones you set — every proxy between you and the Router appends its own (`X-Forwarded-Host`, `X-Real-Client-IP`, `traceparent`, …). Those describe **our** infrastructure, not your request, and a merchant has no business receiving them. So `/proxy` forwards an allowlist of standard request headers and drops everything else, `Cookie`, `Origin` and `Referer` included. Add what a merchant genuinely needs by stating its value — `X-Router-Forward-x-api-key: sk-…` sends `x-api-key: sk-…` upstream. That channel carries a value rather than naming a header to replay, so it can never be used to read back something our own infrastructure set: nothing replayed off the wire is forwarded except the allowlist.
+
+The Router also adds nothing of its own on the way out: no `Forwarded` or `X-Forwarded-For` is synthesised, so your IP never reaches the merchant.
+
+`POST /route` carries no such risk and applies no allowlist — its `headers` are a JSON object you wrote, so it forwards exactly what you ask for.
+
 ## Relay limits
 
 Mode B relays live traffic, so it's bounded:
