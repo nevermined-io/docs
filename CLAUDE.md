@@ -40,11 +40,35 @@ They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, C
 | Path | Skills present |
 | --- | --- |
 | `.cursor/rules/<skill>.mdc` | payments, router |
-| `.windsurf/rules/<skill>.md` | payments, router (**6,000-char limit per file**) |
+| `.windsurf/rules/<skill>.md` | payments, router (**6,000-char limit per file** — see the warning below) |
 | `.clinerules/<skill>.md` | payments, router |
 | `.amazonq/rules/<skill>.md` | payments, router |
 | `.github/copilot-instructions.md` | payments + a condensed Router section — single file, no per-skill split |
 | `AGENTS.md` | payments + a condensed Router section — single file, no per-skill split |
+
+⚠️ **Windsurf's 6,000-character cap is a hard truncation, and `nevermined-router.md` is at its
+ceiling.** Windsurf silently drops everything past 6,000 characters — it does not error, and what it
+drops is the **end** of the file, which is where the guardrails and accounting sections live. As of
+2026-08-17 `.windsurf/rules/nevermined-router.md` is **5,994 of 6,000** characters (its payments
+sibling is 3,759; the 12,000 all-files cap is not the binding one).
+
+The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser and is
+the only one that diverges.** What it trades away is *presentation*, never a rule: it carries every
+gotcha and guardrail the others do, but **not the worked examples** (`curl` blocks and the
+`new URL(...)` snippet become prose), **not literal enum members** (`feeStatus`'s six values), and
+**not spelled-out column lists** (`fee*` / `asset*` instead of naming all eight). For those it relies
+on the full-skill link at the top of the file.
+
+Keep that invariant when editing: **a fact may not be the thing that gets cut.** Adding one means
+deciding up front which example or list it displaces — there is no room left to absorb it by
+tightening prose, and the failure mode of ignoring this is not a lint error but the safety content
+silently disappearing. Check the size after editing:
+
+```bash
+python3 -c "print(len(open('.windsurf/rules/nevermined-router.md',encoding='utf-8').read()))"
+```
+
+(Characters, not bytes — `wc -c` over-counts here because the files are full of `—`, `→` and `⚠️`.)
 
 ⚠️ **`AGENTS.md` is parsed by Mintlify as MDX, so it must not contain HTML comments.** A `<!-- … -->` there fails the Mintlify Deployment check with *"Unexpected character `!` … to create a comment in MDX, use `{/* text */}`"* — verified on docs#289. Use `{/* … */}` in `AGENTS.md`. `.github/copilot-instructions.md` is **not** in Mintlify's content set (it appears in no `docs.json` route and there is no `.mintignore`), so plain HTML comments are fine there — which is why the two files legitimately differ on this one point.
 

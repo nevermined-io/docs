@@ -98,9 +98,16 @@ curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
 
 All four fields are required — no defaults. `erc4337` is the crypto-funded Delegation both stablecoin rails need. Create it once and reuse the id. `allowedRecipients` is optional and **omitting it means no recipient restriction at all** — the budget can pay any merchant the Router can reach, bounded only by the cap and expiry.
 
+Two guards refuse this call before your fields are read, and neither is retryable:
+
+- **`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony (`credits_purchase` / `account_access`). Such a key may not create Delegations *or* use `POST /router/payments`, `POST /router/route` and `ALL /router/proxy`: those routes sign from the account's full wallet, outside the narrow policy the credential advertises. Use a plain API key issued by the account owner.
+- **`412 {"error":"consent_required","outdated":[…]}`** — the account's legal-document consent has lapsed. ⚠️ **It is deliberately not an `NVMException`, so it has no `BCK.LEGAL_DOCS.…` code of its own** — the error filter stamps the generic `BCK.HTTP.412`, which names the status and not the cause. Branch on `body.error === "consent_required"` and read `body.outdated[]` for the document slugs (`terms`, `privacy`). Diagnose with `GET /api/v1/legal-documents/me/consent-status`. A human must accept; report it and stop rather than accepting terms on their behalf.
+
 ### 2. Fund the buyer wallet
 
 Both rails **pull** from your own custodial wallet: a Delegation authorizes a spend, it does not supply funds. Read the address off the live Delegation every time — `GET /api/v1/delegation/{id}` → `providerPaymentMethodId` — and fund it with the payment asset on the network you intend to pay on. **Never reuse a cached address**: a stale one is the most common cause of `402 BCK.ROUTER.0009`, and that error deliberately does not echo the address it checked.
+
+**A deployment funds exactly one x402 network, fixed by its environment: sandbox → `base-sepolia`, live → `base`.** The permissive both-networks pair survives only on a local dev deployment, and an operator's `ROUTER_FUNDED_NETWORKS` can only narrow that set, never widen it. So a `base` merchant is simply unpayable from sandbox, and vice versa, failing with `400 BCK.ROUTER.0001 … no fundable option` — which reads like a broken merchant and is not. Check the environment before blaming the service; another merchant on the same chain will fail identically.
 
 ### 3. Discover a service (public catalog, no API key)
 
@@ -114,6 +121,8 @@ Only `protocol` of `x402` or `mpp` is routable — filter for them. **`targetUrl
 const url = endpoint ? new URL(endpoint.path, service.targetUrl).toString() : service.targetUrl
 ```
 
+`category` is a **closed 13-value enum** — `"Search & Research"`, not `"Search"` — with a free-text `subCategory` under it, and both are filter params. Read them from `GET /api/v1/catalog/categories`, which returns `{ category, count, subCategories[] }`; an unrecognised `category` is a plain 400, so never guess the string.
+
 ### 4. Pay
 
 ```bash
@@ -122,17 +131,19 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
   -d '{"delegationId":"'"$NVM_DELEGATION_ID"'","url":"https://service.example/api/resource",
        "method":"POST","body":{"query":"…"},"requestId":"search-nevermined-router-v1"}'
 # → { "status": 200, "body": {…}, "paid": true,
-#     "payment": { "paymentId": "…", "settlement": { "approxCents": "1" }, "status": "Settled" } }
+#     "payment": { "paymentId": "…", "settlement": { "approxCents": "1" },
+#                  "fee": { "bps": 0, "amount": "0", "cents": "0", "capChargedCents": "1" },
+#                  "status": "Settled" } }
 ```
 
 The Router probes the merchant, auto-detects the protocol from the 402, pays and relays. `status`/`body` are the merchant's own; `paid: false` with no `payment` block means the resource was free — handle that. For streaming use `ALL /api/v1/router/proxy` with `X-Router-Target-Url`, `X-Router-Delegation-Id` and `X-Router-Request-Id` headers.
 
 - **`requestId` is an idempotency key, not a request counter.** Use one stable id per logical purchase, reused across retries of that purchase. **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.** Note what a same-id retry actually returns: `409 BCK.ROUTER.0002` carrying the original `paymentId` — **not the resource**. That is the protection working. **Never answer that 409 by minting a fresh id**, which is exactly the double-spend you avoided a moment ago; if the purchase genuinely failed, report it.
-- Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs $10.00, not $1.00. `settlement.approxCents` is what was actually reserved; trust it over any catalog `priceLabel`.
+- Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs $10.00, not $1.00. `settlement.approxCents` is only the **merchant** leg: Nevermined's routing fee is reserved on top, disclosed in the **always-present `payment.fee`** object (`{ bps, amount, cents, capChargedCents }`, zeroed when no fee applied — never branch on its absence). **`fee.capChargedCents` is what the call reserved against your cap**, i.e. `approxCents + fee.cents`; summing `approxCents` instead under-reports spend by exactly the fee. ⚠️ It is the reserve **at mint** — a mode-B hop that does not return `2xx` releases the fee half back (the merchant leg stays charged), so a running total over-reports on those calls. **`GET /api/v1/delegation/{id}` → `amountSpentCents` is the authority on spend to date.** Trust any of these over a catalog `priceLabel`.
 
 ### 5. Read what you spent
 
-`GET /api/v1/router/payments` (filters `delegationId`, `from`, `to`, `format=csv`) and `/api/v1/router/payments/summary`. `amount` is the asset's smallest unit, not cents. A record at `Issued` is **not** an error — the money moved; do not retry it.
+`GET /api/v1/router/payments` (filters `delegationId`, `from`, `to`, `format=csv`) and `/api/v1/router/payments/summary`. `amount` is the **merchant leg only**, in the settlement asset's smallest unit — and ⚠️ **the scale differs per rail**: 6 decimals on the crypto rails, but the card rail (`network: "stripe"`) is **scale 2, so its `amount` IS cents**. Read `assetDecimals` off the row and never assume 6 — dividing a $60.00 card row by 10⁶ yields `0.00006`, a plausible wrong *number* in a spend total. `null` there means the asset is unrecognised: show raw units, and guard that branch explicitly, because `amount / 10 ** null` is `Infinity` rather than an error. `assetSymbol` is echoed even when unrecognised (it is `null` on only two of four resolution paths), so it is **not** a recognition check — and `pathUSD` is capitalised differently on the two Tempo chains (`pathUSD` / `PathUSD`), so compare tickers case-insensitively. The fee is broken out into `feeAtomic`, `feeBps`, `feeCents`, `feeStatus`, `feeTxHash` and `feeNonce`, on the JSON rows and the CSV export alike; every column added since the original set — those six, then `assetSymbol`/`assetDecimals` — was appended after it, so parsing by index from the left is safe while header-count assertions and right-anchored offsets are not. ⚠️ **`feeStatus` (`None|Accrued|Submitted|Settled|Failed|Released`) is a separate lifecycle from the payment `status`**, and they share `Settled`/`Failed` — never read one for the other. `Failed` does not imply `Released`: a `Failed` fee may still hold its cap reserve. A record at `Issued` is **not** an error — the money moved; do not retry it.
 
 ### Guardrails — a refusal is the system working
 
@@ -147,6 +158,10 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 | `BCK.ROUTER.0009` | 402 | Wallet short on the target network; nothing was signed | No — **stop** |
 | `BCK.ROUTER.0010` | 500 | Internal: the rail reported an unusable charge amount | **No — never blind-retry** |
 | `BCK.ROUTER.0011` | 402 | Card rail: needs cardholder 3-D Secure, which an agent can't complete. Nothing charged, no usable credential | No — **needs a human** |
+| `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
+| `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
+| `BCK.OAUTH.0030` | 403 | The API key was OAuth-minted; it may not create Delegations or use `/router/{payments,route,proxy}`. Use a plain account-owner key | No |
+| `BCK.HTTP.412` | 412 | `{"error":"consent_required"}` on `POST /delegation/create` — the account's legal consent lapsed. The code is generic; branch on `body.error` | No — **needs a human** |
 
 **Neither `0010` nor `0011` may be auto-retried, and the HTTP status won't tell you that** — one is a 500, the other a 402 that reads like a routine payment error. Read the code, not the status.
 

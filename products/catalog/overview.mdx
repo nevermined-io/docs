@@ -1,0 +1,101 @@
+---
+title: "Catalog Overview"
+description: "A curated directory of external AI services your agents can discover and pay for — through one budget, over the Nevermined Router."
+icon: "store"
+---
+
+![Diagram: your agent browses the Catalog to pick a service, then the Nevermined Router pays each service — x402 or MPP — on the agent's behalf, all from one shared budget.](/images/catalog/routing-diagram.png)
+
+The **Nevermined Catalog** is a curated directory of external AI services your agents can pay for — browsable by a human at [nevermined.app/catalog](https://nevermined.app/catalog/), and readable by an agent over a public API. Every listed service prices each request on the wire, so your agent can **find** a capability it needs and **pay** for it in the same motion, without a signup, an API key, or a subscription at the provider.
+
+The Catalog is the front door; the **[Router](/products/catalog/router/overview)** is how you walk through it. You discover a service in the Catalog, then pay it through the Router from a budget you control. The two are one product read in one direction: **spending** at services that were never onboarded to Nevermined.
+
+<Note>
+The Catalog lists services you **buy from**. If instead you want your own API to *get paid* by callers, that's the seller side — see the **[x402 Facilitator](/products/x402-facilitator/overview)**. You can be on both sides at once, and you can even **[add your own AI service](/products/catalog/ai-services#add-your-ai-service)** to the Catalog so other buyers discover it.
+</Note>
+
+## What's in it
+
+Every listing is an external service that charges **per request**, on one of two payment rails the Router can settle:
+
+| Protocol | What it is | Router-payable |
+| --- | --- | --- |
+| **x402** | The service answers `HTTP 402` advertising an `accepts` array | ✅ Listed |
+| **MPP** | The service answers `HTTP 402` with a `WWW-Authenticate: Payment` challenge | ✅ Listed |
+
+Services that authenticate with a long-lived API key and bill you monthly aren't in the listed set — there's no per-call price on the wire for the Router to pay. The Catalog only surfaces what an autonomous agent can actually buy.
+
+Listings are organized into a curated set of categories — **Data & Enrichment**, **Search & Research**, **Crypto & Blockchain**, **Finance & Markets**, **AI & Media**, **Web Scraping & Automation**, and more — each with granular sub-categories. See [AI Services](/products/catalog/ai-services) for the full offering and how to add your own, or [Discovering services](/products/catalog/discover) for browsing and filtering.
+
+## How the Catalog and Router fit together
+
+One agent, one budget, one API key — reaching many independent services it never had to sign up for. Those services are unrelated to each other and to Nevermined: different providers, different payment rails, no shared account. Your agent treats them uniformly because the Router, not the agent, speaks each rail.
+
+<CardGroup cols={2}>
+  <Card title="The Catalog: discover" icon="magnifying-glass" href="/products/catalog/discover">
+    Browse or query the directory to find a service that does what your agent needs, and read its price, protocol, and endpoints.
+  </Card>
+  <Card title="The Router: pay" icon="route" href="/products/catalog/router/overview">
+    Hand the Router the call you want made. It reads the merchant's payment challenge, pays from your custodial wallet, enforces your budget cap, and relays the answer.
+  </Card>
+</CardGroup>
+
+Your agent authenticates with its Nevermined API key and spends against a **Delegation** — a budget with a hard cap and an expiry. It never holds a private key, never learns a payment protocol, and never needs an account with the service it just paid.
+
+## What you need to buy through it
+
+<Steps>
+  <Step title="A Nevermined API key">
+    Created from the [Nevermined app](https://nevermined.app). It authenticates you to Nevermined — never send it to a merchant. It must be a current-generation key; see [the Router quickstart](/products/catalog/router/quickstart#1-get-an-api-key).
+  </Step>
+  <Step title="A Delegation">
+    Your budget: a hard cap in cents and an expiry. Created once, reused for every payment until it's exhausted or expires.
+  </Step>
+  <Step title="A funded wallet">
+    Both rails **pull** from your own custodial wallet, so it must already hold the payment asset on the network you're paying on.
+  </Step>
+</Steps>
+
+Discovery itself needs none of this — the Catalog read API is public and unauthenticated. You only need a key, a Delegation, and funds at the moment you pay.
+
+## Three ways to use it
+
+<CardGroup cols={3}>
+  <Card title="Natural language" icon="comment" href="/development-guide/build-using-nvm-skill">
+    Install the AI coding skill and just ask your assistant — "find a weather API and get me tomorrow's forecast for Berlin." It discovers, funds, pays, and returns the answer.
+  </Card>
+  <Card title="MCP" icon="plug" href="/development-guide/build-using-nvm-mcp">
+    Wire Nevermined into any MCP-capable client so the Catalog and Router become tools your agent can call directly.
+  </Card>
+  <Card title="Plain HTTP" icon="code" href="/products/catalog/router/quickstart">
+    Everything is public REST. Any agent, in any language, can query the Catalog and route a paid call with `curl` or `fetch`.
+  </Card>
+</CardGroup>
+
+## Environments
+
+| Environment | API base | Purpose |
+| --- | --- | --- |
+| **Sandbox** | `https://api.sandbox.nevermined.app` | Development and testing |
+| **Live** | `https://api.live.nevermined.app` | Real payments |
+
+<Warning>
+Both rails settle **real value on public networks**. A call made against the live environment moves real funds to a real merchant. Start in sandbox, and keep your first Delegation cap small.
+</Warning>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Discovering services" icon="magnifying-glass" href="/products/catalog/discover">
+    Browse the app, query the read API, and understand what "listed" means.
+  </Card>
+  <Card title="Router quickstart" icon="rocket" href="/products/catalog/router/quickstart">
+    From an API key to a paid call, in five steps.
+  </Card>
+  <Card title="How the Router works" icon="diagram-project" href="/products/catalog/router/how-it-works">
+    The payment flow, the two call modes, and where custody sits.
+  </Card>
+  <Card title="Guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
+    What the Router enforces, what it refuses, and every error code it can return.
+  </Card>
+</CardGroup>

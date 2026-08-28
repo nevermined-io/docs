@@ -1,0 +1,218 @@
+---
+title: "Payment ledger"
+description: "Query, export, and reconcile every payment your agents have made — across every protocol, in one place."
+icon: "receipt"
+---
+
+Every payment the Router mints lands on one ledger, whatever protocol it used and whichever service it paid. That's most of the point of routing payments at all: instead of reconciling a dozen provider dashboards, you have a single record of what your agents bought.
+
+All ledger endpoints are scoped to the authenticated caller. You only ever see your own payments.
+
+## List payments
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+| Query | Purpose |
+| --- | --- |
+| `delegationId` | Only payments spent against one Delegation |
+| `from` | ISO-8601 lower bound on `createdAt`, inclusive |
+| `to` | ISO-8601 upper bound on `createdAt`, inclusive |
+| `format` | `json` (default) or `csv` for a downloadable file |
+
+An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ignoring the filter.
+
+```json
+[
+  {
+    "id": "b1f9c2e4-…",
+    "createdAt": "2026-07-01T09:00:55.605Z",
+    "status": "Settled",
+    "protocol": "x402",
+    "network": "base",
+    "asset": "USDC",
+    "amount": "1000",
+    "merchantAddress": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+    "txHash": "0xfc8af37b…",
+    "delegationId": "5e7481c3-…",
+    "requestId": "order-1234",
+    "resourceUrl": "https://service.example/api/resource",
+    "buyer": "0x8D6A5233…",
+    "feeAtomic": "0",
+    "feeBps": 0,
+    "feeCents": "0",
+    "feeStatus": "None",
+    "feeTxHash": null,
+    "feeNonce": null,
+    "assetSymbol": "USDC",
+    "assetDecimals": 6
+  }
+]
+```
+
+`amount` is in the asset's smallest unit, and `assetDecimals` is the scale to divide it by. The figure charged against your Delegation cap is the cents equivalent, **rounded up**, which is why a long run of sub-cent calls costs more budget than the raw amounts suggest.
+
+### Reading the asset
+
+Three fields describe what was paid in, because the raw one isn't the same kind of value on every rail:
+
+| Field | What it is |
+| --- | --- |
+| `asset` | The settlement asset **as persisted at mint**, which differs by rail: a symbol (`USDC`/`EURC`) on x402, the ERC-20 contract address on MPP-tempo, an ISO currency code on the card rail. Kept as-is for consumers that already parse it. |
+| `assetSymbol` | The ticker to display, resolved from `asset` on this row's `network`. `null` **only** when the row carries no asset, or an address we don't recognise on that chain — a symbol-shaped value is echoed as-is even when it isn't one we know, so a non-null `assetSymbol` is not proof the asset was recognised. Tickers and their **casing** vary by chain, so compare case-insensitively. |
+| `assetDecimals` | The decimal scale of `amount` for this asset, so you never have to assume one. `null` whenever the asset isn't recognised — making this, not `assetSymbol`, the field that tells you so. |
+
+`assetSymbol` and `assetDecimals` are resolved when you read the record rather than stored on it, so rows written before they existed carry them too.
+
+<Warning>
+**When `assetDecimals` is `null`, don't substitute a default.** It is the reliable "we don't recognise this" signal — `assetSymbol` can be non-null on the very same row. Treat `amount` as raw atomic units rather than assuming a scale, and render the (truncated) `asset` rather than a guessed ticker. Assuming is worse than degrading: a wrong label is visibly wrong, whereas a wrong scale renders a plausible, wrong **number** and then sits in a spend total next to correctly scaled ones. In particular, not every row is a 6-decimal stablecoin — a card-rail row's `amount` is already in cents, at scale 2.
+</Warning>
+
+### The routing fee on a record
+
+`amount` is the **merchant** leg only. If a [routing fee](/products/catalog/router/how-it-works#the-routing-fee) applied, it was reserved against your cap on top of that amount, and the record breaks it out:
+
+| Field | What it is |
+| --- | --- |
+| `feeAtomic` | The fee in the settlement asset's smallest unit — the same unit as `amount`. Rounded **down**. |
+| `feeBps` | The rate applied, in basis points over a 10,000 denominator. Pinned per row, so a later rate change never rewrites what an old payment was charged. |
+| `feeCents` | The cents this fee added to the cap reserve. Rounded **up**. |
+| `feeStatus` | The fee's own lifecycle, tracked independently of the record's `status`. |
+| `feeTxHash` | The settlement reference for the **fee** movement — e.g. `"0x9c4d6f1e…"`. `null` until the fee settles, **and permanently `null`** on rows confirmed by on-chain reconciliation (see below). Read `feeStatus`, not this field, to know whether the fee settled. |
+| `feeNonce` | The EIP-3009 nonce the fee movement was signed with — e.g. `"0x7b1e2c…"`. `null` until the fee is submitted. |
+
+<Warning>
+**`feeCents: "0"` doesn't mean the payment carried no fee.** The two figures round in opposite directions, so a fee can apply in atomic units yet add no cent to your cap reserve — an `Accrued`, or `Released`, row can legitimately read `feeCents: "0"`. `feeAtomic` is the one that answers "did a fee apply": a fee too small to transfer is dropped outright rather than reserved, so `feeAtomic: "0"` means no routing fee was charged at all, and the row reads `feeStatus: "None"`.
+</Warning>
+
+The routing fee is **5%** (`feeBps: 500`). **Mode A now applies it to every call**; mode B applies it too, but only settles once the merchant returns 2xx — otherwise it is [`Released`](#fee-lifecycle), *unless* its outcome could not be adjudicated, in which case it stays `Submitted` and charged. Three cases legitimately read `feeStatus: "None"` with a zero fee: an **MPP** payment, since that rail cannot carry a fee at all; a deployment with **no rate configured**, which is the shipped default and what the sample record above shows; and a payment whose fee rounds below one atomic unit (the case in the warning above).
+
+**Use a stable `requestId`, and a retry costs you nothing extra.** Because mode A now bills every call, the way to avoid paying twice for one purchase is to make the purchase idempotent: reuse **one** `requestId` across every retry of it. A retry then returns `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting a second payment, so there is only ever one fee.
+
+Derive that id from the work you are doing, not from a fresh `uuid4()` per HTTP attempt — a new id on each attempt is indistinguishable from a new purchase, and will be minted and billed as one.
+
+<Note>
+**This is why merchant amounts and spent budget don't reconcile on their own.** `amount` on this record is the merchant leg, so the combined cap charge isn't derivable from the ledger alone. It's recorded as `amountCents` on `GET /api/v1/delegation/{id}/transactions`, with the fee broken out in that row's `providerMetadata`.
+
+If the fee is later [`Released`](#fee-lifecycle), that row's `amountCents` is reduced by the fee and `providerMetadata.feeReleased: true` is set — but the `feeCents` breakout **stays**. So when that flag is present, don't add the breakout back on top: the total has already moved.
+</Note>
+
+### Auditing the fee leg
+
+`feeTxHash` and `feeNonce` are what make the fee movement auditable on its own, and each answers a different question.
+
+**`feeTxHash` is not `txHash`.** `txHash` anchors the **merchant** leg; `feeTxHash` anchors the **fee** leg. They are independent movements that settle separately — one can land while the other hasn't — so reconcile them separately rather than reading either as evidence of the other. Like `txHash`, it is recorded verbatim as the settling party reported it, so [treat it as an anchor to verify](#reconciling-against-the-chain) rather than as proof, and don't assume a `0x` shape.
+
+**`feeNonce` is the key that ties an on-chain transfer back to this payment.** EIP-3009 records every authorization under `authorizationState(payer, nonce)`, so with the nonce you can ask the chain directly whether that specific fee movement was consumed — which is exactly how a `Submitted` fee is resolved. It is **not spendable on its own**: a nonce identifies an authorization, it isn't one. The signed authorization itself is deliberately never stored.
+
+<Note>
+**A `Settled` fee can carry `feeTxHash: null`, and that isn't a bug.** When the fee is confirmed by reading `authorizationState` rather than by observing the settlement, the chain answers with a boolean — consumed or not — and there is no transaction to record. On those rows `feeNonce` is the audit key; use it rather than the missing hash.
+</Note>
+
+### Fee lifecycle
+
+| `feeStatus` | Meaning |
+| --- | --- |
+| `None` | No fee was charged — neither an atomic fee nor a cent of cap. The normal state while no rate is configured, and also what you get when a rate *is* configured but the fee provably can't be collected on this path. Either way nothing was reserved, so there's nothing to give back later. |
+| `Accrued` | A fee was computed and reserved against the Delegation cap. Nothing has been submitted anywhere, so nothing can have moved. |
+| `Submitted` | The fee movement was submitted and its outcome isn't confirmed yet. Money **may** have moved — this is the bucket that gets reconciled against the chain, using `feeNonce`. |
+| `Settled` | The fee movement landed on-chain. |
+| `Failed` | Collection provably did not happen. Terminal as an outcome — retrying changes nothing — but an **adjudicated** `Failed` can still advance to `Released`; one resolved by on-chain reconciliation stays charged. |
+| `Released` | The fee's share of the cap reserve, **if any**, was credited back, because collection reached a terminal not-collected state. Terminal. |
+
+**`Released` is the one that returns budget to you.** It's reached when the fee provably will not be collected — the facilitator adjudicated and refused, a mode-B hop never returned 2xx, or the fee movement couldn't be signed — and the fee's cents go back on your Delegation cap and on the ledgers that mirrored it (an org group budget is corrected separately, and can lag). A fee that applied atomically but added no cent still lands here, with nothing to credit back. It's only ever reached from `Accrued` or an **adjudicated** `Failed` — never from `Submitted` or `Settled`, where money may have moved or definitely did, and handing back headroom for money that already left your wallet is the one direction this must never fail in.
+
+<Warning>
+**`Failed` does not imply `Released`.** They are separate steps, and the reserve comes back only on the paths listed above. A fee that failed some other way stays charged against your cap — in particular one that on-chain reconciliation resolved as never consumed — so read `feeStatus` for the release rather than inferring it from a failure. And an *unknown* outcome is never released at all — those rows stay `Submitted` until the chain settles the question.
+</Warning>
+
+### Export
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments?from=2026-07-01T00:00:00Z&to=2026-07-31T23:59:59Z&format=csv" \
+  -H "Authorization: Bearer $NVM_API_KEY" -o router-payments-july.csv
+```
+
+The CSV carries the same fields as the JSON, and new columns are only ever **appended** to the header row — so a consumer parsing by column index is unaffected by their arrival.
+
+## Aggregate summary
+
+For dashboards and spend monitoring, `GET /api/v1/router/payments/summary` returns a total plus a time series instead of individual rows.
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments/summary?granularity=day" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+```json
+{
+  "total": 137,
+  "series": [
+    { "date": "2026-07-01T00:00:00.000Z", "value": 12 },
+    { "date": "2026-07-02T00:00:00.000Z", "value": 31 }
+  ]
+}
+```
+
+`granularity` is `day` (default), `week`, or `month`; an unrecognised value falls back to `day` rather than erroring. `from` and `to` work as above. Buckets are oldest first.
+
+<Note>
+The summary counts **payment requests**, not amounts. Use the list endpoint when you need money rather than volume.
+</Note>
+
+## Record statuses
+
+| Status | Meaning |
+| --- | --- |
+| `Issued` | The credential was minted and the budget reserved. Either the call is still in flight, or it succeeded without a usable settlement reference. |
+| `Settled` | The merchant accepted the credential and returned a settlement reference, now stored as `txHash`. |
+| `Failed` | The merchant rejected the credential — it answered the paid request with another 402. |
+
+`status` describes the **merchant** leg. A routing fee has its own `feeStatus`, and the two move independently — see [the routing fee on a record](#the-routing-fee-on-a-record).
+
+<Warning>
+**`Issued` is not an error.** On a paid mode-B call it means the resource came back fine but the settlement anchor didn't — a missing, oversized, or malformed receipt. The Router deliberately will not fail an already-paid hop over a bad receipt. In mode A it's simply the state a record sits in until you report the settlement yourself.
+</Warning>
+
+## Closing a mode-A record
+
+In [mode A](/products/catalog/router/how-it-works) the Router only signs — it never sees the merchant's response, so it can't know whether you redeemed the credential. Report the settlement to close the record:
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/settled" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "txHash": "0xfc8af37b…" }'
+```
+
+```json
+{ "paymentId": "b1f9c2e4-…", "status": "Settled", "txHash": "0xfc8af37b…" }
+```
+
+Take the hash from the merchant's `PAYMENT-RESPONSE` header. Two things to know:
+
+- Only an `Issued` payment can be settled. Re-reporting the **same** hash is a harmless no-op; a **different** hash, or a record that isn't `Issued`, returns `409 BCK.ROUTER.0005`.
+- A payment id that isn't yours returns `404 BCK.ROUTER.0004`.
+
+[Mode B does this for you](/products/catalog/router/how-it-works), which is one of the better reasons to prefer it.
+
+## Reconciling against the chain
+
+The settlement reference is reported by the merchant and stored **unverified**. The Router bounds its length and character set, but it does not confirm on-chain that the transaction exists, that it paid the expected recipient, or that it moved the expected amount.
+
+So for anything that matters — accounting, disputes, anomaly detection — treat `txHash` as an **anchor to verify**, not as proof. Check it against the chain named in the record's `network` field.
+
+Note also that a non-`0x` reference is legitimate: settlement identifiers are protocol-specific, and non-blockchain rails return processor references rather than transaction hashes. Don't assume the field is always a hash.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
+    Every error code, and what to do about each.
+  </Card>
+  <Card title="Overview" icon="route" href="/products/catalog/router/overview">
+    Back to the top.
+  </Card>
+</CardGroup>

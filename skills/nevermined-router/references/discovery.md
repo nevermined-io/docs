@@ -15,11 +15,12 @@ GET /api/v1/catalog/services
 | Param | Type | Notes |
 | --- | --- | --- |
 | `search` | string | Free-text over **title and description only** — not tags, not provider |
-| `protocol` | enum | `x402` · `mpp` · `rest` · `a2a` · `other`. Anything else → `400 BCK.CATALOG.0003` |
-| `category` | string | Exact match. Discover valid values from `/categories` |
+| `protocol` | enum | `x402` · `mpp` · `rest` · `a2a` · `other`. Anything else is rejected by the query validator with a plain `400` |
+| `category` | enum | **Closed set of 13** — see below. Anything else is rejected by the query validator with a plain `400` |
+| `subCategory` | string | Granular label under a `category`. Free text, exact match — discover values from `/categories` |
 | `tag` | string | Exact match against one entry of `tags[]` |
 | `page` | int ≥ 1 | Default 1 |
-| `offset` | int ≥ 1 | Page **size**, not a skip count. Default 10, capped server-side |
+| `offset` | int ≥ 1 | Page **size**, not a skip count. Default **20**, capped at **100** |
 | `sortBy` | enum | Omit for the curated default. Unknown value → 400 |
 | `sortOrder` | `asc`/`desc` | |
 
@@ -37,7 +38,7 @@ across two calls; if you need determinism, pass an explicit `sortBy`.
 ### Response
 
 ```json
-{ "total": 9, "page": 1, "offset": 10, "services": [ /* CatalogService */ ] }
+{ "total": 9, "page": 1, "offset": 20, "services": [ /* CatalogService */ ] }
 ```
 
 `total` is the count **matching your filters**, not the catalog size.
@@ -52,7 +53,9 @@ across two calls; if you need determinism, pass an explicit `sortBy`.
 | `endpoints[]` | `{ path, method, description, priceLabel, docsUrl }` — the other callable paths |
 | `priceLabel` | Human string like `"$0.001"`. **Indicative only** — the wire price governs |
 | `network` | Display name (`"Base"`, `"Tempo"`). Not a chain id |
-| `tags[]`, `category`, `features[]` | Selection signals |
+| `category` | One of the **13 curated values** — see [Categories](#categories) |
+| `subCategory` | Granular label under `category`, or `null` for the generic top bucket |
+| `tags[]`, `features[]` | Selection signals |
 | `discovery` | Machine-readable pointers: `x402` manifest, `mcp`, `a2a` agent card, `openapi`, `llmsTxt`, `mppRegistry`. `{}` when none |
 
 `isListed` is always `true` on this API — unlisted rows are never exposed, so you cannot use it to
@@ -121,13 +124,47 @@ url = urljoin(service["targetUrl"], endpoint["path"]) if endpoint else service["
 
 ## Categories
 
+`category` is a **closed set of exactly 13 curated values**, validated server-side — an unrecognised
+string is a plain `400`, not an empty result. Match them **verbatim**, ampersands and spacing
+included:
+
+- `Data & Enrichment`
+- `Sales & Business Intelligence`
+- `Web Scraping & Automation`
+- `Search & Research`
+- `Crypto & Blockchain`
+- `Finance & Markets`
+- `AI & Media`
+- `Communication & Voice`
+- `Social & Creator`
+- `Identity & Compliance`
+- `Infrastructure & Compute`
+- `Weather`
+- `Travel`
+
+The obvious guesses are wrong: it is `"Search & Research"`, not `"Search"`. Do not shorten, split on
+`&`, or invent one. The list is curated by hand and can grow, so prefer `/categories` over hardcoding
+this one — with the caveat below.
+
+`subCategory` is the granular label *under* a category (`"Browser automation"`), and unlike
+`category` it is free text. A service with no granular label has `subCategory: null` — the generic
+top bucket.
+
 ```
 GET /api/v1/catalog/categories
-# → [ { "category": "Search", "count": 3 }, … ]
+# → [ { "category": "Search & Research", "count": 3,
+#       "subCategories": [ { "subCategory": "Browser automation", "count": 2 }, … ] }, … ]
 ```
 
-Distinct categories over listed services, with counts. Use it to populate a `category` filter rather
-than guessing a string.
+Counts are over listed services. **Each entry carries a `subCategories[]` array**, so one call gives
+you both filter levels — build your filters from this response rather than guessing a string.
+Services whose `subCategory` is null are counted in `count` but appear in no `subCategories[]` entry,
+so the sub-counts do not have to add up to `count`.
+
+⚠️ **`/categories` enumerates what is *populated*, not what is *legal*.** It is a grouping over
+currently-listed services, so a perfectly valid category with no listed services right now simply
+does not appear. Treat an absent category as "nothing to buy there today", **not** as "that value
+would be rejected" — the closed set above is the enum; this endpoint is the inventory.
 
 ## One service by slug
 
@@ -163,7 +200,8 @@ with no filtering or pagination. The feed is for registries crawling you, not fo
 ## Choosing well
 
 1. Filter to `protocol=x402` or `protocol=mpp`.
-2. Narrow with `search` (title + description) or `category` / `tag` for precision.
+2. Narrow with `search` (title + description), or `category` / `subCategory` / `tag` for precision —
+   taking the category values from `/categories`, never from memory.
 3. Read `endpoints[]` — pick the one whose `description` and `method` match your need, and note its
    `priceLabel`.
 4. Build the URL per the rule above.
@@ -177,4 +215,11 @@ If nothing matches, say so. Do not fall back to a `rest` entry and do not invent
 | --- | --- | --- |
 | `BCK.CATALOG.0001` | 404 | No listed service with that slug. Case-sensitive |
 | `BCK.CATALOG.0002` | 500 | Transient read failure — **retryable** |
-| `BCK.CATALOG.0003` | 400 | `protocol` must be `x402`, `mpp`, `rest`, `a2a`, or `other` |
+| `BCK.CATALOG.0003` | 400 | `protocol` must be `x402`, `mpp`, `rest`, `a2a`, or `other`. **Catalogued, but you will not see it** — see below |
+
+**A bad `protocol` or `category` does not come back as `BCK.CATALOG.0003`.** Both are `@IsIn`
+constraints on the query DTO, so the global validation pipe rejects them before the catalog service
+runs — what you actually receive is a plain `400` on the standard envelope with the generic
+`code: "BCK.HTTP.400"` and the field error in `message`. `BCK.CATALOG.0003` still exists in the error
+catalogue and the service still throws it, but that path is unreachable through this endpoint. Branch
+on the status here, not on a `BCK.CATALOG.*` code.

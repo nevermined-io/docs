@@ -10,7 +10,7 @@ agent or MPP merchant — through the Nevermined Router. If you are *receiving* 
 Nevermined plan, use the `nevermined-payments` rules instead.
 
 Full skill: https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
-Docs: https://nevermined.ai/docs/products/router/overview
+Docs: https://nevermined.ai/docs/products/catalog/router/overview
 
 ## When the Router does NOT apply
 
@@ -37,7 +37,12 @@ curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
 ```
 
 All four fields are required — no defaults. `erc4337` is the crypto-funded Delegation both
-stablecoin rails need.
+stablecoin rails need. Two guards refuse this call outright, neither retryable:
+
+- `403 BCK.OAUTH.0030` — the key was OAuth-minted. It may not create Delegations or use
+  `/router/{payments,route,proxy}`. Use a plain account-owner key.
+- `412 {"error":"consent_required","outdated":[…]}` — the account's legal consent lapsed; a human
+  must accept. ⚠️ Its only `code` is the generic `BCK.HTTP.412`, so branch on `body.error`.
 
 ## 2. Fund the buyer wallet
 
@@ -47,6 +52,10 @@ supply funds. Read the address from the live Delegation every time —
 
 **Never reuse a cached address.** A stale one is the most common cause of `402 BCK.ROUTER.0009`, and
 that error deliberately doesn't echo the address it checked.
+
+**One x402 network is funded per deployment, fixed by its environment: sandbox → `base-sepolia`,
+live → `base`.** A merchant on the other chain is unpayable from where you are and fails
+`400 BCK.ROUTER.0001 … no fundable option` — which reads like a broken service and is not.
 
 ## 3. Discover (public, no API key)
 
@@ -65,6 +74,9 @@ const url = endpoint ? new URL(endpoint.path, service.targetUrl).toString() : se
 
 - `offset` is the page **size**, not a skip count, and default ordering is shuffled within each
   tier — never assume `services[0]` is stable.
+- `category` is a **closed 13-value enum** (`"Search & Research"`, not `"Search"`), with a free-text
+  `subCategory` under it. Take both from `GET /api/v1/catalog/categories`, which returns
+  `{ category, count, subCategories[] }` — never guess the string.
 
 ## 4. Pay
 
@@ -100,7 +112,12 @@ again. Derive it from the work being done.
 ### Money arithmetic
 
 Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs **$10.00, not $1.00**.
-`settlement.approxCents` is what was actually reserved; trust it over any catalog `priceLabel`.
+`settlement.approxCents` is only the **merchant** leg; Nevermined's routing fee rides on top in the
+always-present `payment.fee` (`{ bps, amount, cents, capChargedCents }`). **`fee.capChargedCents` is
+what the call reserved against your cap** — sum that, not `approxCents`, or your accounting
+under-reports by exactly the fee. ⚠️ It is the reserve **at mint**: a mode-B hop that does not return
+`2xx` releases the fee half back, so a running total over-reports on those calls. For spend to date
+read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 
 ## Guardrails — a refusal is the system working
 
@@ -116,6 +133,12 @@ Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs 
 - `BCK.ROUTER.0011` (402) — card rail: needs cardholder 3-D Secure, which an agent can't complete.
   Nothing was charged. **Don't auto-retry** — each attempt re-demands 3DS and strands a fresh
   single-use card credential. Surface it to a human.
+- `BCK.ROUTER.0012` (400) — the seller's 402 advertises an EIP-712 domain its own settlement
+  token does not sign under. Nothing signed, charged or reserved. It is the seller's bug and a
+  retry gives the same answer: report it and pay someone else.
+- `BCK.ROUTER.0013` (500) — Nevermined holds no EIP-712 domain for the selected token: OUR
+  table is incomplete, not the seller's bug. Nothing signed, charged or reserved. Report it
+  to Nevermined; a retry fails identically.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
@@ -124,5 +147,14 @@ defeats the whole mechanism. Report and stop.
 ## Accounting
 
 `GET /api/v1/router/payments` (filters `delegationId`, `from`, `to`, `format=csv`) and
-`/payments/summary`. `amount` is in the asset's smallest unit, not cents. A record at `Issued` is
-**not** an error — the money moved; do not retry it.
+`/payments/summary`. `amount` is the **merchant leg only**, in the asset's smallest unit — and ⚠️ the
+**scale differs per rail**: 6 decimals on the crypto rails, but the card rail (`network: "stripe"`)
+is **scale 2, so its `amount` IS cents**. Read `assetDecimals` off the row, never assume 6; `null`
+there means unrecognised, so show raw units — and guard that branch, because
+`amount / 10 ** null` is `Infinity`, not an error. `assetSymbol` is echoed even when unrecognised, so it
+is not a recognition check, and `pathUSD`/`PathUSD` differ in case across the two Tempo chains —
+compare tickers case-insensitively. Rows also carry `feeAtomic`, `feeBps`, `feeCents`, `feeStatus`,
+`feeTxHash`, `feeNonce`.
+`feeStatus` (`None|Accrued|Submitted|Settled|Failed|Released`) is a **separate lifecycle** from the
+payment `status`, which shares `Settled`/`Failed` — never read one for the other. A record at
+`Issued` is **not** an error — the money moved; do not retry it.

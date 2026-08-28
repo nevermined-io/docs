@@ -20,7 +20,7 @@ Every Router payment follows the same five beats, whatever protocol the merchant
     The credential goes to the merchant as an HTTP header. The merchant verifies it, settles, and returns the resource.
   </Step>
   <Step title="Record">
-    The payment lands on your [ledger](/products/router/ledger) with its settlement reference.
+    The payment lands on your [ledger](/products/catalog/router/ledger) with its settlement reference.
   </Step>
 </Steps>
 
@@ -159,15 +159,17 @@ A cap is permission, not funds. You can hold a $50 Delegation and still fail to 
 | **x402** | No balance check at all | Nothing stops you. The credential is signed and your budget reserved; the shortfall appears on-chain afterwards. |
 
 <Warning>
-**On x402 an underfunded wallet costs you budget.** With no pre-check the Router signs and reserves your cap, the merchant's transfer then fails on-chain, and the reserved cap is **not** given back. Fund before you call; don't rely on being stopped.
+**On x402 an underfunded wallet costs you budget.** With no pre-check the Router signs and reserves your cap, the merchant's transfer then fails on-chain, and the reserved **merchant leg** is **not** given back. Only a routing fee reserved on top can come back, and only on [the closed list of paths that release one](#when-a-fee-is-not-collected). Fund before you call; don't rely on being stopped.
 </Warning>
 
 ## The routing fee
 
-Nevermined may charge a **routing fee** on each payment the Router makes for you. It's quoted in **basis points** over the amount you're paying the merchant — 100 basis points is 1% — and it's disclosed on the payment response, alongside what the merchant charged.
+Nevermined charges a **routing fee** on each payment the Router makes for you. It's quoted in **basis points** over the amount you're paying the merchant — 100 basis points is 1% — and it's disclosed on the payment response, alongside what the merchant charged.
 
 <Note>
-**The fee is configured per deployment, and it is currently `0`.** Every payment today reserves exactly the merchant's amount, and every response comes back with `fee.bps: 0`. The fields below are already on the wire so your reconciliation doesn't have to change on the day a rate is set.
+**The routing fee is 5%** — `500` basis points — of the amount you pay the merchant. It is added on top, so a $1.00 call debits your Delegation cap $1.05 and the merchant still receives $1.00.
+
+The rate is resolved per payment and returned as `fee.bps` on every response, so read it from there rather than hard-coding it.
 </Note>
 
 Three things are worth knowing about how a fee is applied.
@@ -181,7 +183,7 @@ Three things are worth knowing about how a fee is applied.
 - `fee.amount` — the fee in the asset's smallest unit — is rounded **down**, so a fee is never rounded up in Nevermined's favour.
 - `fee.capChargedCents` — what your Delegation cap is debited — is a **cents** figure, and cents always round up.
 
-How much that costs depends on what the rail can tell the Router about converting its asset to cents. When it can, the merchant amount and the fee are rounded up **together**, as one figure — so a sub-cent fee only costs you an extra cent when it tips the total across a cent boundary. When it can't, the fee is rounded up **on its own**, and then **any non-zero rate costs at least one whole cent of cap per payment** — a 1-cent purchase at 2% is debited 2 cents. That holds even when the fee rounded down to nothing in atomic terms: `fee.amount` can be `0` on a payment that still cost you a cent of budget.
+How much that costs depends on what the rail can tell the Router about converting its asset to cents. When it can, the merchant amount and the fee are rounded up **together**, as one figure — so a sub-cent fee only costs you an extra cent when it tips the total across a cent boundary. When it can't, the fee is rounded up **on its own**, and then **any non-zero rate costs at least one whole cent of cap per payment** — a 1-cent purchase at 2% is debited 2 cents. The one case that does *not* cost you a cent is a fee that truncates below a single atomic unit: it could never be transferred, so it is dropped outright rather than reserved, and you are charged the merchant amount alone.
 
 So don't derive the cap charge from the amount and the rate. Read `fee.capChargedCents` — it's the figure your budget actually moved by.
 
@@ -196,7 +198,23 @@ Every mint response — `POST /payments` in mode A, `POST /route` in mode B — 
 
 `settlement.approxCents` remains the **merchant** leg throughout — it is not the whole cap charge. With no fee configured the two are equal.
 
-The streaming `/proxy` variant returns its payment metadata as response headers, and there is no fee header among them. For those calls, read the fee from [the ledger record](/products/router/ledger#the-routing-fee-on-a-record).
+The streaming `/proxy` variant returns its payment metadata as response headers, and there is no fee header among them. For those calls, read the fee from [the ledger record](/products/catalog/router/ledger#the-routing-fee-on-a-record).
+
+### When a fee is not collected
+
+A reserved fee isn't always collected, and what happens to the reserve then differs by leg.
+
+**The merchant leg is never given back.** Once the credential is minted, the merchant may have taken the payment and then errored — so the reservation stands whatever the call did afterwards.
+
+**The fee leg can come back — but only on a closed list of paths.** A mode-B hop that never returned 2xx, a facilitator that adjudicated and refused, or a fee movement that couldn't be signed: on each of those the fee's cents are credited back to your Delegation cap and the ledger row reads [`feeStatus: "Released"`](/products/catalog/router/ledger#fee-lifecycle). Nothing else releases. A fee whose outcome is *unknown* stays `Submitted` and is resolved against the chain — and **resolving is not releasing**: a row the chain shows was never consumed becomes `Failed` with its reserve **still charged**. Read `feeStatus` for the credit; never infer it from a failure.
+
+One precondition decides whether the question is even asked, and it is easy to miss:
+
+- **Only the x402 rail can collect a routing fee at all.** MPP payments cannot produce a second settleable authorization, so they reserve the merchant leg alone.
+
+Both modes then charge on every call. `requestId` does not change *whether* you are charged — it changes whether a **retry** is charged again. Reuse one stable id across every retry of the same purchase and the retry returns `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting a second payment, so one purchase carries one fee. Omit it, or generate a fresh id per HTTP attempt, and the retry is billed as a new purchase. Mode B requires the id already; on mode A it is optional, which is exactly why it is worth passing.
+
+The mode then decides when the fee settles. Mode B settles it only after the merchant returns 2xx, so a hop that fails releases the fee. Mode A settles it at mint, before your credential is ever presented — so on mode A a wallet holding only the merchant's price typically pays the fee and then loses the merchant leg on-chain, and there is nothing to release.
 
 ### Fund for the amount plus the fee
 
@@ -219,10 +237,10 @@ The settlement reference is **merchant-controlled and stored unverified**. It's 
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/products/router/quickstart">
+  <Card title="Quickstart" icon="rocket" href="/products/catalog/router/quickstart">
     Run the whole flow yourself.
   </Card>
-  <Card title="Guardrails" icon="shield-check" href="/products/router/guardrails">
+  <Card title="Guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
     Everything the Router checks before it signs.
   </Card>
 </CardGroup>
