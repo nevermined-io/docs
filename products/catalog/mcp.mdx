@@ -1,0 +1,194 @@
+---
+title: "Catalog MCP"
+description: "A hosted MCP server that lets an agent in any MCP host discover and pay for Catalog services — funded by the caller's own spend-capped budget."
+icon: "plug"
+---
+
+The **Catalog MCP** is a hosted [MCP](https://modelcontextprotocol.io) server that drops the Nevermined Catalog and Router straight into the tools an AI assistant already has. Point any MCP host — Claude Desktop, Cursor, a generic MCP client — at it, and your agent can **discover** paid services in the [Nevermined Catalog](/products/catalog/overview) and **pay** for them through the [Router](/products/catalog/router/overview), all from a budget you cap.
+
+It's the third way to reach the Catalog + Router capability, alongside the public REST API and the webapp — and the one that needs no code. The server holds no funds and stores no state: every payment draws on the **caller's own** spend-capped Delegation, using the caller's own Nevermined API key, forwarded per request and never stored.
+
+<Note>
+This is the **buyer** side, packaged as MCP tools. If you instead want to put a paywall on *your own* MCP server so its tools get paid, that's the seller side — see [MCP Integration](/integrations/mcp). See [Not this MCP](#not-this-mcp) below to be sure you're on the right page.
+</Note>
+
+## How it fits: discover, then pay
+
+The Catalog MCP is the same two-step motion the rest of the Catalog documents, exposed as tools:
+
+<CardGroup cols={2}>
+  <Card title="Discover" icon="magnifying-glass">
+    `list_categories`, `search_services`, and `get_service` read the [Catalog](/products/catalog/discover) — public, no key. Your agent finds a service and reads its protocol, endpoint, and price.
+  </Card>
+  <Card title="Pay" icon="route">
+    `pay_service` hands the call to the [Router](/products/catalog/router/overview), which reads the merchant's `402`, pays it from your Delegation, enforces the cap, and relays the vendor's response.
+  </Card>
+</CardGroup>
+
+Your agent never holds a private key, never learns a payment protocol, and never needs an account with the service it just paid. The Router, not the agent, speaks each rail — see [How the Router works](/products/catalog/router/how-it-works).
+
+## The tool surface
+
+Six tools. Discovery is public; paying and reading your ledger require your API key.
+
+| Tool | Auth | What it does |
+| --- | --- | --- |
+| `list_categories` | — | Catalog categories, with a count each. |
+| `search_services` | — | Search listings. Filters (all optional): `query`, `category`, `protocol`, `tag`, `page`, `offset`. |
+| `get_service` | — | One service by `slug` — protocol, endpoint, price label, discovery links. |
+| `pay_service` | key | Pay for a service and return the vendor's response. **Charges real funds.** |
+| `list_payments` | key | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
+| `payment_summary` | key | Total spend plus a time series. Filters: `from`, `to`. |
+
+## Auth & transport
+
+- **Transport:** Streamable HTTP at `POST /mcp` (stateless). Liveness at `GET /health`; readiness — which checks the Nevermined API is reachable — at `GET /ready`.
+- **Auth:** your Nevermined **API key** on the HTTP `Authorization: Bearer <key>` header.
+  - The three discovery tools are public and need no key.
+  - `pay_service`, `list_payments`, and `payment_summary` require it. Called without a key, they return an `authentication_required` result rather than failing hard.
+  - The key is forwarded to the Nevermined API **per request** — never stored, never logged. Never send it to the merchant you're paying; it authenticates you to Nevermined, nothing else.
+
+<Note>
+This is the **plain-key** front door: payments draw on your own Delegation using your own API key. A no-code / OAuth-connector variant (for hosts like ChatGPT and Claude connectors) is separate and tracked elsewhere.
+</Note>
+
+## Quickstart
+
+Connect a host, run a discovery call, then a paid call — end to end. Discovery works with no credentials; paying needs a Nevermined **API key** and a **funded, spend-capped Delegation**.
+
+### 1. Connect your host
+
+Point an MCP client at the server URL and set the `Authorization` header to your Nevermined API key. Any host that supports remote (HTTP) MCP servers with headers takes this shape:
+
+```json
+{
+  "mcpServers": {
+    "nevermined-catalog": {
+      "url": "https://mcp.sandbox.nevermined.app/mcp",
+      "headers": { "Authorization": "Bearer ${NVM_API_KEY}" }
+    }
+  }
+}
+```
+
+| Environment | Server URL | Purpose |
+| --- | --- | --- |
+| **Sandbox** | `https://mcp.sandbox.nevermined.app/mcp` | Development and testing |
+| **Live** | `https://mcp.live.nevermined.app/mcp` | Real payments |
+
+<Warning>
+**The hosted endpoints ship with the next release.** Until `mcp.sandbox.nevermined.app` / `mcp.live.nevermined.app` resolve, run the server locally and use `http://localhost:3100/mcp` (see the app README). Paying against **live** moves real funds to a real merchant — start in sandbox and keep your first Delegation cap small.
+</Warning>
+
+<Note>
+**Stdio-only host?** Some hosts speak MCP over stdio, not HTTP. Bridge them with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote), which forwards the same URL and header to a local stdio endpoint.
+</Note>
+
+### 2. Get an API key
+
+Create a **Nevermined API key** from the [Nevermined app](https://nevermined.app). Discovery tools don't need it, but `pay_service` and the ledger tools do. Older keys are rejected by the Router — see [the Router quickstart](/products/catalog/router/quickstart#1-get-an-api-key) for how to tell which you have.
+
+The key is sent as a request header, forwarded to the Nevermined API per call, and never stored or logged by the MCP server. Never put it in a tool argument or send it to a merchant.
+
+### 3. Run a discovery call
+
+Discovery is public — call these before you've set any key. Ask your host to run:
+
+- **`list_categories`** — the Catalog's categories, each with a count.
+- **`search_services`** with `{ "protocol": "x402" }` — listings on the x402 rail. Also filter by `query`, `category`, `tag`, and page with `page` / `offset`.
+- **`get_service`** with `{ "slug": "<a-slug-from-the-search>" }` — one service's protocol, endpoint, and price label.
+
+In natural language that's just: *"List the Nevermined categories, then find x402 services for weather."* The host picks the tools.
+
+### 4. Prepare to pay
+
+`pay_service` moves real money, so it needs a funded budget on your account:
+
+<Steps>
+  <Step title="Create a Delegation">
+    A hard cap and an expiry. Created once and reused. See [Create a Delegation](/products/catalog/router/quickstart#2-create-a-delegation).
+  </Step>
+  <Step title="Fund its wallet">
+    Both rails **pull** from your own custodial wallet, so it must hold the payment asset on the network you'll pay on. See [Fund your wallet](/products/catalog/router/quickstart#3-fund-your-wallet).
+  </Step>
+</Steps>
+
+`pay_service` uses the accessible Delegation (Active, unexpired, funded) automatically. Pass an explicit `delegationId` only to override that choice.
+
+### 5. Make a paid call
+
+Call **`pay_service`** with the service `slug` and the request you want made — `path`, `method` (defaults to `POST`), `body`, and `headers` as the vendor needs them:
+
+```json
+{
+  "slug": "dexter-x402",
+  "path": "/quote",
+  "body": { "pair": "ETH/USDC" }
+}
+```
+
+The server resolves the slug, confirms it's payable, pays the vendor's `402` from your Delegation, and relays the vendor's own response:
+
+```json
+{
+  "paid": true,
+  "upstreamStatus": 200,
+  "payment": { "paymentId": "b1f9c2e4-…", "txHash": "0xfc8af37b…" },
+  "response": { "…": "the vendor's body, unchanged" }
+}
+```
+
+If the service isn't on a payable rail (only x402 / MPP listings are), nothing is charged — you get a signpost to its native endpoint instead:
+
+```json
+{ "payable": false, "protocol": "rest", "nativeEndpoint": "https://…" }
+```
+
+<Note>
+**Retries are deduped, not double-charged.** The `requestId` is derived from your key plus the full request, so a host that retries the same call hits the Router's idempotency guard and gets `{ "status": "already_paid", "paymentId": "…" }` back — the original payment, not a second one. Pass an explicit `requestId` only when you *want* to buy again.
+</Note>
+
+### 6. Check what you spent
+
+- **`list_payments`** — your Router payments, newest first, across every protocol. Filter by `delegationId`, `from`, `to`.
+- **`payment_summary`** — total spend plus a time series over an optional `from` / `to` window.
+
+Both read the same unified ledger the [Router ledger page](/products/catalog/router/ledger) documents, so a payment made here is reconcilable with everything else your agents spend.
+
+### When a payment is refused
+
+Refusals come back as legible results, not exceptions. The ones to recognize:
+
+| Result | What happened |
+| --- | --- |
+| `{ "error": "authentication_required" }` | A pay or ledger tool was called without the `Authorization` header. Set your API key (step 2). |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0003", … }` | The spend would exceed your Delegation cap, or it expired. Widening the cap in response is almost always the wrong move — see [Guardrails](/products/catalog/router/guardrails). |
+| `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped. **Not a failure** — you weren't charged twice. |
+| `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
+
+## Not this MCP
+
+Nevermined ships three MCP servers. Make sure you want this one:
+
+| MCP | Side | What it's for |
+| --- | --- | --- |
+| **Catalog MCP** (this page) | Buyer | Your agent discovers & pays for Catalog services. You provide just an API key and a funded budget. |
+| [MCP Integration](/integrations/mcp) | Seller | Put a paywall on *your own* MCP server with the Payments Library (`withPaywall`), so your tools get paid. |
+| [Docs MCP](/development-guide/build-using-nvm-mcp) | — | Streams the Nevermined **documentation** into your IDE so an assistant can vibe-code an integration. It sells nothing. |
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Catalog: discover" icon="magnifying-glass" href="/products/catalog/discover">
+    What's listed, how filtering works, and what "payable" means.
+  </Card>
+  <Card title="Router: pay" icon="route" href="/products/catalog/router/overview">
+    Delegations, the spending cap, the rails, and every refusal code.
+  </Card>
+  <Card title="Router guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
+    What the Router enforces, what it refuses, and why widening a cap is the wrong reflex.
+  </Card>
+  <Card title="Payment ledger" icon="receipt" href="/products/catalog/router/ledger">
+    Read back everything your agents have spent, across every protocol.
+  </Card>
+</CardGroup>
