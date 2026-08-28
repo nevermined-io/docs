@@ -1,0 +1,125 @@
+---
+title: "Commerce MCP quickstart"
+description: "Connect an MCP host to the Nevermined Commerce MCP, run a discovery call, then a paid call — end to end."
+icon: "rocket"
+---
+
+By the end of this page your MCP host will have the Nevermined Catalog and Router as tools: it can discover a paid service and pay for it from a budget you control, without you writing any integration code.
+
+Discovery works with no credentials. Paying needs a Nevermined **API key** and a **funded, spend-capped Delegation** — the [Router quickstart](/products/catalog/router/quickstart) covers creating and funding one over plain HTTP.
+
+## 1. Connect your host
+
+Point an MCP client at the server URL and set the `Authorization` header to your Nevermined API key. Any host that supports remote (HTTP) MCP servers with headers takes this shape:
+
+```json
+{
+  "mcpServers": {
+    "nevermined-commerce": {
+      "url": "https://mcp.sandbox.nevermined.app/mcp",
+      "headers": { "Authorization": "Bearer ${NVM_API_KEY}" }
+    }
+  }
+}
+```
+
+<Warning>
+**The hosted endpoints ship with the next release.** Until `mcp.sandbox.nevermined.app` / `mcp.live.nevermined.app` resolve, run the server locally and use `http://localhost:3100/mcp` (see the app README). Swap sandbox for live only when you mean to move real funds.
+</Warning>
+
+<Note>
+**Stdio-only host?** Some hosts speak MCP over stdio, not HTTP. Bridge them with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote), which forwards the same URL and header to a local stdio endpoint.
+</Note>
+
+The key is sent as a request header, forwarded to the Nevermined API per call, and never stored or logged by the MCP server. Never put it in a tool argument or send it to a merchant.
+
+## 2. Get an API key
+
+Create a **current (v2)** key from the [Nevermined app](https://nevermined.app). Discovery tools don't need it, but `pay_service` and the ledger tools do. Older keys are rejected by the Router — see [the Router quickstart](/products/catalog/router/quickstart#1-get-an-api-key) for how to tell which you have.
+
+## 3. Run a discovery call
+
+Discovery is public — call these before you've set any key. Ask your host to run:
+
+- **`list_categories`** — the Catalog's categories, each with a count.
+- **`search_services`** with `{ "protocol": "x402" }` — listings on the x402 rail. Also filter by `query`, `category`, `tag`, and page with `page` / `offset`.
+- **`get_service`** with `{ "slug": "<a-slug-from-the-search>" }` — one service's protocol, endpoint, and price label.
+
+In natural language that's just: *"List the Nevermined categories, then find x402 services for weather."* The host picks the tools.
+
+## 4. Prepare to pay
+
+`pay_service` moves real money, so it needs a funded budget on your account:
+
+<Steps>
+  <Step title="Create a Delegation">
+    A hard cap and an expiry. Created once and reused. See [Create a Delegation](/products/catalog/router/quickstart#2-create-a-delegation).
+  </Step>
+  <Step title="Fund its wallet">
+    Both rails **pull** from your own custodial wallet, so it must hold the payment asset on the network you'll pay on. See [Fund your wallet](/products/catalog/router/quickstart#3-fund-your-wallet).
+  </Step>
+</Steps>
+
+`pay_service` uses the accessible Delegation automatically. Pass an explicit `delegationId` only to override that choice.
+
+## 5. Make a paid call
+
+Call **`pay_service`** with the service `slug` and the request you want made — `path`, `method` (defaults to `POST`), `body`, and `headers` as the vendor needs them:
+
+```json
+{
+  "slug": "dexter-x402",
+  "path": "/quote",
+  "body": { "pair": "ETH/USDC" }
+}
+```
+
+The server resolves the slug, confirms it's payable, pays the vendor's `402` from your Delegation, and relays the vendor's own response:
+
+```json
+{
+  "paid": true,
+  "upstreamStatus": 200,
+  "payment": { "paymentId": "b1f9c2e4-…", "txHash": "0xfc8af37b…" },
+  "response": { "…": "the vendor's body, unchanged" }
+}
+```
+
+If the service isn't on a payable rail, nothing is charged — you get a signpost to its native endpoint instead:
+
+```json
+{ "payable": false, "protocol": "rest", "nativeEndpoint": "https://…" }
+```
+
+<Note>
+**Retries are deduped, not double-charged.** The `requestId` is derived from your key plus the full request, so a host that retries the same call hits the Router's idempotency guard and gets `{ "status": "already_paid", "paymentId": "…" }` back — the original payment, not a second one. Pass an explicit `requestId` only when you *want* to buy again.
+</Note>
+
+## 6. Check what you spent
+
+- **`list_payments`** — your Router payments, newest first, across every protocol. Filter by `delegationId`, `from`, `to`.
+- **`payment_summary`** — total spend plus a time series over an optional `from` / `to` window.
+
+Both read the same unified ledger the [Router ledger page](/products/catalog/router/ledger) documents, so a payment made here is reconcilable with everything else your agents spend.
+
+## When a payment is refused
+
+Refusals come back as legible results, not exceptions. The ones to expect:
+
+| Result | What happened |
+| --- | --- |
+| `{ "error": "authentication_required" }` | A pay or ledger tool was called without the `Authorization` header. Set your API key (step 1). |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0003", … }` | The spend would exceed your Delegation cap, or it expired. Widening the cap in response is almost always the wrong move — see [Guardrails](/products/catalog/router/guardrails). |
+| `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped. **Not a failure** — you weren't charged twice. |
+| `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Commerce MCP overview" icon="plug" href="/products/catalog/mcp/overview">
+    The full tool surface, auth model, and how it differs from the other two MCP servers.
+  </Card>
+  <Card title="Router guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
+    What the Router enforces, what it refuses, and why widening a cap is the wrong reflex.
+  </Card>
+</CardGroup>
