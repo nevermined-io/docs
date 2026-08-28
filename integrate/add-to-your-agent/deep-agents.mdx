@@ -1,0 +1,179 @@
+---
+title: "Deep Agents"
+description: "Charge for a capability that lives inside a Deep Agents subagent, using Nevermined x402"
+icon: "sitemap"
+frameworks: ["deepagents", "langchain", "langgraph", "python"]
+---
+
+<Note>
+  **Start here:** need to register a service and create a plan first? Follow the
+  [5-minute setup](/integrate/quickstart/5-minute-setup).
+</Note>
+
+<Card title="Runnable tutorial" icon="play" href="https://github.com/nevermined-io/tutorials/tree/main/langchain-deep-agent-py">
+  **`langchain-deep-agent-py`** — a freemium market-research agent on the Deep
+  Agents harness, where the paid tool lives inside a subagent. Clone, fill in
+  `.env`, run `poetry run buyer` to watch the free path and the paid path
+  back to back.
+</Card>
+
+[Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) is LangChain's agent *harness*: `create_deep_agent()` returns a compiled LangGraph graph that already has planning, a filesystem, and subagent delegation built in. You reach for it when one agent needs to plan a job and hand pieces of it to specialists.
+
+**The Nevermined integration does not change.** `@requires_payment` works on a Deep Agents tool exactly as it does on a plain LangChain one — this page is about the one property that makes that true, and the two harness behaviours you should design around.
+
+## The delegation hop
+
+A buyer supplies an x402 access token **once**, on the run:
+
+```python
+graph.invoke(
+    {"messages": [{"role": "user", "content": "Research the EV market"}]},
+    config={"configurable": {"payment_token": access_token}},
+)
+```
+
+The supervisor never handles that token. It delegates through the built-in `task` tool, and LangGraph copies `configurable` down into the subagent's own tool calls — so the decorator finds the token one hop below where it was supplied:
+
+```
+main agent  ──task()──▶  research-sub  ──▶  market_research  [PAID]
+     ▲                                            │
+     └──────── x402 token supplied here ──────────┘
+                config.configurable.payment_token
+```
+
+This is the property the whole pattern rests on. A deep agent's premise is that the supervisor hands work to subagents; if payment context did not survive that hop, every paid tool would have to sit on the main agent and the harness would be useless for monetized capabilities.
+
+<Note>
+  The buyer does not need to know the agent's internal topology. The contract is
+  the same one the [LangChain guide](/integrate/add-to-your-agent/langchain)
+  describes — put the token on the run and let the graph route it.
+</Note>
+
+## Quick start
+
+Give the paid tool **only** to the subagent, so every paid call has to cross a delegation boundary:
+
+```python
+from deepagents import create_deep_agent
+from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import tool
+from payments_py import PaymentOptions, Payments
+from payments_py.x402.langchain import (
+    PaymentRequiredError,
+    last_settlement,
+    requires_payment,
+)
+
+payments = Payments.get_instance(PaymentOptions(nvm_api_key=NVM_API_KEY))
+
+
+@requires_payment(payments=payments, plan_id=PLAN_ID, credits=5)
+def _market_research_paid(topic: str, config: RunnableConfig) -> str:
+    """verify_permissions runs before this body, settle_permissions after."""
+    return run_analyst(topic)
+
+
+@tool
+def market_research(topic: str, config: RunnableConfig) -> str:
+    """Produce a market analysis on the given topic. PAID."""
+    try:
+        # Forward `config` explicitly — the decorator reads the token from it.
+        return _market_research_paid(topic, config=config)
+    except PaymentRequiredError:
+        return "PAYMENT_REQUIRED: authorize and ask again."
+
+
+research_subagent = {
+    "name": "research-sub",
+    "description": "Performs paid market research on a single topic.",
+    "system_prompt": (
+        "Call `market_research` once and return its output verbatim. "
+        "Never answer the research question from your own knowledge."
+    ),
+    "tools": [market_research],
+}
+
+graph = create_deep_agent(
+    model="openai:gpt-4o-mini",
+    tools=[],
+    subagents=[research_subagent],
+    system_prompt="Delegate every research request to `research-sub`.",
+)
+```
+
+Because `create_deep_agent()` returns a compiled graph, deployment is unchanged — point `langgraph.json` at it and `langgraph dev` or LangSmith Deployment will serve it:
+
+```json
+{
+  "dependencies": ["."],
+  "graphs": { "deep_research": "./src/agent.py:graph" }
+}
+```
+
+## Two harness behaviours to design around
+
+These are properties of the harness, not bugs. Both are worth handling before you put a deep agent in front of paying users.
+
+<Warning>
+  **A deep agent can bill several times per user turn.** The supervisor — not
+  you — decides how many subagent calls a request warrants, so a single user
+  message may settle credits more than once.
+</Warning>
+
+Cap it explicitly rather than trusting the model to be frugal. Count paid calls per run, keyed on `config["configurable"]["thread_id"]` (or `run_id`), and return a plain refusal once the cap is hit:
+
+```python
+if not budget.try_consume(config):
+    return "BUDGET_EXHAUSTED: this run already used its paid-call allowance."
+```
+
+Refund the reservation when a call raises `PaymentRequiredError` — otherwise a user who authorizes mid-run gets fewer paid calls than they paid for.
+
+<Warning>
+  **Two LLM layers can paraphrase the paid tool's output.** The subagent relays
+  to the supervisor, which relays to the user. A plain ReAct agent has one such
+  layer, so this is strictly worse.
+</Warning>
+
+Instruct both system prompts to pass the tool's text through verbatim, and treat the tool's return value — not the chat reply — as the source of truth when you need the settlement receipt.
+
+There is a sharper version of the same problem worth testing for explicitly: a capable supervisor sometimes answers a research question **from its own knowledge** instead of delegating, silently giving the paid capability away for free. Forbid it in both prompts, and re-test that path whenever you change models — it is prompt-dependent, not structural.
+
+## Version requirements
+
+`deepagents` requires the LangChain v1 stack (`langchain>=1.3.18`, `langchain-core>=1.6.1`). If your existing project pins an older `langchain-core`, give the deep agent its own virtualenv rather than upgrading around it.
+
+```bash
+pip install deepagents "payments-py[langsmith]" langchain-openai
+```
+
+## Observability
+
+Set `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY` to emit `nvm:verify` and `nvm:settlement` spans. On a deep agent these nest under the `task` span, so you can see **which subagent hop incurred each charge** — which is exactly what you need when reasoning about the multi-billing behaviour above.
+
+```bash
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=lsv2_...
+# Only needed if your LangSmith account is NOT in GCP US:
+# LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com
+```
+
+## Which harness should I use?
+
+| | Plain LangGraph ReAct | Deep Agents |
+| --- | --- | --- |
+| Constructor | `create_react_agent` | `create_deep_agent` |
+| Paid tool lives on | the agent itself | a subagent, one `task()` hop away |
+| LLM layers between tool and user | 1 | 2 |
+| Paid calls per user turn | one per tool call the model makes | supervisor decides — cap it |
+| Built-in planning / filesystem / subagents | no | yes |
+| Buyer-side contract | `config.configurable.payment_token` | **identical** |
+
+Start from the [LangChain guide](/integrate/add-to-your-agent/langchain) if you want the smallest thing that works. Come here when the agent needs to plan, delegate, or manage its own context — and note that the payment integration itself does not change.
+
+## Related
+
+- [LangChain integration](/integrate/add-to-your-agent/langchain) — the decorator and HTTP-middleware approaches in full.
+- [LangSmith Deployment](/integrate/add-to-your-agent/langsmith-deployment) — hosting a gated graph.
+- [`langchain-deep-agent-py`](https://github.com/nevermined-io/tutorials/tree/main/langchain-deep-agent-py) — the runnable tutorial for this page.
+- [`langchain-research-agent-py`](https://github.com/nevermined-io/tutorials/tree/main/langchain-research-agent-py) — the same freemium pattern on `create_react_agent`.
