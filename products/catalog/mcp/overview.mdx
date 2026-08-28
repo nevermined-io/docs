@@ -43,7 +43,7 @@ Six tools. Discovery is public; paying and reading your ledger require your API 
 ## Auth & transport
 
 - **Transport:** Streamable HTTP at `POST /mcp` (stateless). Liveness at `GET /health`; readiness — which checks the Nevermined API is reachable — at `GET /ready`.
-- **Auth:** your Nevermined **API key** (a current, v2 key) on the HTTP `Authorization: Bearer <key>` header.
+- **Auth:** your Nevermined **API key** on the HTTP `Authorization: Bearer <key>` header.
   - The three discovery tools are public and need no key.
   - `pay_service`, `list_payments`, and `payment_summary` require it. Called without a key, they return an `authentication_required` result rather than failing hard.
   - The key is forwarded to the Nevermined API **per request** — never stored, never logged. Never send it to the merchant you're paying; it authenticates you to Nevermined, nothing else.
@@ -57,7 +57,7 @@ This is the **plain-key** front door: payments draw on your own Delegation using
 Discovery needs nothing. Paying needs two things on your account:
 
 <Steps>
-  <Step title="A current (v2) API key">
+  <Step title="A Nevermined API key">
     Created from the [Nevermined app](https://nevermined.app). Older keys are rejected by the Router — see [the Router quickstart](/products/catalog/router/quickstart#1-get-an-api-key) for how to tell.
   </Step>
   <Step title="A funded, spend-capped Delegation">
