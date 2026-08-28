@@ -86,7 +86,7 @@ For large or streamed responses, use `ALL /api/v1/router/proxy` instead. It's th
 | `X-Router-Delegation-Id` | The Delegation to spend against. Required. |
 | `X-Router-Request-Id` | Idempotency key. Required. |
 | `X-Router-Upstream-Authorization` | Optional — the merchant's own auth, forwarded upstream. |
-| `X-Router-Forward-Headers` | Optional — comma-separated extra request headers to forward. |
+| `X-Router-Forward-<name>` | Optional — send `<name>: <value>` upstream (see below). |
 
 Your method, body and the standard request headers pass through. Payment metadata comes back on the response:
 `X-Router-Payment-Id`, `X-Router-Payment-Status` (`Issued` / `Settled` / `Failed`), and `X-Router-Tx-Hash`.
@@ -94,7 +94,7 @@ Your method, body and the standard request headers pass through. Payment metadat
 <Note>
 **Not every header you send is forwarded.** `/proxy` replays your request off the wire, so the header map it sees is not only yours — every proxy in between appends its own, ours included. Forwarding those would hand a merchant our internal hostnames and IPs, so `/proxy` forwards an allowlist: `Accept`, `Accept-Language`, `Cache-Control`, `Content-Language`, `Content-Type`, `If-Match`, `If-Modified-Since`, `If-None-Match`, `If-Range`, `If-Unmodified-Since`, `Range` and `User-Agent`. Everything else is dropped, `Cookie`, `Origin` and `Referer` included.
 
-Need another one — a merchant keyed on `X-Api-Key`, say? Name it: `X-Router-Forward-Headers: x-api-key, x-tenant-id`. Naming a header is a request, not an override: hop-by-hop headers, the `X-Router-*` control headers, your `Authorization` and `Cookie` stay un-forwardable however they are named.
+Need another one — a merchant keyed on `X-Api-Key`, say? Send the **value**, prefixed: `X-Router-Forward-x-api-key: sk-merchant-key`, and the Router sends `x-api-key: sk-merchant-key` upstream. It carries the value rather than naming a header to replay, so it can never hand a merchant something *we* put on your request. The channel refuses `Authorization` (use `X-Router-Upstream-Authorization`), `X-Payment` / `Payment-Signature` (the Router pays through its ledger, not around it), hop-by-hop headers and re-entrant `X-Router-*` names.
 
 `POST /route` is different — its `headers` are a JSON object **you** wrote, so nothing can be injected into it and it forwards everything you ask for.
 </Note>

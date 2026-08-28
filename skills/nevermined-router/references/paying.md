@@ -154,7 +154,7 @@ Point your HTTP client at `/api/v1/router/proxy` and drive it with request heade
 | `X-Router-Delegation-Id` | **yes** | Your `erc4337` Delegation |
 | `X-Router-Request-Id` | **yes** | Idempotency key — same rule as mode B |
 | `X-Router-Upstream-Authorization` | no | The **merchant's** auth, forwarded as its `Authorization` |
-| `X-Router-Forward-Headers` | no | Comma-separated extra request headers to forward (see below) |
+| `X-Router-Forward-<name>` | no | Send `<name>: <value>` upstream (see below) |
 
 ```bash
 curl -sN -X POST "$NVM_API_URL/api/v1/router/proxy" \
@@ -189,20 +189,24 @@ forwards an **allowlist** and drops the rest:
 
 ```
 accept  accept-language  cache-control  content-language  content-type
-if-match  if-modified-since  if-none-match  if-range  if-unmodified-since
-range  user-agent
+idempotency-key  if-match  if-modified-since  if-none-match  if-range
+if-unmodified-since  range  user-agent
 ```
 
 `Cookie`, `Origin` and `Referer` are dropped too. If a merchant needs something else — an
-`X-Api-Key` rather than an `Authorization`, say — name it:
+`X-Api-Key` rather than an `Authorization`, say — state its **value**, prefixed:
 
 ```bash
--H "X-Router-Forward-Headers: x-api-key, x-tenant-id"
+-H "X-Router-Forward-x-api-key: sk-merchant-key"      # → sends  x-api-key: sk-merchant-key
 ```
 
-Naming a header is a request, not an override: hop-by-hop headers, the `X-Router-*` control
-headers, your `Authorization` and `Cookie` stay un-forwardable however they are named. **`POST
-/route` applies no allowlist** — its `headers` are a JSON object you wrote, so it forwards
+It carries the value rather than naming a header to replay, so it can never hand a merchant
+something *we* put on your request. One invariant covers the whole path: **nothing replayed off the
+wire is forwarded except the allowlist above.** The channel refuses `Authorization` (use
+`X-Router-Upstream-Authorization`), `X-Payment` / `Payment-Signature` (the Router pays through its
+ledger, not around it), hop-by-hop headers and re-entrant `X-Router-*` names.
+
+**`POST /route` applies no allowlist** — its `headers` are a JSON object you wrote, so it forwards
 everything you ask for. Reach for it when you need a header `/proxy` will not carry and you do not
 need streaming.
 
