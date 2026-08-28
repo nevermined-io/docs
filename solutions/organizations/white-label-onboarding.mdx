@@ -53,7 +53,7 @@ The key returned for a customer is deliberately **narrow** — it's meant for co
 It's also **short-lived** and **revocable**, so a leaked customer credential has a small blast radius. The exact expiry is returned as `expiresAt` (ISO-8601) — track it and re-onboard to refresh before it lapses. Store it server-side and never expose it to the browser.
 
 <Note>
-  **Using the raw REST API instead of the SDK?** `POST /organizations/account` returns **two** fields — present `walletResult.hash` as the `Authorization: Bearer` token; that is the credential (the dashboard copies exactly this). The sibling `walletResult.nvmApiKey` is the encrypted server-side/SDK blob — **do not send it as a header**; it is not a valid Bearer. The SDK handles this for you: `onboardCustomer`'s `nvmApiKey` result field already carries the Bearer, so pass it straight to `Payments.getInstance`.
+  **Using the raw REST API instead of the SDK?** `POST /organizations/account` returns **two** similar-looking credential fields — present `walletResult.hash` as the `Authorization: Bearer` token; that is the credential (the dashboard copies exactly this). The sibling `walletResult.nvmApiKey` is the encrypted server-side/SDK blob — **do not send it as a header**; it is not a valid Bearer. The SDK handles this for you: `onboardCustomer`'s `nvmApiKey` result field already carries the Bearer, so pass it straight to `Payments.getInstance`.
 </Note>
 
 ## Onboard a customer

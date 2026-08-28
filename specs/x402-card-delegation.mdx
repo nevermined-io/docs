@@ -830,7 +830,7 @@ Errors come from two distinct response paths. **Scheme-level codes** are returne
 | `MERCHANT_ACCOUNT_INVALID` | Merchant Account Invalid | The specified PSP Connected Account is invalid or inactive |
 
 <Note>
-  **`delegationId` path parameter format.** The `GET /delegation/{delegationId}` (and its `/transactions` and `DELETE`) endpoints validate `{delegationId}` as a **v4 UUID**. A syntactically-valid but non-v4 value — e.g. the all-zero UUID `00000000-0000-0000-0000-000000000000` used to probe — returns `400` (request-format error), **not** `401`/`404`. A genuinely unknown but well-formed v4 UUID is what returns the REST not-found (`404`, `BCK.DELEGATION.0002`) — distinct from the verify/settle scheme code `DELEGATION_NOT_FOUND` above.
+  **`delegationId` path parameter format.** The `GET /delegation/{delegationId}` (and its `/transactions` and `DELETE`) endpoints validate `{delegationId}` as a **v4 UUID**. A syntactically-valid but non-v4 value — e.g. the all-zero UUID `00000000-0000-0000-0000-000000000000` used to probe — returns `400` (`BCK.DELEGATION.0009`, a request-format error), **not** `401`/`404`. A genuinely unknown but well-formed v4 UUID is what returns the REST not-found (`404`, `BCK.DELEGATION.0002`) — distinct from the verify/settle scheme code `DELEGATION_NOT_FOUND` above.
 </Note>
 
 #### Nevermined API — Visa-specific
