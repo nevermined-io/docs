@@ -27,7 +27,7 @@ outright, neither retryable:
 
 ## 2. Fund the buyer wallet
 
-Both rails **pull** from your own custodial wallet: a Delegation authorizes a spend, it does not
+Both rails **pull** from your own wallet: a Delegation authorizes a spend, it does not
 supply funds. Read the address off the live Delegation every time (`GET /api/v1/delegation/{id}` →
 `providerPaymentMethodId`) — **never a cached one**, the top cause of `402 BCK.ROUTER.0009`, which
 does not name the address it checked.

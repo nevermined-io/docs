@@ -41,7 +41,7 @@ stablecoin rails need. Two guards refuse this call outright, neither retryable:
 
 ## 2. Fund the buyer wallet
 
-Both rails **pull** from your own custodial wallet: a Delegation authorizes a spend, it does not
+Both rails **pull** from your own wallet: a Delegation authorizes a spend, it does not
 supply funds. Read the address from the live Delegation every time —
 `GET /api/v1/delegation/{id}` → `providerPaymentMethodId`.
 

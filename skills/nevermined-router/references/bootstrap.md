@@ -137,7 +137,7 @@ You can list your Delegations with `GET /api/v1/delegation`, and a single Delega
 
 ## 4. Fund the buyer wallet
 
-**`providerPaymentMethodId` is the custodial wallet address to fund.** Both rails **pull**: the
+**`providerPaymentMethodId` is the wallet address to fund.** Both rails **pull**: the
 merchant takes funds from that wallet. The Delegation authorizes the spend; it does not supply the
 money. The two are independent — you can be inside your cap and still have an empty wallet.
 

@@ -14,7 +14,7 @@ Every Router payment follows the same five beats, whatever protocol the merchant
     The Router reads the challenge and works out which protocol it is — an `accepts` array means x402, a `WWW-Authenticate: Payment` header means MPP.
   </Step>
   <Step title="Mint">
-    The Router checks the spend against your Delegation, checks your wallet actually holds the funds, signs the payment from your custodial wallet, and reserves the amount — plus any [routing fee](#the-routing-fee) — against the cap.
+    The Router checks the spend against your Delegation, checks your wallet actually holds the funds, signs the payment from your wallet, and reserves the amount — plus any [routing fee](#the-routing-fee) — against the cap.
   </Step>
   <Step title="Pay">
     The credential goes to the merchant as an HTTP header. The merchant verifies it, settles, and returns the resource.
@@ -150,7 +150,7 @@ Prefer mode B unless you have a specific reason not to. It self-settles the ledg
 
 This is the part worth understanding properly, because it explains an error you will eventually hit.
 
-Both rails are **pull-based**. The credential the Router signs authorizes the *merchant* to take a specific amount from **your own custodial wallet**. Nevermined never holds your funds, never fronts them, and never moves them between users.
+Both rails are **pull-based**. The credential the Router signs authorizes the *merchant* to take a specific amount from **your own wallet**. Nevermined never holds your funds, never fronts them, and never moves them between users.
 
 Two independent things therefore have to be true for a payment to succeed:
 
