@@ -105,7 +105,7 @@ Two guards refuse this call before your fields are read, and neither is retryabl
 
 ### 2. Fund the buyer wallet
 
-Both rails **pull** from your own custodial wallet: a Delegation authorizes a spend, it does not supply funds. Read the address off the live Delegation every time — `GET /api/v1/delegation/{id}` → `providerPaymentMethodId` — and fund it with the payment asset on the network you intend to pay on. **Never reuse a cached address**: a stale one is the most common cause of `402 BCK.ROUTER.0009`, and that error deliberately does not echo the address it checked.
+Both rails **pull** from your own wallet: a Delegation authorizes a spend, it does not supply funds. Read the address off the live Delegation every time — `GET /api/v1/delegation/{id}` → `providerPaymentMethodId` — and fund it with the payment asset on the network you intend to pay on. **Never reuse a cached address**: a stale one is the most common cause of `402 BCK.ROUTER.0009`, and that error deliberately does not echo the address it checked.
 
 **A deployment funds exactly one x402 network, fixed by its environment: sandbox → `base-sepolia`, live → `base`.** The permissive both-networks pair survives only on a local dev deployment, and an operator's `ROUTER_FUNDED_NETWORKS` can only narrow that set, never widen it. So a `base` merchant is simply unpayable from sandbox, and vice versa, failing with `400 BCK.ROUTER.0001 … no fundable option` — which reads like a broken merchant and is not. Check the environment before blaming the service; another merchant on the same chain will fail identically.
 

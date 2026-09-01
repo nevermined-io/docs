@@ -113,7 +113,7 @@ Full field list, recipient scoping, both guards in detail, and reading a Delegat
 
 ## ③ Fund the buyer wallet — *may need a human*
 
-Both rails **pull**: the merchant takes funds from your own custodial wallet. The Delegation authorizes the spend; it does not provide the money. Read the wallet address off the Delegation:
+Both rails **pull**: the merchant takes funds from your own wallet. The Delegation authorizes the spend; it does not provide the money. Read the wallet address off the Delegation:
 
 ```bash
 curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \

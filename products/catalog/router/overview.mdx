@@ -6,7 +6,7 @@ icon: "route"
 
 The **Nevermined Router** is the buyer side of Nevermined. It lets your agents **pay for external services that were never onboarded to Nevermined** — any endpoint that speaks the x402 protocol or the Merchant Payment Protocol (MPP).
 
-Your agent authenticates with its Nevermined API key and spends against a **Delegation** — a budget with a hard cap and an expiry. The Router does everything else: it reads the merchant's payment challenge, signs the payment from your custodial wallet, enforces the cap, and records the spend on one unified ledger.
+Your agent authenticates with its Nevermined API key and spends against a **Delegation** — a budget with a hard cap and an expiry. The Router does everything else: it reads the merchant's payment challenge, signs the payment from your wallet, enforces the cap, and records the spend on one unified ledger.
 
 Your agent never holds a private key, never learns a payment protocol, and never needs an account with the service it just paid.
 
@@ -88,7 +88,7 @@ Both rails settle **real value on public networks**. The Router is a payment sys
     Your budget. Created once, reused for every payment until it's exhausted or expires.
   </Step>
   <Step title="A funded wallet">
-    Both rails **pull** from your own custodial wallet, so it must already hold the payment asset on the network you're paying on. The Router never holds or moves float on your behalf.
+    Both rails **pull** from your own wallet, so it must already hold the payment asset on the network you're paying on. The Router never holds or moves float on your behalf.
   </Step>
 </Steps>
 

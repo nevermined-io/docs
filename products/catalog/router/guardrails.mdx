@@ -30,7 +30,7 @@ Delegations **expire silently**. A long-running agent that worked yesterday and 
 
 ## Your wallet
 
-A cap authorizes a spend; it doesn't provide funds. Both rails **pull** from your own custodial wallet, so it has to hold the asset on the target network before you call — and what happens when it doesn't differs by rail.
+A cap authorizes a spend; it doesn't provide funds. Both rails **pull** from your own wallet, so it has to hold the asset on the target network before you call — and what happens when it doesn't differs by rail.
 
 On **MPP-tempo**, the Router reads your on-chain balance *before* signing. If it's short you get **`402 BCK.ROUTER.0009`**, and nothing happens: no credential is minted, no budget is reserved, no partial state exists to clean up.
 
