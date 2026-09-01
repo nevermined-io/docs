@@ -43,6 +43,7 @@ totals.
   "feeStatus": "None",
   "feeTxHash": null,
   "feeNonce": null,
+  "feeFailureReason": null,
   "assetSymbol": "USDC",
   "assetDecimals": 6
 }
@@ -54,6 +55,11 @@ carries no fee": where a rate **is** configured, x402 payments carry one, mode A
 The one exception with a rate set is a fee that rounds below a single atomic unit — it is dropped
 rather than reserved, and that row also reads `feeAtomic: "0"` / `feeStatus: "None"`.
 See [`paying.md`](./paying.md#mode-a-fee).
+
+**`feeFailureReason` tells those apart.** `null` on this sample means no rate is configured. A `None`
+row produced while a rate WAS configured carries `fee-not-quoted: <why>` instead — no destination for
+the settlement chain, no usable fee submitter, a rail that cannot carry a fee leg, or an amount too
+small to transfer.
 
 | Field | Notes |
 | --- | --- |
@@ -132,6 +138,7 @@ Nevermined's routing fee is recorded on every row, on both the JSON rows and the
 | `feeStatus` | The fee leg's own lifecycle — **not** the payment `status`. `null` on rows predating the fee, so a switch over the six values below needs a `null` branch. See below |
 | `feeTxHash` | Settlement reference for the **fee** leg, distinct from `txHash`. Reported verbatim by the facilitator, so third-party text, not a validated `0x` shape. Often `null` — including on some `Settled` rows |
 | `feeNonce` | The fee leg's EIP-3009 nonce, recorded on submission. The audit key that ties an on-chain transfer back to this payment. `null` until submitted. Not spendable on its own |
+| `feeFailureReason` | Why the fee did not collect — or, on a `None` row, why one was never quoted (`fee-not-quoted: …`). Human-facing diagnostic, **not a stable contract**; branch on `feeStatus`. Whitespace is collapsed and any embedded `scheme://…` URL is published as `[url]`. `null` when no rate is configured, and while a quoted fee is still on its happy path. A non-null value does **not** on its own mean the fee went uncollected — a `Settled` row can carry one |
 
 ⚠️ **`feeStatus` is a separate lifecycle from the payment `status`, and `Settled` / `Failed` appear
 in both.** A row can read `status: "Settled"` with `feeStatus: "Accrued"` — the merchant was paid and
@@ -160,11 +167,12 @@ authorization consumed" with a boolean, not a transaction — so `feeNonce` is t
 rows. A null `feeTxHash` is not evidence the fee did not settle.
 
 **For CSV consumers:** every column added since the original set — the six fee ones, then
-`assetSymbol` and `assetDecimals` — was **appended after** it, so a parser reading the original
-columns by **index from the left** is unaffected. One that **asserts a header count**, or maps
-positionally **from the right**, breaks: the set has grown **three times** already — #2191 added the
-first four fee columns, #2840 added `feeTxHash`/`feeNonce`, #2779 added the derived pair — and
-`feeNonce` is no longer the last column. Key off the header names.
+`assetSymbol` and `assetDecimals`, then `feeFailureReason` — was **appended after** it, so a parser
+reading the original columns by **index from the left** is unaffected. One that **asserts a header
+count**, or maps positionally **from the right**, breaks: the set has grown **four times** already —
+#2191 added the first four fee columns, #2840 added `feeTxHash`/`feeNonce`, #2779 added the derived
+pair, #3094 added `feeFailureReason` — and neither `feeNonce` nor `assetDecimals` is the last column
+any more. Key off the header names.
 
 ## Aggregate summary
 

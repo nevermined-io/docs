@@ -46,6 +46,7 @@ An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ign
     "feeStatus": "None",
     "feeTxHash": null,
     "feeNonce": null,
+    "feeFailureReason": null,
     "assetSymbol": "USDC",
     "assetDecimals": 6
   }
@@ -82,12 +83,15 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 | `feeStatus` | The fee's own lifecycle, tracked independently of the record's `status`. |
 | `feeTxHash` | The settlement reference for the **fee** movement — e.g. `"0x9c4d6f1e…"`. `null` until the fee settles, **and permanently `null`** on rows confirmed by on-chain reconciliation (see below). Read `feeStatus`, not this field, to know whether the fee settled. |
 | `feeNonce` | The EIP-3009 nonce the fee movement was signed with — e.g. `"0x7b1e2c…"`. `null` until the fee is submitted. |
+| `feeFailureReason` | Why the fee didn't collect — or, on a `None` row, why one was never quoted. Diagnostic text for a human, **not a stable contract**: branch on `feeStatus`, never on this string. `null` when no rate is configured and while a quoted fee is still on its happy path. See below. |
 
 <Warning>
 **`feeCents: "0"` doesn't mean the payment carried no fee.** The two figures round in opposite directions, so a fee can apply in atomic units yet add no cent to your cap reserve — an `Accrued`, or `Released`, row can legitimately read `feeCents: "0"`. `feeAtomic` is the one that answers "did a fee apply": a fee too small to transfer is dropped outright rather than reserved, so `feeAtomic: "0"` means no routing fee was charged at all, and the row reads `feeStatus: "None"`.
 </Warning>
 
 The routing fee is **5%** (`feeBps: 500`). **Mode A now applies it to every call**; mode B applies it too, but only settles once the merchant returns 2xx — otherwise it is [`Released`](#fee-lifecycle), *unless* its outcome could not be adjudicated, in which case it stays `Submitted` and charged. Three cases legitimately read `feeStatus: "None"` with a zero fee: an **MPP** payment, since that rail cannot carry a fee at all; a deployment with **no rate configured**, which is the shipped default and what the sample record above shows; and a payment whose fee rounds below one atomic unit (the case in the warning above).
+
+**`feeFailureReason` says which of those you are looking at.** A `None` row produced while a rate *was* configured carries a `fee-not-quoted: …` string naming the reason — no destination for the settlement chain, no usable fee submitter, a rail that cannot carry a fee leg, or an amount too small to transfer. A `None` row with `feeFailureReason: null` is the shipped default: no rate is configured, so no fee was ever asked for. The two used to be indistinguishable on the wire.
 
 **Use a stable `requestId`, and a retry costs you nothing extra.** Because mode A now bills every call, the way to avoid paying twice for one purchase is to make the purchase idempotent: reuse **one** `requestId` across every retry of it. A retry then returns `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting a second payment, so there is only ever one fee.
 
@@ -115,7 +119,7 @@ If the fee is later [`Released`](#fee-lifecycle), that row's `amountCents` is re
 
 | `feeStatus` | Meaning |
 | --- | --- |
-| `None` | No fee was charged — neither an atomic fee nor a cent of cap. The normal state while no rate is configured, and also what you get when a rate *is* configured but the fee provably can't be collected on this path. Either way nothing was reserved, so there's nothing to give back later. |
+| `None` | No fee was charged — neither an atomic fee nor a cent of cap. The normal state while no rate is configured, and also what you get when a rate *is* configured but the fee provably can't be collected on this path. Either way nothing was reserved, so there's nothing to give back later. `feeFailureReason` tells the two apart. |
 | `Accrued` | A fee was computed and reserved against the Delegation cap. Nothing has been submitted anywhere, so nothing can have moved. |
 | `Submitted` | The fee movement was submitted and its outcome isn't confirmed yet. Money **may** have moved — this is the bucket that gets reconciled against the chain, using `feeNonce`. |
 | `Settled` | The fee movement landed on-chain. |
@@ -135,7 +139,11 @@ curl -s "$NVM_API_URL/api/v1/router/payments?from=2026-07-01T00:00:00Z&to=2026-0
   -H "Authorization: Bearer $NVM_API_KEY" -o router-payments-july.csv
 ```
 
-The CSV carries the same fields as the JSON, and new columns are only ever **appended** to the header row — so a consumer parsing by column index is unaffected by their arrival.
+The CSV carries the same fields as the JSON, and new columns are only ever **appended** to the header row — so a consumer parsing by column index is unaffected by their arrival. `feeFailureReason` is currently the last column.
+
+<Note>
+**`feeFailureReason` is normalised before it is published.** Whitespace is collapsed to single spaces — so one payment is always one CSV record, even though some of the underlying errors are multi-line — and any embedded `scheme://…` URL is replaced with `[url]`, because part of this text comes from third parties we do not control. Read it as a human-facing diagnostic, and key your logic on `feeStatus`.
+</Note>
 
 ## Aggregate summary
 

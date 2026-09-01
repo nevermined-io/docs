@@ -154,7 +154,9 @@ there means unrecognised, so show raw units — and guard that branch, because
 `amount / 10 ** null` is `Infinity`, not an error. `assetSymbol` is echoed even when unrecognised, so it
 is not a recognition check, and `pathUSD`/`PathUSD` differ in case across the two Tempo chains —
 compare tickers case-insensitively. Rows also carry `feeAtomic`, `feeBps`, `feeCents`, `feeStatus`,
-`feeTxHash`, `feeNonce`.
+`feeTxHash`, `feeNonce`, `feeFailureReason`. That last one says why the fee did not collect — or, on
+a `feeStatus: "None"` row, `fee-not-quoted: <why>` when a rate was configured and none was quoted at
+all. Human-facing diagnostic text, never a contract: branch on `feeStatus`.
 `feeStatus` (`None|Accrued|Submitted|Settled|Failed|Released`) is a **separate lifecycle** from the
 payment `status`, which shares `Settled`/`Failed` — never read one for the other. A record at
 `Issued` is **not** an error — the money moved; do not retry it.
