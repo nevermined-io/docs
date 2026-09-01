@@ -36,7 +36,6 @@ All three networks share the same core fields:
 | `maxTransactions` | Optional cap on the number of charges. Omit the field to allow unlimited transactions. |
 | `currency` | ISO 4217 lowercase (`usd`, `eur`, …) |
 | `planId` | Optional plan binding. Required for Visa (Trusted Agent Protocol). |
-| `merchantAccountId` | PSP-side merchant routing. Stripe Connected Account ID, Braintree per-currency `merchantAccountId`, or seller's Stripe Connect account for Visa settlement. |
 | `apiKeyId` | Optional NVM API key link for [automatic selection](/products/payments/mandate-selection) |
 | `consumerPrompt` | **Visa-only**: human-readable approval text shown during device binding |
 | `assuranceData` | **Visa-only**: opaque blob produced by the WebAuthn ceremony |
@@ -118,7 +117,6 @@ All providers use the same endpoint and DTO. The Visa branch adds two required f
       "durationSecs": 604800,
       "maxTransactions": 100,
       "currency": "usd",
-      "merchantAccountId": "seller-usd-merchant-account-id",
       "apiKeyId": "sk-abc123"
     }
     ```
@@ -253,7 +251,7 @@ GET /api/v1/delegation/{delegationId}/transactions?offset=0
 |---|---|---|---|
 | **Create endpoint** | `POST /api/v1/delegation/create` (`provider: 'visa'`) | `POST /api/v1/delegation/create` (`provider: 'stripe'`) | `POST /api/v1/delegation/create` (`provider: 'braintree'`) |
 | **Per-delegation auth** | WebAuthn/passkey device binding (browser-only) | API credentials only | API credentials only |
-| **Required extras** | `consumerPrompt`, `assuranceData`, `planId` | — | `merchantAccountId` matching `currency` |
+| **Required extras** | `consumerPrompt`, `assuranceData`, `planId` | — | — (the seller must have a Braintree child merchant account in `currency`; Nevermined resolves it) |
 | **Cancel** | `DELETE /api/v1/delegation/{id}` | `DELETE /api/v1/delegation/{id}` | `DELETE /api/v1/delegation/{id}` |
 | **Settlement** | Stripe Connect against seller's connected account | Stripe PaymentIntents | Braintree `transaction.sale` against vaulted token |
 
