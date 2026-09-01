@@ -120,14 +120,43 @@ These are properties of the harness, not bugs. Both are worth handling before yo
   message may settle credits more than once.
 </Warning>
 
-Cap it explicitly rather than trusting the model to be frugal. Count paid calls per run, keyed on `config["configurable"]["thread_id"]` (or `run_id`), and return a plain refusal once the cap is hit:
+Cap it explicitly rather than trusting the model to be frugal — but note **where a run's identity has to come from**.
+
+LangGraph does *not* put a run id in `config["configurable"]`. A tool sees only `thread_id`, checkpoint bookkeeping, and whatever the caller passed (verified against langgraph 1.2 / deepagents 0.7). Since `thread_id` is stable for a whole conversation, keying a "per-run" cap on it silently makes it per-*conversation*: after N paid calls the tool refuses forever, however many new questions the user asks.
+
+So the **caller** declares the run — it is the only party that knows where one ends:
 
 ```python
-if not budget.try_consume(config):
-    return "BUDGET_EXHAUSTED: this run already used its paid-call allowance."
+# buyer side: a fresh nonce per run, alongside the token
+"config": {"configurable": {
+    "payment_token": token,
+    "nvm_run_id": str(uuid.uuid4()),
+}}
 ```
 
-Refund the reservation when a call raises `PaymentRequiredError` — otherwise a user who authorizes mid-run gets fewer paid calls than they paid for.
+```python
+# agent side: key on the nonce, fall back to thread_id, and say which is in force
+if not budget.try_consume(config):
+    if budget.scope_of(config) == "run":
+        return "BUDGET_EXHAUSTED: this run already used its paid-call allowance."
+    return ("BUDGET_EXHAUSTED: this conversation already used its allowance. "
+            "Pass a per-run `nvm_run_id` to scope the cap to one request.")
+```
+
+Two details that are easy to miss:
+
+- **Refund the reservation when a call raises `PaymentRequiredError`** — otherwise a user who authorizes mid-run gets fewer paid calls than they paid for.
+- **Bound the counter map.** The agent is a long-running server, so a plain dict keyed on run or thread grows for the life of the process. An LRU with a fixed ceiling is enough; evicting a key only refills that budget, so the worst case is a long-idle caller getting a fresh allowance rather than an over-charge.
+
+A browser chat UI whose proxy injects only the token will fall into the conversation-scoped case. That is the safe direction to fail — it under-spends, never over-spends — as long as the refusal message says so instead of promising a reset that will not happen.
+
+<Note>
+  Counting from graph state via `InjectedState` looks like a tidier
+  alternative, and it does work inside a subagent tool — but it exposes the
+  **subagent's own** isolated conversation, which resets on every `task()`
+  hop. It therefore cannot see sibling delegations within a single turn,
+  which is exactly the case the cap exists for.
+</Note>
 
 <Warning>
   **Two LLM layers can paraphrase the paid tool's output.** The subagent relays
