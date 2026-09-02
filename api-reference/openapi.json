@@ -3116,11 +3116,6 @@
             "example": "123456789",
             "nullable": true
           },
-          "merchantAccountId": {
-            "type": "string",
-            "example": "acct_1Abc2Def3Ghi",
-            "nullable": true
-          },
           "maxTransactions": {
             "type": "integer",
             "example": 50,
@@ -3146,7 +3141,6 @@
           "expiresAt",
           "createdAt",
           "planId",
-          "merchantAccountId",
           "maxTransactions",
           "lastUsedAt"
         ]
@@ -3450,11 +3444,6 @@
             "type": "string",
             "description": "Plan ID to restrict this delegation to. Optional and plan-agnostic by default (#1534), INCLUDING provider=vgs (#2082): a unified VGS card delegation is plan-agnostic and the settlement PSP is resolved at charge time from the plan being paid, so one card can charge any PSP — pass planId only to BIND it to a single plan. EXCEPT provider=visa (the VGS mandate is merchant-scoped, derived from the plan owner; see BCK.VISA.0015), where it is REQUIRED.",
             "example": "123456789"
-          },
-          "merchantAccountId": {
-            "type": "string",
-            "description": "Optional merchant Stripe account ID to restrict payments to",
-            "example": "acct_1Abc2Def3Ghi"
           },
           "maxTransactions": {
             "type": "number",
