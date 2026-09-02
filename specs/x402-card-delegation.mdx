@@ -775,7 +775,7 @@ The facilitator MUST update the delegation status to `Exhausted` when:
 
 ### 6.4 PSP Connect Routing
 
-The facilitator MUST route funds to the seller's account on the PSP that backs the plan. The destination MUST be resolved by the facilitator from the plan being paid for — the plan-owning organization, else the plan owner's connected account — and MUST NOT be accepted from the client. A request or delegation that names a settlement account has no effect on routing:
+The facilitator MUST route funds to the seller's account on the PSP that backs the plan. The destination MUST be resolved by the facilitator from the plan being paid for — for Stripe and Visa, the plan-owning organization, else the plan owner's connected account; for Braintree, the plan owner's connected gateway — and MUST NOT be accepted from the client. A request or delegation that names a settlement account has no effect on routing:
 
 - **Stripe**: route via Stripe Connect using the `transfer_data.destination` parameter on the PaymentIntent. The facilitator MAY apply platform fees via `application_fee_amount`.
 - **Braintree**: settlement is split across two `transaction.sale` calls. The facilitator first charges the platform fee on the platform's gateway against the platform's per-currency `merchantAccountId`, then charges the merchant share on the seller's OAuth-connected gateway against the seller's per-currency child `merchantAccountId`, resolved from the plan owner's Braintree profile. If the merchant leg fails, the platform leg MUST be voided to avoid collecting a fee for a payment that never reached the merchant.
@@ -957,7 +957,7 @@ All three paths satisfy the requirement that raw card numbers, CVVs, and expiry 
 
 When merchants (server operators) have a connected PSP account, the facilitator routes settlement funds to that account:
 
-- **Stripe**: merchants complete Stripe Connect onboarding. Direct charges use `transfer_data.destination`; the facilitator MAY deduct a platform fee using `application_fee_amount`. The destination account is resolved by the facilitator from the plan owner (or the plan-owning organization) at settlement time; it is not carried in the JWT.
+- **Stripe**: merchants complete Stripe Connect onboarding. Direct charges use `transfer_data.destination`; the facilitator MAY deduct a platform fee using `application_fee_amount`. The destination account is resolved by the facilitator from the plan-owning organization, else the plan owner's profile, at settlement time; it is not carried in the JWT.
 - **Braintree**: merchants complete OAuth Connect (Braintree Auth) authorization, granting the platform scoped access to their gateway. The facilitator builds a merchant-scoped `BraintreeGateway` per request and charges the merchant share on the merchant's connected account, using a child `merchantAccountId` whose currency matches the plan. The platform fee is charged separately on the platform's own gateway against a platform-side per-currency `merchantAccountId`.
 
 ### 9.6 Idempotency
