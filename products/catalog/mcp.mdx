@@ -37,6 +37,7 @@ Six tools. Discovery is public; paying and reading your ledger require your API 
 | `search_services` | — | Search listings. Filters (all optional): `query`, `category`, `protocol`, `tag`, `page`, `offset`. |
 | `get_service` | — | One service by `slug` — protocol, endpoint, price label, discovery links. |
 | `pay_service` | key | Pay for a service and return the vendor's response. **Charges real funds.** |
+| `setup_delegation` | key | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
 | `list_payments` | key | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
 | `payment_summary` | key | Total spend plus a time series. Filters: `from`, `to`. |
 
@@ -45,7 +46,7 @@ Six tools. Discovery is public; paying and reading your ledger require your API 
 - **Transport:** Streamable HTTP at `POST /mcp` (stateless). Liveness at `GET /health`; readiness — which checks the Nevermined API is reachable — at `GET /ready`.
 - **Auth:** your Nevermined **API key** on the HTTP `Authorization: Bearer <key>` header.
   - The three discovery tools are public and need no key.
-  - `pay_service`, `list_payments`, and `payment_summary` require it. Called without a key, they return an `authentication_required` result rather than failing hard.
+  - `pay_service`, `setup_delegation`, `list_payments`, and `payment_summary` require it. Called without a key, they return an `authentication_required` result rather than failing hard.
   - The key is forwarded to the Nevermined API **per request** — never stored, never logged. Never send it to the merchant you're paying; it authenticates you to Nevermined, nothing else.
 
 <Note>
@@ -107,6 +108,8 @@ In natural language that's just: *"List the Nevermined categories, then find x40
 <Steps>
   <Step title="Create a Delegation">
     A hard cap and an expiry. Created once and reused. See [Create a Delegation](/products/catalog/router/quickstart#2-create-a-delegation).
+
+    **Or let the agent ask for one.** Calling `setup_delegation` returns a single URL for you to open; you set the currency, cap, duration and transaction limit in the browser, and the agent carries on. The agent cannot choose those numbers — that is the point of a mandate. See [Getting a Delegation from inside the chat](#getting-a-delegation-from-inside-the-chat).
   </Step>
   <Step title="Fund its wallet">
     Both rails **pull** from your own wallet, so it must hold the payment asset on the network you'll pay on. See [Fund your wallet](/products/catalog/router/quickstart#3-fund-your-wallet).
@@ -114,6 +117,29 @@ In natural language that's just: *"List the Nevermined categories, then find x40
 </Steps>
 
 `pay_service` uses the accessible Delegation (Active, unexpired, funded) automatically. Pass an explicit `delegationId` only to override that choice.
+
+#### Getting a Delegation from inside the chat
+
+If your agent reaches a paid call with no Delegation, `pay_service` returns `{ "error": "no_delegation", "nextTool": "setup_delegation" }` instead of stopping. Calling **`setup_delegation`** answers with one URL:
+
+```json
+{
+  "status": "human_action_required",
+  "url": "https://embed.nevermined.app/cards/delegate?provider=crypto&network=live&sessionToken=…",
+  "expiresAt": "2026-09-03T12:00:00.000Z",
+  "instructions": "…"
+}
+```
+
+Open it, set your limits, and tell the agent to try again — `pay_service` picks the new Delegation up on its next call. Nothing needs to redirect back to the agent, and in a chat host nothing can: the page simply confirms and you close the tab.
+
+<Warning>
+  The url carries a short-lived session token bound to **your** account. Treat it like a credential — it is for you, not for sharing.
+</Warning>
+
+If your host *can* receive a redirect — a CLI listening on `http://127.0.0.1:<port>/…` — pass it as `returnUrl` and your browser returns there with the `delegationId`. Any other origin has to be allow-listed on the deployment first; one that isn't comes back as `{ "error": "return_url_not_allowed" }` before you open a browser, rather than failing after you've filled in the form.
+
+If a usable Delegation already exists, the tool answers `{ "status": "already_active", "delegationId": "…" }` and nobody is interrupted.
 
 ### 5. Make a paid call
 
@@ -165,6 +191,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 | `{ "error": "payment_failed", "code": "BCK.ROUTER.0003", … }` | The spend would exceed your Delegation cap, or it expired. Widening the cap in response is almost always the wrong move — see [Guardrails](/products/catalog/router/guardrails). |
 | `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped. **Not a failure** — you weren't charged twice. |
 | `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
+| `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No Delegation on the account yet. Call `setup_delegation` and open the URL it returns — see [step 4](#getting-a-delegation-from-inside-the-chat). |
 
 ## Not this MCP
 
