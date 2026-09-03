@@ -64,7 +64,7 @@ Point an MCP client at the server URL and set the `Authorization` header to your
 {
   "mcpServers": {
     "nevermined-catalog": {
-      "url": "https://mcp.sandbox.nevermined.app/mcp",
+      "url": "https://mcp.live.nevermined.app/mcp",
       "headers": { "Authorization": "Bearer ${NVM_API_KEY}" }
     }
   }
@@ -73,11 +73,11 @@ Point an MCP client at the server URL and set the `Authorization` header to your
 
 | Environment | Server URL | Purpose |
 | --- | --- | --- |
-| **Sandbox** | `https://mcp.sandbox.nevermined.app/mcp` | Development and testing |
 | **Live** | `https://mcp.live.nevermined.app/mcp` | Real payments |
+| **Sandbox** | `https://mcp.sandbox.nevermined.app/mcp` | Development and testing |
 
 <Warning>
-**The hosted endpoints ship with the next release.** Until `mcp.sandbox.nevermined.app` / `mcp.live.nevermined.app` resolve, run the server locally and use `http://localhost:3100/mcp` (see the app README). Paying against **live** moves real funds to a real merchant — start in sandbox and keep your first Delegation cap small.
+Paying against **live** moves real funds to a real merchant. There's a **sandbox** (`https://mcp.sandbox.nevermined.app/mcp`) that runs the same tools with no real money — wire things up there first, and keep your first Delegation cap small either way.
 </Warning>
 
 <Note>
