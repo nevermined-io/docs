@@ -134,6 +134,11 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0013` (500) — Nevermined holds no EIP-712 domain for the selected token: OUR
   table is incomplete, not the seller's bug. Nothing signed, charged or reserved. Report it
   to Nevermined; a retry fails identically.
+- `BCK.ROUTER.0014` (409) — the target is a cataloged Nevermined service, whose upstream URL is
+  deliberately hidden; the Router will not pay it by raw URL (mode A or a raw mode-B target puts
+  the merchant's host on your wire). A retry with the same raw URL fails identically — invoke it
+  through the broker: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>`.
+  Off-catalog targets you already hold the URL of are unaffected.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
