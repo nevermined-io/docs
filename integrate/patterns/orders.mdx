@@ -1,0 +1,289 @@
+---
+title: "Orders: Goods & Services Checkout"
+description: "Charge a buyer an arbitrary cart total by card in the browser with a single server-to-server call. No plan registration, no buyer Nevermined account, no delegation."
+icon: "cart-shopping"
+---
+
+<Warning>
+**Not yet generally available.** Orders are being rolled out to organization accounts and are not enabled in production yet. This guide documents the Phase 1 contract so you can plan your integration. Watch this page for availability.
+</Warning>
+
+An **Order** is a first-class, off-plan charge for an arbitrary amount: the price is whatever your cart adds up to on this request. You call one endpoint from your server, state the amount, and get back a `clientSecret` the buyer's browser confirms with their card. Nothing needs to exist in advance: no plan, no buyer Nevermined account, no delegation.
+
+Orders live alongside plans; they don't replace them. Use a plan for a reusable, catalog-listed service. Use an Order when you need to charge one buyer one specific total and move on.
+
+<Note>
+An Order is not the same thing as ordering a plan. `orderPlan()` / `order_plan()` buys credits on an existing plan for a Nevermined account. An Order has no plan and no account behind it.
+</Note>
+
+## When to use an Order
+
+| | Plan | Order |
+|---|---|---|
+| Price | Fixed at registration | Arbitrary, set per request |
+| Buyer | Agent or human; may need a Nevermined account or delegation | A human in a browser, **no** Nevermined account |
+| Fits | A service or subscription sold repeatedly | "Charge this cart for $3,437.95 and forget it" |
+| Currency | USD, EUR, USDC | USD only (Phase 1) |
+
+## Before you start
+
+- **An active organization account.** Orders are available to organizations only. A personal API key is refused with `BCK.ORDER.0003`. See [Organizations](/solutions/organizations/overview).
+- **A Nevermined API key** [scoped to that organization](/solutions/organizations/workspaces-and-members). The key identifies you as the Merchant of Record for every Order it creates.
+- **A validated Stripe Connect account.** Nevermined looks for one on your organization first, then on the API key owner's profile. Order revenue is paid out to it, the same way [fiat plan payments](/integrate/patterns/fiat-payments#revenue-routing) are. Without one, `POST /api/v1/orders` fails with `BCK.ORDER.0004`. See the [Payments FAQ](/products/payments/faq) for seller onboarding.
+
+Set your key once:
+
+```bash
+export NVM_API_KEY="your-organization-api-key"
+```
+
+Use `https://api.sandbox.nevermined.app` while you build and `https://api.live.nevermined.app` when you go live.
+
+## How it works
+
+Your server sets the price. The buyer's browser confirms the payment. A Stripe webhook tells Nevermined the money moved. Nothing buyer-facing can change the amount.
+
+<Steps>
+  <Step title="Create the Order from your server">
+    Call `POST /api/v1/orders` with your API key and the amount in USD cents. Nevermined creates a Stripe PaymentIntent for that exact amount and returns an unguessable `orderId` and a `clientSecret`. No money moves yet.
+  </Step>
+
+  <Step title="Hand the buyer to the checkout">
+    Pass the buyer only the `orderId`. The Nevermined checkout reads the Order through `GET /api/v1/orders/{id}` and renders the amount and the card form. You never handle card data, and the buyer never signs in to Nevermined.
+  </Step>
+
+  <Step title="The buyer confirms in the browser">
+    Stripe Elements confirms the payment client-side against the `clientSecret`, running 3D Secure if the issuer requires it. Nevermined only ever created the PaymentIntent; it never initiates the charge itself.
+  </Step>
+
+  <Step title="The Order becomes paid">
+    Stripe notifies Nevermined by webhook and the Order's status flips to `paid`. Read the Order from your server and confirm the status before you fulfill.
+  </Step>
+</Steps>
+
+<Note>
+The hosted checkout that consumes an `orderId` ships with the embedded checkout work that's in progress, along with SDK helpers for `POST /api/v1/orders`. Until then, the REST contract on this page is the integration surface.
+</Note>
+
+## Create an Order
+
+`POST /api/v1/orders` is authenticated with your API key and is the only call that sets a price.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `amountMinor` | integer | Yes | Amount in USD cents, from `100` ($1.00) to `99999999` ($999,999.99). |
+| `currency` | string | Yes | Must be `"usd"` in Phase 1. |
+| `description` | string | No | Human-readable label for the charge, up to 1,024 characters. |
+| `buyerRef` | string | No | Your own reference for the buyer or cart, up to 255 characters. Returned on reads. |
+| `idempotencyKey` | string | No | Retry-safety key, up to 255 characters. See [Retries and idempotency](#retries-and-idempotency). |
+| `lineItems` | array | No | Cart lines, stored as you send them. Not validated or summed in Phase 1. |
+| `metadata` | object | No | Opaque data stored with the Order. Never returned to the buyer. |
+| `paymentProvider` | string | No | Defaults to `"stripe"`, the only provider in Phase 1. |
+| `captureMode` | string | No | Defaults to `"automatic"`, the only mode in Phase 1. |
+
+There is deliberately no field for a Stripe account, fee, or transfer destination. Nevermined resolves your Connect account server-side from the API key on every request, so a buyer-facing bug can never redirect a payout.
+
+<Tabs>
+  <Tab title="curl">
+    ```bash
+    curl -X POST https://api.sandbox.nevermined.app/api/v1/orders \
+      -H "Authorization: Bearer $NVM_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "amountMinor": 343795,
+        "currency": "usd",
+        "description": "Cart checkout — 3 items",
+        "buyerRef": "merchant-order-4821",
+        "idempotencyKey": "merchant-order-4821",
+        "lineItems": [
+          { "sku": "LENS-50", "description": "50mm f/1.8 lens", "quantity": 1, "amountMinor": 299900 },
+          { "sku": "FILTER-UV", "description": "UV filter", "quantity": 2, "amountMinor": 43895 }
+        ]
+      }'
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    const response = await fetch('https://api.sandbox.nevermined.app/api/v1/orders', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.NVM_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        amountMinor: 343795, // $3,437.95 in cents
+        currency: 'usd',
+        description: 'Cart checkout — 3 items',
+        buyerRef: 'merchant-order-4821',
+        idempotencyKey: 'merchant-order-4821', // reuse your own order id
+        lineItems: [
+          { sku: 'LENS-50', description: '50mm f/1.8 lens', quantity: 1, amountMinor: 299900 },
+          { sku: 'FILTER-UV', description: 'UV filter', quantity: 2, amountMinor: 43895 },
+        ],
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(`Order refused: ${error.code} ${error.message}`)
+    }
+
+    const { orderId, status } = await response.json()
+    // Hand orderId to the buyer's browser. Keep clientSecret server-side.
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    import requests
+
+    response = requests.post(
+        "https://api.sandbox.nevermined.app/api/v1/orders",
+        headers={
+            "Authorization": f"Bearer {os.environ['NVM_API_KEY']}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "amountMinor": 343795,  # $3,437.95 in cents
+            "currency": "usd",
+            "description": "Cart checkout — 3 items",
+            "buyerRef": "merchant-order-4821",
+            "idempotencyKey": "merchant-order-4821",  # reuse your own order id
+            "lineItems": [
+                {"sku": "LENS-50", "description": "50mm f/1.8 lens", "quantity": 1, "amountMinor": 299900},
+                {"sku": "FILTER-UV", "description": "UV filter", "quantity": 2, "amountMinor": 43895},
+            ],
+        },
+        timeout=30,
+    )
+
+    if not response.ok:
+        error = response.json()
+        raise RuntimeError(f"Order refused: {error['code']} {error['message']}")
+
+    order = response.json()
+    order_id = order["orderId"]
+    # Hand order_id to the buyer's browser. Keep clientSecret server-side.
+    ```
+  </Tab>
+</Tabs>
+
+A successful call returns `201 Created`:
+
+```json
+{
+  "orderId": "ord_9f2c1a7e-3b4d-4c8a-9e21-0a5b6c7d8e9f",
+  "clientSecret": "pi_3PGh9k2eZvKYlo2C1abc2Def_secret_9x8y7z6w5v4u3t2s1r0q",
+  "status": "requires_payment"
+}
+```
+
+The `clientSecret` is what the buyer's browser confirms against. In the standard flow you never touch it: the checkout fetches it from `GET /api/v1/orders/{id}`. It's returned here so your server can log or reconcile the PaymentIntent, and it's withheld once the Order stops being payable.
+
+## Read an Order
+
+`GET /api/v1/orders/{id}` needs **no authentication**. The `orderId` is the access control, which is why it's a long random id and must be treated like a bearer token: share it only with the buyer it belongs to, and don't put it in logs or analytics. The endpoint is rate-limited per caller and returns `Cache-Control: no-store`.
+
+```bash
+curl https://api.sandbox.nevermined.app/api/v1/orders/ord_9f2c1a7e-3b4d-4c8a-9e21-0a5b6c7d8e9f
+```
+
+```json
+{
+  "id": "ord_9f2c1a7e-3b4d-4c8a-9e21-0a5b6c7d8e9f",
+  "amountMinor": 343795,
+  "currency": "usd",
+  "status": "paid",
+  "amountRefundedMinor": 0,
+  "description": "Cart checkout — 3 items",
+  "buyerRef": "merchant-order-4821",
+  "paymentIntentId": "pi_3PGh9k2eZvKYlo2C1abc2Def",
+  "expiresAt": "2026-09-07T12:00:00.000Z"
+}
+```
+
+The response is a buyer-safe view. It never includes your identity, your Connect account, the fee, or the `metadata` you attached. `clientSecret` is present only while the status is `requires_payment` and `expiresAt` has not passed.
+
+Because the read is public, use it from your server as the source of truth before you fulfill: poll it after the buyer returns from checkout, and treat `paid` as the only status that means money moved.
+
+### Order statuses
+
+| Status | Meaning |
+|---|---|
+| `requires_payment` | Created and awaiting the buyer. `clientSecret` is available until `expiresAt`. |
+| `paid` | The buyer confirmed and Stripe settled the charge. Safe to fulfill. |
+| `failed` | The PaymentIntent could not be created, or the buyer's payment attempt failed. Terminal: no money moved, and the Order can't be retried. |
+| `partially_refunded` | Part of the charge was refunded. `amountRefundedMinor` says how much. |
+| `refunded` | The full charge was refunded. |
+| `disputed` | The buyer opened a chargeback. The Order stays `disputed` whether the dispute is won or lost. |
+
+An Order is payable for 24 hours by default. After `expiresAt` the read stops returning `clientSecret` and the buyer can no longer pay it. Create a new Order instead.
+
+## Retries and idempotency
+
+Network timeouts happen. Send an `idempotencyKey` (your own order id works well) and a retried `POST /api/v1/orders` with the same key returns the same `orderId` and `clientSecret` rather than creating a second charge. Behind it, Nevermined also pins the Stripe PaymentIntent to the Order, so a retry can never mint two PaymentIntents for one cart.
+
+If you reuse a key with a **different** body, the call is refused with `409` `BCK.ORDER.0007`. Generate a fresh key for a genuinely new Order.
+
+## Refunds and disputes
+
+In Phase 1 there is no refund endpoint. Orders are charged on Nevermined's Stripe platform account and paid out to your Connect account, so a refund is issued on the Stripe side by Nevermined rather than from your own Stripe Dashboard. Contact Nevermined to refund an Order. Once Stripe reports the refund by webhook, the Order moves to `refunded` or `partially_refunded` and `amountRefundedMinor` is updated.
+
+Chargebacks are recorded, not managed. When a buyer disputes a charge, the Order moves to `disputed` and stays there whatever the outcome. Evidence submission through Nevermined is a later phase; in Phase 1, work with the Nevermined team on any dispute.
+
+## Error codes
+
+Every error uses the standard [Nevermined error envelope](/development-guide/api-errors/overview). Branch on `code`, not on the HTTP status alone.
+
+| Code | HTTP | Retry? | What it means | What to do |
+|---|---|---|---|---|
+| `BCK.ORDER.0001` | 400 | No | Invalid request: amount out of range, a currency other than `usd`, or an unsupported `paymentProvider` or `captureMode`. | Fix the body. |
+| `BCK.ORDER.0002` | 404 | No | No Order exists with that id. | Check the id you passed to `GET /api/v1/orders/{id}`. |
+| `BCK.ORDER.0003` | 403 | No | The API key doesn't belong to an active organization, or the amount exceeds your per-order cap. | Use an organization API key. If the cap is the blocker, contact Nevermined. |
+| `BCK.ORDER.0004` | 500 | No | No validated Stripe Connect account able to receive payments was found on your organization or on the API key owner's profile. | Complete Stripe Connect onboarding. |
+| `BCK.ORDER.0005` | 500 | No | Stripe could not create the PaymentIntent. The Order is marked `failed`; no money moved. | Create a new Order. If it persists, contact Nevermined. |
+| `BCK.ORDER.0007` | 409 | No | The `idempotencyKey` was reused with different parameters. | Send a new key for a new Order. |
+| `BCK.ORDER.0010` | 429 | Yes | You created Orders faster than your velocity limit allows. | Back off and retry. |
+
+A card decline never surfaces as an API error to your server. The buyer's browser confirms the payment, so the decline is shown to the buyer in the checkout. Stripe then reports the failed attempt by webhook and the Order moves to `failed`. Create a new Order if the buyer wants to try again.
+
+```json
+{
+  "code": "BCK.ORDER.0003",
+  "message": "Merchant not authorized for Orders",
+  "hint": "The order was not initiated by an active organization account, or the requested amount exceeds the merchant's per-order cap. ...",
+  "category": "business",
+  "retryable": false,
+  "correlationId": "a3f6b1c4-7d2e-4a9b-8e0c-12f4d8e6c5b9"
+}
+```
+
+## Phase 1 limits
+
+| | Phase 1 |
+|---|---|
+| Currency | USD only |
+| Amount | $1.00 to $999,999.99 per Order |
+| Provider | Stripe, via your organization's Connect account |
+| Capture | Automatic on confirmation |
+| Payable window | 24 hours by default |
+| Fees | The Nevermined fee is set on the PaymentIntent at creation and retained when Stripe pays out. Your Connect account receives the remainder. See [Fees and Settlement](/integrate/patterns/fiat-payments#fees-and-settlement). |
+
+Server-side checkout by agents, a refund API, and dispute handling through Nevermined are later phases and are not available today.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Fiat Payments" icon="credit-card" href="/integrate/patterns/fiat-payments">
+    Card plans, delegations, revenue routing, and fees for the rest of the fiat rails.
+  </Card>
+  <Card title="Organizations" icon="building" href="/solutions/organizations/overview">
+    Set up the organization account and API key that Orders require.
+  </Card>
+  <Card title="API Errors" icon="triangle-exclamation" href="/development-guide/api-errors/overview">
+    The error envelope, categories, and retry semantics used across the API.
+  </Card>
+  <Card title="Payment Models" icon="calculator" href="/integrate/patterns/payment-models">
+    When a plan is the better fit: credits, time-based, and dynamic pricing.
+  </Card>
+</CardGroup>
