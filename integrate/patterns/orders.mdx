@@ -48,8 +48,8 @@ Your server sets the price. The buyer's browser confirms the payment. A Stripe w
     Call `POST /api/v1/orders` with your API key and the amount in USD cents. Nevermined creates a Stripe PaymentIntent for that exact amount and returns an unguessable `orderId` and a `clientSecret`. No money moves yet.
   </Step>
 
-  <Step title="Hand the buyer to the checkout">
-    Pass the buyer only the `orderId`. The Nevermined checkout reads the Order through `GET /api/v1/orders/{id}` and renders the amount and the card form. You never handle card data, and the buyer never signs in to Nevermined.
+  <Step title="Hand the buyer to the Nevermined checkout">
+    Pass the buyer only the `orderId`, by redirect or by embedding the Nevermined-hosted checkout. The checkout reads the Order through `GET /api/v1/orders/{id}` and renders the amount and the card form. You don't build a card form or handle card data, and the buyer never signs in to Nevermined.
   </Step>
 
   <Step title="The buyer confirms in the browser">
@@ -62,7 +62,7 @@ Your server sets the price. The buyer's browser confirms the payment. A Stripe w
 </Steps>
 
 <Note>
-The hosted checkout that consumes an `orderId` ships with the embedded checkout work that's in progress, along with SDK helpers for `POST /api/v1/orders`. Until then, the REST contract on this page is the integration surface.
+The hosted checkout is the buyer-facing half of Orders and ships with the same rollout as the API, together with SDK helpers for `POST /api/v1/orders`. You don't need your own Stripe Elements integration: the hosted checkout confirms the `clientSecret` for you. Your side is the server-to-server REST contract on this page.
 </Note>
 
 ## Create an Order
