@@ -24,6 +24,7 @@ obstacles is exactly the failure mode this design exists to prevent.
 | `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
 | `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
 | `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
+| `BCK.ROUTER.0014` | 409 | The target is a cataloged Nevermined service, whose upstream URL is deliberately hidden. The Router refuses to pay it by raw URL — mode A and a raw mode-B target both put the merchant's host on your wire, defeating the broker. Off-catalog targets you already hold the URL of are unaffected. | No — **use the slug**: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>` |
 
 **Only `0006` and `0007` are worth retrying automatically.** The rest are decisions; retrying them
 unchanged produces the same answer.
