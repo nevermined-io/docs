@@ -215,21 +215,21 @@ Because the read is public, use it from your server as the source of truth befor
 | `failed` | The PaymentIntent could not be created, or the buyer's payment attempt failed. Terminal: no money moved, and the Order can't be retried. |
 | `partially_refunded` | Part of the charge was refunded. `amountRefundedMinor` says how much. |
 | `refunded` | The full charge was refunded. |
-| `disputed` | The buyer opened a chargeback. The Order stays `disputed` whether the dispute is won or lost. |
+| `disputed` | The buyer opened a chargeback, or you lost one. A won dispute returns the Order to `paid`; a lost one stays `disputed`. Per-dispute win/loss detail is not exposed on the Order. |
 
 An Order is payable for 24 hours by default. After `expiresAt` the read stops returning `clientSecret` and the buyer can no longer pay it. Create a new Order instead.
 
 ## Retries and idempotency
 
-Network timeouts happen. Send an `idempotencyKey` (your own order id works well) and a retried `POST /api/v1/orders` with the same key returns the same `orderId` and `clientSecret` rather than creating a second charge. Behind it, Nevermined also pins the Stripe PaymentIntent to the Order, so a retry can never mint two PaymentIntents for one cart.
+Network timeouts happen. Send an `idempotencyKey` (your own order id works well) and a retried `POST /api/v1/orders` with the same key returns the same `orderId`, and the same `clientSecret` while the Order is still payable, rather than creating a second charge. Behind it, Nevermined also pins the Stripe PaymentIntent to the Order, so a retry can never mint two PaymentIntents for one cart.
 
-If you reuse a key with a **different** body, the call is refused with `409` `BCK.ORDER.0007`. Generate a fresh key for a genuinely new Order.
+If you reuse a key with a different **amount or currency**, the call is refused with `409` `BCK.ORDER.0007`. Reusing it with the same amount and currency returns the original Order unchanged: the `description`, `buyerRef`, `lineItems` and `metadata` of the retried request are ignored, not merged. Generate a fresh key for a genuinely new Order.
 
 ## Refunds and disputes
 
 In Phase 1 there is no refund endpoint. Orders are charged on Nevermined's Stripe platform account and paid out to your Connect account, so a refund is issued on the Stripe side by Nevermined rather than from your own Stripe Dashboard. Contact Nevermined to refund an Order. Once Stripe reports the refund by webhook, the Order moves to `refunded` or `partially_refunded` and `amountRefundedMinor` is updated.
 
-Chargebacks are recorded, not managed. When a buyer disputes a charge, the Order moves to `disputed` and stays there whatever the outcome. Evidence submission through Nevermined is a later phase; in Phase 1, work with the Nevermined team on any dispute.
+Chargebacks are recorded, not managed. When a buyer disputes a charge, the Order moves to `disputed`. If the dispute is won, the Order returns to `paid`; if it is lost, it stays `disputed`. Evidence submission through Nevermined is a later phase; in Phase 1, work with the Nevermined team on any dispute.
 
 ## Error codes
 
@@ -242,7 +242,7 @@ Every error uses the standard [Nevermined error envelope](/development-guide/api
 | `BCK.ORDER.0003` | 403 | No | The API key doesn't belong to an active organization, or the amount exceeds your per-order cap. | Use an organization API key. If the cap is the blocker, contact Nevermined. |
 | `BCK.ORDER.0004` | 500 | No | No validated Stripe Connect account able to receive payments was found on your organization or on the API key owner's profile. | Complete Stripe Connect onboarding. |
 | `BCK.ORDER.0005` | 500 | No | Stripe could not create the PaymentIntent. The Order is marked `failed`; no money moved. | Create a new Order. If it persists, contact Nevermined. |
-| `BCK.ORDER.0007` | 409 | No | The `idempotencyKey` was reused with different parameters. | Send a new key for a new Order. |
+| `BCK.ORDER.0007` | 409 | No | The `idempotencyKey` was reused with a different amount or currency. | Send a new key for a new Order. |
 | `BCK.ORDER.0010` | 429 | Yes | You created Orders faster than your velocity limit allows. | Back off and retry. |
 
 A card decline never surfaces as an API error to your server. The buyer's browser confirms the payment, so the decline is shown to the buyer in the checkout. Stripe then reports the failed attempt by webhook and the Order moves to `failed`. Create a new Order if the buyer wants to try again.
