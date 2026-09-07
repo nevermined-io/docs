@@ -219,7 +219,7 @@ A reserved fee isn't always collected, and what happens to the reserve then diff
 
 The fee is collected on **both** the x402 and MPP rails, but each rail settles it by a different mechanism — and the ledger records a different key as a result:
 
-- **x402** settles the fee as a **second settleable authorization** on the same rail, submitted alongside the merchant's. Its key on the ledger row is [`feeNonce`](/products/catalog/router/ledger#auditing-the-fee-leg).
+- **x402** settles the fee as a **second settleable authorization** on the same rail — a distinct authorization from the one that pays the merchant, settled on the mode's own schedule. Its key on the ledger row is [`feeNonce`](/products/catalog/router/ledger#auditing-the-fee-leg).
 - **MPP** settles the fee as a **separate on-chain transfer** the Router broadcasts itself — a second native transaction from your wallet to Nevermined's fee address. Its key on the ledger row is [`feeTxHash`](/products/catalog/router/ledger#auditing-the-fee-leg).
 
 Both charge the same 2% — it's one fee reached two ways, not two fees. The only rail that can't carry a fee is the **card rail**: a card payment can't produce a second fee movement, so it reserves the merchant leg alone and its row reads [`feeStatus: "None"`](/products/catalog/router/ledger#fee-lifecycle).
