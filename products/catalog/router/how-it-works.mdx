@@ -217,9 +217,12 @@ A reserved fee isn't always collected, and what happens to the reserve then diff
 
 **The fee leg can come back — but only on a closed list of paths.** A mode-B hop that never returned 2xx, a facilitator that adjudicated and refused, or a fee movement that couldn't be signed: on each of those the fee's cents are credited back to your Delegation cap and the ledger row reads [`feeStatus: "Released"`](/products/catalog/router/ledger#fee-lifecycle). Nothing else releases. A fee whose outcome is *unknown* stays `Submitted` and is resolved against the chain — and **resolving is not releasing**: a row the chain shows was never consumed becomes `Failed` with its reserve **still charged**. Read `feeStatus` for the credit; never infer it from a failure.
 
-One precondition decides whether the question is even asked, and it is easy to miss:
+The fee is collected on **both** the x402 and MPP rails, but each rail settles it by a different mechanism — and the ledger records a different key as a result:
 
-- **Only the x402 rail can collect a routing fee at all.** MPP payments cannot produce a second settleable authorization, so they reserve the merchant leg alone.
+- **x402** settles the fee as a **second settleable authorization** on the same rail — a distinct authorization from the one that pays the merchant, settled on the mode's own schedule. Its key on the ledger row is [`feeNonce`](/products/catalog/router/ledger#auditing-the-fee-leg).
+- **MPP** settles the fee as a **separate on-chain transfer** the Router broadcasts itself — a second native transaction from your wallet to Nevermined's fee address. Its key on the ledger row is [`feeTxHash`](/products/catalog/router/ledger#auditing-the-fee-leg).
+
+Both charge the same 2% — it's one fee reached two ways, not two fees. The only rail that can't carry a fee is the **card rail**: a card payment can't produce a second fee movement, so it reserves the merchant leg alone and its row reads [`feeStatus: "None"`](/products/catalog/router/ledger#fee-lifecycle).
 
 Both modes then charge on every call. `requestId` does not change *whether* you are charged — it changes whether a **retry** is charged again. Reuse one stable id across every retry of the same purchase and the retry returns `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting a second payment, so one purchase carries one fee. Omit it, or generate a fresh id per HTTP attempt, and the retry is billed as a new purchase. Mode B requires the id already; on mode A it is optional, which is exactly why it is worth passing.
 

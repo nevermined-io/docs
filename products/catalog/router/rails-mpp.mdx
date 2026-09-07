@@ -67,9 +67,9 @@ Both begin `0x20c0` and differ only in the tail, so they are easy to misread. Co
 
 ## Funding your wallet
 
-Like x402, MPP `charge` is a **pull**: the merchant takes the amount from your own wallet on the Tempo chain in question. Fund the address on your Delegation (`providerPaymentMethodId`) with the token for that chain before you call.
+Like x402, MPP `charge` is a **pull**: the merchant takes the amount from your own wallet on the Tempo chain in question. Fund the address on your Delegation (`providerPaymentMethodId`) with the token for that chain before you call — and fund for the merchant's amount **plus** the [routing fee](/products/catalog/router/how-it-works#fund-for-the-amount-plus-the-fee). On this rail the fee is a **second on-chain transfer** the Router broadcasts from the same wallet, so the merchant's price alone doesn't cover both.
 
-An underfunded wallet fails with **`402 BCK.ROUTER.0009`**, checked *before* signing — nothing is minted and no budget is reserved. That pre-check is specific to this chain-funded rail; [card-funded MPP](#card-funded-mpp) reaches the same error by a different route.
+An underfunded wallet fails with **`402 BCK.ROUTER.0009`**, checked *before* signing — the balance has to clear the amount **and** the fee, so a wallet holding only the quoted price is refused here. Nothing is minted and no budget is reserved. That pre-check is specific to this chain-funded rail; [card-funded MPP](#card-funded-mpp) reaches the same error by a different route.
 
 On **Moderato** you can fund yourself in one RPC call — no faucet UI, no wallet, no signing:
 
