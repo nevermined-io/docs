@@ -1,10 +1,43 @@
 ---
 title: "Payments"
-description: "Enroll a Visa, Stripe, or Braintree card, set spending limits, and let your agents pay autonomously."
+description: "The three Nevermined payment types (Catalog, Embedded Web Flow, Merchant Plans), and the card enrollment and delegation model that lets agents pay with Visa, Stripe, or Braintree."
 icon: "credit-card"
 ---
 
-Enroll a Visa, Stripe, or Braintree card. Create a delegation that caps how much can be spent. Your agents charge it directly via x402 — no checkout pages, no human in the loop.
+Nevermined has three payment types: three ways money reaches a merchant. Pick the type first, because it decides who the buyer is, what they pay with, and how much you integrate. The rest of this page covers the card mechanics that agent payments run on.
+
+## Three payment types
+
+![Three ways to get paid on Nevermined: the Catalog (agents pay per call in stablecoin), the Embedded Web Flow (people pay by card on your site), and Merchant Plans (agents buy credits/time/PAYG) — all settling to the merchant, minus a small Nevermined fee.](/images/payments/three-ways-to-get-paid.png)
+
+<CardGroup cols={3}>
+  <Card title="Catalog" icon="store" href="/products/catalog/overview">
+    AI agents discover your listed service and pay per call in stablecoin over x402 + mpp. You enroll nothing.
+  </Card>
+  <Card title="Embedded Web Flow" icon="cart-shopping" href="/integrate/patterns/orders">
+    A person pays any cart total by card through a checkout embedded on your site. No plan, no buyer account, no delegation.
+  </Card>
+  <Card title="Merchant Plans" icon="layer-group" href="/solutions/agent-to-agent-monetization#merchant-plans">
+    AI agents buy credits, time, or pay-as-you-go access to your service at a fixed price, paying by card or stablecoin.
+  </Card>
+</CardGroup>
+
+|  | Catalog | Embedded Web Flow | Merchant Plans |
+|---|---|---|---|
+| **Who pays** | An AI agent or harness | A person, in a browser | An AI agent or harness |
+| **Pay with** | Stablecoin | Card (fiat) | Card or stablecoin |
+| **Pricing** | Dynamic — quoted per request | Dynamic — any cart total | Fixed — set per plan |
+| **Merchant enrolls?** | No — Nevermined discovers and lists your service | Yes — you control an Org | Yes — you integrate NVM |
+
+The full comparison (rails, plans, buyer accounts, who integrates what) is on [Monetize Your AI](/solutions/agent-to-agent-monetization#three-ways-to-get-paid).
+
+## Card payments for agents
+
+Everything below is the mechanism behind **card-paid agent payments**, which is how a Merchant Plan gets paid by card. Enroll a Visa, Stripe, or Braintree card. Create a delegation that caps how much can be spent. Your agents charge it directly via x402 — no checkout pages, no human in the loop.
+
+<Note>
+**Three payment types and three card networks are different things.** Catalog, Embedded Web Flow, and Merchant Plans are *what you sell and who buys*. Visa, Stripe, and Braintree are *card networks*: the providers an enrolled card and its delegation settle through. Delegations apply to Merchant Plans paid by card. The Embedded Web Flow settles through the same PSPs, but the buyer confirms each charge in the browser, so there is no enrollment and no delegation. Catalog payments are stablecoin and never touch a card.
+</Note>
 
 Manage everything at [nevermined.app](https://nevermined.app).
 
@@ -52,7 +85,7 @@ Agent (no token)
         |-> POST /settle -> charges card, returns payment-response
 ```
 
-## One delegation model, three networks
+## One delegation model, three card networks
 
 All three providers share the same `nvm:card-delegation` x402 scheme and the same `POST /api/v1/delegation/create` endpoint. The `network` field on the delegation (`stripe`, `braintree`, or `visa`) is set by the card you choose and routes settlement to the right PSP.
 
@@ -154,5 +187,11 @@ You need an [NVM API Key](/agents-guide/get-api-key). Set it as `NVM_API_KEY`.
   </Card>
   <Card title="Create a Delegation" icon="shield-check" href="/products/payments/mandates">
     Define spending limits, usage caps, and expiration
+  </Card>
+  <Card title="Compare the three payment types" icon="table" href="/solutions/agent-to-agent-monetization#three-ways-to-get-paid">
+    Catalog, Embedded Web Flow, and Merchant Plans side by side
+  </Card>
+  <Card title="Orders: Goods & Services Checkout" icon="cart-shopping" href="/integrate/patterns/orders">
+    The Embedded Web Flow contract, and its current availability
   </Card>
 </CardGroup>

@@ -1,21 +1,69 @@
 ---
 title: "Monetize Your AI"
-description: "Monetize AI agents using Nevermined’s x402 protocol with stablecoin and fiat payments—no bespoke integrations required."
+description: "Three ways to get paid on Nevermined: the Catalog, the Embedded Web Flow, and Merchant Plans. Stablecoin and fiat settlement, no bespoke integrations required."
 icon: "handshake"
 ---
 
-Nevermined enables AI builders to protect and monetize their agents using the x402 protocol. With agent-to-agent payments, other agents can subscribe to your agent, purchase access, and request work programmatically—securely settling in stablecoins or fiat.
+Nevermined gives you three ways to get paid. Two of them serve **AI agents** that buy over x402 + mpp: the **Catalog**, where agents pay per call for a service Nevermined has already listed, and **Merchant Plans**, where agents buy credits, time, or pay-as-you-go access to your service. The third, the **Embedded Web Flow**, serves **people**: your own end users pay by card for goods and services through a checkout embedded on your site.
 
-## How It Works
+## Three ways to get paid
+
+![Three ways to get paid on Nevermined: the Catalog (agents pay per call in stablecoin), the Embedded Web Flow (people pay by card on your site), and Merchant Plans (agents buy credits/time/PAYG) — all settling to the merchant, minus a small Nevermined fee.](/images/payments/three-ways-to-get-paid.png)
+
+|  | Catalog | Embedded Web Flow | Merchant Plans |
+|---|---|---|---|
+| **Who pays** | An AI agent or harness (x402 + mpp) | A person, in a browser | An AI agent or harness (x402 + mpp) |
+| **Best for** | Listing an AI service and monetizing every call | Selling goods & services to your end users | Subscriptions / credits / metered access to your AI service |
+| **Rails / protocol** | x402 + mpp | Embedded PSP checkout — Stripe, Braintree, … | NVM plans over x402 + mpp (fiat or crypto) |
+| **Merchant enrolls?** | No — we discover & catalog your service | Yes — you control an Org | Yes — you integrate NVM |
+| **Payment plan?** | No | No — a one-off Order | Yes — credits / time / pay-as-you-go |
+| **Buyer needs an NVM account?** | Yes — pays from their NVM wallet | No — none required | Yes |
+| **Pay with** | Stablecoin | Card (fiat) | Card or stablecoin — most flexible |
+| **Pricing** | Dynamic — quoted per request | Dynamic — any cart total | Fixed — set per plan |
+| **Who has to integrate** | Neither the merchant · the buyer needs an account + funded wallet | Merchant embeds a checkout · the buyer does nothing | Both sides integrate NVM — most flexible, most setup |
+
+<CardGroup cols={3}>
+  <Card title="Catalog" icon="store" href="/products/catalog/overview">
+    Nevermined discovers and lists your AI service. Agents find it and pay per call in stablecoin. Nothing to enroll.
+  </Card>
+  <Card title="Embedded Web Flow" icon="cart-shopping" href="/integrate/patterns/orders">
+    Charge your own end users any cart total by card, through a checkout embedded on your site. No plan, no buyer account.
+  </Card>
+  <Card title="Merchant Plans" icon="layer-group" href="#merchant-plans">
+    Sell credits, time, or pay-as-you-go access to your AI service. Agents buy the plan and call your endpoints with an access token.
+  </Card>
+</CardGroup>
+
+<Note>
+Not sure which one? If the buyer is an agent and you want zero setup, use the **Catalog**. If the buyer is an agent and you want to set the price and the access model yourself, use **Merchant Plans**. If the buyer is a person on your website, use the **Embedded Web Flow**.
+</Note>
+
+## Catalog
+
+The Catalog is the zero-setup option. Nevermined auto-discovers services that already price each request on the wire (x402 or mpp) and lists them at [nevermined.app/catalog](https://nevermined.app/catalog/). Buyers are agents with a Nevermined account. They pay each call in stablecoin from their NVM wallet through the Nevermined Router, at whatever price your service quotes on that request. You don't register a plan, and the buyer doesn't hold one — they hold a funded wallet.
+
+Read the [Catalog overview](/products/catalog/overview) for the buyer's view, or [add your AI service](/products/catalog/ai-services#add-your-ai-service) so buyers can find it.
+
+## Embedded Web Flow
+
+The Embedded Web Flow is for selling goods and services to your own end users. You control an [organization](/solutions/organizations/overview), you set the price per checkout (any cart total, as a one-off **Order**), and your buyer pays by card through an embedded PSP checkout on your site. The buyer needs no Nevermined account, no plan, and no delegation, and you never touch card data.
+
+This is the newest of the three. The [Orders guide](/integrate/patterns/orders) documents the contract and tracks its availability in `sandbox` and `live`.
+
+## Merchant Plans
+
+Merchant Plans are the traditional Nevermined flow: you sell access to your AI service through a plan (credits, time, or pay-as-you-go) at a fixed price you set. Other agents order your plan, obtain access tokens, and call your endpoints programmatically, settling in stablecoin or fiat. Both sides integrate Nevermined, which makes this the most flexible of the three — and the one with the most setup.
+
+### How It Works
 
 - **Register your Agent & Plan**: Create a payment plan in the [Nevermined App](https://nevermined.app) and link it to your AI agent (endpoints, metadata, pricing).
 - **Receive Subscriber Requests**: Configure your agent to validate requests from subscribers via Nevermined Payment Libraries (Python/TypeScript). No additional servers or custom gateways needed.
 - **Agents Pay, Then Use**: Other agents order your plan, obtain access tokens, and call your agent’s endpoints with bearer authentication.
 - **Secure Settlement**: Payments are processed via stablecoins or fiat (Stripe), with pricing models supporting subscriptions and per-query credits.
 
-## Payment Methods
+### Payment Methods
 
-Nevermined supports two payment methods for agent monetization:
+Merchant Plans support two payment methods:
 
 <CardGroup cols={2}>
   <Card title="Fiat Payments" icon="credit-card" href="/integrate/patterns/fiat-payments">
@@ -27,14 +75,14 @@ Nevermined supports two payment methods for agent monetization:
   </Card>
 </CardGroup>
 
-## Benefits
+### Benefits
 
 - **Simple setup**: Create a plan, link your agent—done.
 - **Programmable access**: Agents can buy and use services autonomously.
 - **Flexible pricing**: Subscriptions, credits, and metered usage.
 - **Trusted payments**: Stablecoin and fiat support with transparent settlement.
 
-## Implementation Steps
+### Implementation Steps
 
 1. **Create a Payment Plan** in the Nevermined App (price, duration, credits).
 2. **Register your Agent**: Provide endpoint URLs and capabilities.
@@ -47,5 +95,8 @@ Nevermined supports two payment methods for agent monetization:
 - [Register Agents](/products/nevermined-app/register-agents) in the Nevermined App
 - [Manage Plans](/products/nevermined-app/manage-plans) for pricing and access
 - [5-Minute Setup](/integrate/quickstart/5-minute-setup) to get your first paid request working
+- [Catalog Overview](/products/catalog/overview) for how agents discover and pay listed services
+- [Orders: Goods & Services Checkout](/integrate/patterns/orders) for the Embedded Web Flow contract
+- [Payments](/products/payments/overview) for card enrollment and delegations behind card-paid flows
 - Blog: [Making x402 Programmable](https://nevermined.ai/blog/making-x402-programmable)
 - Blog: [Agentic Payments with x402, A2A & AP2](https://nevermined.ai/blog/building-agentic-payments-with-nevermined-x402-a2a-and-ap2)
