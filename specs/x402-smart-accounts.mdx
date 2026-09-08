@@ -620,9 +620,25 @@ Additional settlement details MAY be included in the response body:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `creditsRedeemed` | `string` | Number of credits redeemed. |
-| `remainingBalance` | `string` | Subscriber's remaining balance. |
+| `billingModel` | `string` | How the request was priced: `credits` or `pay-as-you-go`. Read this before the two credit fields. |
+| `creditsRedeemed` | `string` | Number of credits redeemed. Always `"0"` on `pay-as-you-go`, including on a settle that charged the buyer. |
+| `remainingBalance` | `string` | Subscriber's remaining balance. Always `"0"` on `pay-as-you-go`. |
 | `orderTx` | `string` | Transaction hash of the order operation (if executed). |
+
+### 6.4 Was the buyer charged?
+
+`success` alone tells you the settle worked. What a consumer MUST check **in addition** depends on `billingModel`:
+
+| `billingModel` | Success criterion | Credit fields |
+|----------------|-------------------|---------------|
+| `credits` | `success === true` and `creditsRedeemed > 0` | `creditsRedeemed` is the amount burned, `remainingBalance` what is left |
+| `pay-as-you-go` | `success === true` **and** a non-empty `transaction` (the on-chain order) | always the string `"0"` — no balance exists on this plan shape |
+
+<Warning>
+Do not gate on `creditsRedeemed` without reading `billingModel` first. A pay-as-you-go plan holds no credit balance, so `creditsRedeemed > 0` can never hold there and a real payment reads as a decline.
+
+Note the type as well: both fields are **strings**, so `"0"` is truthy while `Number("0") > 0` is false — two plausible-looking checks disagree.
+</Warning>
 
 ## 7. Error Handling
 

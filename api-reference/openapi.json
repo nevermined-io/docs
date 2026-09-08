@@ -3032,21 +3032,51 @@
       },
       "SettlePermissionResponse": {
         "type": "object",
+        "description": "Settlement receipt. `success` alone tells you the settle worked; what to check in addition depends on `billingModel`. On `credits` plans the payment shows up as `creditsRedeemed > 0`. On `pay-as-you-go` plans there is no credit balance, so `creditsRedeemed` and `remainingBalance` are always the string \"0\" even on a charge that succeeded — the proof there is `success: true` plus a non-empty `orderTx` (fiat rails) or `transaction` (crypto rails). Do not gate on `creditsRedeemed` without reading `billingModel` first: on a card rail that reports a real charge as a decline and invites a retry of a payment that already went through. Note the credit fields are strings, so \"0\" is truthy while Number(\"0\") > 0 is false.",
         "properties": {
           "success": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether settlement was successful."
           },
-          "permissionHash": {
-            "type": "string"
+          "errorReason": {
+            "type": "string",
+            "description": "Reason for settlement failure (only present if success is false)."
           },
-          "creditsSettled": {
-            "type": "integer"
+          "payer": {
+            "type": "string",
+            "description": "Address of the payer's wallet."
           },
-          "remainingCredits": {
-            "type": "integer"
+          "transaction": {
+            "type": "string",
+            "description": "Blockchain transaction hash. On crypto pay-as-you-go plans this is also the reference for the per-request charge."
           },
-          "txHash": {
-            "type": "string"
+          "network": {
+            "type": "string",
+            "description": "Network identifier. The discriminator is the rail, not the billing model: a CAIP-2 chain id (eip155:84532) for crypto rails under both billing models, or the settling payment provider (stripe, braintree, visa) for fiat card-delegation rails.",
+            "example": "eip155:84532"
+          },
+          "billingModel": {
+            "type": "string",
+            "enum": [
+              "credits",
+              "pay-as-you-go"
+            ],
+            "description": "Which billing model this settle was priced under. Present regardless of `success` — check `success` before treating it as evidence of a charge. Read it before the two credit fields."
+          },
+          "creditsRedeemed": {
+            "type": "string",
+            "description": "Number of credits redeemed. Always \"0\" for pay-as-you-go plans, which hold no credit balance — including on a settle that charged the buyer successfully.",
+            "example": "2"
+          },
+          "remainingBalance": {
+            "type": "string",
+            "description": "Subscriber's remaining credit balance. Always \"0\" for pay-as-you-go plans — the per-request charge is referenced by `orderTx` (fiat) or `transaction` (crypto), not here.",
+            "example": "98"
+          },
+          "orderTx": {
+            "type": "string",
+            "description": "Reference for the order or per-request charge, if one occurred. On fiat pay-as-you-go this is the per-request charge (a Stripe PaymentIntent id, a Braintree transaction id); crypto pay-as-you-go reports its on-chain order in `transaction` instead. On credits plans it is set only when the settle had to order credits first (auto top-up).",
+            "example": "pi_3TUrvfBYvSRKcV420xCBjHb1"
           }
         }
       },

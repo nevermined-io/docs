@@ -83,7 +83,7 @@ All three checks are simple authenticated `GET`s.
     </Tabs>
 
     <Note>
-      The receipt from a purchase (`creditsRedeemed` / `remainingBalance`, returned by `settle` or decoded from the `payment-response` header) is also a live proof of your balance right after a buy.
+      The receipt from a purchase (`creditsRedeemed` / `remainingBalance`, returned by `settle` or decoded from the `payment-response` header) is also a live proof of your balance right after a buy — **on a `credits` plan**. A pay-as-you-go plan holds no credit balance: its receipt reads `"0"` for both fields whatever was charged, and the charge is referenced by `orderTx` (fiat rails) or `transaction` (crypto rails). Read `billingModel` off the receipt before either field.
     </Note>
   </Step>
 </Steps>

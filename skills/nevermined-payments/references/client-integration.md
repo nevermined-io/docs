@@ -32,12 +32,12 @@ curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applic
           "extensions": {} },
         "x402AccessToken": "<accessToken>" }' \
   https://api.sandbox.nevermined.app/api/v1/x402/settle
-# → { "success": true, "creditsRedeemed": "1", "remainingBalance": "999", "transaction": "0x..." }
+# → { "success": true, "billingModel": "credits", "creditsRedeemed": "1", "remainingBalance": "999", "transaction": "0x..." }
 ```
 
 - **Card payment:** switch `scheme` to `nvm:card-delegation` and `network` to `stripe` (or `braintree`/`visa`) in both calls.
 - **Calling a protected agent directly:** skip building `paymentRequired` — send the access token as the `payment-signature` header; the agent settles for you and returns the receipt in the `payment-response` header.
-- **Proof of purchase:** `creditsRedeemed > 0` and a `remainingBalance` in the settle response.
+- **Proof of purchase — read `billingModel` first.** On a `credits` plan it is `success: true` and `creditsRedeemed > 0`. On a `pay-as-you-go` plan there is no credit balance, so `creditsRedeemed` and `remainingBalance` are always the string `"0"` even on a successful charge; the proof is `success: true` plus a non-empty `orderTx` (fiat) or `transaction` (crypto). Never gate on `creditsRedeemed` alone — on a card rail it reports a real charge as a decline and invites a retry.
 
 Full runbook with API-key retrieval, card enrollment, and status checks: `autonomous-operations.md`.
 
@@ -180,6 +180,9 @@ async function callProtectedAPI() {
         'base64'
       ).toString()
     )
+    // On a pay-as-you-go plan `creditsRedeemed` is always '0' — see "Proof of
+    // purchase" above; the charge reference is `orderTx` / `transaction`.
+    console.log('Billing model:', settlement.billingModel)
     console.log('Credits used:', settlement.creditsRedeemed)
   }
 }
@@ -256,6 +259,9 @@ def call_protected_api():
                     response2.headers.get("payment-response")
                 ).decode()
             )
+            # On a pay-as-you-go plan creditsRedeemed is always "0" — see "Proof
+            # of purchase" above; the charge reference is orderTx / transaction.
+            print(f"Billing model: {settlement.get('billingModel')}")
             print(f"Credits used: {settlement.get('creditsRedeemed')}")
 
 if __name__ == "__main__":

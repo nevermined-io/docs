@@ -6,6 +6,16 @@ icon: "coins"
 
 Copy-paste patterns for deducting credits from subscribers.
 
+<Note>
+  **These patterns assume a `credits` plan.** A pay-as-you-go plan holds no credit balance — each
+  request is charged directly — so a successful settle there returns `creditsRedeemed: "0"` and
+  `remainingBalance: "0"`, with the charge referenced by `orderTx` (fiat rails) or `transaction`
+  (crypto rails). The settle response always carries `billingModel` (`credits` | `pay-as-you-go`);
+  read it before either credit field. Gating on `creditsRedeemed > 0` alone reports a real
+  pay-as-you-go charge as a decline, and on a card rail that invites a retry of a payment that
+  already succeeded.
+</Note>
+
 ## Automatic Credit Deduction
 
 With the x402 flow, verification checks permissions without burning credits. After processing, settlement burns the credits:

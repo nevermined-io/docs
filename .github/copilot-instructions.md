@@ -87,7 +87,7 @@ When an agent must act on its own behalf at runtime (buy a plan, enroll a card, 
 # 1. token
 POST /api/v1/x402/permissions  { "accepted": { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>" }, "delegationConfig": { "delegationId": "<id>" } }  → { accessToken }
 # 2. settle (proof of purchase)
-POST /api/v1/x402/settle  { "paymentRequired": { "x402Version": 2, "resource": { "url": "<url>" }, "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>", "extra": {} } ], "extensions": {} }, "x402AccessToken": "<token>" }  → { creditsRedeemed, remainingBalance }
+POST /api/v1/x402/settle  { "paymentRequired": { "x402Version": 2, "resource": { "url": "<url>" }, "accepts": [ { "scheme": "nvm:erc4337", "network": "eip155:84532", "planId": "<id>", "extra": {} } ], "extensions": {} }, "x402AccessToken": "<token>" }  → { billingModel, creditsRedeemed, remainingBalance, orderTx }   # billingModel is "credits" | "pay-as-you-go"; on pay-as-you-go both credit fields are always "0" even on a successful charge — the proof is success + a non-empty orderTx/transaction
 ```
 
 Card payments: `scheme: "nvm:card-delegation"`, `network: "stripe"`. A human is needed only for one-time setup — minting the first API key, plus card enrollment if paying by card (the stablecoin path needs neither afterward). Full runbook: `skills/nevermined-payments/references/autonomous-operations.md`.

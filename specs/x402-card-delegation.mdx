@@ -662,13 +662,14 @@ PAYMENT-RESPONSE: eyJzdWNjZXNzIjp0cnVlLCJwYXltZW50SW50ZW50SWQiOi4uLg==
 }
 ```
 
-**Decoded PAYMENT-RESPONSE:**
+**Decoded PAYMENT-RESPONSE** (a `credits` plan):
 
 ```json
 {
   "success": true,
   "transaction": "0x1234567890abcdef...",
   "network": "stripe",
+  "billingModel": "credits",
   "creditsRedeemed": "2",
   "remainingBalance": "98",
   "orderTx": "pi_1AbCdEfGhIjKlM"
@@ -676,6 +677,22 @@ PAYMENT-RESPONSE: eyJzdWNjZXNzIjp0cnVlLCJwYXltZW50SW50ZW50SWQiOi4uLg==
 ```
 
 The `PAYMENT-RESPONSE` header contains x402-standard settlement fields. The `network` echoes the value used at verification (`stripe` or `braintree`). For Braintree, `orderTx` is the Braintree merchant transaction ID. Additional Nevermined-specific info (like `creditsRedeemed` and `remainingBalance`) can be included in the response body.
+
+The same successful settle on a **pay-as-you-go** plan reports `"0"` for both credit fields, because such a plan holds no credit balance — the charge is referenced by `orderTx`:
+
+```json
+{
+  "success": true,
+  "transaction": "pi_3U6tgrBYvSRKcV421ehH4bnX",
+  "network": "stripe",
+  "billingModel": "pay-as-you-go",
+  "creditsRedeemed": "0",
+  "remainingBalance": "0",
+  "orderTx": "pi_3U6tgrBYvSRKcV421ehH4bnX"
+}
+```
+
+See [Was the buyer charged?](#66-was-the-buyer-charged) for the check that applies to each.
 
 <Warning>
 Steps 27-28 represent a failure scenario where the server has already performed work but settlement failed. Implementations SHOULD have mechanisms to handle this edge case, such as retry logic or dispute resolution.
@@ -796,10 +813,26 @@ Additional settlement details MAY be included in the response body:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `creditsRedeemed` | `string` | Number of credits burned on-chain. |
-| `remainingBalance` | `string` | Subscriber's remaining credit balance. |
-| `orderTx` | `string` | PSP PaymentIntent ID if auto top-up occurred (only present when card was charged). |
-| `transaction` | `string` | Blockchain transaction hash of the credit burn. |
+| `billingModel` | `string` | How the request was priced: `credits` or `pay-as-you-go`. Read this before the two credit fields. |
+| `creditsRedeemed` | `string` | Number of credits burned on-chain. Always `"0"` on `pay-as-you-go`, including on a successful charge. |
+| `remainingBalance` | `string` | Subscriber's remaining credit balance. Always `"0"` on `pay-as-you-go`. |
+| `orderTx` | `string` | PSP transaction ID. On `credits` plans, present only when auto top-up charged the card; on fiat `pay-as-you-go`, it references the per-request charge. |
+| `transaction` | `string` | Blockchain transaction hash of the credit burn. On crypto `pay-as-you-go` it is the charge reference instead. |
+
+### 6.6 Was the buyer charged?
+
+`success` alone tells you the settle worked. What a consumer MUST check **in addition** depends on `billingModel`:
+
+| `billingModel` | Success criterion | Credit fields |
+|----------------|-------------------|---------------|
+| `credits` | `success === true` and `creditsRedeemed > 0` | `creditsRedeemed` is the amount burned, `remainingBalance` what is left |
+| `pay-as-you-go` | `success === true` **and** a non-empty `orderTx` (fiat rails) / `transaction` (crypto rails) | always the string `"0"` — no balance exists on this plan shape |
+
+<Warning>
+Do not gate on `creditsRedeemed` without reading `billingModel` first. A pay-as-you-go plan holds no credit balance, so `creditsRedeemed > 0` can never hold there and a real charge reads as a decline. On a card rail that invites a retry of a payment that already succeeded, and repeated attempts feed issuer fraud scoring.
+
+Note the type as well: both fields are **strings**, so `"0"` is truthy while `Number("0") > 0` is false — two plausible-looking checks disagree.
+</Warning>
 
 ## 7. Error Handling
 
