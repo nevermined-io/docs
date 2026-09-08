@@ -37,7 +37,7 @@ curl -s -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applic
 
 - **Card payment:** switch `scheme` to `nvm:card-delegation` and `network` to `stripe` (or `braintree`/`visa`) in both calls.
 - **Calling a protected agent directly:** skip building `paymentRequired` — send the access token as the `payment-signature` header; the agent settles for you and returns the receipt in the `payment-response` header.
-- **Proof of purchase — read `billingModel` first.** On a `credits` plan it is `success: true` and `creditsRedeemed > 0`. On a `pay-as-you-go` plan there is no credit balance, so `creditsRedeemed` and `remainingBalance` are always the string `"0"` even on a successful charge; the proof is `success: true` plus a non-empty `orderTx` (fiat) or `transaction` (crypto). Never gate on `creditsRedeemed` alone — on a card rail it reports a real charge as a decline and invites a retry. If `billingModel` is missing entirely the deployment predates it: apply the `credits` rule, and if `creditsRedeemed` is missing too, `success: true` is the whole answer.
+- **Proof of purchase — read `billingModel` first.** On a `credits` plan it is `success: true` and `creditsRedeemed > 0`. On a `pay-as-you-go` plan there is no credit balance, so `creditsRedeemed` and `remainingBalance` are always the string `"0"` even on a successful charge; the proof is `success: true` plus a non-empty `orderTx` (fiat) or `transaction` (crypto). Never gate on `creditsRedeemed` alone — on a card rail it reports a real charge as a decline and invites a retry. If `billingModel` is missing entirely the deployment predates it: apply the `credits` rule.
 
 Full runbook with API-key retrieval, card enrollment, and status checks: `autonomous-operations.md`.
 
