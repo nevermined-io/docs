@@ -400,7 +400,7 @@ Settle after work is complete and return the settlement receipt in the `payment-
     const settlementReceipt = {
       success: true,
       creditsRedeemed: actualCreditsUsed,
-      transactionHash: settlement.txHash
+      transactionHash: settlement.transaction
     }
     res.set(X402_HEADERS.PAYMENT_RESPONSE, Buffer.from(JSON.stringify(settlementReceipt)).toString('base64'))
 
@@ -420,7 +420,7 @@ Settle after work is complete and return the settlement receipt in the `payment-
     settlement_receipt = {
         'success': True,
         'creditsRedeemed': actual_credits_used,
-        'transactionHash': settlement.tx_hash
+        'transactionHash': settlement.transaction
     }
 
     response = jsonify({'result': result})

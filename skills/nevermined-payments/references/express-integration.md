@@ -115,7 +115,7 @@ paymentMiddleware(payments, routes, {
   },
 
   onAfterSettle: (req, creditsUsed, settlement) => {
-    console.log(`Settled ${creditsUsed} credits, tx: ${settlement.txHash}`)
+    console.log(`Settled ${creditsUsed} credits, tx: ${settlement.transaction}`)
   },
 
   onPaymentError: (error, req, res) => {
