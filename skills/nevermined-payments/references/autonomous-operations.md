@@ -215,6 +215,8 @@ Response (`X402SettleResponseDto`):
 
 Checking `creditsRedeemed > 0` on such a plan reports a real charge as a decline — and on a card rail that invites a retry of a payment that already went through. Both fields are **strings**, so `"0"` is truthy while `Number("0") > 0` is false.
 
+If the response carries **no `billingModel` at all**, the deployment predates the discriminator: apply the `credits` rule, and never read a missing discriminator as pay-as-you-go. All three fields are optional — if `creditsRedeemed` is absent too there is no balance to check, and `success: true` is the whole answer.
+
 For a plan top-up with no protected endpoint, set `resource.url` to the plan's own URL — `{API_BASE}/api/v1/protocol/plans/<PLAN_ID>`.
 
 ### 4c. Dry-run (optional)

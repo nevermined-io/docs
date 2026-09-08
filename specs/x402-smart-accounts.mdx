@@ -634,6 +634,13 @@ Additional settlement details MAY be included in the response body:
 | `credits` | `success === true` and `creditsRedeemed > 0` | `creditsRedeemed` is the amount burned, `remainingBalance` what is left |
 | `pay-as-you-go` | `success === true` **and** a non-empty `transaction` (the on-chain order) | always the string `"0"` — no balance exists on this plan shape |
 
+<Note>
+  **No `billingModel` in the response?** The deployment predates the discriminator. Apply the
+  **credits** rule — a missing discriminator MUST NOT be read as pay-as-you-go. All three fields
+  are optional; if `creditsRedeemed` is absent too there is no balance information to check, and
+  `success === true` is the whole answer.
+</Note>
+
 <Warning>
 Do not gate on `creditsRedeemed` without reading `billingModel` first. A pay-as-you-go plan holds no credit balance, so `creditsRedeemed > 0` can never hold there and a real payment reads as a decline.
 

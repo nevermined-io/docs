@@ -207,6 +207,7 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
   - `"credits"`: `success: true` **and** `creditsRedeemed > 0` (and, for crypto, an on-chain `transaction`).
   - `"pay-as-you-go"`: `success: true` **and** a non-empty `orderTx` (fiat rails) or `transaction` (crypto rails). These plans hold no credit balance, so `creditsRedeemed` and `remainingBalance` are **always the string `"0"` even on a charge that succeeded** — `creditsRedeemed > 0` there reports a real charge as a decline, and on a card rail that invites a retry of a payment that already went through.
   - Both fields are **strings**: `"0"` is truthy while `Number("0") > 0` is false, so two plausible checks disagree.
+  - **No `billingModel` at all?** The deployment predates the discriminator — apply the `credits` rule, never pay-as-you-go. If `creditsRedeemed` is missing too, `success: true` is the whole answer.
 - **Card budget caveat:** a card settle may not immediately move the delegation's `amountSpentCents`/`remainingBudgetCents` — use the settle receipt + the A5 plan balance as the source of truth for card spend, not the delegation budget.
 
 **Calling a protected agent directly** (the common case): just send the access token as the `payment-signature` header to the agent's endpoint — the agent's own `402` response **is** your `paymentRequired`, and the agent verifies + settles for you. You only call `/settle` yourself when topping up a plan with no protected endpoint to hit.
