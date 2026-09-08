@@ -590,7 +590,7 @@ For other frameworks or custom implementations, follow these steps:
       billingModel: settlement.billingModel,
       creditsRedeemed: actualCreditsUsed,
       orderTx: settlement.orderTx,
-      transactionHash: settlement.txHash,
+      transactionHash: settlement.transaction,
     })).toString('base64')
 
     res.set('payment-response', settlementReceipt)
@@ -617,7 +617,7 @@ For other frameworks or custom implementations, follow these steps:
         "billingModel": settlement.billing_model,
         "creditsRedeemed": actual_credits_used,
         "orderTx": settlement.order_tx,
-        "transactionHash": settlement.tx_hash,
+        "transactionHash": settlement.transaction,
     }).encode()).decode()
 
     response.headers["payment-response"] = settlement_receipt
