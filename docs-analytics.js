@@ -44,14 +44,26 @@
  * website#239.
  */
 (function () {
-  var SRC = "https://nevermined.ai/docs-analytics.js";
   var ID = "nvm-docs-analytics";
   /* Mintlify re-runs page scripts on client-side navigation; the id check
      keeps that from stacking a second copy of the loader per route change. */
   if (document.getElementById(ID)) return;
   var s = document.createElement("script");
   s.id = ID;
-  s.src = SRC;
+  /* The URL is assigned as a LITERAL here, not through a `var SRC`, and that
+     is load-bearing rather than style. The website repo's consent-gate drift
+     guard decides whether docs is on the stub with
+
+       /(?:src\s*=\s*|\.src\s*=\s*)["'`]<hosted url>["'`]/
+
+     which needs the quoted URL immediately after `src =`. With the indirection
+     it matched neither `var SRC = "..."` (no `i` flag, and `SRC` is uppercase)
+     nor `s.src = SRC` (identifier, not a literal), so the guard read this file
+     as the LEGACY copy, looked for six gate anchors in a 74-line tag, found
+     none and exited 1 - reddening that repo's drift job on every gate-path PR
+     and twice daily, continuously. Verified by running the guard's own regex
+     against the committed bytes. */
+  s.src = "https://nevermined.ai/docs-analytics.js";
   s.async = true;
   /* Every failure mode is otherwise indistinguishable from a healthy page: a
      404, a website deploy that drops the file, a CDN 5xx, an offline first
@@ -67,7 +79,9 @@
   s.onerror = function () {
     if (s.parentNode) s.parentNode.removeChild(s);
     if (window.console && console.warn) {
-      console.warn("nvm: docs analytics loader failed to load: " + SRC);
+      /* s.src still reads back after the node is removed, so the warning keeps
+         its URL without needing the variable the guard could not match. */
+      console.warn("nvm: docs analytics loader failed to load: " + s.src);
     }
   };
   (document.head || document.documentElement).appendChild(s);
