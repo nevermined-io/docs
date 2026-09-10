@@ -65,7 +65,7 @@ Nevermined supports any ERC-20 token on Base. If you need to accept a custom tok
 
 ## Permission Model
 
-Delegations are the core of the stablecoin permission model. Instead of giving the facilitator full control over a wallet, subscribers create scoped delegations that limit exactly what can be done. The delegation model is shared between crypto (`erc4337`) and fiat (`stripe`) payment providers.
+Delegations are the core of the stablecoin permission model. Instead of giving the facilitator full control over a wallet, subscribers create scoped delegations that limit exactly what can be done. The delegation model is shared between crypto (`erc4337`) and fiat (`stripe`) payment providers — and the same delegation backs both payment protocols: an x402 settlement and an [MPP settlement](/development-guide/nevermined-x402#paying-an-mpp-protected-service) draw on one budget and one credit meter.
 
 Each delegation enforces the **principle of least privilege** through two limits:
 

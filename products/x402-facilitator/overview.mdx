@@ -1,21 +1,23 @@
 ---
-title: "x402 Facilitator Overview"
-description: "The Nevermined x402 Facilitator verifies and settles x402 payments with smart accounts and programmable contracts"
+title: "Payments Facilitator"
+description: "The Nevermined Payments Facilitator verifies and settles both x402 and MPP payments against the same Nevermined Payment Plans — smart accounts, programmable contracts, and credit metering."
 icon: "credit-card"
 ---
 
-The Nevermined x402 Facilitator is an **enforcement and settlement engine** for x402. It lets any API, agent, MCP tool, or protected resource accept **HTTP-native payments** without running on-chain infrastructure.
+{/* The docs path stays /products/x402-facilitator/* for link stability — it is historical, from when the product was x402-only, and not a sign the facilitator is x402-only today. Do not "fix" it by renaming the route without adding redirects from every old path. */}
 
-It supports both:
+The Nevermined Payments Facilitator is an **enforcement and settlement engine** for HTTP-native agent payments. It lets any API, agent, MCP tool, or protected resource get paid without running on-chain infrastructure — and it speaks **two sibling payment protocols that settle against the same Nevermined Payment Plans**:
 
-- **Standard x402 settlement** ("pay-per-request" style)
-- **Nevermined's programmable x402 extension** (`nvm:erc4337` scheme with smart accounts + session keys + contract settlement)
+- **[x402](/development-guide/nevermined-x402)** — payment terms travel in a `payment-required` header and the payment is presented in `payment-signature`. Covers standard "pay-per-request" x402 and Nevermined's programmable extension (`nvm:erc4337` and `nvm:card-delegation` schemes, with smart accounts, session keys, and contract settlement).
+- **[MPP (Merchant Payment Protocol)](/products/x402-facilitator/mpp-seller)** — the same plan, credits, and delegation, negotiated with an RFC 7235 `WWW-Authenticate: Payment …` challenge and an `Authorization: Payment …` credential instead.
+
+A request that costs 2 credits burns 2 whether it was paid over x402 or MPP: **one meter, one delegation budget, two wire protocols.**
 
 <Note>
-For the complete technical specification, see the [x402 Smart Accounts Extension Spec](/specs/x402-smart-accounts).
+For the complete technical specification of the x402 extension, see the [x402 Smart Accounts Extension Spec](/specs/x402-smart-accounts). For the MPP seller integration, see [Accepting MPP payments](/products/x402-facilitator/mpp-seller).
 </Note>
 
-The Facilitator sits in the [x402 payment flow](/development-guide/nevermined-x402) — when a server receives a payment token, it delegates verification and settlement to the Facilitator rather than handling it directly.
+The Facilitator sits in the payment flow — when a server receives a payment token, it delegates verification and settlement to the Facilitator rather than handling it directly. See [how the x402 flow works end to end](/development-guide/nevermined-x402).
 
 ## Why use a Facilitator?
 
@@ -43,7 +45,9 @@ Use the sandbox environment for development and testing. Switch to production on
 
 ### Core Endpoints
 
-The Nevermined x402 Facilitator exposes two core endpoints for payment verification and settlement:
+Each protocol has its own verify/settle route pair. The plan, the credits, and the delegation underneath are identical — only the wire shape differs.
+
+**x402** — verify then settle around your workload:
 
 <CardGroup cols={2}>
   <Card title="Verify Endpoint" icon="shield-check">
@@ -59,13 +63,37 @@ The Nevermined x402 Facilitator exposes two core endpoints for payment verificat
   </Card>
 </CardGroup>
 
+**MPP** — a seller mints a challenge, then verifies and settles the credential the buyer returns:
+
+<CardGroup cols={3}>
+  <Card title="Challenge Endpoint" icon="flag">
+    **POST** `/api/v1/mpp/challenge`
+
+    Mints the HMAC-bound `WWW-Authenticate: Payment` challenge to return with your `402`.
+  </Card>
+
+  <Card title="Verify Endpoint" icon="shield-check">
+    **POST** `/api/v1/mpp/verify`
+
+    Checks a returned credential without burning credits.
+  </Card>
+
+  <Card title="Settle Endpoint" icon="credit-card">
+    **POST** `/api/v1/mpp/settle`
+
+    Verifies **and** burns the credits, returning the `Payment-Receipt`.
+  </Card>
+</CardGroup>
+
+Buyers mint their access token at `POST /api/v1/x402/permissions` (x402) or `POST /api/v1/mpp/permissions` (MPP). A token minted for one protocol is refused on the other's routes — see [protocol isolation](/products/x402-facilitator/mpp-seller#protocol-isolation). Full MPP seller reference: [Accepting MPP payments](/products/x402-facilitator/mpp-seller).
+
 ## How it works
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant Server as Resource Server (API/Agent)
-    participant Facilitator as Nevermined x402 Facilitator
+    participant Facilitator as Nevermined Payments Facilitator
     participant Chain as Blockchain
 
     Client->>Server: Request
@@ -124,6 +152,10 @@ After the server completes its work, the facilitator can execute the settlement 
 
   <Card title="How It Works" icon="gears" href="/products/x402-facilitator/how-it-works">
     End-to-end flow (client + server) with x402 headers and facilitator calls
+  </Card>
+
+  <Card title="Accepting MPP payments" icon="handshake" href="/products/x402-facilitator/mpp-seller">
+    Advertise your plan-protected endpoint as MPP-payable, metered exactly like x402
   </Card>
 
   <Card title="Payment Models" icon="calculator" href="/integrate/patterns/payment-models">

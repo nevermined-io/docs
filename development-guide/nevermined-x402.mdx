@@ -16,6 +16,15 @@ Nevermined provides first-class support for the x402 payment protocol, enabling 
 For the complete technical specification, see the [x402 Smart Accounts Extension Spec](/specs/x402-smart-accounts).
 </Note>
 
+<Note>
+**x402 has a sibling protocol: MPP.** Nevermined also speaks the **Merchant Payment Protocol (MPP)**, which settles against the **same Payment Plans, credits, and delegation** as x402 — a request that costs 2 credits burns 2 either way. The only difference is the wire handshake. A service tells you which it speaks by its `402` response:
+
+- an x402 `accepts` / `payment-required` body → follow the x402 steps on this page;
+- a `WWW-Authenticate: Payment …` header → follow [Paying an MPP-protected service](#paying-an-mpp-protected-service) below.
+
+MPP here is the **plan-model sibling of x402**, offered the same way — not the buyer-side [Router MPP rail](/products/catalog/router/rails-mpp), which pays *external* merchants that were never onboarded to Nevermined.
+</Note>
+
 ## Overview
 
 This section explains:
@@ -607,6 +616,105 @@ For other frameworks or custom implementations, follow these steps:
   </Tab>
 </Tabs>
 
+## Paying an MPP-protected service
+
+Some services accept **MPP (Merchant Payment Protocol)** instead of x402. MPP settles against the same Nevermined Payment Plans as x402 — same credits, same delegation, same meter — so the buyer flow mirrors the one above with `/api/v1/mpp/*` in place of `/api/v1/x402/*`. You recognise an MPP service by its `402`: it carries a `WWW-Authenticate: Payment …` header instead of an x402 `accepts` body.
+
+<Note>
+This is the **buyer** side. To make *your own* plan-protected endpoint MPP-payable, see [Accepting MPP payments](/products/x402-facilitator/mpp-seller).
+</Note>
+
+### Recommended: the SDK does it for you
+
+The MPP credential is an `mppx`-serialised structure (the server's challenge plus your minted access token), not a plain header value — so the practical buyer path is the SDK. `payments.mpp.fetch(...)` is a drop-in for `fetch`: it parses the challenge, mints the token, builds the credential, presents it, and reads the `Payment-Receipt` for you. It uses the **same delegation** you already created for x402.
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+
+    const payments = Payments.getInstance({
+      nvmApiKey: process.env.NVM_API_KEY!,
+      environment: 'sandbox',
+    })
+
+    // Reuse the delegation you created for x402 (see "Build a payment payload" above).
+    const { response, settled, receipt } = await payments.mpp.fetch(
+      'https://api.example.com/ask',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: 'Hello' }) },
+      { delegationConfig: { delegationId: delegation.delegationId }, planId: PLAN_ID },
+    )
+
+    if (settled) {
+      console.log('Paid. Receipt reference:', receipt?.reference)
+      const result = await response.json()
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    from payments_py import Payments, PaymentOptions
+    from payments_py.mpp import MppFetchOptions
+    from payments_py.x402.types import DelegationConfig
+
+    payments = Payments.get_instance(
+        PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
+    )
+
+    # Reuse the delegation you created for x402 (see "Build a payment payload" above).
+    result = payments.mpp.fetch(
+        "POST",
+        "https://api.example.com/ask",
+        MppFetchOptions(
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id),
+            plan_id=PLAN_ID,        # optional: refuse a challenge naming another plan
+            max_credits="10",       # optional: cap the credits for the whole call
+        ),
+        json={"prompt": "Hello"},
+    )
+
+    if result.settled:
+        print("Paid. Receipt reference:", result.receipt.reference)
+        data = result.response.json()
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+`settled` (a `Payment-Receipt` came back and did not report failure) is the honest signal that credits were burned — not the HTTP status. A streaming handler can return `200` with no receipt even though the credits were burned, so never read "no receipt" as "not paid" and blindly retry.
+</Tip>
+
+### Under the hood (raw HTTP)
+
+If you are not using the SDK, the flow is three steps — and you do **not** pre-buy the plan: the delegation-backed settle in step 3 acquires and burns the credits in one call, exactly like the x402 `settle` flow above.
+
+<Steps>
+  <Step title="Call the service unpaid">
+    It replies `402` with a `WWW-Authenticate: Payment …` challenge that names the `planId` and the `credits` the call costs.
+  </Step>
+  <Step title="Mint an MPP access token for that plan">
+    `POST /api/v1/mpp/permissions` — the counterpart of `/api/v1/x402/permissions`, with the **same body minus `tokenVersion`**:
+
+    ```json
+    {
+      "resource": { "url": "<service-url>" },
+      "accepted": { "scheme": "nvm:erc4337", "network": "<network-id>", "planId": "<from the challenge>" },
+      "delegationConfig": { "delegationId": "<your delegation>" }
+    }
+    ```
+
+    It returns an `accessToken` signed under the `Nevermined-MPP` domain, so it is accepted only on MPP routes (and refused on x402 routes). Use a card-delegation scheme/`network` instead for a fiat plan, exactly as in x402.
+  </Step>
+  <Step title="Present the credential">
+    Combine the challenge with your access token into an MPP credential and re-send the request with `Authorization: Payment <credential>`. The service verifies and settles it against your plan credits and returns a `Payment-Receipt` header as your proof. Settling the same challenge twice burns once — the challenge id is the idempotency key.
+  </Step>
+</Steps>
+
+<Note>
+Building the credential by hand needs the `mppx` serialisation library, which is why the SDK is the recommended path above. The raw shape is documented for parity and for non-JS/Python clients.
+</Note>
+
 ## Summary
 
 This section provides a comprehensive guide for developers integrating Nevermined with x402:
@@ -617,5 +725,6 @@ This section provides a comprehensive guide for developers integrating Nevermine
 - **Subscribers** delegate controlled permissions using `DelegationConfig` (spending limits and duration)
 - **Servers** use `payment-signature` headers and verify/settle via the facilitator
 - **Facilitators** verify and settle on-chain
+- **MPP** is the sibling protocol: the same plans, credits, and delegation over a `WWW-Authenticate: Payment` / `Authorization: Payment` handshake — pay it with `payments.mpp.fetch(...)`
 - **Python & TypeScript libraries** provide turnkey developer tooling
 - **Express.js and FastAPI middleware** handle the entire flow automatically
