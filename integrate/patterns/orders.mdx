@@ -41,6 +41,8 @@ Use `https://api.sandbox.nevermined.app` while you build and `https://api.live.n
 
 ## How it works
 
+![Diagram: a merchant creates an order server-side with its API key; Nevermined and Stripe run the checkout in three steps — Create returns a clientSecret, the buyer Confirms the card payment in the hosted checkout, and a Stripe webhook Settles the order as paid — then the paid result returns to the merchant with payout to its Connect account. The buyer needs no Nevermined account.](/images/orders-flow.png)
+
 Your server sets the price. The buyer's browser confirms the payment. A Stripe webhook tells Nevermined the money moved. Nothing buyer-facing can change the amount.
 
 <Steps>
@@ -64,6 +66,10 @@ Your server sets the price. The buyer's browser confirms the payment. A Stripe w
 <Note>
 The hosted checkout is the buyer-facing half of Orders and ships with the same rollout as the API, together with SDK helpers for `POST /api/v1/orders`. You don't need your own Stripe Elements integration: the hosted checkout confirms the `clientSecret` for you. Your side is the server-to-server REST contract on this page.
 </Note>
+
+<Tip>
+Prefer to read working code? The [Fiat Checkout Chat tutorial](https://github.com/nevermined-io/tutorials/tree/main/fiat-checkout-chat) is a minimal Next.js chat UI plus a thin merchant backend that implements this exact flow — create an order, hand off the `orderId`, confirm by card in the hosted checkout, and read the paid status. While Orders is pre-GA it runs against a local Nevermined stack; see the tutorial's prerequisites.
+</Tip>
 
 ## Create an Order
 
@@ -274,6 +280,9 @@ Server-side checkout by agents, a refund API, and dispute handling through Never
 ## Next steps
 
 <CardGroup cols={2}>
+  <Card title="Fiat Checkout Chat tutorial" icon="github" href="https://github.com/nevermined-io/tutorials/tree/main/fiat-checkout-chat">
+    A worked Next.js + merchant-backend example of the Orders flow. Runs on a local stack while Orders is pre-GA.
+  </Card>
   <Card title="Fiat Payments" icon="credit-card" href="/integrate/patterns/fiat-payments">
     Card plans, delegations, revenue routing, and fees for the rest of the fiat rails.
   </Card>
@@ -282,8 +291,5 @@ Server-side checkout by agents, a refund API, and dispute handling through Never
   </Card>
   <Card title="API Errors" icon="triangle-exclamation" href="/development-guide/api-errors/overview">
     The error envelope, categories, and retry semantics used across the API.
-  </Card>
-  <Card title="Payment Models" icon="calculator" href="/integrate/patterns/payment-models">
-    When a plan is the better fit: credits, time-based, and dynamic pricing.
   </Card>
 </CardGroup>
