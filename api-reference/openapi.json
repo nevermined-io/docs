@@ -2921,7 +2921,7 @@
       },
       "X402SchemeExtra": {
         "type": "object",
-        "description": "Scheme-specific extra fields (`X402SchemeExtraDto`). Every field is optional, but on `tokenVersion` 3 each one you omit is signed as the empty string — which binds the token to that value being ABSENT rather than to any value.",
+        "description": "Scheme-specific extra fields (`X402SchemeExtraDto`). Every field is optional. On `tokenVersion` 3, `agentId` and `httpVerb` are signed as the empty string when omitted — which binds the token to that value being ABSENT rather than to any value. `version` is not part of the v3 signed struct at all, so omitting it binds nothing.",
         "properties": {
           "version": {
             "type": "string",
@@ -2961,7 +2961,7 @@
           },
           "planId": {
             "type": "string",
-            "description": "Plan id (256-bit identifier). Required for `nvm:erc4337`, optional for `nvm:card-delegation`. Request validation does not enforce it for either scheme.",
+            "description": "Plan id (256-bit identifier). Required for BOTH schemes — a mint without it is refused with `BCK.X402.0030` (HTTP 402). Request validation does not enforce it for either scheme: the DTO marks it optional, so the rejection comes from the scheme handler rather than from the `ValidationPipe`.",
             "example": "44742763076047497640080230236781474129970992727896593861997347135613135571071"
           },
           "extra": {
@@ -2983,7 +2983,7 @@
         "description": "The server's 402 PaymentRequired response (`X402PaymentRequiredDto`), echoed back to the facilitator on verify and settle. The facilitator checks that the `accepted` scheme carried inside the token matches one of `accepts`.",
         "properties": {
           "x402Version": {
-            "type": "number",
+            "type": "integer",
             "description": "x402 protocol version.",
             "example": 2
           },
@@ -3033,7 +3033,7 @@
           },
           "apiKeyId": {
             "type": "string",
-            "description": "Nevermined API key id (`skId`) to restrict this delegation to. Omit so that any key can use it.",
+            "description": "Nevermined API key id (`skId`) to restrict this delegation to. Omit so that any key can use it. Applied only when THIS request creates the delegation inline; it is ignored when you pass `delegationId`, where the restriction is read off the stored delegation instead.",
             "example": "sk-abc123"
           },
           "providerPaymentMethodId": {
@@ -3085,7 +3085,7 @@
       },
       "CreatePermissionRequest": {
         "type": "object",
-        "description": "Body of `POST /x402/permissions` (`GenerateX402TokenDto`) — an x402 PaymentPayload. `accepted` is the only required field, and the handler runs a `ValidationPipe`, so a body without it is rejected with 400 before any handler logic runs. There is no settlement-account field: for card schemes the seller's Stripe Connect account is resolved server-side from the plan and is never supplied by the caller.",
+        "description": "Body of `POST /x402/permissions` (`GenerateX402TokenDto`) — an x402 PaymentPayload. `accepted` is the only field REQUEST VALIDATION requires: the handler runs a `ValidationPipe`, so a body without it is rejected with 400 before any handler logic runs. It is not the only field the API requires — every scheme handler additionally demands `delegationConfig` and `accepted.planId`, refusing the mint with `BCK.X402.0030` (HTTP 402). There is no settlement-account field: for card schemes the seller's Stripe Connect account is resolved server-side from the plan and is never supplied by the caller.",
         "properties": {
           "resource": {
             "description": "The protected resource this token is minted for. Optional — but on `tokenVersion` 3 an omitted `resource.url` is signed as the empty string, which binds the token to having no resource rather than to any resource.",
@@ -3104,7 +3104,7 @@
             ]
           },
           "delegationConfig": {
-            "description": "Delegation configuration, used by both the `nvm:erc4337` and `nvm:card-delegation` schemes.",
+            "description": "Delegation configuration. REQUIRED by both schemes despite being absent from `required` above — the DTO marks it optional and the scheme handler refuses the mint with `BCK.X402.0030` (HTTP 402). `nvm:erc4337` needs either `delegationId` or the inline triple `spendingLimitCents` + `durationSecs` + `currency`; `nvm:card-delegation` accepts an empty object `{}`, which selects a card automatically (deprecated).",
             "allOf": [
               {
                 "$ref": "#/components/schemas/X402DelegationConfig"
@@ -3113,7 +3113,7 @@
           },
           "tokenVersion": {
             "type": "integer",
-            "description": "EIP-712 struct version to sign. A version 3 signature carries a one-time nonce, so the token is SINGLE-USE — it is consumed by its first settle and a second settle is refused with `BCK.X402.0059`; mint one token per paid request. A version 3 token is also bound to whichever of `accepted.extra.agentId`, `resource.url` and `accepted.extra.httpVerb` you send on this request, since each is signed as the empty string when omitted. Version 2 is the legacy shape: reusable and unbound, so a captured token replays until the permission or delegation is revoked — ask for it only if you cannot mint per request. When this field is omitted the server signs version 3, except for clients whose `Nevermined-Version` resolves below 1.34, which keep receiving version 2.",
+            "description": "EIP-712 struct version to sign. A version 3 signature carries a one-time nonce, so the token is SINGLE-USE — it is consumed by its first settle and a second settle is refused with `BCK.X402.0059`; mint one token per paid request. A version 3 token is also bound to whichever of `accepted.extra.agentId`, `resource.url` and `accepted.extra.httpVerb` you send on this request, since each is signed as the empty string when omitted. Version 2 is the legacy shape: reusable and unbound, so a captured token replays until the permission or delegation is revoked — ask for it only if you cannot mint per request. When this field is omitted the server signs version 3, except for clients whose pinned API version is below 1.34 — that pin comes from the `Nevermined-Version` header, or, when no header is sent, from the version stamped on the API key when it was minted — which keep receiving version 2.",
             "enum": [
               2,
               3
