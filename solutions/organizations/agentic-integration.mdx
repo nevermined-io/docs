@@ -13,7 +13,7 @@ Nevermined generates and keeps this surface up to date for you as three files:
     A concise index of your plans, agents, and reference links. The agent's map of your organization.
   </Card>
   <Card title="agentic-instructions.md" icon="robot" href="#agentic-instructions-md">
-    A step-by-step guide telling an AI agent how to discover and pay for your agents via x402.
+    A step-by-step guide telling an AI agent how to discover and pay for your agents via x402 or MPP.
   </Card>
   <Card title="ai-catalog.json" icon="magnifying-glass-chart" href="#ai-catalog-json">
     A structured Agentic Resource Discovery (ARD) catalog with your agents' x402 payment terms, crawlable by registries.
@@ -93,7 +93,7 @@ A short, agent-discoverable index that follows the [llms.txt convention](https:/
 
 ## agentic-instructions.md
 
-The operational guide. Where `llms.txt` is a map, this is the *how-to*: a plain-Markdown document — consumed raw by agents like Claude Code — that tells an autonomous agent exactly how to discover and pay for your agents through Nevermined's x402 flow.
+The operational guide. Where `llms.txt` is a map, this is the *how-to*: a plain-Markdown document — consumed raw by agents like Claude Code — that tells an autonomous agent exactly how to discover and pay for your agents through Nevermined's **x402 and MPP** flows. Both settle against the same Payment Plans; the agent picks the flow from the service's `402` response.
 
 It opens by stating the environment ("you are talking to the sandbox / live environment"), then walks the ordered path:
 
@@ -102,10 +102,10 @@ It opens by stating the environment ("you are talking to the sandbox / live envi
     A one-time, human-in-the-loop step. The document links the embedded login flow so the key can be issued and returned automatically.
   </Step>
   <Step title="Set up a payment method">
-    A stablecoin method works immediately; a card needs a one-time embedded enrollment. The agent then creates a spending **delegation** — a budget it can spend within, no human per purchase.
+    A stablecoin method works immediately; a card needs a one-time embedded enrollment. The agent then creates a spending **delegation** — a budget it can spend within, no human per purchase. The same delegation backs both x402 and MPP.
   </Step>
-  <Step title="Pay with x402">
-    Pick a plan from the registry and settle it with `verify` + `settle`. The document spells out the exact endpoints and request bodies.
+  <Step title="Pay with x402 or MPP">
+    Pick a plan from the registry and settle it. For an **x402** service (or a plain plan top-up) the agent uses `verify` + `settle`; for an **MPP** service — recognised by a `WWW-Authenticate: Payment …` challenge — it mints at `/api/v1/mpp/permissions` and returns an `Authorization: Payment` credential. The document spells out the exact endpoints and request bodies for each.
   </Step>
 </Steps>
 
@@ -177,8 +177,8 @@ The three files layer from "quick index" to "ready-to-transact":
   <Step title="It learns the environment and your catalog">
     Which network it's on, which API to call, and which of your plans and agents accept payment.
   </Step>
-  <Step title="It obtains a credential and pays with x402">
-    A one-time key + delegation, then `settle` against the plan — no human per purchase.
+  <Step title="It obtains a credential and pays with x402 or MPP">
+    A one-time key + delegation, then it settles against the plan over whichever protocol the service speaks — no human per purchase.
   </Step>
   <Step title="It calls your agent">
     With credits in hand, it invokes your agent and you get paid. See [Buy & Call a Paid Agent](/getting-started/ai-agent-purchase) for the end-to-end flow.
@@ -199,5 +199,8 @@ The three files layer from "quick index" to "ready-to-transact":
   </Card>
   <Card title="x402 stablecoin payments" icon="coins" href="/integrate/patterns/stablecoin-payments">
     Paying for agents with USDC and other stablecoins.
+  </Card>
+  <Card title="Paying an MPP service" icon="handshake" href="/development-guide/nevermined-x402#paying-an-mpp-protected-service">
+    The MPP buyer flow — the plan-model sibling of x402.
   </Card>
 </CardGroup>

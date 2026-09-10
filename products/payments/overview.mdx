@@ -33,7 +33,7 @@ The full comparison (rails, plans, buyer accounts, who integrates what) is on [M
 
 ## Card payments for agents
 
-Everything below is the mechanism behind **card-paid agent payments**, which is how a Merchant Plan gets paid by card. Enroll a Visa, Stripe, or Braintree card. Create a delegation that caps how much can be spent. Your agents charge it directly via x402 — no checkout pages, no human in the loop.
+Everything below is the mechanism behind **card-paid agent payments**, which is how a Merchant Plan gets paid by card. Enroll a Visa, Stripe, or Braintree card. Create a delegation that caps how much can be spent. Your agents charge it directly via x402 or MPP — no checkout pages, no human in the loop.
 
 <Note>
 **Three payment types and three card networks are different things.** Catalog, Embedded Web Flow, and Merchant Plans are *what you sell and who buys*. Visa, Stripe, and Braintree are *card networks*: the providers an enrolled card and its delegation settle through. Delegations apply to Merchant Plans paid by card. The Embedded Web Flow settles through the same PSPs, but the buyer confirms each charge in the browser, so there is no enrollment and no delegation. Catalog payments are stablecoin and never touch a card.

@@ -21,11 +21,11 @@ Every monetizable service has:
 - A **validation step** (Nevermined checks entitlement per request)
 - **Usage tracking** (automatic metering on every call)
 
-## Standards and protocols (x402)
+## Standards and protocols (x402 and MPP)
 
-Nevermined supports modern payment standards used in agentic commerce. In particular, **x402** standardizes how clients and servers negotiate payment-required requests, enabling smoother, interoperable monetization flows.
+Nevermined supports modern payment standards used in agentic commerce. **x402** standardizes how clients and servers negotiate payment-required requests over HTTP headers. Its sibling, the **Merchant Payment Protocol (MPP)**, negotiates the same payment with an RFC 7235 `WWW-Authenticate: Payment` challenge. Both settle against the **same Payment Plans and credits** — the protocol is just the wire handshake.
 
-If you're integrating with x402-compatible clients/servers, see the [x402 integration](/development-guide/nevermined-x402).
+If you're integrating with x402- or MPP-compatible clients/servers, see the [x402 integration and its MPP sibling](/development-guide/nevermined-x402).
 
 ## What is a Payment Plan?
 
