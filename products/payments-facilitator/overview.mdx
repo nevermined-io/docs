@@ -4,17 +4,15 @@ description: "The Nevermined Payments Facilitator verifies and settles both x402
 icon: "credit-card"
 ---
 
-{/* The docs path stays /products/x402-facilitator/* for link stability — it is historical, from when the product was x402-only, and not a sign the facilitator is x402-only today. Do not "fix" it by renaming the route without adding redirects from every old path. */}
-
 The Nevermined Payments Facilitator is an **enforcement and settlement engine** for HTTP-native agent payments. It lets any API, agent, MCP tool, or protected resource get paid without running on-chain infrastructure — and it speaks **two sibling payment protocols that settle against the same Nevermined Payment Plans**:
 
 - **[x402](/development-guide/nevermined-x402)** — payment terms travel in a `payment-required` header and the payment is presented in `payment-signature`. Covers standard "pay-per-request" x402 and Nevermined's programmable extension (`nvm:erc4337` and `nvm:card-delegation` schemes, with smart accounts, session keys, and contract settlement).
-- **[MPP (Merchant Payment Protocol)](/products/x402-facilitator/mpp-seller)** — the same plan, credits, and delegation, negotiated with an RFC 7235 `WWW-Authenticate: Payment …` challenge and an `Authorization: Payment …` credential instead.
+- **[MPP (Merchant Payment Protocol)](/products/payments-facilitator/mpp-seller)** — the same plan, credits, and delegation, negotiated with an RFC 7235 `WWW-Authenticate: Payment …` challenge and an `Authorization: Payment …` credential instead.
 
 A request that costs 2 credits burns 2 whether it was paid over x402 or MPP: **one meter, one delegation budget, two wire protocols.**
 
 <Note>
-For the complete technical specification of the x402 extension, see the [x402 Smart Accounts Extension Spec](/specs/x402-smart-accounts). For the MPP seller integration, see [Accepting MPP payments](/products/x402-facilitator/mpp-seller).
+For the complete technical specification of the x402 extension, see the [x402 Smart Accounts Extension Spec](/specs/x402-smart-accounts). For the MPP seller integration, see [Accepting MPP payments](/products/payments-facilitator/mpp-seller).
 </Note>
 
 The Facilitator sits in the payment flow — when a server receives a payment token, it delegates verification and settlement to the Facilitator rather than handling it directly. See [how the x402 flow works end to end](/development-guide/nevermined-x402).
@@ -85,7 +83,7 @@ Each protocol has its own verify/settle route pair. The plan, the credits, and t
   </Card>
 </CardGroup>
 
-Buyers mint their access token at `POST /api/v1/x402/permissions` (x402) or `POST /api/v1/mpp/permissions` (MPP). A token minted for one protocol is refused on the other's routes — see [protocol isolation](/products/x402-facilitator/mpp-seller#protocol-isolation). Full MPP seller reference: [Accepting MPP payments](/products/x402-facilitator/mpp-seller).
+Buyers mint their access token at `POST /api/v1/x402/permissions` (x402) or `POST /api/v1/mpp/permissions` (MPP). A token minted for one protocol is refused on the other's routes — see [protocol isolation](/products/payments-facilitator/mpp-seller#protocol-isolation). Full MPP seller reference: [Accepting MPP payments](/products/payments-facilitator/mpp-seller).
 
 ## How it works
 
@@ -150,11 +148,11 @@ After the server completes its work, the facilitator can execute the settlement 
     One-line payment protection with Express middleware
   </Card>
 
-  <Card title="How It Works" icon="gears" href="/products/x402-facilitator/how-it-works">
+  <Card title="How It Works" icon="gears" href="/products/payments-facilitator/how-it-works">
     End-to-end flow (client + server) with x402 headers and facilitator calls
   </Card>
 
-  <Card title="Accepting MPP payments" icon="handshake" href="/products/x402-facilitator/mpp-seller">
+  <Card title="Accepting MPP payments" icon="handshake" href="/products/payments-facilitator/mpp-seller">
     Advertise your plan-protected endpoint as MPP-payable, metered exactly like x402
   </Card>
 

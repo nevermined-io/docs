@@ -6,7 +6,7 @@ icon: "plug"
 
 Agents are a new buyer of your API, and they don't onboard the way humans do. They don't sit at a browser, fill out a Stripe Checkout, or remember to top up a credit balance. Today they either stall at your paywall or hardcode a human's API key.
 
-Nevermined turns that failure mode into revenue with a small server-side integration. Agents holding a delegated card mint an [x402](/development-guide/nevermined-x402) access token, send it to your endpoint, and you provision or top up access in response. You verify and settle through Nevermined's [Payments Facilitator](/products/x402-facilitator/overview); the buyer's card is charged through Stripe, Braintree, or the Visa Trusted Agent Protocol depending on how it was enrolled. All three settle x402 charges through the same `nvm:card-delegation` scheme — your endpoint code doesn't change.
+Nevermined turns that failure mode into revenue with a small server-side integration. Agents holding a delegated card mint an [x402](/development-guide/nevermined-x402) access token, send it to your endpoint, and you provision or top up access in response. You verify and settle through Nevermined's [Payments Facilitator](/products/payments-facilitator/overview); the buyer's card is charged through Stripe, Braintree, or the Visa Trusted Agent Protocol depending on how it was enrolled. All three settle x402 charges through the same `nvm:card-delegation` scheme — your endpoint code doesn't change.
 
 ## Featured providers
 
@@ -585,7 +585,7 @@ Prices above are indicative; the live price for each tier is shown on the upgrad
 
 - [x402 Card Delegation Spec](/specs/x402-card-delegation) - full
   verify/settle protocol with JWT claims, error codes, and the four-phase flow
-- [Payments Facilitator: How it works](/products/x402-facilitator/how-it-works)
+- [Payments Facilitator: How it works](/products/payments-facilitator/how-it-works)
   - end-to-end walk-through of the facilitator API
 - [Validate Requests](/integrate/patterns/validate-requests) and
   [Charge Credits](/integrate/patterns/charge-credits) - copy-paste
