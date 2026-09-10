@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2240 940" width="2240" height="940" font-family="'Plus Jakarta Sans','DejaVu Sans',sans-serif">
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7fbfa"/>
+      <stop offset="1" stop-color="#eaf4f0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.16" cy="0.12" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d3f48"/>
+      <stop offset="1" stop-color="#124a53"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#0d3f48" flood-opacity="0.10"/>
+    </filter>
+    <filter id="pillShadow" x="-20%" y="-40%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0d3f48" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- canvas -->
+  <rect x="8" y="8" width="2224" height="924" rx="44" fill="url(#canvas)"/>
+  <rect x="8" y="8" width="2224" height="924" rx="44" fill="url(#glow)"/>
+
+  <!-- connectors (drawn under cards) -->
+  <g stroke="#2f6d63" stroke-width="4" fill="#0d3f48">
+    <line x1="470" y1="420" x2="540" y2="420"/><circle cx="470" cy="420" r="10" stroke="none"/><circle cx="540" cy="420" r="10" stroke="none"/>
+    <line x1="1700" y1="420" x2="1770" y2="420"/><circle cx="1700" cy="420" r="10" stroke="none"/><circle cx="1770" cy="420" r="10" stroke="none"/>
+  </g>
+
+  <!-- dashed "paid" response loop -->
+  <g fill="none" stroke="#86bdae" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 14">
+    <path d="M270 592 L270 768 Q270 784 286 784 L660 784"/>
+    <path d="M1970 592 L1970 768 Q1970 784 1954 784 L1580 784"/>
+  </g>
+  <g fill="#0d3f48"><circle cx="270" cy="592" r="9"/><circle cx="1970" cy="592" r="9"/></g>
+
+  <!-- LEFT card: Merchant -->
+  <g filter="url(#cardShadow)">
+    <rect x="80" y="250" width="390" height="342" rx="26" fill="#ffffff" stroke="#e4efeb" stroke-width="2"/>
+  </g>
+  <rect x="120" y="292" width="78" height="78" rx="19" fill="#d4f4ee"/>
+  <g transform="translate(139,311)" fill="none" stroke="#0d3f48" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 14 L7 4 L33 4 L36 14 Z"/>
+    <path d="M4 14 a6 6 0 0 0 12 0 a6 6 0 0 0 12 0 a6 6 0 0 0 12 0"/>
+    <path d="M7 20 L7 36 L33 36 L33 20"/>
+    <path d="M16 36 L16 27 L24 27 L24 36"/>
+  </g>
+  <text x="120" y="432" font-size="37" font-weight="700" fill="#0d3f48">Merchant</text>
+  <text x="120" y="478" font-size="24" fill="#5f7370">Creates the order and sets</text>
+  <text x="120" y="510" font-size="24" fill="#5f7370">the amount with its API key.</text>
+
+  <!-- CENTER panel -->
+  <g filter="url(#cardShadow)">
+    <rect x="540" y="250" width="1160" height="342" rx="30" fill="url(#panel)"/>
+  </g>
+  <text x="582" y="308" font-size="31" font-weight="700" fill="#ffffff">Checkout<tspan font-size="23" font-weight="400" fill="#9fbcb4">   handled by Nevermined + Stripe — no card data on your servers</tspan></text>
+
+  <!-- step 1 -->
+  <rect x="576" y="352" width="336" height="196" rx="18" fill="#1e4d55"/>
+  <circle cx="616" cy="398" r="23" fill="#bcdc4a"/><text x="616" y="407" font-size="26" font-weight="700" fill="#0d3f48" text-anchor="middle">1</text>
+  <text x="652" y="407" font-size="29" font-weight="700" fill="#ffffff">Create</text>
+  <text x="608" y="460" font-size="22" fill="#a9c4bc">POST /api/v1/orders</text>
+  <text x="608" y="490" font-size="22" fill="#a9c4bc">returns a clientSecret.</text>
+  <text x="928" y="456" font-size="40" fill="#5b7c78">&#8250;</text>
+
+  <!-- step 2 -->
+  <rect x="952" y="352" width="336" height="196" rx="18" fill="#1e4d55"/>
+  <circle cx="992" cy="398" r="23" fill="#bcdc4a"/><text x="992" y="407" font-size="26" font-weight="700" fill="#0d3f48" text-anchor="middle">2</text>
+  <text x="1028" y="407" font-size="29" font-weight="700" fill="#ffffff">Confirm</text>
+  <text x="984" y="460" font-size="22" fill="#a9c4bc">Buyer pays by card in</text>
+  <text x="984" y="490" font-size="22" fill="#a9c4bc">the hosted checkout.</text>
+  <text x="1304" y="456" font-size="40" fill="#5b7c78">&#8250;</text>
+
+  <!-- step 3 -->
+  <rect x="1328" y="352" width="336" height="196" rx="18" fill="#1e4d55"/>
+  <circle cx="1368" cy="398" r="23" fill="#bcdc4a"/><text x="1368" y="407" font-size="26" font-weight="700" fill="#0d3f48" text-anchor="middle">3</text>
+  <text x="1404" y="407" font-size="29" font-weight="700" fill="#ffffff">Settle</text>
+  <text x="1360" y="460" font-size="22" fill="#a9c4bc">A Stripe webhook marks</text>
+  <text x="1360" y="490" font-size="22" fill="#a9c4bc">the order paid.</text>
+
+  <!-- RIGHT card: Buyer -->
+  <g filter="url(#cardShadow)">
+    <rect x="1770" y="250" width="390" height="342" rx="26" fill="#ffffff" stroke="#e4efeb" stroke-width="2"/>
+  </g>
+  <rect x="1810" y="292" width="78" height="78" rx="19" fill="#d4f4ee"/>
+  <g transform="translate(1828,309)" fill="none" stroke="#0d3f48" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="6" width="36" height="26" rx="4"/>
+    <path d="M3 14 L39 14"/>
+    <path d="M9 24 L17 24"/>
+  </g>
+  <text x="1810" y="432" font-size="37" font-weight="700" fill="#0d3f48">Buyer</text>
+  <text x="1810" y="478" font-size="24" fill="#5f7370">Pays by card in the browser.</text>
+  <text x="1810" y="510" font-size="24" fill="#5f7370">No Nevermined account.</text>
+
+  <!-- PAID response pill -->
+  <g filter="url(#pillShadow)">
+    <rect x="660" y="742" width="920" height="84" rx="42" fill="#ffffff" stroke="#e4efeb" stroke-width="2"/>
+  </g>
+  <circle cx="710" cy="784" r="24" fill="#0d3f48"/><text x="710" y="793" font-size="25" font-weight="700" fill="#bcdc4a" text-anchor="middle">4</text>
+  <text x="750" y="793" font-size="26" font-weight="700" fill="#0d3f48">Paid<tspan font-size="23" font-weight="400" fill="#5f7370">   the order is marked paid — read it, fulfill, payout follows.</tspan></text>
+</svg>
