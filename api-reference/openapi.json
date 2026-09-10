@@ -1206,7 +1206,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Permission created",
             "content": {
               "application/json": {
@@ -1367,7 +1367,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Verification result",
             "content": {
               "application/json": {
@@ -2864,107 +2864,255 @@
       },
       "PermissionCreatedResponse": {
         "type": "object",
+        "description": "Response of `POST /x402/permissions`. The endpoint returns the access token and nothing else; read the permission back with `GET /x402/permissions/{permissionHash}`.",
         "properties": {
-          "permissionHash": {
-            "type": "string"
-          },
           "accessToken": {
-            "type": "string"
-          },
-          "maxCredits": {
-            "type": "integer"
-          },
-          "usedCredits": {
-            "type": "integer"
-          },
-          "expiresAt": {
             "type": "string",
-            "format": "date-time"
-          },
-          "status": {
-            "type": "string"
+            "description": "x402 access token (JWT) for permission-based access. Used by the subscriber to call agent endpoints without exposing their private keys. The permission details (plan id, agent id, subscriber address, expiry, limits) are embedded in the token.",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGFuSWQiOiI0MzI5ODQzMjk4NDMyOSIsImFnZW50SWQiOiIxMjM0NTY3ODkwMTIzNDU2Nzg5MCJ9.x402_signature_hash"
           }
-        }
+        },
+        "required": [
+          "accessToken"
+        ]
       },
       "Permission": {
         "type": "object",
+        "description": "Full details of one permission, as returned by `GET /x402/permissions/{permissionHash}`. The four `nvm:card-delegation` budget fields are present only when the permission is linked to a delegation.",
         "properties": {
           "permissionHash": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique identifier of the permission (hash)",
+            "example": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "scheme": {
+            "type": "string",
+            "description": "Payment scheme identifier",
+            "enum": [
+              "nvm:erc4337",
+              "nvm:card-delegation"
+            ],
+            "example": "nvm:erc4337"
           },
           "planId": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique identifier of the payment plan. Omitted when the permission is not bound to a plan.",
+            "example": "12345"
           },
-          "ownerAddress": {
-            "type": "string"
-          },
-          "maxCredits": {
-            "type": "integer"
-          },
-          "usedCredits": {
-            "type": "integer"
-          },
-          "remainingCredits": {
-            "type": "integer"
-          },
-          "allowedAgents": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+          "planName": {
+            "type": "string",
+            "description": "Name of the payment plan",
+            "example": "Premium Credits"
           },
           "status": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "transactions": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
+            "type": "string",
+            "description": "Current status of the permission",
+            "enum": [
+              "Active",
+              "Revoked",
+              "Expired",
+              "Exhausted"
+            ],
+            "example": "Active"
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Date when the permission was created",
+            "example": "2025-05-09T12:00:00Z"
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Date when the permission was last used, or `null` if never used",
+            "example": "2025-05-09T14:00:00Z"
           },
           "expiresAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true,
+            "description": "Date when the permission expires, or `null` if it does not expire",
+            "example": "2025-12-20T00:00:00Z"
+          },
+          "redemptionLimit": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Maximum number of redemptions allowed, or `null` for unlimited",
+            "example": 10
+          },
+          "delegationId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Linked delegation id — `nvm:card-delegation` only",
+            "example": "a1b2c3d4-e5f6-4a90-8bcd-ef1234567890"
+          },
+          "spendingLimitCents": {
+            "type": "string",
+            "nullable": true,
+            "description": "Spending limit in cents — `nvm:card-delegation` only",
+            "example": "10000"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true,
+            "description": "Currency code — `nvm:card-delegation` only",
+            "example": "usd"
+          },
+          "remainingBudgetCents": {
+            "type": "string",
+            "nullable": true,
+            "description": "Remaining budget in cents — `nvm:card-delegation` only",
+            "example": "9000"
           }
-        }
+        },
+        "required": [
+          "permissionHash",
+          "scheme",
+          "planName",
+          "status",
+          "createdAt",
+          "lastUsedAt",
+          "expiresAt",
+          "redemptionLimit"
+        ]
+      },
+      "PermissionSummary": {
+        "type": "object",
+        "description": "One entry of the `GET /x402/permissions` list. This is a summary — it carries no delegation budget figures; fetch `GET /x402/permissions/{permissionHash}` for those.",
+        "properties": {
+          "permissionHash": {
+            "type": "string",
+            "description": "Unique identifier of the permission (hash)",
+            "example": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "scheme": {
+            "type": "string",
+            "description": "Payment scheme identifier",
+            "enum": [
+              "nvm:erc4337",
+              "nvm:card-delegation"
+            ],
+            "example": "nvm:erc4337"
+          },
+          "planId": {
+            "type": "string",
+            "description": "Unique identifier of the payment plan. Omitted when the permission is not bound to a plan.",
+            "example": "12345"
+          },
+          "planName": {
+            "type": "string",
+            "description": "Name of the payment plan",
+            "example": "Premium Credits"
+          },
+          "redemptionLimit": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Maximum number of redemptions allowed, or `null` for unlimited",
+            "example": 10
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date when the permission was created",
+            "example": "2025-05-09T12:00:00Z"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the permission",
+            "enum": [
+              "Active",
+              "Revoked",
+              "Expired",
+              "Exhausted"
+            ],
+            "example": "Active"
+          },
+          "delegationId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Linked delegation id, or `null` for permissions that are not delegation-linked",
+            "example": "a1b2c3d4-e5f6-4a90-8bcd-ef1234567890"
+          }
+        },
+        "required": [
+          "permissionHash",
+          "scheme",
+          "planName",
+          "redemptionLimit",
+          "createdAt",
+          "status"
+        ]
       },
       "PaginatedPermissions": {
         "type": "object",
+        "description": "A page of permissions, as returned by `GET /x402/permissions`.",
         "properties": {
           "permissions": {
             "type": "array",
+            "description": "List of permissions associated with the subscriber",
             "items": {
-              "$ref": "#/components/schemas/Permission"
+              "$ref": "#/components/schemas/PermissionSummary"
             }
           },
-          "totalCount": {
-            "type": "integer"
+          "totalResults": {
+            "type": "integer",
+            "description": "Total number of permissions found",
+            "example": 137
           },
           "page": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Current page number",
+            "example": 1
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Number of results per page",
+            "example": 20
           }
-        }
+        },
+        "required": [
+          "permissions",
+          "totalResults",
+          "page",
+          "offset"
+        ]
       },
       "RevokePermissionResponse": {
         "type": "object",
+        "description": "Result of `DELETE /x402/permissions/{permissionHash}`. On success the endpoint returns `{ \"success\": true }` and populates none of the optional fields; a failure is reported as an error response, not as `success: false`.",
         "properties": {
           "success": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Indicates whether the API call was successful",
+            "example": true
           },
-          "permissionHash": {
-            "type": "string"
+          "message": {
+            "type": "string",
+            "description": "Message describing the result of the API call"
           },
-          "status": {
-            "type": "string"
+          "txHash": {
+            "type": "string",
+            "description": "Blockchain transaction hash associated with the API call"
+          },
+          "httpStatus": {
+            "type": "number",
+            "description": "HTTP status code of the API response"
+          },
+          "data": {
+            "type": "object",
+            "description": "Additional parameters related to the API call",
+            "additionalProperties": true
+          },
+          "when": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the API call was made"
           }
-        }
+        },
+        "required": [
+          "success"
+        ]
       },
       "VerifyPermissionRequest": {
         "type": "object",
@@ -2987,26 +3135,65 @@
       },
       "VerifyPermissionResponse": {
         "type": "object",
+        "description": "x402 facilitator verify response. `isValid` carries the answer; everything else is contextual. Fields after `network` are Nevermined extensions to the x402 facilitator spec.",
         "properties": {
-          "valid": {
-            "type": "boolean"
+          "isValid": {
+            "type": "boolean",
+            "description": "Whether the payment authorization is valid",
+            "example": true
           },
-          "permissionHash": {
-            "type": "string"
+          "invalidReason": {
+            "type": "string",
+            "description": "Reason for invalidity. Only present when `isValid` is `false`.",
+            "example": "Insufficient balance"
           },
-          "remainingCredits": {
-            "type": "integer"
+          "payer": {
+            "type": "string",
+            "description": "Address of the payer's wallet",
+            "example": "0xD4f58B60330bC59cB0A07eE6A1A66ad64244eC8c"
           },
-          "buyerAddress": {
-            "type": "string"
+          "network": {
+            "type": "string",
+            "description": "Network identifier (CAIP-2 chain id, or the payment provider for fiat rails)",
+            "example": "eip155:84532"
           },
-          "error": {
-            "type": "string"
+          "agentRequestId": {
+            "type": "string",
+            "description": "Agent request id for observability tracking (Nevermined extension). Pass it back on `POST /x402/settle`.",
+            "example": "arId-123e4567-e89b-12d3-a456-426614174000"
           },
-          "message": {
-            "type": "string"
+          "urlMatching": {
+            "type": "string",
+            "description": "URL pattern that matched the endpoint. Only present when endpoint validation is performed.",
+            "example": "/api/v1/agents/:agentId/tasks"
+          },
+          "agentRequest": {
+            "type": "object",
+            "description": "Agent request context for observability (Nevermined extension)",
+            "additionalProperties": true,
+            "example": {
+              "agentRequestId": "arId-123e4567-e89b-12d3-a456-426614174000",
+              "agentName": "AI Assistant Agent",
+              "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
+              "balance": {
+                "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+                "planName": "Premium AI Access",
+                "planType": "credits",
+                "holderAddress": "0xD4f58B60330bC59cB0A07eE6A1A66ad64244eC8c",
+                "balance": "98",
+                "creditsContract": "0x1234567890abcdef1234567890abcdef12345678",
+                "isSubscriber": true,
+                "pricePerCredit": 0.001
+              },
+              "urlMatching": "/api/v1/agents/:agentId/tasks",
+              "verbMatching": "POST",
+              "batch": false
+            }
           }
-        }
+        },
+        "required": [
+          "isValid"
+        ]
       },
       "SettlePermissionRequest": {
         "type": "object",
