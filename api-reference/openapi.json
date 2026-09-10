@@ -1405,7 +1405,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Settlement complete",
             "content": {
               "application/json": {
@@ -2864,7 +2864,7 @@
       },
       "PermissionCreatedResponse": {
         "type": "object",
-        "description": "Response of `POST /x402/permissions`. The endpoint returns the access token and nothing else; read the permission back with `GET /x402/permissions/{permissionHash}`.",
+        "description": "Response of `POST /x402/permissions`. The endpoint returns the access token and nothing else — it does not return the permission hash, so read the new permission back off `GET /x402/permissions`.",
         "properties": {
           "accessToken": {
             "type": "string",
@@ -2922,46 +2922,60 @@
             "example": "2025-05-09T12:00:00Z"
           },
           "lastUsedAt": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time",
-            "nullable": true,
             "description": "Date when the permission was last used, or `null` if never used",
             "example": "2025-05-09T14:00:00Z"
           },
           "expiresAt": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time",
-            "nullable": true,
             "description": "Date when the permission expires, or `null` if it does not expire",
             "example": "2025-12-20T00:00:00Z"
           },
           "redemptionLimit": {
-            "type": "integer",
-            "nullable": true,
+            "type": [
+              "integer",
+              "null"
+            ],
             "description": "Maximum number of redemptions allowed, or `null` for unlimited",
             "example": 10
           },
           "delegationId": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Linked delegation id — `nvm:card-delegation` only",
             "example": "a1b2c3d4-e5f6-4a90-8bcd-ef1234567890"
           },
           "spendingLimitCents": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Spending limit in cents — `nvm:card-delegation` only",
             "example": "10000"
           },
           "currency": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Currency code — `nvm:card-delegation` only",
             "example": "usd"
           },
           "remainingBudgetCents": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Remaining budget in cents — `nvm:card-delegation` only",
             "example": "9000"
           }
@@ -3006,8 +3020,10 @@
             "example": "Premium Credits"
           },
           "redemptionLimit": {
-            "type": "integer",
-            "nullable": true,
+            "type": [
+              "integer",
+              "null"
+            ],
             "description": "Maximum number of redemptions allowed, or `null` for unlimited",
             "example": 10
           },
@@ -3029,8 +3045,10 @@
             "example": "Active"
           },
           "delegationId": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Linked delegation id, or `null` for permissions that are not delegation-linked",
             "example": "a1b2c3d4-e5f6-4a90-8bcd-ef1234567890"
           }
@@ -3041,7 +3059,8 @@
           "planName",
           "redemptionLimit",
           "createdAt",
-          "status"
+          "status",
+          "delegationId"
         ]
       },
       "PaginatedPermissions": {
@@ -3096,7 +3115,7 @@
             "description": "Blockchain transaction hash associated with the API call"
           },
           "httpStatus": {
-            "type": "number",
+            "type": "integer",
             "description": "HTTP status code of the API response"
           },
           "data": {
