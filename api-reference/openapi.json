@@ -1190,7 +1190,7 @@
           "X402 - Permissions"
         ],
         "requestBody": {
-          "description": "Permission configuration",
+          "description": "The x402 PaymentPayload to mint a token for",
           "required": true,
           "content": {
             "application/json": {
@@ -1198,9 +1198,19 @@
                 "$ref": "#/components/schemas/CreatePermissionRequest"
               },
               "example": {
-                "planId": "did:nv:def456...",
-                "maxCredits": 100,
-                "expiresAt": "2025-02-10T00:00:00Z"
+                "resource": {
+                  "url": "https://myagent.ai/api/v1/tasks",
+                  "description": "AI agent task execution"
+                },
+                "accepted": {
+                  "scheme": "nvm:erc4337",
+                  "network": "eip155:84532",
+                  "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+                  "extra": {
+                    "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015",
+                    "httpVerb": "POST"
+                  }
+                }
               }
             }
           }
@@ -1246,6 +1256,19 @@
             "schema": {
               "type": "integer",
               "default": 10
+            }
+          },
+          {
+            "name": "scheme",
+            "in": "query",
+            "required": false,
+            "description": "Filter by payment scheme. Omit to list permissions on every scheme.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "nvm:erc4337",
+                "nvm:card-delegation"
+              ]
             }
           }
         ],
@@ -1359,9 +1382,27 @@
                 "$ref": "#/components/schemas/VerifyPermissionRequest"
               },
               "example": {
-                "accessToken": "x402_eyJhbGciOiJIUzI1NiIs...",
-                "agentId": "did:nv:abc123...",
-                "creditsRequested": 5
+                "paymentRequired": {
+                  "x402Version": 2,
+                  "error": "Payment required to access resource",
+                  "resource": {
+                    "url": "https://myagent.ai/api/v1/tasks",
+                    "description": "AI agent task execution"
+                  },
+                  "accepts": [
+                    {
+                      "scheme": "nvm:erc4337",
+                      "network": "eip155:84532",
+                      "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+                      "extra": {
+                        "agentId": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+                      }
+                    }
+                  ],
+                  "extensions": {}
+                },
+                "x402AccessToken": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9teWFnZW50LmFpL2FwaS92MS90YXNrcyJ9LCJhY2NlcHRlZCI6eyJzY2hlbWUiOiJudm06ZXJjNDMzNyIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJwbGFuSWQiOiI0NDc0Mjc2MzA3NjA0NzQ5NzY0MDA4MDIzMDIzNjc4MTQ3NDEyOTk3MDk5MjcyNzg5NjU5Mzg2MTk5NzM0NzEzNTYxMzEzNTU3MTA3MSIsImV4dHJhIjp7InZlcnNpb24iOiIxIiwiYWdlbnRJZCI6IjgwOTE4NDI3MDIzMTcwNDI4MDI5NTQwMjYxMTE3MTk4MTU0NDY0NDk3ODc5MTQ1MjY3NzIwMjU5NDg4NTI5Njg1MDg5MTA0NTI5MDE1IiwiaHR0cFZlcmIiOiJQT1NUIn19LCJwYXlsb2FkIjp7InNpZ25hdHVyZSI6IjB4MTIzNCIsImF1dGhvcml6YXRpb24iOnsiZnJvbSI6IjB4ZjM5RmQ2ZTUxYWFkODhGNkY0Y2U2YUI4ODI3Mjc5Y2ZmRmI5MjI2NiIsInNlc3Npb25LZXlzUHJvdmlkZXIiOiJ6ZXJvZGV2Iiwic2Vzc2lvbktleXMiOltdfX0sImV4dGVuc2lvbnMiOnt9fQ==",
+                "maxAmount": "2"
               }
             }
           }
@@ -1397,9 +1438,28 @@
                 "$ref": "#/components/schemas/SettlePermissionRequest"
               },
               "example": {
-                "accessToken": "x402_eyJhbGciOiJIUzI1NiIs...",
-                "agentId": "did:nv:abc123...",
-                "creditsUsed": 5
+                "paymentRequired": {
+                  "x402Version": 2,
+                  "error": "Payment required to access resource",
+                  "resource": {
+                    "url": "/api/v1/agents/tasks",
+                    "description": "AI agent task execution"
+                  },
+                  "accepts": [
+                    {
+                      "scheme": "nvm:erc4337",
+                      "network": "eip155:84532",
+                      "planId": "44742763076047497640080230236781474129970992727896593861997347135613135571071",
+                      "extra": {
+                        "version": "1"
+                      }
+                    }
+                  ],
+                  "extensions": {}
+                },
+                "x402AccessToken": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiL2FwaS92MS9hZ2VudHMvdGFza3MifSwiYWNjZXB0ZWQiOnsic2NoZW1lIjoibnZtOmVyYzQzMzciLCJuZXR3b3JrIjoiZWlwMTU1Ojg0NTMyIiwicGxhbklkIjoiNDQ3NDI3NjMwNzYwNDc0OTc2NDAwODAyMzAyMzY3ODE0NzQxMjk5NzA5OTI3Mjc4OTY1OTM4NjE5OTczNDcxMzU2MTMxMzU1NzEwNzEiLCJleHRyYSI6eyJ2ZXJzaW9uIjoiMSJ9fSwicGF5bG9hZCI6eyJzaWduYXR1cmUiOiIweDEyMzQiLCJhdXRob3JpemF0aW9uIjp7ImZyb20iOiIweGYzOUZkNmU1MWFhZDg4RjZGNGNlNmFCODgyNzI3OWNmZkZiOTIyNjYiLCJzZXNzaW9uS2V5c1Byb3ZpZGVyIjoiemVyb2RldiIsInNlc3Npb25LZXlzIjpbXX19LCJleHRlbnNpb25zIjp7fX0=",
+                "maxAmount": "2",
+                "agentRequestId": "arId-123e4567-e89b-12d3-a456-426614174000"
               }
             }
           }
@@ -2834,33 +2894,236 @@
           }
         }
       },
-      "CreatePermissionRequest": {
+      "X402Resource": {
         "type": "object",
-        "required": [
-          "planId",
-          "maxCredits"
-        ],
+        "description": "x402 protected-resource descriptor (`X402ResourceDto`). The same shape appears in the server's 402 `paymentRequired` and in the payload you mint at `POST /x402/permissions`.",
         "properties": {
-          "planId": {
-            "type": "string"
-          },
-          "maxCredits": {
-            "type": "integer"
-          },
-          "expiresAt": {
+          "url": {
             "type": "string",
-            "format": "date-time"
+            "minLength": 1,
+            "description": "URL of the protected resource or endpoint.",
+            "example": "https://myagent.ai/api/v1/tasks"
           },
-          "allowedAgents": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the resource.",
+            "example": "AI agent task execution"
           },
-          "metadata": {
-            "type": "object"
+          "mimeType": {
+            "type": "string",
+            "description": "Expected response MIME type.",
+            "example": "application/json"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "X402SchemeExtra": {
+        "type": "object",
+        "description": "Scheme-specific extra fields (`X402SchemeExtraDto`). Every field is optional, but on `tokenVersion` 3 each one you omit is signed as the empty string — which binds the token to that value being ABSENT rather than to any value.",
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "Scheme version.",
+            "example": "1"
+          },
+          "agentId": {
+            "type": "string",
+            "description": "Agent id the token is bound to, used for endpoint validation.",
+            "example": "80918427023170428029540261117198154464497879145267720259488529685089104529015"
+          },
+          "httpVerb": {
+            "type": "string",
+            "description": "HTTP verb the token is bound to, used for endpoint validation.",
+            "example": "POST"
           }
         }
+      },
+      "X402Scheme": {
+        "type": "object",
+        "description": "One x402 payment scheme (`X402SchemeDto`). The same shape appears in `accepts[]` on the server's 402 response and in `accepted` on the payload you mint — the client echoes back the scheme it selected.",
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "description": "Payment scheme identifier. Selects the settlement rail: `nvm:erc4337` settles on-chain, `nvm:card-delegation` settles against an enrolled card.",
+            "enum": [
+              "nvm:erc4337",
+              "nvm:card-delegation"
+            ],
+            "example": "nvm:erc4337"
+          },
+          "network": {
+            "type": "string",
+            "description": "Settlement RAIL, not the environment. Card flows send `stripe`, `braintree` or `visa`; crypto flows send `eip155:<chainId>`. An environment name such as `sandbox` or `live` is rejected by request validation.",
+            "pattern": "^(?:stripe|braintree|visa|eip155:\\d+)$",
+            "example": "eip155:84532"
+          },
+          "planId": {
+            "type": "string",
+            "description": "Plan id (256-bit identifier). Required for `nvm:erc4337`, optional for `nvm:card-delegation`. Request validation does not enforce it for either scheme.",
+            "example": "44742763076047497640080230236781474129970992727896593861997347135613135571071"
+          },
+          "extra": {
+            "description": "Extra scheme-specific fields.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/X402SchemeExtra"
+              }
+            ]
+          }
+        },
+        "required": [
+          "scheme",
+          "network"
+        ]
+      },
+      "X402PaymentRequired": {
+        "type": "object",
+        "description": "The server's 402 PaymentRequired response (`X402PaymentRequiredDto`), echoed back to the facilitator on verify and settle. The facilitator checks that the `accepted` scheme carried inside the token matches one of `accepts`.",
+        "properties": {
+          "x402Version": {
+            "type": "number",
+            "description": "x402 protocol version.",
+            "example": 2
+          },
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message from the 402 response.",
+            "example": "Payment required to access resource"
+          },
+          "resource": {
+            "description": "Protected resource information.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/X402Resource"
+              }
+            ]
+          },
+          "accepts": {
+            "type": "array",
+            "description": "Payment schemes the server accepts for this resource.",
+            "items": {
+              "$ref": "#/components/schemas/X402Scheme"
+            }
+          },
+          "extensions": {
+            "type": "object",
+            "description": "Extensions object. Empty (`{}`) for `nvm:erc4337`, but the field itself must be present — it is validated as required.",
+            "additionalProperties": true,
+            "example": {}
+          }
+        },
+        "required": [
+          "x402Version",
+          "resource",
+          "accepts",
+          "extensions"
+        ]
+      },
+      "X402DelegationConfig": {
+        "type": "object",
+        "description": "Delegation options for `POST /x402/permissions` (`DelegationConfigDto`), used by both schemes. The supported flow is create-first: create the delegation with `POST /delegation/create`, then send only `delegationId` here. The inline create-on-the-fly fields are deprecated — they still work and emit a runtime warning.",
+        "properties": {
+          "delegationId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Existing delegation to reuse — the supported create-first path. Must be a v4 UUID; a non-v4 id is a request-format error, not an authentication or not-found failure.",
+            "example": "a1b2c3d4-e5f6-4a90-8bcd-ef1234567890"
+          },
+          "apiKeyId": {
+            "type": "string",
+            "description": "Nevermined API key id (`skId`) to restrict this delegation to. Omit so that any key can use it.",
+            "example": "sk-abc123"
+          },
+          "providerPaymentMethodId": {
+            "type": "string",
+            "deprecated": true,
+            "description": "DEPRECATED — inline create-on-the-fly. Stripe payment method id from SetupIntent confirmation. Prefer create-first, then pass only `delegationId`.",
+            "example": "pm_1Abc2Def3Ghi4Jkl"
+          },
+          "cardId": {
+            "type": "string",
+            "deprecated": true,
+            "description": "DEPRECATED — inline create-on-the-fly. Payment-method entity UUID, an alternative to `providerPaymentMethodId`. Prefer create-first, then pass only `delegationId`.",
+            "example": "a1b2c3d4-e5f6-4a90-8bcd-ef1234567890"
+          },
+          "spendingLimitCents": {
+            "type": "integer",
+            "minimum": 1,
+            "deprecated": true,
+            "description": "DEPRECATED — inline create-on-the-fly. Maximum spend in the smallest currency unit.",
+            "example": 10000
+          },
+          "durationSecs": {
+            "type": "integer",
+            "minimum": 1,
+            "deprecated": true,
+            "description": "DEPRECATED — inline create-on-the-fly. Lifetime of the delegation in seconds.",
+            "example": 604800
+          },
+          "currency": {
+            "type": "string",
+            "deprecated": true,
+            "description": "DEPRECATED — inline create-on-the-fly. ISO 4217 lowercase currency code. Has no default: it is required when creating inline.",
+            "enum": [
+              "usd",
+              "eur",
+              "usdc",
+              "eurc"
+            ],
+            "example": "usd"
+          },
+          "maxTransactions": {
+            "type": "integer",
+            "minimum": 1,
+            "deprecated": true,
+            "description": "DEPRECATED — inline create-on-the-fly. Maximum number of transactions allowed. Omit for unlimited.",
+            "example": 50
+          }
+        }
+      },
+      "CreatePermissionRequest": {
+        "type": "object",
+        "description": "Body of `POST /x402/permissions` (`GenerateX402TokenDto`) — an x402 PaymentPayload. `accepted` is the only required field, and the handler runs a `ValidationPipe`, so a body without it is rejected with 400 before any handler logic runs. There is no settlement-account field: for card schemes the seller's Stripe Connect account is resolved server-side from the plan and is never supplied by the caller.",
+        "properties": {
+          "resource": {
+            "description": "The protected resource this token is minted for. Optional — but on `tokenVersion` 3 an omitted `resource.url` is signed as the empty string, which binds the token to having no resource rather than to any resource.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/X402Resource"
+              }
+            ]
+          },
+          "accepted": {
+            "description": "The payment scheme you selected: `nvm:erc4337` for crypto settlement, `nvm:card-delegation` for card settlement.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/X402Scheme"
+              }
+            ]
+          },
+          "delegationConfig": {
+            "description": "Delegation configuration, used by both the `nvm:erc4337` and `nvm:card-delegation` schemes.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/X402DelegationConfig"
+              }
+            ]
+          },
+          "tokenVersion": {
+            "type": "integer",
+            "description": "EIP-712 struct version to sign. A version 3 signature carries a one-time nonce, so the token is SINGLE-USE — it is consumed by its first settle and a second settle is refused with `BCK.X402.0059`; mint one token per paid request. A version 3 token is also bound to whichever of `accepted.extra.agentId`, `resource.url` and `accepted.extra.httpVerb` you send on this request, since each is signed as the empty string when omitted. Version 2 is the legacy shape: reusable and unbound, so a captured token replays until the permission or delegation is revoked — ask for it only if you cannot mint per request. When this field is omitted the server signs version 3, except for clients whose `Nevermined-Version` resolves below 1.34, which keep receiving version 2.",
+            "enum": [
+              2,
+              3
+            ],
+            "example": 3
+          }
+        },
+        "required": [
+          "accepted"
+        ]
       },
       "PermissionCreatedResponse": {
         "type": "object",
@@ -3133,22 +3396,31 @@
       },
       "VerifyPermissionRequest": {
         "type": "object",
-        "required": [
-          "accessToken",
-          "agentId",
-          "creditsRequested"
-        ],
+        "description": "Body of `POST /x402/verify` (`SettlePermissionsDto`). `paymentRequired` and `x402AccessToken` are both required and the handler runs a `ValidationPipe`, so a body missing either is rejected with 400 before verification runs. `planId`, `subscriberAddress`, `agentId`, the endpoint and the HTTP verb are read out of the token — never sent alongside it. The settle-only fields `agentRequestId`, `batch` and `marginPercent` pass validation here but the verify handler does not read them: `agentRequestId` is generated by this endpoint and returned in the response, for you to pass back on settle.",
         "properties": {
-          "accessToken": {
-            "type": "string"
+          "paymentRequired": {
+            "description": "The server's 402 PaymentRequired response. The facilitator validates that the scheme accepted inside the token matches one of `accepts`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/X402PaymentRequired"
+              }
+            ]
           },
-          "agentId": {
-            "type": "string"
+          "x402AccessToken": {
+            "type": "string",
+            "description": "The x402 payment payload, base64-encoded — the token minted by `POST /x402/permissions`.",
+            "example": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9teWFnZW50LmFpL2FwaS92MS90YXNrcyJ9LCJhY2NlcHRlZCI6eyJzY2hlbWUiOiJudm06ZXJjNDMzNyIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJwbGFuSWQiOiI0NDc0Mjc2MzA3NjA0NzQ5NzY0MDA4MDIzMDIzNjc4MTQ3NDEyOTk3MDk5MjcyNzg5NjU5Mzg2MTk5NzM0NzEzNTYxMzEzNTU3MTA3MSIsImV4dHJhIjp7InZlcnNpb24iOiIxIiwiYWdlbnRJZCI6IjgwOTE4NDI3MDIzMTcwNDI4MDI5NTQwMjYxMTE3MTk4MTU0NDY0NDk3ODc5MTQ1MjY3NzIwMjU5NDg4NTI5Njg1MDg5MTA0NTI5MDE1IiwiaHR0cFZlcmIiOiJQT1NUIn19LCJwYXlsb2FkIjp7InNpZ25hdHVyZSI6IjB4MTIzNCIsImF1dGhvcml6YXRpb24iOnsiZnJvbSI6IjB4ZjM5RmQ2ZTUxYWFkODhGNkY0Y2U2YUI4ODI3Mjc5Y2ZmRmI5MjI2NiIsInNlc3Npb25LZXlzUHJvdmlkZXIiOiJ6ZXJvZGV2Iiwic2Vzc2lvbktleXMiOltdfX0sImV4dGVuc2lvbnMiOnt9fQ=="
           },
-          "creditsRequested": {
-            "type": "integer"
+          "maxAmount": {
+            "type": "string",
+            "description": "Maximum credits to verify against the payer's balance. Send it as a decimal STRING: the value is parsed with `BigInt()` and then required to be a bigint, so a JSON number is rejected with 400.",
+            "example": "2"
           }
-        }
+        },
+        "required": [
+          "paymentRequired",
+          "x402AccessToken"
+        ]
       },
       "VerifyPermissionResponse": {
         "type": "object",
@@ -3214,25 +3486,50 @@
       },
       "SettlePermissionRequest": {
         "type": "object",
-        "required": [
-          "accessToken",
-          "agentId",
-          "creditsUsed"
-        ],
+        "description": "Body of `POST /x402/settle` — the same `SettlePermissionsDto` as verify. `paymentRequired` and `x402AccessToken` are both required and the handler runs a `ValidationPipe`, so a body missing either is rejected with 400 before settlement runs. `planId`, `subscriberAddress`, `agentId`, the endpoint and the HTTP verb are read out of the token — never sent alongside it.",
         "properties": {
-          "accessToken": {
-            "type": "string"
+          "paymentRequired": {
+            "description": "The server's 402 PaymentRequired response. The facilitator validates that the scheme accepted inside the token matches one of `accepts`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/X402PaymentRequired"
+              }
+            ]
           },
-          "agentId": {
-            "type": "string"
+          "x402AccessToken": {
+            "type": "string",
+            "description": "The x402 payment payload, base64-encoded — the token minted by `POST /x402/permissions`.",
+            "example": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9teWFnZW50LmFpL2FwaS92MS90YXNrcyJ9LCJhY2NlcHRlZCI6eyJzY2hlbWUiOiJudm06ZXJjNDMzNyIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJwbGFuSWQiOiI0NDc0Mjc2MzA3NjA0NzQ5NzY0MDA4MDIzMDIzNjc4MTQ3NDEyOTk3MDk5MjcyNzg5NjU5Mzg2MTk5NzM0NzEzNTYxMzEzNTU3MTA3MSIsImV4dHJhIjp7InZlcnNpb24iOiIxIiwiYWdlbnRJZCI6IjgwOTE4NDI3MDIzMTcwNDI4MDI5NTQwMjYxMTE3MTk4MTU0NDY0NDk3ODc5MTQ1MjY3NzIwMjU5NDg4NTI5Njg1MDg5MTA0NTI5MDE1IiwiaHR0cFZlcmIiOiJQT1NUIn19LCJwYXlsb2FkIjp7InNpZ25hdHVyZSI6IjB4MTIzNCIsImF1dGhvcml6YXRpb24iOnsiZnJvbSI6IjB4ZjM5RmQ2ZTUxYWFkODhGNkY0Y2U2YUI4ODI3Mjc5Y2ZmRmI5MjI2NiIsInNlc3Npb25LZXlzUHJvdmlkZXIiOiJ6ZXJvZGV2Iiwic2Vzc2lvbktleXMiOltdfX0sImV4dGVuc2lvbnMiOnt9fQ=="
           },
-          "creditsUsed": {
-            "type": "integer"
+          "maxAmount": {
+            "type": "string",
+            "description": "Maximum credits to redeem during settlement. Send it as a decimal STRING: the value is parsed with `BigInt()` and then required to be a bigint, so a JSON number is rejected with 400.",
+            "example": "2"
           },
-          "requestMetadata": {
-            "type": "object"
+          "agentRequestId": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^[a-zA-Z0-9\\-_]{1,128}$",
+            "description": "Agent request id for observability, as returned by `POST /x402/verify`. Bounded to 1–128 URL-safe ASCII characters because the value is interpolated into a Helicone filter and persisted to `agent_tasks`.",
+            "example": "arId-123e4567-e89b-12d3-a456-426614174000"
+          },
+          "batch": {
+            "type": "boolean",
+            "description": "Whether this settles a batch — several LLM calls made under one `agentRequestId`.",
+            "example": true
+          },
+          "marginPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10,
+            "description": "Margin percentage used for credit calculation. Mutually exclusive with `maxAmount` when `agentRequestId` is supplied.",
+            "example": 0.2
           }
-        }
+        },
+        "required": [
+          "paymentRequired",
+          "x402AccessToken"
+        ]
       },
       "SettlePermissionResponse": {
         "type": "object",
@@ -3377,6 +3674,7 @@
       },
       "_NvmAPIResultDto": {
         "type": "object",
+        "description": "Generic API result envelope (`NvmAPIResultDto`). Only `success` is guaranteed — every other field is optional on the DTO, and `DELETE /delegation/{delegationId}`, its only consumer here, returns `{ success: true }` and nothing else.",
         "properties": {
           "success": {
             "type": "boolean",
@@ -3394,7 +3692,7 @@
             "description": "Blockchain transaction hash associated with the API call"
           },
           "httpStatus": {
-            "type": "number",
+            "type": "integer",
             "example": 200,
             "description": "HTTP status code of the API response"
           },
@@ -3410,12 +3708,7 @@
           }
         },
         "required": [
-          "success",
-          "message",
-          "txHash",
-          "httpStatus",
-          "data",
-          "when"
+          "success"
         ]
       },
       "CreateDelegationResponseDto": {
