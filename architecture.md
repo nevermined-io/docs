@@ -106,7 +106,7 @@ Major documentation reorganization completed:
 - ✅ Charge Credits (`docs/integrate/patterns/charge-credits.mdx`)
 - ✅ Subscription Access (`docs/integrate/patterns/subscription-access.mdx`)
 - ✅ Dynamic Pricing (`docs/integrate/patterns/dynamic-pricing.mdx`)
-- ✅ Orders: Goods & Services Checkout (`docs/integrate/patterns/orders.mdx`) — Phase 1 contract, marked not yet GA
+- ✅ Orders: Goods & Services Checkout (`docs/integrate/patterns/orders.mdx`) — Phase 1 contract
 
 #### Platform Integrations (Symlinks to existing content)
 - ✅ x402 Protocol (`docs/integrate/platforms/x402-protocol.mdx`)
