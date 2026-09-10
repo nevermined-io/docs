@@ -4,6 +4,8 @@ description: "The Nevermined Payments Facilitator verifies and settles both x402
 icon: "credit-card"
 ---
 
+{/* The docs path stays /products/x402-facilitator/* for link stability — it is historical, from when the product was x402-only, and not a sign the facilitator is x402-only today. Do not "fix" it by renaming the route without adding redirects from every old path. */}
+
 The Nevermined Payments Facilitator is an **enforcement and settlement engine** for HTTP-native agent payments. It lets any API, agent, MCP tool, or protected resource get paid without running on-chain infrastructure — and it speaks **two sibling payment protocols that settle against the same Nevermined Payment Plans**:
 
 - **[x402](/development-guide/nevermined-x402)** — payment terms travel in a `payment-required` header and the payment is presented in `payment-signature`. Covers standard "pay-per-request" x402 and Nevermined's programmable extension (`nvm:erc4337` and `nvm:card-delegation` schemes, with smart accounts, session keys, and contract settlement).
@@ -91,7 +93,7 @@ Buyers mint their access token at `POST /api/v1/x402/permissions` (x402) or `POS
 sequenceDiagram
     participant Client
     participant Server as Resource Server (API/Agent)
-    participant Facilitator as Nevermined x402 Facilitator
+    participant Facilitator as Nevermined Payments Facilitator
     participant Chain as Blockchain
 
     Client->>Server: Request
