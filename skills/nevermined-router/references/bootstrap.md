@@ -50,15 +50,16 @@ Both guard the *caller*, not the request body, so a perfectly valid payload stil
 retryable and neither can be fixed from your side alone.
 
 **`403 BCK.OAUTH.0030` — this API key may not create Delegations.** An **OAuth-minted** credential
-(one issued through an OAuth consent ceremony — today `credits_purchase` or `account_access`, but the
-guard keys on the binding rather than the consent type, so any future ceremony type is refused too)
-is refused on
-`POST /delegation/create` *and* on all three paying routes — `POST /router/payments`, `POST
-/router/route`, `ALL /router/proxy`. Those routes sign from the account's full wallet, outside the
-narrow policy such a credential advertises, so the advertised scope would not be the real spend
-boundary. The fix is a **plain API key issued by the account owner** from the Nevermined app. Nothing
-about the request will make an OAuth-minted key work — do not retry, and do not fall back to a
-different Router endpoint.
+(one issued through an OAuth consent ceremony — today `credits_purchase`, `account_access` or
+`commerce`, but the guard keys on the binding rather than the consent type, so any future ceremony
+type is refused too) is refused on
+`POST /delegation/create` *and* on the paying routes — `POST /router/payments`, `POST /router/route`,
+`ALL /router/proxy`, `ALL /router/svc/<slug>`. Those routes sign from the account's full wallet,
+outside the narrow policy such a credential advertises, so the advertised scope would not be the real
+spend boundary. The fix is a **plain API key issued by the account owner** from the Nevermined app.
+Nothing about the request will make an OAuth-minted key work on these routes — do not retry. The one
+exception is a key from a **`commerce`** grant: it spends through `POST /api/v1/router/commerce/route`,
+which derives the Delegation from the grant instead of taking one from you.
 
 **`412` with `{"error":"consent_required"}` — the account's legal-document consent has lapsed.**
 

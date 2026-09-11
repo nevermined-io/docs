@@ -21,7 +21,8 @@ required, no defaults; `erc4337` is what both stablecoin rails need. Two guards 
 outright, neither retryable:
 
 - `403 BCK.OAUTH.0030` — the key was OAuth-minted; it may not create Delegations or use
-  `/router/{payments,route,proxy}`. Use a plain account-owner key.
+  `/router/{payments,route,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant,
+  `POST /router/commerce/route`.
 - `412 {"error":"consent_required","outdated":[…]}` — the account's legal consent lapsed; a human
   must accept. ⚠️ Its only `code` is the generic `BCK.HTTP.412` — branch on `body.error`.
 
@@ -61,8 +62,8 @@ with `X-Router-{Target-Url,Delegation-Id,Request-Id}`.
 across its retries: the same id returns the original payment, a fresh id buys again — **a fresh
 `uuid4()` per attempt is how an agent double-spends.**
 
-**Money.** Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs **$10.00,
-not $1.00**. `settlement.approxCents` is only the **merchant** leg; the routing fee rides on top in
+**Money.** Budget is debited in **whole cents, rounded up**. `settlement.approxCents` is only the
+**merchant** leg; the routing fee rides on top in
 `payment.fee`, always present. `fee.capChargedCents` is
 what the call **reserved**, not a final figure — a mode-B hop missing `2xx` releases the fee half
 back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
