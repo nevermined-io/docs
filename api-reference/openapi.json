@@ -2168,6 +2168,143 @@
         ]
       }
     },
+    "/router/commerce/route": {
+      "post": {
+        "description": "The OAuth counterpart of `POST /api/v1/router/route`, for a credential minted from a\n`commerce` authorization. Identical behaviour and identical response — with one difference:\n**you do not choose the delegation.** It is derived from your grant: the capped, expiring\nmandate the user approved when they connected you. Sending a `delegationId` is refused, not\nignored.\n\nThe cap, its expiry, and the user revoking the grant are the boundary on what you can spend.\nThe routing fee is drawn from that same cap, in addition to each merchant’s price.\n\nA plain (non-OAuth) API key cannot use this route — it has no grant to derive from. Use\n`POST /api/v1/router/route` and name your own `delegationId` instead.",
+        "operationId": "routeAndPayRequestFromGrant",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommerceRouteRequestDto"
+              },
+              "examples": {
+                "invoke-cataloged-service": {
+                  "summary": "Invoke a cataloged service through the broker, paid from the grant",
+                  "value": {
+                    "slug": "webscrape-pro",
+                    "path": "scrape",
+                    "method": "POST",
+                    "body": {
+                      "url": "https://example.com"
+                    },
+                    "requestId": "order-1234"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Upstream response, relayed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request, a `delegationId` was supplied (BCK.OAUTH.0034 — it is derived from your grant), or both `url` and `slug` were given (BCK.ROUTER.0001).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "The spend could not be authorized or funded — no money moved. Three distinct causes: BCK.ROUTER.0003, the delegation cap is exceeded or the delegation is expired / exhausted / revoked; BCK.ROUTER.0009, the buyer wallet does not hold enough of the settlement asset on the target network (crypto rails) or the issuer declined the card (MPP-stripe); BCK.ROUTER.0011, the card needs 3-D Secure cardholder authentication, which an agent with no human at a browser cannot complete. None is safely auto-retryable — branch on `code`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This credential is not a commerce grant (BCK.OAUTH.0033), or the EIP-7702 wallet gate refused the key (BCK.ROUTER.0008).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Something the payment needs does not exist. BCK.DELEGATION.0002 — no delegation with that `delegationId` belongs to this caller: unknown, revoked, or owned by someone else. A MALFORMED id is a 400 instead (the field is validated as a uuid), so this is the 404 a well-formed but wrong id produces, and the likeliest error when wiring up. BCK.X402.0011 — the account has no Privy wallet, i.e. signup never completed. BCK.X402.0053 — the account’s embedded wallet has been deleted, so its smart account can no longer be reconstructed; Privy documents this as unrecoverable, so provision a new account. All three are permanent — retrying creates nothing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The `requestId` was already used — idempotency conflict (BCK.ROUTER.0002) — or the raw `url` targets a cataloged service and must be invoked by `slug` (BCK.ROUTER.0014, not retryable).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Organization-wallet spend refused by the group budget: the group has exhausted its budget for this period (BCK.BUDGETS.0003), or it has no budget in the settlement currency (BCK.BUDGETS.0006). Only reachable when the delegation is funded by an organization wallet — a personal delegation never returns 422.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "BCK.ROUTER.0007 — too many mode-B relays in flight for this caller at once (each holds an upstream socket and a reserved budget). Retryable: let some relays finish, then try again. A slug-addressed call (using `slug`, not `url`) has a THIRD 429 source: a per-slug invoke rate limit (BCK.HTTP.429 with `Retry-After`). Two buckets again — the per-(key, slug) ceiling is yours, but the per-slug ceiling is SHARED by everyone invoking that slug, so heavy traffic to a popular slug can limit you even when your own rate is low. Retryable after the `Retry-After` backoff. Rate limit exceeded (BCK.HTTP.429). Two buckets can produce this. The per-API-key ceiling is genuinely yours and answers with `Retry-After` (seconds) — honour it. The global bucket is NOT: these routes authenticate after it runs, so it falls back to keying on the client IP, which is currently SHARED by all external callers — you can be limited by traffic that is not yours. That one answers with `Retry-After-short` / `Retry-After-long`. Retryable after a backoff either way.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "BCK.ROUTER.0010 — the payment handler reported a settlement amount the routing-fee arithmetic cannot use. For THAT code specifically: a credential may already have been minted while no payment record was written, so your `requestId` will NOT suppress a retry — do not blind-retry, report it. BCK.ROUTER.0013 — Nevermined holds no EIP-712 signing domain for the selected settlement token; nothing was signed, charged or reserved, and a retry fails identically until our token table is fixed, so report it rather than looping. Any other 500 is an unexpected server error, may carry no `code` at all, and the guidance above does not apply to it — treat it as unknown.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "BCK.X402.0052 — the account’s EIP-7702 delegation designator could not be installed on the settlement network, and the Router refuses to pay from a wallet whose funds have not been swept to the signer. Reachable only where EIP-7702 is enabled. This is a transient infrastructure fault and the ONE failure on these routes an autonomous caller SHOULD retry — back off first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Route and pay using the delegation from your commerce grant (mode B, OAuth)",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
     "/router/payments/{id}/settled": {
       "post": {
         "description": "After you attached a mode-A credential and the agent settled on-chain, report the settlement\n`txHash` (from the agent’s `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE` header) so the payment\nrecord moves `Issued → Settled`. Idempotent: re-reporting the same txHash is a no-op; a\ndifferent txHash, or a record not in `Issued`, is rejected. NOT needed for mode B\n(`/route` and `/proxy` self-complete the record from the upstream settlement header).",
@@ -4206,6 +4343,62 @@
         "required": [
           "delegationId",
           "url",
+          "requestId"
+        ]
+      },
+      "CommerceRouteRequestDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Absolute upstream URL to route to (http/https only). Provide EXACTLY ONE of `url` or `slug` — both together is a 400. Use `slug` for a cataloged service (the opaque broker); `url` is for an off-catalog target you already hold the URL of.",
+            "example": "https://agent.example/api/resource"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Catalog slug to invoke via the opaque Router broker. The Router resolves the slug to the real upstream server-side, so the URL is never exposed. Mutually exclusive with `url`.",
+            "example": "webscrape-pro"
+          },
+          "path": {
+            "type": "string",
+            "description": "Optional subpath appended to the resolved upstream when `slug` is used (e.g. `scrape` → the merchant's `/scrape`). Path segments only — it may not change the host, so `//`, `@`, `..` and an embedded absolute URL are rejected (400). Ignored when `url` is used.",
+            "example": "scrape"
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method to use for the upstream request.",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "default": "GET"
+          },
+          "headers": {
+            "type": "object",
+            "description": "Headers to forward to the upstream (e.g. the agent’s own auth). Optional."
+          },
+          "body": {
+            "description": "Request body to forward (JSON). Optional."
+          },
+          "protocol": {
+            "type": "string",
+            "description": "Payment protocol. On the mode-B proxy (`/route`, `/proxy`) this is ADVISORY: the Router AUTO-DETECTS the protocol from the upstream 402 — `WWW-Authenticate: Payment` → `mpp`; `accepts` / `PAYMENT-REQUIRED` → `x402` — and the DETECTED protocol is authoritative for the mint (a mismatching hint here does not change what gets paid).",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "default": "x402"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Idempotency key — REQUIRED for routed payments (mode B). The Router makes the upstream call and pays automatically, so a retry after a dropped connection must not double-spend. At most one payment is minted per (caller, requestId); a duplicate returns 409 (BCK.ROUTER.0002) carrying the original paymentId, rather than paying again.",
+            "example": "order-1234"
+          }
+        },
+        "required": [
           "requestId"
         ]
       },
