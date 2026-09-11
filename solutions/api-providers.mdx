@@ -195,8 +195,12 @@ Your handler does three things: read the `payment-signature` header, verify the 
     Response: `{ "isValid": true, ... }` or `{ "isValid": false, "invalidReason": "..." }`.
 
     **Settle** uses the same body shape posted to `/x402/settle`. Response
-    contains `creditsRedeemed`, `remainingBalance`, `transaction`, and
-    (when auto top-up fired) `orderTx`.
+    contains `billingModel`, `creditsRedeemed`, `remainingBalance`,
+    `transaction`, and `orderTx`. Read `billingModel` before the credit
+    fields: on a `pay-as-you-go` plan both read `"0"` even on a charge that
+    succeeded, and the charge is referenced by `orderTx` (fiat) or
+    `transaction` (crypto). On a `credits` plan `orderTx` is present only when
+    auto top-up fired.
 
     **Your response headers** (per x402 spec §4.3):
 

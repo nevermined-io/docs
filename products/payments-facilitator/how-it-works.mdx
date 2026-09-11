@@ -220,6 +220,8 @@ Send the x402 access token in the `payment-signature` header:
       const settlement = JSON.parse(
         Buffer.from(result.headers.get(X402_HEADERS.PAYMENT_RESPONSE)!, 'base64').toString()
       )
+      // `billingModel` says how to read this receipt — see the note below
+      console.log('Billing model:', settlement.billingModel)
       console.log('Credits used:', settlement.creditsRedeemed)
     }
     ```
@@ -240,10 +242,23 @@ Send the x402 access token in the `payment-signature` header:
         settlement = json.loads(
             base64.b64decode(result.headers.get('payment-response')).decode()
         )
+        # `billingModel` says how to read this receipt — see the note below
+        print('Billing model:', settlement.get('billingModel'))
         print('Credits used:', settlement['creditsRedeemed'])
     ```
   </Tab>
 </Tabs>
+
+<Note>
+  **A `creditsRedeemed` of `"0"` does not mean the call was free.** The settle receipt carries
+  `billingModel`: on a `credits` plan the payment shows up as `creditsRedeemed > 0`, but on a
+  **pay-as-you-go** plan there is no credit balance at all, so both `creditsRedeemed` and
+  `remainingBalance` are always the string `"0"` — even on a charge that succeeded. There the
+  proof is `success: true` plus a non-empty `orderTx` (fiat rails) or `transaction` (crypto
+  rails). Gating on `creditsRedeemed > 0` alone reports a real charge as a decline, and on a card
+  rail that invites a retry of a payment that already went through. Note the values are
+  **strings**: `"0"` is truthy while `Number("0") > 0` is false.
+</Note>
 
 ## Resource server flow (API/agent side)
 
@@ -385,7 +400,7 @@ Settle after work is complete and return the settlement receipt in the `payment-
     const settlementReceipt = {
       success: true,
       creditsRedeemed: actualCreditsUsed,
-      transactionHash: settlement.txHash
+      transactionHash: settlement.transaction
     }
     res.set(X402_HEADERS.PAYMENT_RESPONSE, Buffer.from(JSON.stringify(settlementReceipt)).toString('base64'))
 
@@ -405,7 +420,7 @@ Settle after work is complete and return the settlement receipt in the `payment-
     settlement_receipt = {
         'success': True,
         'creditsRedeemed': actual_credits_used,
-        'transactionHash': settlement.tx_hash
+        'transactionHash': settlement.transaction
     }
 
     response = jsonify({'result': result})

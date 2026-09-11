@@ -581,11 +581,16 @@ For other frameworks or custom implementations, follow these steps:
       maxAmount: BigInt(actualCreditsUsed),
     })
 
-    // Return response with settlement receipt in payment-response header
+    // Return response with settlement receipt in payment-response header.
+    // Pass `billingModel` through: on a pay-as-you-go plan the credit fields are
+    // always "0", so without it the buyer cannot tell a real charge from a
+    // credits settle that burned nothing.
     const settlementReceipt = Buffer.from(JSON.stringify({
       success: true,
+      billingModel: settlement.billingModel,
       creditsRedeemed: actualCreditsUsed,
-      transactionHash: settlement.txHash,
+      orderTx: settlement.orderTx,
+      transactionHash: settlement.transaction,
     })).toString('base64')
 
     res.set('payment-response', settlementReceipt)
@@ -603,11 +608,16 @@ For other frameworks or custom implementations, follow these steps:
         max_amount=actual_credits_used,
     )
 
-    # Return response with settlement receipt in payment-response header
+    # Return response with settlement receipt in payment-response header.
+    # Pass `billingModel` through: on a pay-as-you-go plan the credit fields are
+    # always "0", so without it the buyer cannot tell a real charge from a
+    # credits settle that burned nothing.
     settlement_receipt = base64.b64encode(json.dumps({
         "success": True,
+        "billingModel": settlement.billing_model,
         "creditsRedeemed": actual_credits_used,
-        "transactionHash": settlement.tx_hash,
+        "orderTx": settlement.order_tx,
+        "transactionHash": settlement.transaction,
     }).encode()).decode()
 
     response.headers["payment-response"] = settlement_receipt

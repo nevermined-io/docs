@@ -195,7 +195,7 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
         "x402AccessToken": "<accessToken>"
       }' \
   https://api.sandbox.nevermined.app/api/v1/x402/settle
-# → { "success": true, "creditsRedeemed": "1", "remainingBalance": "999", "transaction": "0x...", "network": "eip155:84532" }
+# → { "success": true, "billingModel": "credits", "creditsRedeemed": "1", "remainingBalance": "999", "transaction": "0x...", "network": "eip155:84532" }
 ```
 
 - **Pay with a card instead:** set `"scheme": "nvm:card-delegation"` and `"network": "stripe"` (or `braintree`/`visa`) in both `accepted` and `accepts[0]`.
@@ -203,7 +203,11 @@ curl -X POST -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: applicati
 - **Which scheme does a plan use?** `GET {API_BASE}/api/v1/protocol/plans/<PLAN_ID>` (public) returns the plan's metadata and pricing so you can pick `nvm:erc4337` vs `nvm:card-delegation` before paying. When buying from a protected agent, its `402` tells you instead.
 - **Note the field rename:** `/permissions` returns `accessToken`; pass that value as `x402AccessToken` in `/settle` and `/verify`.
 - **Dry run first (optional):** `POST /api/v1/x402/verify` with the same `{ paymentRequired, x402AccessToken }` body → `{ "isValid": true }`.
-- **Proof of purchase** = `success: true` with `creditsRedeemed` > 0 and a `remainingBalance` (and, for crypto, an on-chain `transaction`).
+- **Proof of purchase depends on `billingModel`** — read it first, it is always in the response.
+  - `"credits"`: `success: true` **and** `creditsRedeemed > 0` (and, for crypto, an on-chain `transaction`).
+  - `"pay-as-you-go"`: `success: true` **and** a non-empty `orderTx` (fiat rails) or `transaction` (crypto rails). These plans hold no credit balance, so `creditsRedeemed` and `remainingBalance` are **always the string `"0"` even on a charge that succeeded** — `creditsRedeemed > 0` there reports a real charge as a decline, and on a card rail that invites a retry of a payment that already went through.
+  - Both fields are **strings**: `"0"` is truthy while `Number("0") > 0` is false, so two plausible checks disagree.
+  - **No `billingModel` at all?** The deployment predates the discriminator — apply the `credits` rule, never pay-as-you-go.
 - **Card budget caveat:** a card settle may not immediately move the delegation's `amountSpentCents`/`remainingBudgetCents` — use the settle receipt + the A5 plan balance as the source of truth for card spend, not the delegation budget.
 
 **Calling a protected agent directly** (the common case): just send the access token as the `payment-signature` header to the agent's endpoint — the agent's own `402` response **is** your `paymentRequired`, and the agent verifies + settles for you. You only call `/settle` yourself when topping up a plan with no protected endpoint to hit.
@@ -246,7 +250,7 @@ curl -H "Authorization: Bearer $NVM_API_KEY" \
   https://api.sandbox.nevermined.app/api/v1/delegation/<DELEGATION_ID>/transactions
 ```
 
-SDK: `payments.plans.getPlanBalance(planId)` (`PlanBalance.balance` is a `bigint` in TS / `int` in Python). The `creditsRedeemed`/`remainingBalance` you get back from `/settle` (or the decoded `payment-response` header) is also a live proof of your balance after a purchase.
+SDK: `payments.plans.getPlanBalance(planId)` (`PlanBalance.balance` is a `bigint` in TS / `int` in Python). The `creditsRedeemed`/`remainingBalance` you get back from `/settle` (or the decoded `payment-response` header) is also a live proof of your balance after a purchase — **on a `credits` plan**. On a `pay-as-you-go` plan both read `"0"` regardless of what was charged; there is no balance to prove.
 
 ## A6 · Register a plan + agent (as a seller)  *(fully programmatic — SDK-first)*
 
