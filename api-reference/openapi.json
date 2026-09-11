@@ -3847,6 +3847,26 @@
             "example": null,
             "nullable": true
           },
+          "feeCents": {
+            "type": "string",
+            "description": "Nevermined\u2019s routing fee for this charge, in cents, already INCLUDED in `amountCents`. Charged only on payments routed to an external merchant via the Router \u2014 `\"0\"` on every other row (a plan purchase on the card rails, or a crypto settlement), where no routing fee applies. On a Router row `amountCents - feeCents` is the merchant leg \u2014 **unless `feeReleased` is `true`, in which case `amountCents` is ALREADY net of the fee and must not be reduced again**. On other rows the identity does not hold either, because a plan purchase can carry a platform margin taken out of the price that this figure does not describe. **`\"0\"` does not by itself mean no fee applied:** the two figures round in opposite directions, so a fee too small to add a cent to the reserve still shows here as `\"0\"`. Read `feeAtomic` to answer that.",
+            "example": "0"
+          },
+          "feeAtomic": {
+            "type": "string",
+            "description": "The same fee in the settlement asset\u2019s smallest unit, rounded down. This is the field that answers \u201Cdid a routing fee apply at all\u201D \u2014 `\"0\"` means none did. The asset it is denominated in is the one the Router settled, reported on `GET /router/payments`; it is NOT the same unit as `amountCents`.",
+            "example": "0"
+          },
+          "feeBps": {
+            "type": "number",
+            "description": "The fee rate applied, in basis points over a 10,000 denominator. Pinned per row, so a later rate change never rewrites what an old payment was charged. `0` when no fee applied.",
+            "example": 0
+          },
+          "feeReleased": {
+            "type": "boolean",
+            "description": "True when the routing fee was not collected and has been credited back to your cap. Non-delivery by the merchant is one cause; a fee leg that was refused, or expired before it could be broadcast, is another \u2014 so this does NOT mean the merchant failed you. **`amountCents` has ALREADY been reduced by `feeCents` when this is true**, so do not subtract the fee a second time. It does not follow that the remainder is the merchant leg: a payment whose merchant reserve was also released has that deducted from the same field and reads `status: 'failed'`. A fee too small to reserve a cent is released without ever setting this flag, so a row may read `false` here while `GET /router/payments` reports the fee `Released`; `amountCents` is untouched in that case, so the arithmetic above still holds.",
+            "example": false
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string",
@@ -3861,6 +3881,10 @@
           "currency",
           "status",
           "failureReason",
+          "feeCents",
+          "feeAtomic",
+          "feeBps",
+          "feeReleased",
           "createdAt"
         ]
       },
@@ -4579,7 +4603,7 @@
           },
           "feeCents": {
             "type": "string",
-            "description": "Cents the fee added to the delegation-cap reserve. Note `amount` on this record is the MERCHANT leg in atomic units, so the combined cap charge is not derivable from this resource alone — it is recorded as `amountCents` on `GET /delegation/{delegationId}/transactions`, with this fee broken out in that row’s `providerMetadata`.",
+            "description": "Cents the fee added to the delegation-cap reserve. Note `amount` on this record is the MERCHANT leg in atomic units, so the combined cap charge is not derivable from this resource alone — it is recorded as `amountCents` on `GET /delegation/{delegationId}/transactions`, where that same row breaks it out as `feeCents` / `feeAtomic` / `feeBps`, with `feeReleased` marking a fee already refunded to the cap.",
             "example": "0",
             "nullable": true
           },
