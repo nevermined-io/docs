@@ -142,6 +142,7 @@ After each paywall-protected call, the SDK injects a `_meta` field into the resp
 | Field | Type | Description |
 |-------|------|-------------|
 | `success` | `boolean` | Whether credit redemption succeeded |
+| `billingModel` | `string` | `credits` or `pay-as-you-go`. **Read this before either credit field** — the SDK merges it into this same object. Absent on a deployment predating it; treat that as `credits`. |
 | `txHash` | `string` | Blockchain transaction hash (only on success) |
 | `creditsRedeemed` | `string` | Number of credits burned (`'0'` on failure — **and always `'0'` on a pay-as-you-go plan, including a successful charge**) |
 | `remainingBalance` | `string` | Credits remaining after redemption (also always `'0'` on pay-as-you-go) |

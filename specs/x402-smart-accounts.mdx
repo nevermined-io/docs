@@ -623,7 +623,7 @@ Additional settlement details MAY be included in the response body:
 | `billingModel` | `string` | How the request was priced: `credits` or `pay-as-you-go`. Read this before the two credit fields. |
 | `creditsRedeemed` | `string` | Number of credits redeemed. Always `"0"` on `pay-as-you-go`, including on a settle that charged the buyer. |
 | `remainingBalance` | `string` | Subscriber's remaining balance. Always `"0"` on `pay-as-you-go`. |
-| `orderTx` | `string` | Transaction hash of the order operation (if executed). |
+| `orderTx` | — | **Not set on this spec.** The ERC-4337 settle handler never populates it on either billing model; it is the fiat card rails' field. On a pay-as-you-go settle here the proof of charge is a non-empty `transaction`. |
 
 ### 6.4 Was the buyer charged?
 
