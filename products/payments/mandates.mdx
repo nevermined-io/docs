@@ -236,19 +236,19 @@ Every settled charge is recorded as a transaction:
 |---|---|
 | `id` | The transaction's own identifier |
 | `delegationId` | The delegation this charge was made against |
-| `amountCents` | Amount in cents. On a Router row this is the **combined** cap deduction — the merchant leg plus the routing fee below |
+| `amountCents` | Amount in cents. On a Router row this is the **combined** cap deduction — the merchant leg plus the routing fee below, *unless* `feeReleased` is `true`, in which case it is already net of the fee (see below) |
 | `currency` | Currency code |
-| `status` | `succeeded` or `failed`. Card-rail rows can carry the PSP's own status verbatim (e.g. Braintree's `SUBMITTED_FOR_SETTLEMENT`) |
+| `status` | Usually `succeeded`, `failed` or `refunded` — the last written when an auto-refund follows a charge whose credit mint failed. Not an exhaustive list: the field is a free string, and card-rail rows can also carry the PSP's own status verbatim (e.g. Braintree's `SUBMITTED_FOR_SETTLEMENT`, or Stripe's `requires_action`) |
 | `providerTransactionId` | PSP charge identifier (Stripe `pi_…`, Braintree transaction id, Stripe Connect `pi_…` for Visa settlement). On a Router row it is the Router `paymentId`, which links to `GET /api/v1/router/payments` |
 | `failureReason` | Error details (if failed) |
-| `feeCents` | Nevermined's routing fee in cents, already included in `amountCents`. `"0"` on a card or crypto row, which pay no routing fee on top of their price |
+| `feeCents` | Nevermined's routing fee in cents, already included in `amountCents`. `"0"` on a card or crypto row, which pay no routing fee on top of their price — but `"0"` here does not by itself mean no fee applied; read `feeAtomic` |
 | `feeAtomic` | The same fee in the settlement asset's smallest unit. This is the field that answers "did a routing fee apply at all" |
 | `feeBps` | The rate applied, in basis points over a 10,000 denominator. Pinned per row |
 | `feeReleased` | The fee was not collected and has been credited back. `amountCents` is already net of it — do not subtract it again |
 | `createdAt` | When the transaction occurred |
 
 <Note>
-The routing fee applies only to payments routed through the [Nevermined Router](/products/catalog/router/ledger#the-routing-fee-on-a-record); a plan purchase on the card rails reads `"0"` for all four. Nevermined's cut on such a purchase is carved *out* of the plan price rather than added on top, and is published separately as `nvmMargin` on `POST /api/v1/transactions/search`.
+The routing fee applies only to payments routed through the [Nevermined Router](/products/catalog/router/ledger#the-routing-fee-on-a-record). On a plan purchase over the card rails the three fee figures read zero and `feeReleased` reads `false` — note `feeCents` and `feeAtomic` are strings (`"0"`), while `feeBps` is a number and `feeReleased` a boolean. Nevermined's cut on such a purchase is carved *out* of the plan price rather than added on top, and is published separately as `nvmMargin` on `POST /api/v1/transactions/search` — one value per transaction, not per plan.
 </Note>
 
 ```bash
