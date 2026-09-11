@@ -2218,6 +2218,16 @@
               }
             }
           },
+          "401": {
+            "description": "Missing/invalid Nevermined API key — or the grant behind this credential has been revoked by the user, in which case every credential minted from it is invalid: restart the authorization to obtain a new one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
           "402": {
             "description": "The spend could not be authorized or funded — no money moved. Three distinct causes: BCK.ROUTER.0003, the delegation cap is exceeded or the delegation is expired / exhausted / revoked; BCK.ROUTER.0009, the buyer wallet does not hold enough of the settlement asset on the target network (crypto rails) or the issuer declined the card (MPP-stripe); BCK.ROUTER.0011, the card needs 3-D Secure cardholder authentication, which an agent with no human at a browser cannot complete. None is safely auto-retryable — branch on `code`.",
             "content": {
@@ -2239,7 +2249,7 @@
             }
           },
           "404": {
-            "description": "Something the payment needs does not exist. BCK.DELEGATION.0002 — no delegation with that `delegationId` belongs to this caller: unknown, revoked, or owned by someone else. A MALFORMED id is a 400 instead (the field is validated as a uuid), so this is the 404 a well-formed but wrong id produces, and the likeliest error when wiring up. BCK.X402.0011 — the account has no Privy wallet, i.e. signup never completed. BCK.X402.0053 — the account’s embedded wallet has been deleted, so its smart account can no longer be reconstructed; Privy documents this as unrecoverable, so provision a new account. All three are permanent — retrying creates nothing.",
+            "description": "Something the payment needs does not exist. BCK.DELEGATION.0002 — the delegation your grant is pinned to could not be resolved for this credential: it is not this account’s, or it is bound to a different grant than the one you hold. Re-run the authorization to mint a fresh mandate. You never send a delegation id on this route, so this is not a wrong-id error; an expired, exhausted or revoked delegation is a 402 (BCK.ROUTER.0003) instead. BCK.X402.0011 — the account has no Privy wallet, i.e. signup never completed. BCK.X402.0053 — the account’s embedded wallet has been deleted, so its smart account can no longer be reconstructed; Privy documents this as unrecoverable, so provision a new account. All three are permanent — retrying creates nothing.",
             "content": {
               "application/json": {
                 "schema": {
