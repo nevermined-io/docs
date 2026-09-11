@@ -36,15 +36,18 @@ attempted — so handle them even though neither carries a `BCK.ROUTER.*` code.
 
 | | Code | Status | Applies to | Retry? |
 | --- | --- | --- | --- | --- |
-| **OAuth-minted key** | `BCK.OAUTH.0030` | 403 | `POST /delegation/create`, `POST /router/payments`, `POST /router/route`, `ALL /router/proxy` | No |
+| **OAuth-minted key** | `BCK.OAUTH.0030` | 403 | `POST /delegation/create`, `POST /router/payments`, `POST /router/route`, `ALL /router/proxy`, `ALL /router/svc/<slug>` | No |
 | **Consent lapsed** | `BCK.HTTP.412` (generic — see below) | 412 | Account-wide; `POST /delegation/create` is the one on this path | No |
 
-**`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony (today,
-`credits_purchase` or `account_access`; the guard keys on the binding, not the consent type, so a
-future ceremony type is refused too) and may not touch the Router spend rails or create
+**`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony (today
+`credits_purchase`, `account_access` or `commerce`; the guard keys on the binding, not the consent
+type, so a future ceremony type is refused too) and may not touch the Router spend rails or create
 Delegations: those routes sign from the account's full wallet, outside the narrow session-key policy
-such a credential advertises. The fix is a **plain API key issued by the account owner**. No request
-change and no other Router endpoint will work around it — do not retry.
+such a credential advertises. For a `credits_purchase` or `account_access` key the fix is a **plain
+API key issued by the account owner** — no request change and no other Router endpoint will work
+around it, do not retry. A **`commerce`** key is the one exception: it spends through
+`POST /api/v1/router/commerce/route`, which takes no `delegationId` and derives the Delegation from
+the grant the user approved (sending one is refused with `400 BCK.OAUTH.0034`).
 
 <a id="consent-412"></a>
 **`412 {"error":"consent_required","outdated":[…]}`** — the account's legal-document consent has
