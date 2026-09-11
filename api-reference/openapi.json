@@ -2878,7 +2878,7 @@
       },
       "Permission": {
         "type": "object",
-        "description": "Full details of one permission, as returned by `GET /x402/permissions/{permissionHash}`. The four `nvm:card-delegation` budget fields are present only when the permission is linked to a delegation.",
+        "description": "Full details of one permission, as returned by `GET /x402/permissions/{permissionHash}`. The four delegation budget fields are present whenever the permission is linked to a delegation — on BOTH schemes, not `nvm:card-delegation` only: `PermissionEntity.createErc4337Delegation` sets `delegationId`, `spendingLimitCents` and `currency` alongside the `nvm:erc4337` scheme, and the builder gates them on `delegationId`, never on `scheme`.",
         "properties": {
           "permissionHash": {
             "type": "string",
@@ -2896,13 +2896,12 @@
           },
           "planId": {
             "type": "string",
-            "description": "Unique identifier of the payment plan. Omitted when the permission is not bound to a plan.",
-            "example": "12345"
+            "description": "No permission the API creates today carries one: the single write path (delegation.service.ts — permissionRepository.save) hardcodes `planId = null` as plan-agnostic, and the response builder maps `planId ?? undefined`, which `JSON.stringify` drops — so the key is ALWAYS absent, on both schemes. Retained because the column exists and older rows may carry a value."
           },
           "planName": {
             "type": "string",
-            "description": "Name of the payment plan",
-            "example": "Premium Credits"
+            "description": "Name of the payment plan. Always the empty string on permissions the API creates today \u2014 the write path hardcodes `planName` to it. The key is always emitted, which is why it stays in `required`.",
+            "example": ""
           },
           "status": {
             "type": "string",
@@ -2952,7 +2951,7 @@
               "string",
               "null"
             ],
-            "description": "Linked delegation id — `nvm:card-delegation` only",
+            "description": "Linked delegation id. Present on any delegation-linked permission, on both schemes",
             "example": "a1b2c3d4-e5f6-4a90-8bcd-ef1234567890"
           },
           "spendingLimitCents": {
@@ -2960,7 +2959,7 @@
               "string",
               "null"
             ],
-            "description": "Spending limit in cents — `nvm:card-delegation` only",
+            "description": "Spending limit in cents. Present on any delegation-linked permission, on both schemes",
             "example": "10000"
           },
           "currency": {
@@ -2968,7 +2967,7 @@
               "string",
               "null"
             ],
-            "description": "Currency code — `nvm:card-delegation` only",
+            "description": "Currency code. Present on any delegation-linked permission, on both schemes",
             "example": "usd"
           },
           "remainingBudgetCents": {
@@ -2976,7 +2975,7 @@
               "string",
               "null"
             ],
-            "description": "Remaining budget in cents — `nvm:card-delegation` only",
+            "description": "Remaining budget in cents. Present on any delegation-linked permission, on both schemes",
             "example": "9000"
           }
         },
@@ -3011,13 +3010,12 @@
           },
           "planId": {
             "type": "string",
-            "description": "Unique identifier of the payment plan. Omitted when the permission is not bound to a plan.",
-            "example": "12345"
+            "description": "No permission the API creates today carries one: the single write path (delegation.service.ts — permissionRepository.save) hardcodes `planId = null` as plan-agnostic, and the response builder maps `planId ?? undefined`, which `JSON.stringify` drops — so the key is ALWAYS absent, on both schemes. Retained because the column exists and older rows may carry a value."
           },
           "planName": {
             "type": "string",
-            "description": "Name of the payment plan",
-            "example": "Premium Credits"
+            "description": "Name of the payment plan. Always the empty string on permissions the API creates today \u2014 the write path hardcodes `planName` to it. The key is always emitted, which is why it stays in `required`.",
+            "example": ""
           },
           "redemptionLimit": {
             "type": [
