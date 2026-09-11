@@ -20,6 +20,7 @@ Use the **OAuth 2.1 Authorization Code flow with PKCE** when a browser-based MCP
 - **An authenticated user.** `POST /oauth/authorize` runs in the signed-in user's context — the browser client calls it with the user's Nevermined API key. Without an authenticated user it fails with `BCK.OAUTH.0007`.
 - **A pre-registered `client_id`.** Same as the device flow — connectors are onboarded out of band (no dynamic client registration). An unregistered `client_id` is rejected with `BCK.OAUTH.0016`.
 - **PKCE is mandatory.** Generate a `code_verifier` and its `code_challenge` (`S256`). There is no non-PKCE path.
+- **The right tier's authorize URL.** The browser step starts at the `authorization_endpoint` of the tier you are integrating with — `https://nevermined.app/oauth/authorize?network=sandbox` or `…?network=live` — as advertised by that tier's [RFC 8414 document](/integrate/authentication/overview#each-tier-is-its-own-issuer-and-its-authorize-url-says-so). Keep the `network` query parameter when you add `client_id`, `redirect_uri`, `code_challenge` and the rest; it is what makes the consent screen open on the tier your `client_id` is registered on. If you configure the provider by hand rather than via discovery, paste the endpoint with its query string.
 
 ## The flow
 
@@ -91,5 +92,5 @@ Use the **OAuth 2.1 Authorization Code flow with PKCE** when a browser-based MCP
 The connection the user approves is recorded as an **AgentBinding** — the consent receipt. The `client_id` is the *connector* fronting the connection (Cursor, Claude, LangSmith Fleet), which is distinct from the *agent* the consent is for. Users can review and revoke these at any time from the [Connected agents](/integrate/authentication/connections) surface.
 
 <Note>
-Both the `authorization_endpoint` and the `authorization_code` grant are advertised in the [RFC 8414 metadata](/integrate/authentication/overview#discovery). As with the device flow, discovery doesn't substitute for a pre-registered `client_id`.
+Both the `authorization_endpoint` and the `authorization_code` grant are advertised in the [RFC 8414 metadata](/integrate/authentication/overview#discovery) — per tier, with the tier on the endpoint (`?network=sandbox|live`). As with the device flow, discovery doesn't substitute for a pre-registered `client_id`; and a `client_id` is registered per tier, so a connector known to Sandbox is "not authorized" on Live and vice versa.
 </Note>

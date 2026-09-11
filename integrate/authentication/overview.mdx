@@ -82,6 +82,20 @@ Everything the ceremony needs is advertised in standards-based metadata. If a ca
 
 Because a transport now mints a credential this API accepts, discovery reflects it: the Protected Resource Metadata names this issuer in `authorization_servers`, and a genuine authentication `401` carries an RFC 6750 `WWW-Authenticate: Bearer resource_metadata="…"` challenge pointing at it.
 
+### Each tier is its own issuer, and its authorize URL says so
+
+Sandbox and Live are separate authorization servers with separate discovery documents (`https://api.sandbox.nevermined.app/.well-known/oauth-authorization-server` and `https://api.live.nevermined.app/…`), but both send the human to the same web app for consent. That app cannot tell from a bare `/oauth/authorize` link which issuer it is acting for, so **the human-facing endpoints carry the tier as a query parameter**:
+
+```json
+{
+  "issuer": "https://api.sandbox.nevermined.app",
+  "authorization_endpoint": "https://nevermined.app/oauth/authorize?network=sandbox",
+  "token_endpoint": "https://api.sandbox.nevermined.app/oauth/token"
+}
+```
+
+`network` is `sandbox` or `live` — the same parameter the embeddable widgets take. The device flow's `verification_uri` carries it too. **Keep the query string** when you append your own parameters (RFC 6749 §3.1 requires it; standard clients do this already). A discovery-driven client gets the right value for free; if you configure an OAuth provider **by hand** — a connector's "authorization URL" form field, say — copy the endpoint from the tier's discovery document verbatim, query string included. An authorize link without `network` is served on whichever tier the user's browser last used (Live by default), and a connector registered only on Sandbox is then refused as *"Connector not authorized"* until the user switches manually.
+
 ### Reading a 401
 
 A `401` is *usually* a missing, malformed, or invalid key — not a hint to go discover something. It isn't *always* an authentication problem, though: a few endpoints return `401` when you're authenticated but lack access to a specific resource. Distinguish by the error body's `category` field:

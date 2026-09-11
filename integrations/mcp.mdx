@@ -625,6 +625,10 @@ When a client connects to your MCP server:
 **You don't need to handle any of this manually** - `payments.mcp.start()` configures everything automatically!
 
 <Note>
+**The consent screen is per API tier.** The human approves at `https://nevermined.app/oauth/authorize`, and the Nevermined API advertises that endpoint **with the tier on it** — `?network=sandbox` from `api.sandbox.nevermined.app`, `?network=live` from `api.live.nevermined.app` — because the web app otherwise opens on whichever tier the user's browser last used (Live by default). If you wire an MCP client or an OAuth provider to Nevermined **by hand** instead of through discovery, use the tier-qualified endpoint from the tier's [`/.well-known/oauth-authorization-server`](/integrate/authentication/overview#each-tier-is-its-own-issuer-and-its-authorize-url-says-so), query string included.
+</Note>
+
+<Note>
 **For production servers**, replace `http://localhost:3000` with your public domain (e.g., `https://weather-mcp.yourdomain.com`).
 </Note>
 
