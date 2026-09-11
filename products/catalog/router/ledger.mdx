@@ -98,11 +98,13 @@ When a rate is configured, the routing fee is **2%** (`feeBps: 200`), and it's c
 Derive that id from the work you are doing, not from a fresh `uuid4()` per HTTP attempt — a new id on each attempt is indistinguishable from a new purchase, and will be minted and billed as one.
 
 <Note>
-**This is why merchant amounts and spent budget don't reconcile on their own.** `amount` on this record is the merchant leg, so the combined cap charge isn't derivable from the ledger alone. It's recorded as `amountCents` on `GET /api/v1/delegation/{id}/transactions`, and that same row breaks it out as `feeCents`, `feeAtomic` and `feeBps` — so `amountCents - feeCents` is the merchant leg in cents.
+**This is why merchant amounts and spent budget don't reconcile on their own.** `amount` on this record is the merchant leg, so the combined cap charge isn't derivable from the ledger alone. It's recorded as `amountCents` on `GET /api/v1/delegation/{id}/transactions`, and that same row breaks it out as `feeCents`, `feeAtomic` and `feeBps` — so **on a Router row**, `amountCents - feeCents` is the merchant leg in cents.
 
-Those fields are on **every** row of that endpoint, not just Router ones. They read `"0"` on a plan purchase or a crypto settlement, which pay no routing fee on top of their price.
+Those fields are on **every** row of that endpoint, not just Router ones, and they read `"0"` on a plan purchase or a crypto settlement — which pay no routing fee *on top of* their price. Do not carry the formula above onto those rows: a plan purchase can carry a platform margin taken *out of* the price, which `feeCents` deliberately does not describe. That figure is `nvmMargin`, published per-plan on `POST /api/v1/transactions/search`.
 
-If the fee is later [`Released`](#fee-lifecycle), that row's `amountCents` is reduced by the fee and `feeReleased: true` is set — but the `feeCents` breakout **stays**. So on a released row `amountCents` is *already* the merchant leg: don't subtract the fee a second time, and don't add it back to reconstruct a total that has moved.
+If the fee is later [`Released`](#fee-lifecycle), that row's `amountCents` is reduced by the fee and `feeReleased: true` is set — but the `feeCents` breakout **stays**. So on a released row `amountCents` is *already net of the fee*: don't subtract it a second time, and don't add it back to reconstruct a total that has moved. It does **not** follow that what remains is the merchant leg — a payment whose merchant reserve was also released has that deducted from the same field, and reads `status: "failed"`.
+
+One exception to the flag, and it is the [sub-cent case](#the-routing-fee-on-a-record) above: `feeReleased: true` is set only when a cent was actually reserved. A fee too small to reserve one is released without ever setting it, and leaves `amountCents` untouched — so such a row reads `false` here while `GET /router/payments` reports the fee `Released`. The arithmetic still holds; the two labels just disagree.
 </Note>
 
 ### Auditing the fee leg

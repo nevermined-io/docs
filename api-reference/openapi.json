@@ -3349,7 +3349,7 @@
           },
           "feeCents": {
             "type": "string",
-            "description": "Nevermined\u2019s routing fee for this charge, in cents, already INCLUDED in `amountCents`. Subtract it to get the merchant leg. Charged only on payments routed to an external merchant via the Router \u2014 `\"0\"` on every other row (a plan purchase on the card rails, or a crypto settlement), where no routing fee applies. **`\"0\"` does not by itself mean no fee applied:** the two figures round in opposite directions, so a fee too small to add a cent to the reserve still shows here as `\"0\"`. Read `feeAtomic` to answer that.",
+            "description": "Nevermined\u2019s routing fee for this charge, in cents, already INCLUDED in `amountCents`. Charged only on payments routed to an external merchant via the Router \u2014 `\"0\"` on every other row (a plan purchase on the card rails, or a crypto settlement), where no routing fee applies. On a Router row `amountCents - feeCents` is the merchant leg \u2014 **unless `feeReleased` is `true`, in which case `amountCents` is ALREADY net of the fee and must not be reduced again**. On other rows the identity does not hold either, because a plan purchase can carry a platform margin taken out of the price that this figure does not describe. **`\"0\"` does not by itself mean no fee applied:** the two figures round in opposite directions, so a fee too small to add a cent to the reserve still shows here as `\"0\"`. Read `feeAtomic` to answer that.",
             "example": "0"
           },
           "feeAtomic": {
@@ -3364,7 +3364,7 @@
           },
           "feeReleased": {
             "type": "boolean",
-            "description": "True when the routing fee was refunded to your cap after the fact \u2014 the Router releases it when a merchant does not deliver. **`amountCents` has ALREADY been reduced by `feeCents` when this is true**, so do not subtract the fee a second time: on such a row `amountCents` is the merchant leg alone.",
+            "description": "True when the routing fee was not collected and has been credited back to your cap. Non-delivery by the merchant is one cause; a fee leg that was refused, or expired before it could be broadcast, is another \u2014 so this does NOT mean the merchant failed you. **`amountCents` has ALREADY been reduced by `feeCents` when this is true**, so do not subtract the fee a second time. It does not follow that the remainder is the merchant leg: a payment whose merchant reserve was also released has that deducted from the same field and reads `status: 'failed'`. A fee too small to reserve a cent is released without ever setting this flag, so a row may read `false` here while `GET /router/payments` reports the fee `Released`; `amountCents` is untouched in that case, so the arithmetic above still holds.",
             "example": false
           },
           "createdAt": {
