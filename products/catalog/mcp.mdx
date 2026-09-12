@@ -74,11 +74,10 @@ Point an MCP client at the server URL and set the `Authorization` header to your
 
 | Environment | Server URL | Purpose |
 | --- | --- | --- |
-| **Live** | `https://mcp.live.nevermined.app/mcp` | Real payments |
-| **Sandbox** | `https://mcp.sandbox.nevermined.app/mcp` | Development and testing |
+| **Live** | `https://mcp.live.nevermined.app/mcp` | Discovery and real payments |
 
 <Warning>
-**The config above points at live**, where `pay_service` moves real funds to a real merchant. While you're wiring things up, swap the host for `https://mcp.sandbox.nevermined.app/mcp` — the same tools, no real money — then switch back to live and keep your first Delegation cap small.
+**The config above points at live**, where `pay_service` moves real funds to a real merchant. The Catalog is **Live-only** — the sandbox Router funds testnets only, so no listed service is payable there. Rehearse with the cheapest sub-cent service and keep your first Delegation cap small.
 </Warning>
 
 <Note>

@@ -87,7 +87,7 @@ Either way the shape is the same: name the service (by slug), pass your delegati
 These are the habits that turn trial-and-error into a clean run. Treat them as the manifesto:
 
 1. **Discovery is free — use it first.** Confirm a service's slug, price, and endpoints from the live feed before every task. Prices and listings drift.
-2. **You only pay on success.** A failed upstream call is not charged. It is therefore safe to probe how a service wants to be called before you rely on it.
+2. **A failed call is not reliably free — don't treat it as a cheap probe.** Once the payment credential is minted, the merchant leg stands even if the upstream call then errors; only the routing fee may be released, and only on specific paths. Whether the merchant leg settles before or after the upstream `2xx` depends on the call mode. Confirm how a service wants to be called from its listing and docs, not by paying to find out — see [when a fee is not collected](/products/catalog/router/how-it-works#when-a-fee-is-not-collected).
 3. **Address a service by its slug and let the Router resolve the endpoint.** Don't fight it with hand-assembled sub-paths — the common failure is a mis-resolved path, not a payment problem.
 4. **Put target URLs in the request body, never in the path.** A security guard blocks anything in the path that looks like it changes the destination host.
 5. **Give every purchase a stable idempotency id.** Reuse the same id when you retry, so a network hiccup never double-charges; use a fresh id only for a genuinely new purchase.

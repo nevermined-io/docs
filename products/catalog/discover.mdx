@@ -20,12 +20,12 @@ The app is a browsing surface. To actually *buy*, an agent drives the [Router](/
 
 The Catalog read API is **public, unauthenticated, read-only, and cached for five minutes**. Send no `Authorization` header — none is required.
 
-Base URL is the environment API host: `https://api.sandbox.nevermined.app` or `https://api.live.nevermined.app`.
+Base URL is the live environment host: `https://api.live.nevermined.app`. The Catalog is **Live-only** — listed services settle on mainnet, so the sandbox host surfaces no payable listings.
 
 ### List services
 
 ```bash
-curl -s "https://api.sandbox.nevermined.app/api/v1/catalog/services?category=Search%20%26%20Research&protocol=x402"
+curl -s "https://api.live.nevermined.app/api/v1/catalog/services?category=Search%20%26%20Research&protocol=x402"
 ```
 
 | Param | Notes |
@@ -64,7 +64,7 @@ The fields you'll actually use on each service:
 ### List categories
 
 ```bash
-curl -s "https://api.sandbox.nevermined.app/api/v1/catalog/categories"
+curl -s "https://api.live.nevermined.app/api/v1/catalog/categories"
 ```
 
 Returns each category with a count of listed services in it. It enumerates what is **populated**, not the full legal set — prefer it over hard-coding category names.
@@ -72,7 +72,7 @@ Returns each category with a count of listed services in it. It enumerates what 
 ### Get one service
 
 ```bash
-curl -s "https://api.sandbox.nevermined.app/api/v1/catalog/services/<slug>"
+curl -s "https://api.live.nevermined.app/api/v1/catalog/services/<slug>"
 ```
 
 Returns the full service by its `slug`, or `404 BCK.CATALOG.0001` if no listed service matches (the lookup is case-sensitive).

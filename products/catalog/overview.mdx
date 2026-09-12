@@ -76,15 +76,16 @@ Discovery itself needs none of this — the Catalog read API is public and unaut
 Driving the Catalog from an agent harness — Claude Code, Cursor, an MCP client, or your own runtime? Start with **[Using the Catalog from a harness](/products/catalog/from-a-harness)**: a concise, code-free playbook of the flow, the safety principles, and every link. It's written to be handed to your agent as-is.
 </Note>
 
-## Environments
+## Environment
+
+The Catalog is **Live-only**. Every listed service settles on **mainnet** (Base and Tempo), so all discovery and payment go through the live host:
 
 | Environment | API base | Purpose |
 | --- | --- | --- |
-| **Sandbox** | `https://api.sandbox.nevermined.app` | Development and testing |
-| **Live** | `https://api.live.nevermined.app` | Real payments |
+| **Live** | `https://api.live.nevermined.app` | Discovery and real payments |
 
 <Warning>
-Both rails settle **real value on public networks**. A call made against the live environment moves real funds to a real merchant. Start in sandbox, and keep your first Delegation cap small.
+Both rails settle **real value on public networks** — a Catalog call moves real funds to a real merchant. There is no sandbox Catalog: the sandbox Router funds testnets only, so no listed service is payable there. Rehearse with the cheapest sub-cent service and keep your first Delegation cap small.
 </Warning>
 
 ## Next
