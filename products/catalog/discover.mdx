@@ -20,7 +20,7 @@ The app is a browsing surface. To actually *buy*, an agent drives the [Router](/
 
 The Catalog read API is **public, unauthenticated, read-only, and cached for five minutes**. Send no `Authorization` header — none is required.
 
-Base URL is the live environment host: `https://api.live.nevermined.app`. The Catalog is **Live-only** — listed services settle on mainnet, so the sandbox host surfaces no payable listings.
+Base URL is the live environment host: `https://api.live.nevermined.app`. Discovery works against either host — they serve the same catalog — but the Catalog is **Live-only for payment**: listed services settle on mainnet and a sandbox deployment funds testnets only, so paying one from sandbox fails with `400 BCK.ROUTER.0001` (see [an agent buying on its own](/products/catalog/router/agent-autonomy)).
 
 ### List services
 

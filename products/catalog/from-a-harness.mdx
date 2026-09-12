@@ -35,11 +35,11 @@ The agent never holds card numbers or wallet keys and never calls Stripe or a ch
 ## Step 0 — One-time setup (a human is needed once)
 
 <Warning>
-**The Catalog is Live-only.** There is no sandbox Catalog, so every step here uses the Live network and real (if tiny) money. Keep caps small and rehearse with a sub-cent service.
+**The Catalog is Live-only for payment.** Discovery works on either host, but listed services settle on mainnet and the sandbox Router funds testnets only — so paying one from sandbox fails (`400 BCK.ROUTER.0001`). Every step here uses the Live network and real (if tiny) money; keep caps small and rehearse with a sub-cent service.
 </Warning>
 
 - App (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
-- Live API base: `https://api.live.nevermined.app` — your API key for this network starts with `live`.
+- Live API base: `https://api.live.nevermined.app` — your API key for this network is prefixed `live:` (send the whole string, prefix included).
 
 **Create an account / sign in.** Open [nevermined.app](https://nevermined.app) and sign in.
 
@@ -93,7 +93,7 @@ These are the habits that turn trial-and-error into a clean run. Treat them as t
 5. **Give every purchase a stable idempotency id.** Reuse the same id when you retry, so a network hiccup never double-charges; use a fresh id only for a genuinely new purchase.
 6. **Prefer synchronous services.** An asynchronous "job queued" service can charge you and then deliver its result to a callback you may not be able to receive — verify a service returns its answer inline before depending on it.
 7. **The delegation is the source of truth for spend.** Reconcile against your delegation's remaining budget, not a local tally.
-8. **Prove the flow cheaply — there is no sandbox.** The Catalog is Live-only, so validate discovery → pay → result end-to-end with a **small delegation cap and the cheapest sub-cent service** before scaling spend up.
+8. **Prove the flow cheaply — payment is Live-only.** You can't rehearse paying in sandbox (its Router funds testnets only), so validate discovery → pay → result end-to-end with a **small delegation cap and the cheapest sub-cent service** before scaling spend up.
 
 ## Step 4 — Track and reconcile spend
 
@@ -111,6 +111,7 @@ Read your delegation's remaining budget and the Nevermined payment [ledger](/pro
 - Catalog feed (all services): [ai-catalog.json](https://nevermined.app/catalog/ai-catalog.json)
 - Catalog MCP: [/products/catalog/mcp](/products/catalog/mcp)
 - Router quickstart: [/products/catalog/router/quickstart](/products/catalog/router/quickstart)
+- An agent buying on its own (worked end-to-end run): [/products/catalog/router/agent-autonomy](/products/catalog/router/agent-autonomy)
 - Nevermined app (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
 - Get an API key / authentication: [/integrate/authentication/overview](/integrate/authentication/overview)
 - x402 explained: [glossary](https://nevermined.ai/glossary/x402/) · reference: [/api-reference/typescript/x402](/api-reference/typescript/x402)
