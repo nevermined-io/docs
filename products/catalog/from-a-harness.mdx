@@ -1,0 +1,121 @@
+---
+title: "Using the Catalog from a harness"
+description: "A concise, code-free playbook for driving the Nevermined Catalog and Router from an agent harness — the flow, the safety principles, and every link in one place."
+icon: "terminal"
+---
+
+A short, reusable manifesto for anyone driving the [Nevermined Catalog](https://nevermined.app/catalog/) from an agent harness — Claude Code, Cursor, an MCP client, or your own runtime. No code — just the flow, the principles, and the links.
+
+<Tip>
+This page is meant to be **handed to your agent as-is**. Point your harness at it (or share the link) and it has everything it needs to discover, pay, and reconcile safely.
+</Tip>
+
+## What the Catalog is
+
+The Nevermined Catalog is a curated directory of external AI services your agent can **pay for per call** — no per-vendor signup, no subscriptions. Each service settles a single request through Nevermined using the [x402](https://nevermined.ai/glossary/x402/) or MPP payment protocols. Your agent discovers a service, calls it, and the payment happens in the background against a budget you control.
+
+- Browse services: **[nevermined.app/catalog](https://nevermined.app/catalog/)**
+- Machine-readable feed of every service: **[ai-catalog.json](https://nevermined.app/catalog/ai-catalog.json)**
+- What "agentic commerce" means: [nevermined.ai/glossary/agentic-commerce](https://nevermined.ai/glossary/agentic-commerce/)
+
+## The mental model
+
+Five pieces, and it clicks:
+
+| Piece | What it is |
+|---|---|
+| **Harness** | your agent runtime — where the agent decides what to buy |
+| **Catalog** | the marketplace of pay-per-call services |
+| **Router / Facilitator** | Nevermined's broker that reads a service's payment challenge, pays it, and returns the result — so your agent never touches a vendor account or a private key |
+| **Delegation** | your spending authority: a hard, time-boxed budget cap the agent pays *within* |
+| **API key** | authenticates your agent to Nevermined on every call |
+
+The agent never holds card numbers or wallet keys and never calls Stripe or a chain directly. It holds an API key and a delegation; Nevermined does the rest.
+
+## Step 0 — One-time setup (a human is needed once)
+
+<Warning>
+**The Catalog is Live-only for payment.** Discovery works on either host, but listed services settle on mainnet and the sandbox Router funds testnets only — so paying one from sandbox fails (`400 BCK.ROUTER.0001`). Every step here uses the Live network and real (if tiny) money; keep caps small and rehearse with a sub-cent service.
+</Warning>
+
+- App (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
+- Live API base: `https://api.live.nevermined.app` — your API key for this network is prefixed `live:` (send the whole string, prefix included).
+
+**Create an account / sign in.** Open [nevermined.app](https://nevermined.app) and sign in.
+
+**Get a Nevermined API Key.** You cannot mint the first key programmatically — a human signs in once. Two ways:
+
+- **Embedded login (recommended, hands the key back automatically):** your agent opens a local callback and sends the human to `https://nevermined.app/auth/cli` to sign in; the key is returned to the agent, no copy/paste.
+- **Manual (works anywhere):** sign in at [nevermined.app](https://nevermined.app), create an API Key (or open `https://nevermined.app/auth/cli` with no callback to see it on screen), and paste it back to the agent.
+- **Fully headless agents** can obtain a key via OAuth 2.1 device flow. Full guide: [Authentication](/integrate/authentication/overview).
+
+Store the key securely and reuse it — it goes on every call as a bearer token. **Keep it out of chat transcripts, shell history, and logs.**
+
+**Fund a way to pay.** Check your payment methods in the app. A **stablecoin** method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. To pay by **card** instead, enroll one once via the app (Payment Methods → Enroll card) or the embedded card flow. Background: [Stablecoin payments](/integrate/patterns/stablecoin-payments) · [x402 card delegation](/specs/x402-card-delegation).
+
+## Step 1 — Set a budget you cannot exceed (the delegation)
+
+A **delegation** is capped, time-boxed spending authority — the single most important safety control. The cap is enforced by Nevermined's servers, so a runaway agent physically cannot overspend it. Delegations are reusable until spent or expired.
+
+- Create or reuse one in the app (Payment Methods → Delegate) or programmatically; reuse any delegation whose status is *Active*.
+- Set the cap to the most you're willing to spend on the whole task (e.g. $1), and keep a **soft stop** a little below it in your agent so a run halts cleanly rather than erroring at the wall.
+
+## Step 2 — Discover services (free, no key required)
+
+The catalog's read surface is **public** — browse or filter it before spending a cent.
+
+- Human view: [nevermined.app/catalog](https://nevermined.app/catalog/)
+- Full feed (all services): [ai-catalog.json](https://nevermined.app/catalog/ai-catalog.json)
+
+Every listing tells you what you need to choose: its **slug** (how you address it), **protocol** (x402 or MPP — handled for you), a **price label**, its **endpoints**, and **tags**/category. Filter by task (e.g. web search, email enrichment, scraping, social data) and by price, and shortlist the cheapest service that answers the need.
+
+## Step 3 — Connect the harness to the Catalog
+
+Two paths — pick one:
+
+| | **Catalog MCP** | **Router API** |
+|---|---|---|
+| Best for | harnesses that speak MCP | any harness / quick start |
+| How | add the Nevermined Catalog MCP server to your harness config with your API key; you get discovery + payment tools natively | call Nevermined's Router to pay any service by its slug |
+| Note | most harnesses load MCP servers **at startup** — add it, then restart the session | works immediately, no restart |
+| Docs | [Catalog MCP](/products/catalog/mcp) | [Router quickstart](/products/catalog/router/quickstart) · [OpenAPI](https://api.live.nevermined.app/api/v1/rest/docs-json) |
+
+Either way the shape is the same: name the service (by slug), pass your delegation, get the result back. The Router reads the vendor's payment challenge, pays from your delegation, and returns the response.
+
+## The principles that make it smooth
+
+These are the habits that turn trial-and-error into a clean run. Treat them as the manifesto:
+
+1. **Discovery is free — use it first.** Confirm a service's slug, price, and endpoints from the live feed before every task. Prices and listings drift.
+2. **A failed call is not reliably free — don't treat it as a cheap probe.** Once the payment credential is minted, the merchant leg stands even if the upstream call then errors; only the routing fee may be released, and only on specific paths. Whether the merchant leg settles before or after the upstream `2xx` depends on the call mode. Confirm how a service wants to be called from its listing and docs, not by paying to find out — see [when a fee is not collected](/products/catalog/router/how-it-works#when-a-fee-is-not-collected).
+3. **Address a service by its slug and let the Router resolve the endpoint.** Don't fight it with hand-assembled sub-paths — the common failure is a mis-resolved path, not a payment problem.
+4. **Put target URLs in the request body, never in the path.** A security guard blocks anything in the path that looks like it changes the destination host.
+5. **Give every purchase a stable idempotency id.** Reuse the same id when you retry, so a network hiccup never double-charges; use a fresh id only for a genuinely new purchase.
+6. **Prefer synchronous services.** An asynchronous "job queued" service can charge you and then deliver its result to a callback you may not be able to receive — verify a service returns its answer inline before depending on it.
+7. **The delegation is the source of truth for spend.** Reconcile against your delegation's remaining budget, not a local tally.
+8. **Prove the flow cheaply — payment is Live-only.** You can't rehearse paying in sandbox (its Router funds testnets only), so validate discovery → pay → result end-to-end with a **small delegation cap and the cheapest sub-cent service** before scaling spend up.
+
+## Step 4 — Track and reconcile spend
+
+Read your delegation's remaining budget and the Nevermined payment [ledger](/products/catalog/router/ledger) to see exactly what each call cost and how much of the cap is left. This is also your audit trail. See the environment's [OpenAPI reference](https://api.live.nevermined.app/api/v1/rest/docs-json) for the delegation and payment endpoints.
+
+## Safety & etiquette
+
+- **Live means real money.** The Catalog is Live-only — keep delegation caps tight and rehearse with a sub-cent service before scaling.
+- **Mind the data.** Some services return personal or third-party data; use them only where you have a lawful basis, and remember the query is sent to a third-party vendor.
+- **Protect the key.** Never commit it, log it, or paste it into a shared transcript.
+
+## Links, in one place
+
+- Catalog (browse): [nevermined.app/catalog](https://nevermined.app/catalog/)
+- Catalog feed (all services): [ai-catalog.json](https://nevermined.app/catalog/ai-catalog.json)
+- Catalog MCP: [/products/catalog/mcp](/products/catalog/mcp)
+- Router quickstart: [/products/catalog/router/quickstart](/products/catalog/router/quickstart)
+- An agent buying on its own (worked end-to-end run): [/products/catalog/router/agent-autonomy](/products/catalog/router/agent-autonomy)
+- Nevermined app (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
+- Get an API key / authentication: [/integrate/authentication/overview](/integrate/authentication/overview)
+- x402 explained: [glossary](https://nevermined.ai/glossary/x402/) · reference: [/api-reference/typescript/x402](/api-reference/typescript/x402)
+- Stablecoin payments: [/integrate/patterns/stablecoin-payments](/integrate/patterns/stablecoin-payments)
+- Docs index: [/getting-started/overview](/getting-started/overview) · SDK/API index: [llms.txt](https://nevermined.ai/docs/llms.txt)
+- API reference (OpenAPI JSON): [docs-json](https://api.live.nevermined.app/api/v1/rest/docs-json)
+- GitHub: [nevermined-io](https://github.com/nevermined-io) · Contact: [nevermined.ai/contact-us](https://nevermined.ai/contact-us)

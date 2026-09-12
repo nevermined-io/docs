@@ -67,15 +67,16 @@ Every payment response carries a `fee` object saying exactly what was charged, a
 The rate is returned as `fee.bps` on every payment response — `200` basis points over a 10,000 denominator. Read it from there rather than hard-coding it.
 </Note>
 
-## Environments
+## Environment
+
+To pay Catalog services, use **Live** — every listed service settles on mainnet, and the sandbox Router funds testnets only, so no listed service is payable there.
 
 | Environment | API base | Purpose |
 | --- | --- | --- |
-| **Sandbox** | `https://api.sandbox.nevermined.app` | Development and testing |
-| **Live** | `https://api.live.nevermined.app` | Real payments |
+| **Live** | `https://api.live.nevermined.app` | Real payments to Catalog services |
 
 <Warning>
-Both rails settle **real value on public networks**. The Router is a payment system, not a simulator — a call made against the live environment moves real funds to a real merchant. Start in sandbox, and keep your first Delegation cap small.
+Both rails settle **real value on public networks**. The Router is a payment system, not a simulator — a live call moves real funds to a real merchant. Rehearse with the cheapest sub-cent service and keep your first Delegation cap small.
 </Warning>
 
 ## What you need before you start

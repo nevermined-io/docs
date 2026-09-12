@@ -12,22 +12,16 @@ Everything here is plain HTTP. The Nevermined SDKs don't expose the Router yet, 
 **Prefer to have your coding assistant do this?** These five steps ship as an AI coding skill. In Claude Code, `/plugin marketplace add nevermined-io/docs` then `/plugin install nevermined-router@nevermined`; elsewhere, see [AI Coding Skill](/development-guide/build-using-nvm-skill). It also carries the guardrails an autonomous buyer must respect, which matter more than the calls themselves.
 </Tip>
 
-Set your environment once:
+<Note>
+Driving this from an agent harness? [Using the Catalog from a harness](/products/catalog/from-a-harness) is the code-free companion to this page — the same flow, plus the safety habits (idempotency across retries, soft stops below your cap, funding for merchant + fee) an autonomous buyer should follow.
+</Note>
 
-<Tabs>
-  <Tab title="Sandbox">
-    ```bash
-    export NVM_API_URL="https://api.sandbox.nevermined.app"
-    export NVM_API_KEY="<your-api-key>"
-    ```
-  </Tab>
-  <Tab title="Live">
-    ```bash
-    export NVM_API_URL="https://api.live.nevermined.app"
-    export NVM_API_KEY="<your-api-key>"
-    ```
-  </Tab>
-</Tabs>
+Set your environment once. The Catalog is **Live-only for payment** — every listed service settles on mainnet, and the sandbox Router funds testnets only, so point at the live host:
+
+```bash
+export NVM_API_URL="https://api.live.nevermined.app"
+export NVM_API_KEY="<your-api-key>"
+```
 
 ## 1. Get an API key
 
