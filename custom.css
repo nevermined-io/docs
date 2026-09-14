@@ -336,49 +336,55 @@ ul.sidebar-group {
   mask-image: radial-gradient(120% 140% at 0 0, #000 0%, transparent 55%);
 }
 
-/* Place the theme selector before the App / AI Catalog navigation. */
+/* =====================================================
+   Header — theme selector order + AI Catalog (nevermined-io/docs#399)
+   Mintlify places the theme selector after nav with no config for ordering.
+   This DOM-dependent override changes visual order only; keyboard order
+   remains App → AI Catalog → theme. Recheck after Mintlify layout changes.
+   ===================================================== */
 #navbar div:has(> nav #topbar-cta-button) > nav {
   order: 1;
-  margin-inline-start: 1rem;
+  /* Move Tailwind v4's DOM-first end margin to the visually-last nav's start. */
+  margin-inline: 1rem 0;
 }
 
+/* Older local Mintlify previews use Tailwind v3's margin on the theme wrapper. */
 #navbar div:has(> nav #topbar-cta-button) > div {
   margin-inline: 0;
 }
 
-/* AI Catalog ribbon shimmer: https://share.onorca.dev/a/y4Pbp441fhCj.
-   Separate masks preserve the staggered animation without custom scripts. */
-:is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"] {
+/* Ribbon shimmer: accent ↔ lime fill pulses, with the right stroke delayed.
+   Masks reproduce the two strokes of the Nevermined mark in logo/light.svg;
+   update both when the logo changes. ::before is left, ::after is right.
+   Target the desktop CTA hook; mobile menu links retain Mintlify's styling. */
+#topbar-cta-button > a {
   --catalog-accent: #12a89e;
   --catalog-lime: #8fbf1f;
   position: relative;
   display: inline-flex;
   align-items: center;
   padding: 13px 22px 13px 57px;
-  border: 0;
   border-radius: 12px;
   background: #0d3f48;
-  color: #fff;
   font-size: 15px;
   font-weight: 600;
   line-height: 1;
-  text-decoration: none;
-  white-space: nowrap;
 }
 
-:is(.dark, [data-theme="dark"]) :is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"] {
+:is(.dark, [data-theme="dark"]) #topbar-cta-button > a {
   --catalog-accent: #4ac6bf;
   --catalog-lime: #bcdc4a;
 }
 
-/* Replace Mintlify's background overlay and trailing arrow. */
-:is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"] > span.absolute,
-:is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"] svg {
+/* Hide the mint theme's background overlay and trailing chevron so the
+   anchor background and ribbon show. Recheck these children on theme updates. */
+#topbar-cta-button > a > span.absolute,
+#topbar-cta-button > a > div > svg {
   display: none;
 }
 
-:is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"]::before,
-:is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"]::after {
+#topbar-cta-button > a::before,
+#topbar-cta-button > a::after {
   content: "";
   position: absolute;
   left: 22px;
@@ -392,26 +398,21 @@ ul.sidebar-group {
   pointer-events: none;
 }
 
-:is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"]::before {
+#topbar-cta-button > a::before {
   --catalog-ribbon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2031.06%2022%22%3E%3Cpath%20d%3D%22M0%2011.153L10.4179%2020.6426V11.0576L0%201.56805V11.153Z%22%2F%3E%3C%2Fsvg%3E");
 }
 
-:is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"]::after {
+#topbar-cta-button > a::after {
   --catalog-ribbon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2031.06%2022%22%3E%3Cpath%20d%3D%22M10.4178%201.56805V11.153L20.8325%2020.6426L31.0596%2011.153V1.56805L20.8325%2011.0576L10.4178%201.56805Z%22%2F%3E%3C%2Fsvg%3E");
 }
 
-:is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"]:focus-visible {
-  outline: 2px solid var(--catalog-accent);
-  outline-offset: 3px;
-}
-
 @media (prefers-reduced-motion: no-preference) {
-  :is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"]:is(:hover, :focus-visible)::before,
-  :is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"]:is(:hover, :focus-visible)::after {
+  #topbar-cta-button > a:is(:hover, :focus-visible)::before,
+  #topbar-cta-button > a:is(:hover, :focus-visible)::after {
     animation: nvm-catalog-shimmer .8s ease-in-out infinite;
   }
 
-  :is(#navbar, #mobile-nav) a[href="https://nevermined.app/catalog/"]:is(:hover, :focus-visible)::after {
+  #topbar-cta-button > a:is(:hover, :focus-visible)::after {
     animation-delay: .12s;
   }
 }
