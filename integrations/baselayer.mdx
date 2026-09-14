@@ -1,0 +1,240 @@
+---
+title: "Baselayer"
+description: "Pay for Baselayer KYB business searches with card delegation: a $10 x402 purchase funds 10 metered requests, fully agent-driven."
+icon: "building-circle-check"
+---
+
+[Baselayer](https://baselayer.com) accepts autonomous payments through Nevermined's [x402 card-delegation](/specs/x402-card-delegation) scheme. An agent holding a Nevermined API key mints an x402 access token against the Baselayer plan and presents it to Baselayer's agentic endpoints in the `payment-signature` header. The first call provisions a Baselayer API key; every business search after that carries the token and the key together, and Baselayer verifies and settles each request against the plan. No Baselayer account or signup is needed: the payment is the identity.
+
+Machine-readable instructions for agents live at [Nevermined agentic instructions](https://api.live.nevermined.app/api/v1/organizations/org-a3c3315e-bd43-4764-8d20-6258cee652b8/agentic-instructions.md). On the Baselayer side, the same flow is documented at [docs.baselayer.com/docs/nevermined-agentic-access-x402](https://docs.baselayer.com/docs/nevermined-agentic-access-x402.md).
+
+<Info>
+  Baselayer's Nevermined plan ID:<br />`64016128970723825062202451177754352720194073054658343333156009220723821177122`<br />[Baselayer Startup: \$10.00 per 100 credits](https://api.live.nevermined.app/api/v1/protocol/plans/64016128970723825062202451177754352720194073054658343333156009220723821177122), and every request burns 10 credits, so one purchase funds **10 requests**. Unlike a pay-as-you-go plan, you never buy credits explicitly: the card is charged \$10 whenever a request finds fewer than 10 credits on your balance. This plan and purchase run on **live**; use a live-prefixed Nevermined API key.
+</Info>
+
+## Prerequisites (one time, done by the card owner)
+
+1. Enroll a card at [nevermined.app](https://nevermined.app) → Payment Methods.
+2. Create a **delegation** on the card: the spending permission an agent pays with. The owner sets the spending limit and duration, and can scope the delegation to a specific API key (recommended; it makes discovery deterministic for that key).
+3. Generate an API key and give it to the agent. Two ways:
+   * **Embedded login flow (no copy/paste):** the agent hosts a callback on `127.0.0.1` and sends its human this URL to sign in: `https://nevermined.app/auth/cli?callback_url=http://127.0.0.1:<port>/callback`. After sign-in, the browser redirects to the callback with `nvm_api_key=<api-key>` for the agent to read.
+   * **Manual:** [nevermined.app](https://nevermined.app) → Account → API Keys → create a key and paste it to the agent (or open `https://nevermined.app/auth/cli` with no `callback_url` and copy the key shown on screen).
+
+See the [x402 card-delegation spec](/specs/x402-card-delegation) for how enrollment and delegations work.
+
+<Info>
+  **Sizing the delegation for this merchant.** Every business search settles against the delegation, not only the first call, so it has to stay within budget and within its time window for the whole run. Baselayer's API is a waterfall, and a business that fails its first check costs more to investigate than one that passes: size the limit against a bad week rather than an average one. And keep an unaffordable check distinct from a passed one in your own records; a payment failure tells you nothing about the business in front of it.
+</Info>
+
+## The flow
+
+Handled with the Nevermined Payments SDK (`npm install @nevermined-io/payments`; the package is ESM-only; in a fresh npm project set `"type": "module"` in `package.json`, or the import fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`). The package's bundled TypeScript definitions are the authoritative call reference for every method named below. For broader context, start from the [Payments overview](/products/payments/overview) and the [documentation index](https://nevermined.ai/docs/llms.txt).
+
+1. **Initialize** the SDK with your Nevermined API key only (`Payments.getInstance({ nvmApiKey })`). The environment is derived from the key prefix; do not pass an `environment` option.
+2. **Find the delegation to pay with**; see [Getting a delegation](#getting-a-delegation) below.
+3. **Mint the x402 access token** for the Baselayer plan ID via `payments.x402.getX402AccessToken`, using the `nvm:card-delegation` scheme and referencing the delegation by ID (`delegationConfig: { delegationId }`). The method's arguments are `(planId, agentId?, tokenOptions?)`. Pass Baselayer's agent ID, `60798063874007247008401413456869371418449913824213519077458224260713519377086`, as the second argument, as Baselayer's own example does: it is optional, and its only effect is to attribute your requests to the [Baselayer Business Search Agent](https://api.live.nevermined.app/api/v1/protocol/agents/60798063874007247008401413456869371418449913824213519077458224260713519377086) listing. The call returns an object, `{ accessToken }`. Tokens cannot create delegations on the fly; the delegation must exist first.
+4. **POST the token to Baselayer** in the `payment-signature` header to buy a key (endpoint below). Baselayer's endpoint lives on Baselayer, not on Nevermined, and it **verifies and settles the token for you**. Do not settle it yourself first. The `201` response contains the Baselayer API key. Check the HTTP status before reading the body.
+5. **Run business searches** with the same token in `payment-signature` and the key in `X-API-Key`, one request per business. Each request is metered against the plan: keep the token and reuse it for the whole run.
+
+## Without the SDK: the REST calls
+
+The Nevermined steps above map to endpoints on `https://api.live.nevermined.app`; send your Nevermined API key as `Authorization: Bearer <api-key>` on those two. The calls that follow go to Baselayer and are authenticated by the x402 token alone — do not send your Nevermined API key to a merchant.
+
+### 1. Create a delegation
+
+```http
+POST https://api.live.nevermined.app/api/v1/delegation/create
+```
+
+Body: `{ provider, providerPaymentMethodId, spendingLimitCents, durationSecs, currency }`.
+
+A delegation authorizes spending within a fixed budget and time window. Reuse it until it is spent or expires. Field values for this flow are in the [delegation table](#getting-a-delegation) below.
+
+### 2. Mint an x402 access token
+
+```http
+POST https://api.live.nevermined.app/api/v1/x402/permissions
+```
+
+```json
+{
+  "accepted": {
+    "scheme": "nvm:card-delegation",
+    "network": "stripe",
+    "planId": "<plan>"
+  },
+  "delegationConfig": { "delegationId": "<your delegation>" }
+}
+```
+
+Returns an `accessToken`. The delegation must already exist. Tokens cannot create one on the fly.
+
+### 3. Buy a Baselayer API key
+
+```http
+POST https://api.staging.baselayer.com/alpha/api_keys
+Content-Type: application/json
+payment-signature: <accessToken>
+
+{"name": "my-agent", "default_request_mode": "sync"}
+```
+
+Baselayer's endpoint **verifies and settles the token on your behalf** and returns the key in the same call. There is nothing to settle first.
+
+### 4. Run a business search
+
+```http
+POST https://api.staging.baselayer.com/alpha/searches
+Content-Type: application/json
+payment-signature: <accessToken>
+X-API-Key: <the key from step 3>
+Prefer: wait=120
+
+{"name": "Howard Concrete Pumping Co Inc",
+ "address": "2327 Hill Church Houston Rd, Canonsburg PA 15317"}
+```
+
+Both headers are required: the token pays for the request, the key identifies you. Baselayer settles this call against the plan too.
+
+<Warning>
+  **Do not call `/x402/settle` yourself in this flow.** On this credits plan, settling directly against Nevermined burns 10 credits — and charges the card \$10 first if your balance is empty — and hands back a bare settlement receipt. Baselayer delivered nothing for that settle, and when you then send the token to a Baselayer endpoint it settles again for the request it actually serves. **You have paid for a request that never happened.**
+
+  `/x402/settle` and `/x402/verify` exist for calling a generic Nevermined-metered resource yourself, where you construct the `paymentRequired` object and settle against it. The Baselayer flow does not use them.
+</Warning>
+
+### The general pattern
+
+Baselayer's endpoints are x402-protected resources, and the rule generalizes: **when a service is x402-protected, send the access token in the `payment-signature` header and let the service verify and settle.** Its own `402` response is the `paymentRequired`, so you never build one by hand. Reach for `/x402/settle` only when you are metering a resource yourself and no merchant endpoint is doing it for you.
+
+When you *are* metering a resource yourself, you construct `paymentRequired` from the plan ID and pass it to `/x402/settle` or `/x402/verify`. **`resource.url` must be a non-empty URL** identifying what is being bought; for a plain plan top-up, use the plan's own URL.
+
+```json
+{
+  "x402Version": 2,
+  "resource": { "url": "<plan-url>" },
+  "accepts": [{
+    "scheme": "nvm:card-delegation",
+    "network": "stripe",
+    "planId": "<plan>",
+    "extra": {}
+  }],
+  "extensions": {}
+}
+```
+
+```http
+POST https://api.live.nevermined.app/api/v1/x402/settle
+```
+
+Body: `{ "paymentRequired": <that object>, "x402AccessToken": "<accessToken>" }`.
+
+Settling returns a `billingModel`. `credits` plans, like this one, mint and burn, returning `creditsRedeemed` and `remainingBalance`; pay-as-you-go plans charge per request, so both of those fields read `"0"` and the charge reference is in `orderTx` (fiat) or `transaction` (crypto). `POST /api/v1/x402/verify` with the same body is an optional dry run. Neither call belongs in the Baselayer flow.
+
+## Getting a delegation
+
+Query the delegations accessible to your API key with `payments.delegation.getPurchasingPower()` and select one with at least 1,000 cents of remaining budget. Budget fields are returned as strings, in cents. Purchasing-power results contain only delegations that can still pay; exhausted ones are excluded. With several delegations, discovery is deterministic when the owner key-scoped one to your key; to designate a specific budget among several, reference its ID explicitly.
+
+**If discovery returns none**, the preferred path is for the card owner to create a delegation in the dashboard (Prerequisites, step 2); the agent then re-runs discovery. Nothing needs to be copied. If no operator is reachable (or the request goes unanswered), a fully autonomous agent can create one programmatically with `payments.delegation.createDelegation`. Its payload fields:
+
+| Field | Value for this flow |
+|---|---|
+| `provider` | `"stripe"` |
+| `providerPaymentMethodId` | The card's id from `payments.delegation.listPaymentMethods()` |
+| `spendingLimitCents` | N × 1000 for N expected \$10 purchases, each of which funds 10 requests. A 1,000-cent delegation covers one purchase and is exhausted after it; Baselayer's own guide sizes a working delegation at `10000` (ten purchases, 100 requests) |
+| `durationSecs` | Long enough to outlive the whole run, since every request settles against the delegation. `3600` is enough for a one-shot check; Baselayer's guide uses `604800` (seven days) for a queue that drains over time. Keep it as short as the work allows (least privilege) |
+| `currency` | `"usd"` |
+
+The response includes the `delegationId` to mint with (it also includes a `delegationToken`; not needed for this flow; treat it as a secret and do not log it). **Card selection:** `listPaymentMethods()` carries no ordering guarantee and cards may be indistinguishable by metadata; if several are enrolled and the owner's intent is unknown, prefer asking the owner; otherwise any Active card of the provider is acceptable, and you should record which payment-method id was chosen. Note the trade-off of this whole path: the agent chooses the card and sets its own budget. Prefer an owner-created delegation whenever an owner is available.
+
+## Baselayer's agentic contract
+
+Baselayer serves the agentic flow from a dedicated base URL, `https://api.staging.baselayer.com`, under the `/alpha` prefix. Only the two endpoints below exist there; anything else under `/alpha` is a `404`. Both take the x402 token in the `payment-signature` header, and Baselayer verifies and settles it server-side on every request. The settlement receipt comes back base64-encoded in the `payment-response` response header. You are charged only for successful (`2xx`) requests.
+
+### Purchase an API key
+
+```http
+POST https://api.staging.baselayer.com/alpha/api_keys
+Content-Type: application/json
+payment-signature: <x402-token>
+
+{"name": "my-agent", "default_request_mode": "sync"}
+```
+
+* **Response `201`:** `{ "id": "…", "name": "my-agent", "key": "prod_…", "default_request_mode": "sync" }`. Store `key`; it is a real Baselayer production API key.
+* **Missing or invalid signature:** `402 Payment Required` with a base64 `payment-required` challenge header describing the plan. Decode it to discover the plan programmatically.
+
+### Run a business search
+
+```http
+POST https://api.staging.baselayer.com/alpha/searches
+Content-Type: application/json
+payment-signature: <x402-token>
+X-API-Key: prod_…
+Prefer: wait=120
+
+{"name": "Howard Concrete Pumping Co Inc",
+ "address": "2327 Hill Church Houston Rd, Canonsburg PA 15317"}
+```
+
+* **Cost:** 10 credits per request, which is \$1.00 of the \$10 purchase.
+* **Response `201`:** the full result inline — Secretary of State registrations, officers, watchlist screening, and match verdicts such as `"business_name_match": "EXACT"`. `Prefer: wait=120` asks Baselayer to hold the connection until the search completes; set your HTTP client's timeout above that (Baselayer's example uses 180 seconds). Optional request fields include `officer_names`, `website`, `phone_number`, `email` and `tin`; see the [Search API reference](https://docs.baselayer.com/reference) for the complete schema.
+* **Missing, invalid or exhausted token:** `402 Payment Required` with the `payment-required` challenge header. Mint a fresh token against the same plan and delegation and retry.
+
+**When the credits run out:** nothing to do. The next request that finds fewer than 10 credits on your balance charges the card \$10 for another 100, then settles as usual. What ends a run is the delegation, not the credits: once its budget is spent or its window has closed, token minting fails and Baselayer answers `402`; create or top up a delegation to continue.
+
+## Pricing
+
+**Baselayer sells credits in \$10 lots, and every request burns 10 of them.** The plan is `credits`, not pay-as-you-go: your card is charged \$10 when a request finds fewer than 10 credits on your balance, and that charge mints 100 credits on your Nevermined account for this plan. Requests two through ten draw the balance down without touching the card; the eleventh charges again. The cost per request works out to \$1.00, billed ten at a time.
+
+Two consequences worth knowing before you size a delegation. The very first request of a run — the key purchase — is what triggers the first \$10 charge, so a delegation needs at least 1,000 cents before an agent can get a key at all. And credits are held on the Nevermined plan, not on the Baselayer key: an agent that stops after three searches leaves 60 credits on the balance, and the same account's next run spends those before the card is charged again.
+
+Because it is a credits plan, a settle returns `creditsRedeemed: "10"` and the `remainingBalance` after the burn. Those fields are your proof of metering; the `orderTx` on a settle that charged the card is your proof of purchase. Nevermined meters the requests; what each search does inside Baselayer is Baselayer's own product and Nevermined neither sets nor observes it.
+
+## What the key unlocks
+
+The purchase provisions a production Baselayer API key, but through this route it is used together with the x402 token, on the agentic endpoints only: today that is Business Search. Business Search is the entry point to Baselayer's KYB catalog and returns identity, registration, officer and watchlist data with match verdicts in a single synchronous response. Baselayer's wider catalog — standalone [watchlist and sanctions](https://docs.baselayer.com/docs/watchlists-sanctions-standalone-checks) checks, [litigation and bankruptcy](https://docs.baselayer.com/docs/litigation-bankruptcy-search-api-quickstart) search, [sole proprietorship verification](https://docs.baselayer.com/docs/sole-prop-verification) — is documented for account holders and is not served under `/alpha`.
+
+```bash
+curl -X POST https://api.staging.baselayer.com/alpha/searches \
+  -H "payment-signature: $X402_TOKEN" \
+  -H "X-API-Key: $BASELAYER_API_KEY" \
+  -H "Prefer: wait=120" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Acme Corp", "address": "1 Main St, Dover, DE"}'
+```
+
+Baselayer publishes a Python walkthrough of the same flow with `payments-py` on its [Nevermined page](https://docs.baselayer.com/docs/nevermined-agentic-access-x402.md).
+
+## Verifying charges
+
+Use `payments.delegation.listDelegations()` to inspect spend per delegation (`amountSpentCents`, `transactionCount`, status); the response wraps a `delegations` array. Fully spent delegations are marked `Exhausted` and no longer appear in `getPurchasingPower()` results; purchasing power lists only delegations that can still pay. On this plan a delegation's `amountSpentCents` grows in steps of 1,000 — one per \$10 purchase — rather than once per request; the per-request metering shows up as the `remainingBalance` in the settlement receipt Baselayer returns in the `payment-response` header.
+
+## Troubleshooting
+
+| Symptom | Meaning / fix |
+|---|---|
+| Token mint fails: `Required token-generation input is missing or incomplete (HTTP 402)` | The mint referenced no existing delegation (e.g., legacy create-on-the-fly `delegationConfig` with card details). Create or discover a delegation first and pass `delegationConfig: { delegationId }`. |
+| `ERR_PACKAGE_PATH_NOT_EXPORTED` on import | The SDK is ESM-only. Set `"type": "module"` in `package.json` or use `.mts`. |
+| Console warning: `The 'environment' option is deprecated…` | Something is still passing the deprecated `environment` option (a wrapper or copied example). Remove it; the environment is derived from your key prefix. On SDK 1.10.0 the warning can also self-fire with nothing passed ([payments#416](https://github.com/nevermined-io/payments/issues/416)); if you have removed the option and still see it, that issue is why. |
+| The plan ID above does not resolve, or token mint fails against it | Check your key prefix: this is a **live** plan, and a `sandbox:`-prefixed key targets a different environment where the plan does not exist. |
+| A delegation you spent from disappears from `getPurchasingPower()` | It is exhausted. Inspect it with `listDelegations()`; create or top up a delegation to continue. |
+| A Baselayer endpoint returns `402` with a `payment-required` header | The token is missing, invalid, or can no longer pay: its delegation is exhausted or expired. Check the delegation with `listDelegations()`, then mint a fresh token against the same plan and delegation and retry. |
+| `404` from a path under `/alpha` | Only `/alpha/api_keys` and `/alpha/searches` are served on the agentic base URL. Baselayer's other products are not reachable through this route. |
+| The card was charged \$10 for what looks like one \$1 search | Expected: credits are sold in \$10 lots of 100, and a request that finds fewer than 10 on the balance triggers the purchase. The next nine requests draw the balance down without a charge. |
+| The card was charged, or credits were burned, and nothing came back from Baselayer | You called `/x402/settle` yourself. Baselayer's endpoints settle for you. Mint the token and go straight there. |
+| The delegation exhausts part-way through a queue of businesses | Expected behaviour, and the reason the ceiling exists. Surface the halt and leave the remaining cases explicitly unprocessed. Never let an unaffordable check be recorded as a passed check: a payment failure and a verification result are different states and must not converge. |
+| A search request times out on your side | `Prefer: wait=120` holds the connection for up to two minutes while the search runs. Set the HTTP client's timeout above that, and retry with the same token: you are only charged for `2xx` responses. |
+| `settle` rejects a hand-built `paymentRequired` | `resource.url` is required and must be a non-empty URL. For a plan top-up with no protected endpoint to call, use the plan's own URL. |
+| `settle` returns `creditsRedeemed: "10"` and a non-zero `remainingBalance` | Expected on this credits plan: 10 credits are burned per request and the balance after the burn is reported. A pay-as-you-go plan would report `"0"` for both. |
+
+## References
+
+* [Payments overview](/products/payments/overview)
+* [x402 card-delegation spec](/specs/x402-card-delegation)
+* [Nevermined agentic instructions (machine-readable)](https://api.live.nevermined.app/api/v1/organizations/org-a3c3315e-bd43-4764-8d20-6258cee652b8/agentic-instructions.md)
+* [Baselayer Startup plan](https://api.live.nevermined.app/api/v1/protocol/plans/64016128970723825062202451177754352720194073054658343333156009220723821177122) and the [Baselayer Business Search Agent](https://api.live.nevermined.app/api/v1/protocol/agents/60798063874007247008401413456869371418449913824213519077458224260713519377086) listing
+* [x402 glossary entry](https://nevermined.ai/glossary/x402/)
+* [Baselayer's Nevermined page](https://docs.baselayer.com/docs/nevermined-agentic-access-x402.md) — the merchant-side counterpart to this one
+* [Getting started with the Baselayer API](https://docs.baselayer.com/docs/getting-started)
+* [Baselayer Business Search](https://docs.baselayer.com/docs/business-search)
+* [Baselayer API reference](https://docs.baselayer.com/reference)
