@@ -335,3 +335,89 @@ ul.sidebar-group {
   -webkit-mask-image: radial-gradient(120% 140% at 0 0, #000 0%, transparent 55%);
   mask-image: radial-gradient(120% 140% at 0 0, #000 0%, transparent 55%);
 }
+
+/* =====================================================
+   Header — theme selector order + AI Catalog (nevermined-io/docs#399)
+   Mintlify places the theme selector after nav with no config for ordering.
+   This DOM-dependent override changes visual order only; keyboard order
+   remains App → AI Catalog → theme. Recheck after Mintlify layout changes.
+   ===================================================== */
+#navbar div:has(> nav #topbar-cta-button) > nav {
+  order: 1;
+  /* Move Tailwind v4's DOM-first end margin to the visually-last nav's start. */
+  margin-inline: 1rem 0;
+}
+
+/* Older local Mintlify previews use Tailwind v3's margin on the theme wrapper. */
+#navbar div:has(> nav #topbar-cta-button) > div {
+  margin-inline: 0;
+}
+
+/* Ribbon shimmer: accent ↔ lime fill pulses, with the right stroke delayed.
+   Masks reproduce the two strokes of the Nevermined mark in logo/light.svg;
+   update both when the logo changes. ::before is left, ::after is right.
+   Target the desktop CTA hook; mobile menu links retain Mintlify's styling. */
+#topbar-cta-button > a {
+  --catalog-accent: #12a89e;
+  --catalog-lime: #8fbf1f;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 13px 22px 13px 57px;
+  border-radius: 12px;
+  background: #0d3f48;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+:is(.dark, [data-theme="dark"]) #topbar-cta-button > a {
+  --catalog-accent: #4ac6bf;
+  --catalog-lime: #bcdc4a;
+}
+
+/* Hide the mint theme's background overlay and trailing chevron so the
+   anchor background and ribbon show. Recheck these children on theme updates. */
+#topbar-cta-button > a > span.absolute,
+#topbar-cta-button > a > div > svg {
+  display: none;
+}
+
+#topbar-cta-button > a::before,
+#topbar-cta-button > a::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 17px;
+  background-color: var(--catalog-accent);
+  mask: var(--catalog-ribbon) center / contain no-repeat;
+  -webkit-mask: var(--catalog-ribbon) center / contain no-repeat;
+  pointer-events: none;
+}
+
+#topbar-cta-button > a::before {
+  --catalog-ribbon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2031.06%2022%22%3E%3Cpath%20d%3D%22M0%2011.153L10.4179%2020.6426V11.0576L0%201.56805V11.153Z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+#topbar-cta-button > a::after {
+  --catalog-ribbon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2031.06%2022%22%3E%3Cpath%20d%3D%22M10.4178%201.56805V11.153L20.8325%2020.6426L31.0596%2011.153V1.56805L20.8325%2011.0576L10.4178%201.56805Z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #topbar-cta-button > a:is(:hover, :focus-visible)::before,
+  #topbar-cta-button > a:is(:hover, :focus-visible)::after {
+    animation: nvm-catalog-shimmer .8s ease-in-out infinite;
+  }
+
+  #topbar-cta-button > a:is(:hover, :focus-visible)::after {
+    animation-delay: .12s;
+  }
+}
+
+@keyframes nvm-catalog-shimmer {
+  0%, 100% { background-color: var(--catalog-accent); }
+  50% { background-color: var(--catalog-lime); }
+}
