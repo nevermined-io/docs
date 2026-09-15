@@ -72,7 +72,7 @@ Returns an `accessToken`. The delegation must already exist. Tokens cannot creat
 ### 3. Buy a Baselayer API key
 
 ```http
-POST https://api.staging.baselayer.com/alpha/api_keys
+POST https://api.baselayer.com/alpha/api_keys
 Content-Type: application/json
 payment-signature: <accessToken>
 
@@ -84,7 +84,7 @@ Baselayer's endpoint **verifies and settles the token on your behalf** and retur
 ### 4. Run a business search
 
 ```http
-POST https://api.staging.baselayer.com/alpha/searches
+POST https://api.baselayer.com/alpha/searches
 Content-Type: application/json
 payment-signature: <accessToken>
 X-API-Key: <the key from step 3>
@@ -148,12 +148,12 @@ The response includes the `delegationId` to mint with (it also includes a `deleg
 
 ## Baselayer's agentic contract
 
-Baselayer serves the agentic flow from a dedicated base URL, `https://api.staging.baselayer.com`, under the `/alpha` prefix. Only the two endpoints below exist there; anything else under `/alpha` is a `404`. Both take the x402 token in the `payment-signature` header, and Baselayer verifies and settles it server-side on every request. The settlement receipt comes back base64-encoded in the `payment-response` response header. You are charged only for successful (`2xx`) requests.
+Baselayer serves the agentic flow from `https://api.baselayer.com` under the `/alpha` prefix. Only the two endpoints below exist there; anything else under `/alpha` is a `404`. Both take the x402 token in the `payment-signature` header, and Baselayer verifies and settles it server-side on every request. The settlement receipt comes back base64-encoded in the `payment-response` response header. You are charged only for successful (`2xx`) requests.
 
 ### Purchase an API key
 
 ```http
-POST https://api.staging.baselayer.com/alpha/api_keys
+POST https://api.baselayer.com/alpha/api_keys
 Content-Type: application/json
 payment-signature: <x402-token>
 
@@ -161,12 +161,12 @@ payment-signature: <x402-token>
 ```
 
 * **Response `201`:** `{ "id": "…", "name": "my-agent", "key": "prod_…", "default_request_mode": "sync" }`. Store `key`; it is a real Baselayer production API key.
-* **Missing or invalid signature:** `402 Payment Required` with a base64 `payment-required` challenge header describing the plan. Decode it to discover the plan programmatically.
+* **Missing signature:** `402 Payment Required`. The base64 `payment-required` response header carries the x402 challenge naming this plan and agent (`accepts[0].planId`, `accepts[0].extra.agentId`), and the JSON body (`code: 6500`) points you at it. Decode the header to discover the plan programmatically.
 
 ### Run a business search
 
 ```http
-POST https://api.staging.baselayer.com/alpha/searches
+POST https://api.baselayer.com/alpha/searches
 Content-Type: application/json
 payment-signature: <x402-token>
 X-API-Key: prod_…
@@ -179,6 +179,7 @@ Prefer: wait=120
 * **Cost:** 10 credits per request, which is \$1.00 of the \$10 purchase.
 * **Response `201`:** the full result inline — Secretary of State registrations, officers, watchlist screening, and match verdicts such as `"business_name_match": "EXACT"`. `Prefer: wait=120` asks Baselayer to hold the connection until the search completes; set your HTTP client's timeout above that (Baselayer's example uses 180 seconds). Optional request fields include `officer_names`, `website`, `phone_number`, `email` and `tin`; see the [Search API reference](https://docs.baselayer.com/reference) for the complete schema.
 * **Missing, invalid or exhausted token:** `402 Payment Required` with the `payment-required` challenge header. Mint a fresh token against the same plan and delegation and retry.
+* **Settlement outcome unknown:** `502` with `code: 6501` and a `metadata.settlement_id`. Baselayer could not confirm whether the charge went through and dispatched no work. Do not retry automatically; reconcile the `settlement_id` with Baselayer support first.
 
 **When the credits run out:** nothing to do. The next request that finds fewer than 10 credits on your balance charges the card \$10 for another 100, then settles as usual. What ends a run is the delegation, not the credits: once its budget is spent or its window has closed, token minting fails and Baselayer answers `402`; create or top up a delegation to continue.
 
@@ -195,7 +196,7 @@ Because it is a credits plan, a settle returns `creditsRedeemed: "10"` and the `
 The purchase provisions a production Baselayer API key, but through this route it is used together with the x402 token, on the agentic endpoints only: today that is Business Search. Business Search is the entry point to Baselayer's KYB catalog and returns identity, registration, officer and watchlist data with match verdicts in a single synchronous response. Baselayer's wider catalog — standalone [watchlist and sanctions](https://docs.baselayer.com/docs/watchlists-sanctions-standalone-checks) checks, [litigation and bankruptcy](https://docs.baselayer.com/docs/litigation-bankruptcy-search-api-quickstart) search, [sole proprietorship verification](https://docs.baselayer.com/docs/sole-prop-verification) — is documented for account holders and is not served under `/alpha`.
 
 ```bash
-curl -X POST https://api.staging.baselayer.com/alpha/searches \
+curl -X POST https://api.baselayer.com/alpha/searches \
   -H "payment-signature: $X402_TOKEN" \
   -H "X-API-Key: $BASELAYER_API_KEY" \
   -H "Prefer: wait=120" \
@@ -223,6 +224,7 @@ Use `payments.delegation.listDelegations()` to inspect spend per delegation (`am
 | The card was charged \$10 for what looks like one \$1 search | Expected: credits are sold in \$10 lots of 100, and a request that finds fewer than 10 on the balance triggers the purchase. The next nine requests draw the balance down without a charge. |
 | The card was charged, or credits were burned, and nothing came back from Baselayer | You called `/x402/settle` yourself. Baselayer's endpoints settle for you. Mint the token and go straight there. |
 | The delegation exhausts part-way through a queue of businesses | Expected behaviour, and the reason the ceiling exists. Surface the halt and leave the remaining cases explicitly unprocessed. Never let an unaffordable check be recorded as a passed check: a payment failure and a verification result are different states and must not converge. |
+| A Baselayer endpoint returns `502` with `code: 6501` (`Payment outcome is unknown`) | Baselayer's call to settle the token did not return a definitive answer, so it dispatched no work and cannot tell you whether the card was charged. Do not retry on a loop: check the delegation's `amountSpentCents` with `listDelegations()`, and reconcile the `metadata.settlement_id` with Baselayer support before sending the token again. |
 | A search request times out on your side | `Prefer: wait=120` holds the connection for up to two minutes while the search runs. Set the HTTP client's timeout above that, and retry with the same token: you are only charged for `2xx` responses. |
 | `settle` rejects a hand-built `paymentRequired` | `resource.url` is required and must be a non-empty URL. For a plan top-up with no protected endpoint to call, use the plan's own URL. |
 | `settle` returns `creditsRedeemed: "10"` and a non-zero `remainingBalance` | Expected on this credits plan: 10 credits are burned per request and the balance after the burn is reported. A pay-as-you-go plan would report `"0"` for both. |
