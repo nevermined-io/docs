@@ -402,7 +402,11 @@ Before finalizing any documentation:
 
 1. **Local test** - Run `mintlify dev` and verify layout and links
 2. **Create PR** - Push branch and create pull request
-3. **Preview** - Mintlify bot adds a preview deployment link to the PR
+3. **Preview** - Mintlify bot adds a preview deployment link to the PR. ⚠️ **It has not done so
+   since #386 (2026-09-11)**: every later PR, draft or not, gets either no `Mintlify Deployment`
+   check run or `skipped — No eligible deployments found for changes`, and flipping ready,
+   force-pushing or close/reopen does not revive it. Until that is fixed on the Mintlify side,
+   the preview is `mintlify dev` locally.
 4. **Review** - Check the preview for layout, images, and code rendering
 5. **Merge** - Upon approval, merge to main and auto-deploy
 
@@ -453,6 +457,24 @@ Before finalizing any documentation:
 - **Structure**: Prerequisites → Architecture → Implementation → Testing
 - **Tone**: Practical and step-by-step
 - **Examples**: SDK integration, proxy-based flows, agent registration
+
+**Partner pages** (`integrations/exa.mdx`, `youdotcom.mdx`, `baselayer.mdx` — a merchant that
+accepts x402 card-delegation) are one template in **two shapes**, and the shape is decided by the
+plan's `billingModel` from `GET https://api.live.nevermined.app/api/v1/protocol/plans/<id>`, never
+by copying the nearest sibling:
+
+| `billingModel` | Shape | Reference page |
+| --- | --- | --- |
+| `pay-as-you-go` | one token → one POST to the purchase endpoint → an API key that then works alone; repeat to top up the same key | `exa.mdx`, `youdotcom.mdx` |
+| `credits` | the token goes on **every** partner call and the key rides alongside it; a **Cost** line on every metered endpoint (the key purchase included); a Pricing section stating the lot size and when the card is charged; no returning-payer / replayed-token contract | `baselayer.mdx` |
+
+A new partner page is **three edits**: the page, its entry in the `Protocols & Partners` group of
+`docs.json`, and a paragraph under **Featured providers** on `solutions/api-providers.mdx` (that
+list is presented as the live reference set, so a page missing from it is undiscoverable from the
+solutions funnel). Before publishing, check every id on the page — `org-…`, plan, agent — against
+the plan document's `orgId`, and decode the partner's unpaid `402` challenge to confirm it names
+that plan: a draft written from the You.com page once shipped You.com's org id in Baselayer's
+agentic-instructions link.
 
 ---
 
