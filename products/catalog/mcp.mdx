@@ -157,7 +157,7 @@ If a usable Delegation already exists, the tool answers `{ "status": "already_ac
 
 ### 5. Make a paid call
 
-Call **`pay_service`** with the service `slug` and the request you want made — `path`, `method` (defaults to `POST`), `body`, and `headers` as the vendor needs them:
+Call **`pay_service`** with the service `slug` and the request you want made — `path`, `method`, `body`, and `headers` as the vendor needs them. If you omit `method`, the tool uses the catalog method for the matching endpoint, falling back to `POST`. For a slug-routed GET, put the query string without `?` in `search`, separate from `path`. Optional `maxTotalCents` is a non-negative safe integer that caps this call's fee-inclusive, whole-cent budget reserve; the Delegation cap still limits total spend.
 
 ```json
 {

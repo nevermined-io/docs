@@ -81,6 +81,9 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
   charged; each retry strands a single-use credential. **Don't auto-retry.**
 - `BCK.ROUTER.0013` (500) — we hold no EIP-712 domain for that token: ours, not theirs.
   Nothing charged; report it.
+- `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive rounded reserve.
+  No charge/cap debit; may sign. Parse JSON `params` for `requiredTotalCents`.
+  Raise only if intended; reuse `requestId`.
 - Only `BCK.ROUTER.0006` (500) and `0007` (429) are **retryable**; everything
   else is a decision, and retrying it unchanged gives the same answer.
 
@@ -90,11 +93,10 @@ user's decision; a fresh one to escape an exhausted Delegation defeats it.
 ## Accounting
 
 `GET /api/v1/router/payments` (filters `delegationId`, `from`, `to`, `format=csv`) and
-`/payments/summary`. `amount` is the **merchant leg only**, and its **scale differs per rail**: 6dp
-on the crypto rails, but the card rail (`network: "stripe"`) is scale 2, so `amount` **IS cents**.
-Read `assetDecimals`, never assume 6 — and when `null`, show raw units: `amount / 10 ** null` is
-`Infinity`, not an error. `assetSymbol` is echoed even when unrecognised, so `assetDecimals` is the
-recognition check; `pathUSD`/`PathUSD` differ in case between the Tempo chains, so match tickers
-**case-insensitively** or silently miss a chain. Rows also carry `fee*` and `asset*` columns;
-`feeStatus` is a **separate lifecycle** from the payment `status`, sharing `Settled`/`Failed` —
-never read one for the other. A record at `Issued` is **not** an error: the money moved.
+`/payments/summary`. `amount` is the **merchant leg only**: 6dp on crypto rails, 2dp on cards
+(`network: "stripe"`, cents). Use `assetDecimals`; when null show raw units — `amount / 10 ** null` silently
+uses 0dp. `assetSymbol` can echo an unknown token, so `assetDecimals` is the recognition check.
+Tempo tickers can be `pathUSD`/`PathUSD`: match case-insensitively. Rows include `fee*` and
+`asset*`; `feeStatus` is separate from payment `status` even when both say `Settled`/`Failed` —
+never read one for the other.
+`Issued` is not an error: the money moved.

@@ -31,12 +31,16 @@ You describe the request; the Router probes the merchant, **auto-detects** the p
 | Field | Required | Notes |
 | --- | --- | --- |
 | `delegationId` | **yes** | UUID. Must be an `erc4337` Delegation |
-| `url` | **yes** | Absolute `http(s)` URL |
+| `url` | one of `url` or `slug` | Absolute `http(s)` URL for an off-catalog target |
+| `slug` | one of `url` or `slug` | Catalog slug; the Router keeps its upstream URL hidden |
+| `path` | no | Path segments appended to a slug target; do not put a query here |
+| `search` | no | Query string without `?` for a slug target; with a raw `url`, put the query in `url` |
 | `method` | no | `GET` · `POST` · `PUT` · `PATCH` · `DELETE`. Default `GET` |
 | `headers` | no | Forwarded to the merchant — put **its** auth here, never your `NVM_API_KEY` |
 | `body` | no | JSON, forwarded |
 | `protocol` | no | `x402`/`mpp`. **Advisory only** — see below |
 | `requestId` | **yes** | Idempotency key. Non-empty, ≤ 256 chars |
+| `maxTotalCents` | no | Non-negative safe integer. Per-call ceiling on the fee-inclusive, whole-cent cap reserve; a larger quote returns `402 BCK.ROUTER.0018` before a charge or budget reserve. The Delegation cap remains the overall limit |
 
 ### `protocol` is advisory here, and the detected one wins
 
@@ -252,6 +256,7 @@ Call the merchant with no payment. It answers `402` with its requirements:
 | `target` | **yes** | x402 → `{ accepts, x402Version? }` (defaults to **2**; set `1` for x402-express). MPP → `{ challenge }`, the raw header value |
 | `resourceUrl` | no | Absolute URL, recorded on the ledger |
 | `requestId` | no | **Optional here**, unlike mode B — but [always pass a stable one](#mode-a-fee): it is the only thing that dedupes a retry, and without it a retry is minted **and charged the routing fee** a second time |
+| `maxTotalCents` | no | Non-negative safe integer. Per-call ceiling on the merchant price plus any collectable Router fee, rounded once to whole cents; the Delegation cap remains the overall limit |
 
 Pass `target` **verbatim** from the 402. Do not normalise, reorder or re-encode it.
 
