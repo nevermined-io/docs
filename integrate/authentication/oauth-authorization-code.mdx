@@ -94,3 +94,18 @@ The connection the user approves is recorded as an **AgentBinding** — the cons
 <Note>
 Both the `authorization_endpoint` and the `authorization_code` grant are advertised in the [RFC 8414 metadata](/integrate/authentication/overview#discovery) — per tier, with the tier on the endpoint (`?network=sandbox|live`). As with the device flow, discovery doesn't substitute for a pre-registered `client_id`; and a `client_id` is registered per tier, so a connector known to Sandbox is "not authorized" on Live and vice versa.
 </Note>
+
+### Account-level grants are authorized per consent type
+
+Two grants ask for authority over the user's **whole account** rather than one agent, and both omit `agent_id`:
+
+| `consent_type` | What the user approves | Funded by |
+| --- | --- | --- |
+| `account_access` (the default when `agent_id` is absent) | A capped, expiring **card mandate** — charges against a card the user enrolled | The user's saved card |
+| `commerce` | A capped, expiring **on-chain spending mandate** for paying external merchants through the Router | The user's own Nevermined wallet |
+
+A connector is authorized for each of these **separately** when it is registered. Being enabled for `commerce` does not enable `account_access`, and vice versa — an assistant that pays external services from the user's wallet never gains the ability to request a card mandate by asking for the other consent type. Registration carries an `accountLevelConsentTypes` list (`["commerce"]`, `["account_access"]`, or both); a connector registered before the list existed keeps both.
+
+Requesting a consent type your connector is not authorized for is refused with `BCK.OAUTH.0035` (`403`), whose `params.consentType` names the refused type — distinct from `BCK.OAUTH.0018` (your connector cannot request account-level authority at all, so `agent_id` is required) and `BCK.OAUTH.0025` (it can, but is not yet verified). The consent page checks this before it renders the spend form and tells the user which consent type was refused, so the human is never walked through a mandate the API would reject at approval.
+
+**Commerce-only connector.** The typical shape for an AI assistant that only needs to pay external services: registered with `accountLevelConsentTypes: ["commerce"]`, it starts the consent at the tier's `authorization_endpoint` with `consent_type=commerce` (and the `commerce_*` spend-cap fields — no card, no `agent_id`). A request from that same connector with neither `consent_type=commerce` nor an `agent_id` is an `account_access` request, and is refused with `BCK.OAUTH.0035`; its agent-specific grants (an `agent_id` plus `plan_id`) are unaffected.

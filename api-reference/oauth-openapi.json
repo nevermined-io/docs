@@ -20,7 +20,7 @@
       "post": {
         "tags": ["Authentication - Ceremony"],
         "summary": "Generate an OAuth 2.1 authorization code",
-        "description": "Authorization Code flow with PKCE (mandatory). Mints an x402 payment permission for a specific agent and plan. Browser-initiated in the signed-in user's context — authenticated with the user's Nevermined API key (unauthenticated → BCK.OAUTH.0007). Requires a pre-registered client_id (unregistered → BCK.OAUTH.0016).",
+        "description": "Authorization Code flow with PKCE (mandatory). Mints an x402 payment permission for a specific agent and plan, or — with agent_id absent — an account-level grant: account_access (a capped card mandate) or, with consent_type=commerce, a capped on-chain spending mandate for paying external merchants. Browser-initiated in the signed-in user's context — authenticated with the user's Nevermined API key (unauthenticated → BCK.OAUTH.0007). Requires a pre-registered client_id (unregistered → BCK.OAUTH.0016). Account-level grants are authorized PER CONSENT TYPE: the client must be account-level (else BCK.OAUTH.0018), verified (else BCK.OAUTH.0025) and authorized for the requested consent type (else BCK.OAUTH.0035, whose params.consentType names it).",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -29,7 +29,8 @@
         "responses": {
           "201": { "description": "Authorization code", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthorizeResponse" } } } },
           "400": { "$ref": "#/components/responses/Error" },
-          "401": { "$ref": "#/components/responses/Error" }
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "description": "Forbidden — account-level authorization requires a verified client (BCK.OAUTH.0025); the client is not authorized for the requested consent type, account_access or commerce (BCK.OAUTH.0035, params.consentType names it); or the presented credential is itself an account_access key barred from creating a mandate (BCK.OAUTH.0027).", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } }
         }
       }
     },
@@ -102,7 +103,7 @@
       "post": {
         "tags": ["Authentication - Ceremony"],
         "summary": "Resolve a connect client_id to its display name + eligibility",
-        "description": "For the account-level connect page: the verified connector name and whether account-level authorization is allowed for it. Browser-initiated — requires the human's Nevermined API key (unauthenticated → BCK.OAUTH.0007), like device/details.",
+        "description": "For the account-level connect page: the verified connector name and which account-level consent types the client may request (allowedConsentTypes — account_access and/or commerce; accountLevelAllowed is true when that list is non-empty), so the page can refuse the type it is rendering before the spend form. Browser-initiated — requires the human's Nevermined API key (unauthenticated → BCK.OAUTH.0007), like device/details.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -307,9 +308,11 @@
       },
       "ConnectDetails": {
         "type": "object",
+        "required": ["connectorName", "accountLevelAllowed", "allowedConsentTypes"],
         "properties": {
           "connectorName": { "type": "string", "example": "LangSmith Fleet" },
-          "accountLevelAllowed": { "type": "boolean", "example": true }
+          "accountLevelAllowed": { "type": "boolean", "example": true, "description": "True when the client may request at least one account-level consent type (registered, allowAccountLevel, verified, and allowedConsentTypes non-empty). Check allowedConsentTypes for the type being requested." },
+          "allowedConsentTypes": { "type": "array", "items": { "type": "string", "enum": ["account_access", "commerce"] }, "example": ["commerce"], "description": "The account-level consent types this client may request: account_access (a capped card mandate) and/or commerce (a capped on-chain spending mandate for external merchants). Empty when the client may request neither." }
         }
       },
       "RevokeRequest": {
