@@ -163,9 +163,9 @@
       "get": {
         "tags": ["Authentication - Discovery"],
         "summary": "Authorization Server Metadata (RFC 8414)",
-        "description": "Advertises the authorization, token, and device_authorization endpoints, the supported grants (including urn:ietf:params:oauth:grant-type:device_code), and the JWKS URI. scopes_supported is deliberately absent (#2397).",
+        "description": "Advertises the authorization, token, and device_authorization endpoints, the supported grants (including urn:ietf:params:oauth:grant-type:device_code), the JWKS URI, and authorization_response_iss_parameter_supported: true (RFC 9207 — every authorization response the consent page redirects with, success or error, carries iss equal to this issuer). scopes_supported is deliberately absent (#2397).",
         "responses": {
-          "200": { "description": "RFC 8414 metadata", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true, "example": { "issuer": "https://api.sandbox.nevermined.app", "authorization_endpoint": "https://nevermined.app/oauth/authorize?network=sandbox", "token_endpoint": "https://api.sandbox.nevermined.app/oauth/token", "device_authorization_endpoint": "https://api.sandbox.nevermined.app/oauth/device_authorization", "jwks_uri": "https://api.sandbox.nevermined.app/.well-known/jwks.json", "grant_types_supported": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"], "code_challenge_methods_supported": ["S256"] } } } } }
+          "200": { "description": "RFC 8414 metadata", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true, "example": { "issuer": "https://api.sandbox.nevermined.app", "authorization_endpoint": "https://nevermined.app/oauth/authorize?network=sandbox", "token_endpoint": "https://api.sandbox.nevermined.app/oauth/token", "device_authorization_endpoint": "https://api.sandbox.nevermined.app/oauth/device_authorization", "jwks_uri": "https://api.sandbox.nevermined.app/.well-known/jwks.json", "grant_types_supported": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"], "code_challenge_methods_supported": ["S256"], "authorization_response_iss_parameter_supported": true } } } } }
         }
       }
     },
