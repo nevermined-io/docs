@@ -379,7 +379,7 @@ This generates a static site in the `.mintlify` directory.
 
 - **Trigger**: Push to the main branch
 - **Deployment**: Automatic via Mintlify GitHub App integration
-- **Preview**: GitHub integrates a preview link in PR checks
+- **Preview**: GitHub integrates a preview link in PR checks — currently absent on PRs, see "Testing & Preview Workflow" step 3; use `mintlify dev`
 - **Production**: https://nevermined.ai/docs
 
 ### Content Validation Checklist
@@ -403,9 +403,13 @@ Before finalizing any documentation:
 1. **Local test** - Run `mintlify dev` and verify layout and links
 2. **Create PR** - Push branch and create pull request
 3. **Preview** - Mintlify bot adds a preview deployment link to the PR. ⚠️ **It has not done so
-   since #386 (2026-09-11)**: every later PR, draft or not, gets either no `Mintlify Deployment`
-   check run or `skipped — No eligible deployments found for changes`, and flipping ready,
-   force-pushing or close/reopen does not revive it. Until that is fixed on the Mintlify side,
+   since #389 (2026-09-11 — #389's preview succeeded at 08:53Z, #393 was the first skip)**: every
+   later PR, draft or not, gets either no `Mintlify Deployment` check run or
+   `skipped — No eligible deployments found for changes`, and flipping ready, force-pushing or
+   close/reopen does not revive it. **Production deploys from `main` are unaffected** — every
+   `main` commit still carries `Mintlify Deployment = success`, so this is the PR-preview half
+   only. The cause is not established; the skip reason reads like configuration, so check the
+   Mintlify dashboard's preview-deployment setting before assuming a vendor problem. Until then
    the preview is `mintlify dev` locally.
 4. **Review** - Check the preview for layout, images, and code rendering
 5. **Merge** - Upon approval, merge to main and auto-deploy
@@ -459,22 +463,27 @@ Before finalizing any documentation:
 - **Examples**: SDK integration, proxy-based flows, agent registration
 
 **Partner pages** (`integrations/exa.mdx`, `youdotcom.mdx`, `baselayer.mdx` — a merchant that
-accepts x402 card-delegation) are one template in **two shapes**, and the shape is decided by the
-plan's `billingModel` from `GET https://api.live.nevermined.app/api/v1/protocol/plans/<id>`, never
-by copying the nearest sibling:
+accepts x402 card-delegation) are one template in **two shapes**. The shape is decided by **how many
+settles one purchase funds**, read off the plan document
+(`GET https://api.live.nevermined.app/api/v1/protocol/plans/<id>` → `billingModel` **and**
+`registry.credits`), never by copying the nearest sibling — and never by `billingModel` alone, which
+reads `credits` for Exa:
 
-| `billingModel` | Shape | Reference page |
+| Plan economics | Shape | Reference page |
 | --- | --- | --- |
-| `pay-as-you-go` | one token → one POST to the purchase endpoint → an API key that then works alone; repeat to top up the same key | `exa.mdx`, `youdotcom.mdx` |
-| `credits` | the token goes on **every** partner call and the key rides alongside it; a **Cost** line on every metered endpoint (the key purchase included); a Pricing section stating the lot size and when the card is charged; no returning-payer / replayed-token contract | `baselayer.mdx` |
+| One purchase = one settle: `pay-as-you-go` (You.com), or `credits` with `amount = minAmount = maxAmount` (Exa: `1`/`1`/`1`, fixed) | **buy once**: one token → one POST to the purchase endpoint → an API key that then works alone; repeat the purchase to top up the same key | `youdotcom.mdx`. (`exa.mdx` is the earlier page and is missing the `Without the SDK` REST section, the **"Do not call `/x402/settle` yourself"** warning, `## Pricing` and the agentic-instructions link — do not copy it.) |
+| One purchase funds several settles and the merchant settles on **every** call: `credits` with `amount` > `maxAmount` (Baselayer: 100 minted, 10 burned per request) | **metered**: the token goes on every partner call with the key alongside; a **Cost** line on *every* metered endpoint, the key purchase included, not only on the purchase endpoint; a `## Pricing` section that states the lot size and when the card is charged; no returning-payer / replayed-token contract | `baselayer.mdx` |
+
+Both shapes carry a `## Pricing` section and a Cost line on the purchase endpoint — those are not
+what tells them apart; the *per-call* Cost lines and the lot-size Pricing are.
 
 A new partner page is **three edits**: the page, its entry in the `Protocols & Partners` group of
 `docs.json`, and a paragraph under **Featured providers** on `solutions/api-providers.mdx` (that
 list is presented as the live reference set, so a page missing from it is undiscoverable from the
 solutions funnel). Before publishing, check every id on the page — `org-…`, plan, agent — against
-the plan document's `orgId`, and decode the partner's unpaid `402` challenge to confirm it names
-that plan: a draft written from the You.com page once shipped You.com's org id in Baselayer's
-agentic-instructions link.
+the plan document (`orgId` when the partner has an organization; Exa's is `null`), and decode the
+partner's unpaid `402` challenge to confirm it names that plan: a draft written from the You.com
+page once shipped You.com's org id in Baselayer's agentic-instructions link.
 
 ---
 
@@ -702,7 +711,7 @@ docs: fix broken links in getting started
 When submitting documentation changes:
 
 1. Describe what pages were added/modified
-2. Link to the preview deployment
+2. Link to the preview deployment (or, while PR previews are absent — see "Testing & Preview Workflow" step 3 — say so and note the page was checked with `mintlify dev`)
 3. Confirm you tested locally with `mintlify dev`
 4. Confirm links are not broken with `mintlify broken-links`
 5. List any new cross-references added
@@ -713,7 +722,7 @@ When submitting documentation changes:
 - [ ] Follows tone and format of this guide
 - [ ] Code examples are tested and working
 - [ ] All links are valid
-- [ ] Mintlify preview looks correct
+- [ ] Mintlify preview looks correct (or `mintlify dev` while PR previews are absent — see "Testing & Preview Workflow" step 3)
 - [ ] architecture.md is updated
 - [ ] docs.json navigation includes new pages
 - [ ] No typos or grammar issues
