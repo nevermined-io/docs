@@ -109,3 +109,20 @@ A connector is authorized for each of these **separately** when it is registered
 Requesting a consent type your connector is not authorized for is refused with `BCK.OAUTH.0035` (`403`), whose `params.consentType` names the refused type — distinct from `BCK.OAUTH.0018` (your connector cannot request account-level authority at all, so `agent_id` is required) and `BCK.OAUTH.0025` (it can, but is not yet verified). The consent page checks this before it renders the spend form and tells the user which consent type was refused, so the human is never walked through a mandate the API would reject at approval.
 
 **Commerce-only connector.** The typical shape for an AI assistant that only needs to pay external services: registered with `accountLevelConsentTypes: ["commerce"]`, it starts the consent at the tier's `authorization_endpoint` with `consent_type=commerce` (and the `commerce_*` spend-cap fields — no card, no `agent_id`). A request from that same connector with neither `consent_type=commerce` nor an `agent_id` is an `account_access` request, and is refused with `BCK.OAUTH.0035`; its agent-specific grants (an `agent_id` plus `plan_id`) are unaffected.
+
+### Self-registering clients: identity from the document, trust from the operator
+
+Not every connector is registered by hand. A client that follows the MCP authorization spec — ChatGPT, Claude Code, and hosts built on the same SDKs — presents an **https URL as its `client_id`** (a Client ID Metadata Document, CIMD). Nevermined fetches that URL, verifies the document names itself, and takes the client's name and redirect URIs from it. Ownership of the URL's domain is the identity proof, so there is nothing to register and nothing for an operator to type: every self-registering client can run the agent-specific flow on this page out of the box.
+
+What the document can **never** do is make its client trusted. Account-level grants — `commerce`, `account_access` — need `allowAccountLevel` and `trustTier: "verified"`, and a self-asserted document cannot grant itself those; a self-registering client that asks is refused with `BCK.OAUTH.0018`, exactly as an unknown static connector would be. Trust comes from the operator instead, through the same registry static connectors live in: an entry whose `clientId` is the client's `client_id` URL carries **only** `allowAccountLevel`, `trustTier` and `accountLevelConsentTypes`, and no redirect URIs (an entry that lists them is refused as malformed — redirects always come from the document). The next time that URL starts a consent, its document-derived identity is overlaid with the configured trust. Two rules differ from a static entry, both because the identity is self-asserted: `accountLevelConsentTypes` must **name** every consent type the client is granted (omitting it grants nothing, never "both"), and an entry removed from the registry stops granting at the operator's next restart — there is no lingering trust.
+
+Out of the box on every Nevermined tier, at `["commerce"]` only:
+
+| Assistant | `client_id` it presents |
+| --- | --- |
+| ChatGPT | `https://chatgpt.com/oauth/client.json` |
+| Claude Code | `https://claude.ai/oauth/claude-code-client-metadata` |
+
+To enable another self-registering assistant for `commerce`, its operator adds the URL it presents as `client_id` to the registry with `allowAccountLevel: true`, `trustTier: "verified"` and `accountLevelConsentTypes: ["commerce"]` — one line, no redirect list, no code. The URL is whatever the assistant sends; the API logs it (`CIMD:` lines) the first time an unlisted one starts a consent.
+
+Because a self-registering client's name is its own claim, the consent screen shows the **host of its `client_id` URL** beside that name — `ChatGPT` with `chatgpt.com` — and `POST /oauth/connect/details` returns it as `clientOrigin` (`https://chatgpt.com`; `null` for a static connector). A document that cannot be fetched, or that fails validation, is refused with `BCK.OAUTH.0031` on both the consent page and `/oauth/authorize`.
