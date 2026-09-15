@@ -606,7 +606,16 @@ description: "Register AI agents and create payment plans in 5 minutes using the
 - **README.md** - Local development and deployment instructions
 - **[architecture.md](architecture.md)** - Documentation status tracker and roadmap
 - **[docs.json](docs.json)** - Mintlify configuration and navigation structure
-- **[api-reference/openapi.json](api-reference/openapi.json)** - OpenAPI spec for Payments API
+- **[api-reference/openapi.json](api-reference/openapi.json)** - OpenAPI spec for Payments API.
+  ⚠️ It is **OpenAPI 3.1**, and hand-maintained here — nothing in this repo regenerates or
+  validates it, so an error in it stays wrong indefinitely. Express nullability as
+  `"type": ["string", "null"]`. **`"nullable": true` is a 3.0 keyword that 3.1 validators and
+  client generators silently ignore**, so a field marked that way publishes as non-nullable and
+  every generated client rejects the `null` the API really returns. The NestJS-rendered document
+  these schemas are copied from emits the 3.0 spelling (`@ApiProperty({ nullable: true })`), so
+  convert on the way in rather than pasting it through. When a schema also carries an `enum`,
+  add `null` to the enum as well — `type` and `enum` are independent assertions, so a null-typed
+  value still fails an enum with no `null` member.
 
 ### External References
 
