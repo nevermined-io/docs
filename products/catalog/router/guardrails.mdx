@@ -1,6 +1,6 @@
 ---
 title: "Guardrails and error codes"
-description: "What the Router enforces before it signs, what it refuses outright, and every error code it can return."
+description: "What the Router enforces on a payment, what it refuses outright, and every error code it can return."
 icon: "shield-check"
 ---
 
@@ -17,10 +17,11 @@ The **Delegation** is the control you own. It carries a hard cap in cents and an
 | | |
 | --- | --- |
 | **Cap** | The spend, converted to cents and rounded up, must fit in the remaining budget — including any [routing fee](/products/catalog/router/how-it-works#the-routing-fee), which is reserved together with the merchant amount |
+| **Per-call ceiling** | Optional `maxTotalCents` on Router JSON calls: a non-negative safe integer. It limits one fee-inclusive, whole-cent cap reserve (merchant price plus any collectable Router fee, rounded once); the Delegation cap remains the overall limit |
 | **Expiry** | Set at creation via `durationSecs` — after that, nothing spends |
 | **Status** | Must be `Active`. `Revoked`, `Expired`, and `Exhausted` all refuse |
 
-Any of those failing gives you **`402 BCK.ROUTER.0003`**. Check the current state any time with `GET /api/v1/delegation/{id}` — `remainingBudgetCents` and `expiresAt` tell you which it was.
+Delegation cap, expiry, or status failures give you **`402 BCK.ROUTER.0003`**. Check the current state any time with `GET /api/v1/delegation/{id}` — `remainingBudgetCents` and `expiresAt` tell you which it was. A quote above `maxTotalCents` gives **`402 BCK.ROUTER.0018`** without a charge or budget reserve, although signing may already have occurred; raise that per-call ceiling only if the call is intended.
 
 An agent cannot spend past its cap by looping, by retrying, or by being confidently wrong about its own budget. That's the point of the mechanism, and it's why an agent should treat `0003` as a stop signal rather than something to route around.
 
@@ -112,7 +113,7 @@ Every code below also appears in the canonical [API error catalogue](/developmen
 | `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
 | `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
 | `BCK.ROUTER.0014` | 409 | The target is a cataloged Nevermined service, whose upstream URL is deliberately hidden. The Router refuses to pay it by raw URL — mode A and a raw mode-B target both put the merchant's host on your wire, defeating the broker. The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected. | No — **use the slug**: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>` |
-| `BCK.ROUTER.0018` | 402 | Per-call `maxTotalCents` is below the fee-inclusive, whole-cent cap reserve. Nothing was charged or reserved; `params.requiredTotalCents` is the required amount. | No — raise the ceiling only if this call is intended; reuse the same `requestId` |
+| `BCK.ROUTER.0018` | 402 | Per-call `maxTotalCents` is below the fee-inclusive, whole-cent cap reserve. No charge or cap reserve, though signing may already have occurred; parse JSON-string `params` for `requiredTotalCents`. | No — raise the ceiling only if this call is intended; reuse the same `requestId` |
 
 Across the whole Router surface, only `0006` and `0007` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer. On the *paying* path the set is narrower still — see below.
 

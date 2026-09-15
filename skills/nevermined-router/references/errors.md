@@ -25,7 +25,7 @@ obstacles is exactly the failure mode this design exists to prevent.
 | `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
 | `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
 | `BCK.ROUTER.0014` | 409 | The target is a cataloged Nevermined service, whose upstream URL is deliberately hidden. The Router refuses to pay it by raw URL — mode A and a raw mode-B target both put the merchant's host on your wire, defeating the broker. The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected. | No — **use the slug**: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>` |
-| `BCK.ROUTER.0018` | 402 | Per-call `maxTotalCents` is below the fee-inclusive, whole-cent cap reserve. Nothing was charged or reserved; `params.requiredTotalCents` is the required amount. | No — raise the ceiling only if this call is intended; reuse the same `requestId` |
+| `BCK.ROUTER.0018` | 402 | Per-call `maxTotalCents` is below the fee-inclusive, whole-cent cap reserve. No charge or cap reserve, though signing may already have occurred; parse JSON-string `params` for `requiredTotalCents`. | No — raise the ceiling only if this call is intended; reuse the same `requestId` |
 
 **Only `0006` and `0007` are worth retrying automatically.** The rest are decisions; retrying them
 unchanged produces the same answer.
@@ -241,6 +241,12 @@ Errors carry a structured body — branch on `code`, not on message text:
 
 `hint` is written for a human reading a log. `details`, when present, names the specific check that
 tripped — that is the field worth logging on a `0001`.
+
+`params`, when present, is a JSON **string** on the wire: parse it with `JSON.parse` before reading
+`requiredTotalCents`. For `0018`, `requiredTotalCents`, `merchantCents`, `feeCents` and the echoed
+`maxTotalCents` are decimal strings. A refused quote can follow credential signing: the card rail
+may mint an expiring SPT, and Tempo may consume a custodial signature. Do not use `0018` for free
+price discovery.
 
 **One documented exception to that rule:** the [`412 consent_required`](#consent-412) on
 `POST /delegation/create` carries only the generic `BCK.HTTP.412`, so `code` identifies the status

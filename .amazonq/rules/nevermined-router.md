@@ -142,7 +142,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
   The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected.
 
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive, rounded reserve.
-  No charge or cap debit. Read `params.requiredTotalCents`; only raise the ceiling if this call is intended.
+  No charge or cap debit, though signing may already have occurred. Parse JSON-string `params` for `requiredTotalCents`; only raise the ceiling if this call is intended.
   Reuse the same `requestId` after a refusal. Do not auto-retry unchanged.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
