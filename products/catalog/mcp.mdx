@@ -29,28 +29,43 @@ Your agent never holds a private key, never learns a payment protocol, and never
 
 ## The tool surface
 
-Six tools. Discovery is public; paying and reading your ledger require your API key.
+Seven tools. Discovery is **free** — no credential needed. Paying and reading your ledger are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
 
 | Tool | Auth | What it does |
 | --- | --- | --- |
-| `list_categories` | — | Catalog categories, with a count each. |
-| `search_services` | — | Search listings. Filters (all optional): `query`, `category`, `protocol`, `tag`, `page`, `offset`. |
-| `get_service` | — | One service by `slug` — protocol, endpoint, price label, discovery links. |
-| `pay_service` | key | Pay for a service and return the vendor's response. **Charges real funds.** |
-| `setup_delegation` | key | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
-| `list_payments` | key | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
-| `payment_summary` | key | Total spend plus a time series. Filters: `from`, `to`. |
+| `list_categories` | free | Catalog categories, with a count each. |
+| `search_services` | free | Search listings. Filters (all optional): `query`, `category`, `protocol`, `tag`, `page`, `offset`. |
+| `get_service` | free | One service by `slug` — protocol, endpoint, price label, discovery links. |
+| `pay_service` | paid | Pay for a service and return the vendor's response. **Charges real funds.** |
+| `setup_delegation` | paid | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
+| `list_payments` | paid | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
+| `payment_summary` | paid | Total spend plus a time series. Filters: `from`, `to`. |
+
+Every tool declares this split in its listing (`securitySchemes`: `noauth` on the free tools, `oauth2` with the `commerce` scope on the paid ones), so a host that reads tool metadata — ChatGPT does — knows which tools need linking before it calls one.
 
 ## Auth & transport
 
 - **Transport:** Streamable HTTP at `POST /mcp` (stateless). Liveness at `GET /health`; readiness — which checks the Nevermined API is reachable — at `GET /ready`.
-- **Auth:** your Nevermined **API key** on the HTTP `Authorization: Bearer <key>` header.
-  - The three discovery tools are public and need no key.
-  - `pay_service`, `setup_delegation`, `list_payments`, and `payment_summary` require it. Called without a key, they return an `authentication_required` result rather than failing hard.
-  - The key is forwarded to the Nevermined API **per request** — never stored, never logged. Never send it to the merchant you're paying; it authenticates you to Nevermined, nothing else.
+- **Two ways to authenticate, one server.**
+  - **API key** (any host that can send headers): put your Nevermined key on `Authorization: Bearer <key>`. Every tool is served exactly as before; this is the path the [quickstart](#quickstart) below uses.
+  - **OAuth** (hosts like Claude and ChatGPT that can't be handed a key): connect with **no** header at all. The server is an OAuth 2.0 protected resource — when it needs a credential it answers `401` with a `WWW-Authenticate` challenge that points your host at the discovery document (`/.well-known/oauth-protected-resource`) and asks for the **`commerce`** scope. Your host follows it to Nevermined, you approve a spending cap once, and the host retries the call with the credential it was granted. The credential is a `commerce` grant: it spends only from the Delegation you approved, through the Router, and nothing else.
+- The credential — key or grant — is forwarded to the Nevermined API **per request**, never stored, never logged. Never send it to the merchant you're paying; it authenticates you to Nevermined, nothing else.
+
+### What happens without a credential
+
+The server runs on two hostnames per environment. They serve the same tools and differ only in **when** a request without a credential gets the challenge:
+
+| Host | `initialize`, `tools/list`, free tools | A paid tool call | With a credential |
+| --- | --- | --- | --- |
+| `mcp.<env>.nevermined.app` — the URL in the quickstart | Served, no credential needed | `401` + challenge — your host prompts you to connect, then retries | Served |
+| `mcp.api.<env>.nevermined.app` | `401` + challenge on the very first request | `401` + challenge | Served |
+
+Use the first host. It lets an assistant browse the Catalog before anyone signs in, and starts the consent only when the agent actually tries to pay — Claude shows an inline **Connect** card at that moment and retries the same call once you've approved. The second host is for clients that only look for auth when they first connect; it challenges immediately instead.
+
+An expired or revoked credential on a paid call also comes back as a `401` (`error="invalid_token"`), so a host can refresh or re-authorize on its own rather than surfacing an error to you.
 
 <Note>
-This is the **plain-key** front door: payments draw on your own Delegation using your own API key. A no-code / OAuth-connector variant (for hosts like ChatGPT and Claude connectors) is separate and tracked elsewhere.
+Environments are `sandbox` and `live` — `mcp.sandbox.nevermined.app` and `mcp.live.nevermined.app`. The OAuth ceremony lands you on the same consent screen for both; on **live** the cap you approve is real money.
 </Note>
 
 ## Quickstart
@@ -59,7 +74,7 @@ Connect a host, run a discovery call, then a paid call — end to end. Discovery
 
 ### 1. Connect your host
 
-Point an MCP client at the server URL and set the `Authorization` header to your Nevermined API key. Any host that supports remote (HTTP) MCP servers with headers takes this shape:
+Point an MCP client at the server URL and set the `Authorization` header to your Nevermined API key. Any host that supports remote (HTTP) MCP servers with headers takes this shape (a host that runs OAuth for you — Claude, ChatGPT — takes just the URL, no header, and prompts you to connect the first time the agent tries to pay):
 
 ```json
 {
@@ -186,7 +201,8 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 
 | Result | What happened |
 | --- | --- |
-| `{ "error": "authentication_required" }` | A pay or ledger tool was called without the `Authorization` header. Set your API key (step 2). |
+| HTTP `401` with a `WWW-Authenticate` challenge | A paid tool was called with no credential, or with one Nevermined refused (`error="invalid_token"`). An OAuth-capable host handles this itself — connect (or reconnect) when it asks. A headers-only host can't: set your API key (step 2). |
+| `{ "error": "authentication_required" }` | The same refusal, in-band — you'll only see it on a self-hosted instance that has no OAuth surface configured. Set your API key (step 2). |
 | `{ "error": "payment_failed", "code": "BCK.ROUTER.0003", … }` | The spend would exceed your Delegation cap, or it expired. Widening the cap in response is almost always the wrong move — see [Guardrails](/products/catalog/router/guardrails). |
 | `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped. **Not a failure** — you weren't charged twice. |
 | `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
