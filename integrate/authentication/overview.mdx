@@ -47,11 +47,16 @@ Sandbox and Live are separate authorization servers with separate discovery docu
 {
   "issuer": "https://api.sandbox.nevermined.app",
   "authorization_endpoint": "https://nevermined.app/oauth/authorize?network=sandbox",
-  "token_endpoint": "https://api.sandbox.nevermined.app/oauth/token"
+  "token_endpoint": "https://api.sandbox.nevermined.app/oauth/token",
+  "authorization_response_iss_parameter_supported": true
 }
 ```
 
 `network` is `sandbox` or `live` — the same parameter the embeddable widgets take, and distinct from the x402 request body's `network` field, which names the settlement rail (`eip155:<chainId>`, or `stripe` / `braintree` / `visa` — [details](/development-guide/nevermined-x402#paymentrequired-response-402)), never a tier. The device flow's `verification_uri` carries it too. **Keep the query string** when you append your own parameters (RFC 6749 §3.1 requires it). Not every client does: the official Python MCP client (`mcp`, every release through 2.2.0) concatenates a second `?`, producing `…?network=sandbox?response_type=code&…` — the consent page tolerates that shape, taking the tier from the head and recovering the one swallowed parameter, so such clients still work; but do not rely on it for a client you control — extend the query with `&`. A discovery-driven client gets the right value for free; if you configure an OAuth provider **by hand** — a connector's "authorization URL" form field, say — copy the endpoint from the tier's discovery document, query string included. **The endpoint must end up as `…/oauth/authorize?network=sandbox` or `…?network=live`; if the document you fetch carries no `network`, append it yourself.** An authorize link without `network` is served on whichever tier the user's browser last used (Live by default), and a connector registered only on Sandbox is then refused as *"Connector not authorized"* until the user switches manually.
+
+### The authorization response names its issuer (RFC 9207)
+
+Each tier advertises `authorization_response_iss_parameter_supported: true`, and the consent page appends **`iss`** to every redirect back to your `redirect_uri` — the `?code=…&state=…` success and the `?error=…&state=…` denial alike. Its value is exactly the `issuer` of the discovery document you resolved (`https://api.sandbox.nevermined.app` or `https://api.live.nevermined.app`). Compare the two by plain string equality and reject a response whose `iss` does not match, or that has none: that is what stops a code minted by one issuer being presented as another's (the mix-up attack RFC 9207 exists for), and it is also what lets a client that registers itself through its metadata document (ChatGPT, for one) present a stable identity rather than a per-connection one. The device flow has no authorization response, so nothing there carries `iss`.
 
 ## What needs a human
 
