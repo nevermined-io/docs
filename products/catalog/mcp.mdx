@@ -48,7 +48,7 @@ Every tool declares this split in its listing (`securitySchemes`: `noauth` on th
 - **Transport:** Streamable HTTP at `POST /mcp` (stateless). Liveness at `GET /health`; readiness — which checks the Nevermined API is reachable — at `GET /ready`.
 - **Two ways to authenticate, one server.**
   - **API key** (any host that can send headers): put your Nevermined key on `Authorization: Bearer <key>`. Every tool is served exactly as before; this is the path the [quickstart](#quickstart) below uses.
-  - **OAuth** (hosts like Claude and ChatGPT that can't be handed a key): connect with **no** header at all. The server is an OAuth 2.0 protected resource — when it needs a credential it answers `401` with a `WWW-Authenticate` challenge that points your host at the discovery document (`/.well-known/oauth-protected-resource`) and asks for the **`commerce`** scope. Your host follows it to Nevermined, you approve a spending cap once, and the host retries the call with the credential it was granted. The credential is a `commerce` grant: it spends only from the Delegation you approved, through the Router, and nothing else.
+  - **OAuth** (hosts that can't be handed a key — Claude connectors, and hosts that follow the MCP authorization spec): connect with **no** header at all. The server is an OAuth 2.0 protected resource — when it needs a credential it answers `401` with a `WWW-Authenticate` challenge that points your host at the discovery document (`/.well-known/oauth-protected-resource/mcp`) and asks for the **`commerce`** scope. Your host follows it to Nevermined, you approve a spending cap once, and the host retries the call with the credential it was granted. The credential is a `commerce` grant: it spends only from the Delegation you approved, through the Router, and nothing else.
 - The credential — key or grant — is forwarded to the Nevermined API **per request**, never stored, never logged. Never send it to the merchant you're paying; it authenticates you to Nevermined, nothing else.
 
 ### What happens without a credential
@@ -62,7 +62,7 @@ The server runs on two hostnames per environment. They serve the same tools and 
 
 Use the first host. It lets an assistant browse the Catalog before anyone signs in, and starts the consent only when the agent actually tries to pay — Claude shows an inline **Connect** card at that moment and retries the same call once you've approved. The second host is for clients that only look for auth when they first connect; it challenges immediately instead.
 
-An expired or revoked credential on a paid call also comes back as a `401` (`error="invalid_token"`), so a host can refresh or re-authorize on its own rather than surfacing an error to you.
+An expired or revoked credential on a paid call also comes back as a `401` (`error="invalid_token"`), so a host can refresh or re-authorize on its own rather than surfacing an error to you. A host that links accounts per tool rather than per connection (ChatGPT's documented mechanism) gets the same information in-band: the paid tools carry `securitySchemes`, and a refused call returns an error result carrying the challenge under `_meta["mcp/www_authenticate"]`.
 
 <Note>
 Environments are `sandbox` and `live` — `mcp.sandbox.nevermined.app` and `mcp.live.nevermined.app`. The OAuth ceremony lands you on the same consent screen for both; on **live** the cap you approve is real money.
@@ -74,7 +74,7 @@ Connect a host, run a discovery call, then a paid call — end to end. Discovery
 
 ### 1. Connect your host
 
-Point an MCP client at the server URL and set the `Authorization` header to your Nevermined API key. Any host that supports remote (HTTP) MCP servers with headers takes this shape (a host that runs OAuth for you — Claude, ChatGPT — takes just the URL, no header, and prompts you to connect the first time the agent tries to pay):
+Point an MCP client at the server URL and set the `Authorization` header to your Nevermined API key. Any host that supports remote (HTTP) MCP servers with headers takes this shape (a host that runs OAuth for you — Claude connectors, for instance — takes just the URL, no header, and prompts you to connect the first time the agent tries to pay):
 
 ```json
 {
