@@ -3787,25 +3787,33 @@
             "example": "2026-02-13T10:30:00Z"
           },
           "apiKeyId": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "sk-abc123",
-            "nullable": true,
             "description": "NVM API Key ID restricted to this delegation. Null = any key can use it."
           },
           "planId": {
-            "type": "string",
-            "example": "123456789",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "123456789"
           },
           "maxTransactions": {
-            "type": "integer",
-            "example": 50,
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "example": 50
           },
           "lastUsedAt": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "2026-02-13T14:00:00Z",
-            "nullable": true,
             "format": "date-time"
           }
         },
@@ -3899,9 +3907,11 @@
             "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
           },
           "delegationToken": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "eyJhbGciOiJIUzI1NiIsInR...",
-            "nullable": true,
             "description": "Signed JWT for fiat-backed delegations (stripe/braintree). Omitted for crypto (erc4337) flows where the signed delegation is held client-side."
           }
         },
@@ -3929,19 +3939,25 @@
             "example": "visa"
           },
           "expMonth": {
-            "type": "integer",
-            "example": 12,
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "example": 12
           },
           "expYear": {
-            "type": "integer",
-            "example": 2027,
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "example": 2027
           },
           "alias": {
-            "type": "string",
-            "example": "My Card",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "My Card"
           },
           "provider": {
             "type": "string",
@@ -3963,21 +3979,25 @@
             ]
           },
           "allowedApiKeyIds": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "example": [
               "sk-abc123",
               "sk-def456"
             ],
-            "nullable": true,
             "description": "NVM API Key IDs allowed to use this card. Null = any key can use it.",
             "items": {
               "type": "string"
             }
           },
           "orgId": {
-            "type": "string",
-            "description": "Organization this card belongs to (null = personal).",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization this card belongs to (null = personal)."
           }
         },
         "required": [
@@ -4020,9 +4040,11 @@
             "example": "succeeded"
           },
           "failureReason": {
-            "type": "string",
-            "example": null,
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": null
           },
           "feeCents": {
             "type": "string",
@@ -4193,16 +4215,20 @@
               "sk-abc123",
               "sk-def456"
             ],
-            "nullable": true,
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "type": "string"
             }
           },
           "orgId": {
-            "type": "string",
-            "description": "Move the card to an org (a valid orgId) or to personal (null). Omit to leave unchanged.",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Move the card to an org (a valid orgId) or to personal (null). Omit to leave unchanged."
           }
         }
       },
@@ -4262,9 +4288,11 @@
             "example": "2026-02-13T10:30:00Z"
           },
           "apiKeyId": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "sk-abc123",
-            "nullable": true,
             "description": "NVM API Key ID restricted to this delegation. Null = any key can use it."
           }
         },
@@ -4616,14 +4644,18 @@
             "example": "5e7481c3-..."
           },
           "resourceUrl": {
-            "type": "string",
-            "description": "The upstream resource URL recorded with the payment.",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The upstream resource URL recorded with the payment."
           },
           "requestId": {
-            "type": "string",
-            "description": "Your idempotency id, echoed back.",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Your idempotency id, echoed back."
           },
           "status": {
             "type": "string",
@@ -4663,9 +4695,11 @@
             ]
           },
           "txHash": {
-            "type": "string",
-            "description": "On-chain settlement tx, if the upstream reported one.",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "On-chain settlement tx, if the upstream reported one."
           },
           "status": {
             "type": "string",
@@ -4772,22 +4806,28 @@
             "example": "base-sepolia"
           },
           "asset": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "USDC",
-            "nullable": true,
             "description": "The settlement asset AS PERSISTED AT MINT, which differs per rail: a symbol for x402 (`USDC`/`EURC`), the ERC-20 contract ADDRESS from the challenge for MPP-tempo, and an ISO currency code for MPP-stripe. Prefer `assetSymbol`/`assetDecimals` below for display — they normalise all three. Kept as-is for consumers that already parse it."
           },
           "assetSymbol": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Ticker to display for `asset`, resolved from the asset address on this row’s chain — `USDC`, `EURC`, `USDC.e`, `pathUSD`. `null` when the asset is not one we recognise there; render the (truncated) `asset` instead, never a guess.",
-            "example": "USDC.e",
-            "nullable": true
+            "example": "USDC.e"
           },
           "assetDecimals": {
-            "type": "number",
+            "type": [
+              "number",
+              "null"
+            ],
             "description": "Decimal scale of `amount` for this asset, so a client never has to assume one. `null` when the asset is unrecognised — treat `amount` as raw atomic units rather than defaulting the scale, which would render a wrong NUMBER rather than a wrong label.",
-            "example": 6,
-            "nullable": true
+            "example": 6
           },
           "amount": {
             "type": "string",
@@ -4800,8 +4840,10 @@
             "example": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C"
           },
           "txHash": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "0xfc8af37b..."
           },
           "delegationId": {
@@ -4809,12 +4851,16 @@
             "example": "5e7481c3-..."
           },
           "requestId": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "resourceUrl": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "https://agent.example/resource"
           },
           "buyer": {
@@ -4823,25 +4869,34 @@
             "example": "0x8D6A5233..."
           },
           "feeAtomic": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Nevermined’s routing fee for this payment, in the settlement asset’s smallest unit. `0` when no fee applied; `null` on rows that predate the fee.",
-            "example": "0",
-            "nullable": true
+            "example": "0"
           },
           "feeBps": {
-            "type": "number",
+            "type": [
+              "number",
+              "null"
+            ],
             "description": "Fee rate applied, in basis points over 10,000. `null` on rows that predate the fee.",
-            "example": 0,
-            "nullable": true
+            "example": 0
           },
           "feeCents": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Cents the fee added to the delegation-cap reserve. Note `amount` on this record is the MERCHANT leg in atomic units, so the combined cap charge is not derivable from this resource alone — it is recorded as `amountCents` on `GET /delegation/{delegationId}/transactions`, where that same row breaks it out as `feeCents` / `feeAtomic` / `feeBps`, with `feeReleased` marking a fee already refunded to the cap.",
-            "example": "0",
-            "nullable": true
+            "example": "0"
           },
           "feeStatus": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Fee lifecycle, independent of the payment `status`.",
             "enum": [
               "None",
@@ -4849,22 +4904,26 @@
               "Submitted",
               "Settled",
               "Failed",
-              "Released"
+              "Released",
+              null
             ],
-            "example": "None",
-            "nullable": true
+            "example": "None"
           },
           "feeTxHash": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Settlement reference for the FEE leg — distinct from `txHash`, which is the MERCHANT leg’s. The two legs are independent movements that settle separately, so reconcile them separately. Reported verbatim by the facilitator (third-party text, not validated to a `0x` shape). `null` until the fee actually settles.",
-            "example": "0x9c4d6f1e...",
-            "nullable": true
+            "example": "0x9c4d6f1e..."
           },
           "feeNonce": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "EIP-3009 nonce of the fee leg, recorded when the leg is submitted. This is the only key that ties an on-chain transfer back to this payment: `authorizationState(buyer, feeNonce)` answers definitively whether the leg was consumed, which is how a `Submitted` fee is resolved. `null` until the leg is submitted. Not spendable on its own — the signed authorization is deliberately never stored.",
-            "example": "0x7b1e2c...",
-            "nullable": true
+            "example": "0x7b1e2c..."
           }
         },
         "required": [
