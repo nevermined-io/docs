@@ -98,8 +98,8 @@ missing one. That is why the scale is on the row. A card row looks like this:
 row's chain, or a card-rail currency outside the two the mint path admits. Treat it as "cannot render
 an amount": show the raw `amount` and the truncated `asset`, and do **not** fall back to 6.
 
-⚠️ **Guard the `null` explicitly.** `Number(amount) / 10 ** null` evaluates to `Infinity`, not an
-error — so an unguarded divide does not fail loudly, it produces a figure and puts it in a total.
+⚠️ **Guard the `null` explicitly.** `Number(amount) / 10 ** null` silently returns the raw atomic
+amount as a number — so an unguarded divide does not fail loudly and can put wrong units in a total.
 
 ### `assetSymbol` is not a recognition check
 

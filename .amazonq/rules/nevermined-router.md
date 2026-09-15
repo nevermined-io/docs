@@ -142,7 +142,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
   The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected.
 
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive, rounded reserve.
-  No charge or cap debit. Read `requiredTotalCents`; only raise the ceiling if this call is intended.
+  No charge or cap debit. Read `params.requiredTotalCents`; only raise the ceiling if this call is intended.
   Reuse the same `requestId` after a refusal. Do not auto-retry unchanged.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
@@ -156,7 +156,7 @@ defeats the whole mechanism. Report and stop.
 **scale differs per rail**: 6 decimals on the crypto rails, but the card rail (`network: "stripe"`)
 is **scale 2, so its `amount` IS cents**. Read `assetDecimals` off the row, never assume 6; `null`
 there means unrecognised, so show raw units — and guard that branch, because
-`amount / 10 ** null` is `Infinity`, not an error. `assetSymbol` is echoed even when unrecognised, so it
+`amount / 10 ** null` silently returns the raw atomic amount as a number. `assetSymbol` is echoed even when unrecognised, so it
 is not a recognition check, and `pathUSD`/`PathUSD` differ in case across the two Tempo chains —
 compare tickers case-insensitively. Rows also carry `feeAtomic`, `feeBps`, `feeCents`, `feeStatus`,
 `feeTxHash`, `feeNonce`, `feeFailureReason`. That last one says why the fee did not collect — or, on
