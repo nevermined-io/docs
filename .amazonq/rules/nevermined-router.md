@@ -141,6 +141,10 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
   through the broker: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>`.
   The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected.
 
+- `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive, rounded reserve.
+  No charge or cap debit. Read `requiredTotalCents`; only raise the ceiling if this call is intended.
+  Reuse the same `requestId` after a refusal. Do not auto-retry unchanged.
+
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
 defeats the whole mechanism. Report and stop.
