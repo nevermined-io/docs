@@ -37,14 +37,14 @@ This is the "claim ceremony" an agent can use on its own. Both the `device_autho
     {
       "device_code": "a1b2c3…",
       "user_code": "BCDF-GHJK",
-      "verification_uri": "https://nevermined.app/oauth/device",
-      "verification_uri_complete": "https://nevermined.app/oauth/device?user_code=BCDF-GHJK",
+      "verification_uri": "https://nevermined.app/oauth/device?network=sandbox",
+      "verification_uri_complete": "https://nevermined.app/oauth/device?network=sandbox&user_code=BCDF-GHJK",
       "expires_in": 600,
       "interval": 5
     }
     ```
 
-    `device_code` is your machine secret (opaque — poll with it). `user_code` is what the human types. `interval` is the minimum seconds between polls.
+    `device_code` is your machine secret (opaque — poll with it). `user_code` is what the human types. `interval` is the minimum seconds between polls. Both verification URIs carry the tier you called (`?network=sandbox|live`) — pass them on unchanged, so the human's browser opens the verification page on the tier your ceremony is pending on ([why](/integrate/authentication/overview#each-tier-is-its-own-issuer-and-its-authorize-url-says-so)).
   </Step>
 
   <Step title="Send the human to approve">

@@ -30,7 +30,7 @@ Everything the ceremony needs is advertised in standards-based metadata (see [Di
 | Protected Resource Metadata | `/.well-known/oauth-protected-resource` | RFC 9728 |
 | JWKS (ES256K / secp256k1) | `/.well-known/jwks.json` | RFC 7517 (ES256K curve: RFC 8812) |
 
-Resolve these against the environment you're targeting — `https://api.sandbox.nevermined.app` (test) or `https://api.live.nevermined.app` (real money).
+Resolve these against the environment you're targeting — `https://api.sandbox.nevermined.app` (test) or `https://api.live.nevermined.app` (real money). The human-facing URLs each document advertises — the `authorization_endpoint`, and the `verification_uri` the device flow returns — carry that tier as `?network=sandbox|live`. Hand them to the human as-is and keep the query string when you add parameters of your own; the consent screen reads it to open on the right tier ([why](/integrate/authentication/overview#each-tier-is-its-own-issuer-and-its-authorize-url-says-so)).
 
 ## The short version
 
