@@ -69,6 +69,10 @@ The catalog's read surface is **public** — browse or filter it before spending
 
 Every listing tells you what you need to choose: its **slug** (how you address it), **protocol** (x402 or MPP — handled for you), a **price label**, its **endpoints**, and **tags**/category. Filter by task (e.g. web search, email enrichment, scraping, social data) and by price, and shortlist the cheapest service that answers the need.
 
+<Tip>
+**Build the request body from the listing, not from guesswork.** Each endpoint publishes a `requestExample` and `responseFields` in its Catalog detail — copy the example and change the values. In particular, multi-model services expect a **provider-prefixed model id** (e.g. `openai/gpt-4o-mini`, `google/gemini-2.5-flash-lite`); a bare `gpt-4o-mini` is usually rejected with a typed `400`. Read the exact id from the `requestExample` rather than probing paid calls.
+</Tip>
+
 ## Step 3 — Connect the harness to the Catalog
 
 Two paths — pick one:
@@ -82,6 +86,39 @@ Two paths — pick one:
 
 Either way the shape is the same: name the service (by slug), pass your delegation, get the result back. The Router reads the vendor's payment challenge, pays from your delegation, and returns the response.
 
+## The calling convention (one canonical shape)
+
+If you drive the Router API directly, there is **one convention in three forms** — all settle identically; they differ only in how you pass the target and where the result comes back. Pick the one that fits your client. Full copy-paste curl lives in the **[Router quickstart](/products/catalog/router/quickstart)**; this is the map.
+
+| Form | Endpoint | How you name the service | Best for |
+|---|---|---|---|
+| **JSON** | `POST /api/v1/router/route` | `slug` in the JSON body | most harnesses (the quickstart's form) |
+| **Header proxy** | `ANY /api/v1/router/proxy` | `X-Router-Target-Slug` header (cataloged) **or** `X-Router-Target-Url` (off-catalog) — exactly one | pointing an existing HTTP client at the Router transparently |
+| **Path** | `ANY /api/v1/router/svc/<slug>[/<subpath>]` | the slug in the path | a REST-shaped call that maps cleanly onto the service's sub-paths |
+
+Every form carries the same two required headers (the JSON form accepts them too):
+
+| Header | Required | Meaning |
+|---|---|---|
+| `X-Router-Delegation-Id` | yes | which delegation (budget) pays |
+| `X-Router-Request-Id` | yes | your idempotency id — reuse it on a retry so a hiccup never double-charges; use a **fresh** one per new purchase (and per async poll — see below) |
+| `X-Router-Upstream-Authorization` | no | the agent's own auth to the upstream, if it needs one |
+| `X-Router-Forward-<name>` | no | forward one extra header to the upstream |
+
+The response carries `X-Router-Payment-Id`, `X-Router-Payment-Status`, `X-Router-Tx-Hash`, and — on a failed/unsettled payment — `X-Router-Failure-Reason`.
+
+<Tip>
+Address a cataloged service by its **slug**, never a raw URL: the Router hides the vendor's host on purpose, so paying one by raw URL is refused (`409 BCK.ROUTER.0014`). And keep any target in the body or headers, never in the path.
+</Tip>
+
+## Async services (generate, then poll)
+
+Some services are asynchronous — media generation, for example. The first call returns a `taskId` instead of the result, and you poll a status endpoint until the result appears. It is fully supported; two rules keep it safe:
+
+- **A placeholder `callBackUrl` is fine.** Some generators require the field even when you intend to poll — pass any well-formed URL; you do not need to receive the callback.
+- **Give every poll a *fresh* `X-Router-Request-Id`.** The Router de-duplicates on that id, so reusing one makes every poll return the *first* status forever (`409 BCK.ROUTER.0002`) — a naive poller stalls while still paying per poll. A fresh id per poll advances it. The [Catalog MCP](/products/catalog/mcp)'s `pay_service` exposes a `fresh` flag that does this for you.
+- **Read the generate and status endpoints — and the field that carries the `taskId` and the result — from the service's Catalog detail** (`requestExample` / `responseFields`).
+
 ## The principles that make it smooth
 
 These are the habits that turn trial-and-error into a clean run. Treat them as the manifesto:
@@ -91,13 +128,15 @@ These are the habits that turn trial-and-error into a clean run. Treat them as t
 3. **Address a service by its slug and let the Router resolve the endpoint.** Don't fight it with hand-assembled sub-paths — the common failure is a mis-resolved path, not a payment problem.
 4. **Put target URLs in the request body, never in the path.** A security guard blocks anything in the path that looks like it changes the destination host.
 5. **Give every purchase a stable idempotency id.** Reuse the same id when you retry, so a network hiccup never double-charges; use a fresh id only for a genuinely new purchase.
-6. **Prefer synchronous services.** An asynchronous "job queued" service can charge you and then deliver its result to a callback you may not be able to receive — verify a service returns its answer inline before depending on it.
+6. **Async services: poll, don't wait on a callback.** Synchronous services are simplest, but async ones (e.g. media generation) are fully supported — see [Async services](#async-services-generate-then-poll) above. The one trap is a naive poller: give **each poll a fresh idempotency id**, or the Router returns the first status forever and you stall while still paying per poll.
 7. **The delegation is the source of truth for spend.** Reconcile against your delegation's remaining budget, not a local tally.
 8. **Prove the flow cheaply — payment is Live-only.** You can't rehearse paying in sandbox (its Router funds testnets only), so validate discovery → pay → result end-to-end with a **small delegation cap and the cheapest sub-cent service** before scaling spend up.
 
 ## Step 4 — Track and reconcile spend
 
 Read your delegation's remaining budget and the Nevermined payment [ledger](/products/catalog/router/ledger) to see exactly what each call cost and how much of the cap is left. This is also your audit trail. See the environment's [OpenAPI reference](https://api.live.nevermined.app/api/v1/rest/docs-json) for the delegation and payment endpoints.
+
+When a call errors (`BCK.ROUTER.0019` / `0020`), the ledger tells you what you actually paid: `status` is what you *got* (a non-`2xx` leaves the row unsettled), and `merchantSettlementObservedAt` — reconciled on-chain — is whether the merchant leg actually charged you. The Router never takes its own routing fee for a call that did not deliver.
 
 ## Safety & etiquette
 
