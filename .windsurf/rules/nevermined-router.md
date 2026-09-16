@@ -84,6 +84,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive rounded reserve.
   No charge/cap debit; may sign. Parse JSON `params` for `requiredTotalCents`.
   Raise only if intended; reuse `requestId`.
+- `BCK.ROUTER.0019` (4xx) — cataloged service rejected the request; body withheld, real status preserved. Fix it from Catalog detail. No retry.
+- `BCK.ROUTER.0020` (5xx/429) — cataloged service errored/rate-limited; body+headers withheld. No fee charged; retry w/ backoff, same `requestId`.
 - Only `BCK.ROUTER.0006` (500) and `0007` (429) are **retryable**; everything
   else is a decision, and retrying it unchanged gives the same answer.
 
@@ -92,11 +94,4 @@ user's decision; a fresh one to escape an exhausted Delegation defeats it.
 
 ## Accounting
 
-`GET /api/v1/router/payments` (filters `delegationId`, `from`, `to`, `format=csv`) and
-`/payments/summary`. `amount` is the **merchant leg only**: 6dp on crypto rails, 2dp on cards
-(`network: "stripe"`, cents). Use `assetDecimals`; when null show raw units — `amount / 10 ** null` silently
-uses 0dp. `assetSymbol` can echo an unknown token, so `assetDecimals` is the recognition check.
-Tempo tickers can be `pathUSD`/`PathUSD`: match case-insensitively. Rows include `fee*` and
-`asset*`; `feeStatus` is separate from payment `status` even when both say `Settled`/`Failed` —
-never read one for the other.
-`Issued` is not an error: the money moved.
+`GET /api/v1/router/payments` (filters `delegationId`/`from`/`to`/`format=csv`) + `/payments/summary`. `amount` is the **merchant leg only** (6dp crypto, 2dp cards); use `assetDecimals` (null ⇒ raw units). `feeStatus` is separate from payment `status`. `merchantSettlementObservedAt` (not `status`) says whether the merchant leg actually charged.
