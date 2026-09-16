@@ -97,7 +97,7 @@ Pick the environment first: **`https://mcp.live.nevermined.app/mcp`** pays real 
   <Tab title="LangSmith Fleet">
     Fleet authenticates MCP servers through a LangSmith **OAuth provider**, so there are two objects to create.
 
-    1. **Settings → OAuth providers → New.** Client ID `langsmith-fleet`, **no** client secret (PKCE is the proof), Authorization URL `https://nevermined.app/oauth/authorize?consent_type=commerce`, Token URL `https://api.live.nevermined.app/oauth/token` (or `api.sandbox…` for sandbox). The **Provider ID** you choose is the path segment of the callback LangSmith uses (`…/host-oauth-callback/<provider id>`), and Nevermined only redirects to callbacks it knows — see the note below the tabs.
+    1. **Settings → OAuth providers → New.** Provider ID **`nevermined`** — exactly that: it becomes the path of the callback LangSmith uses, and `nevermined` is the one Nevermined redirects to. Client ID `langsmith-fleet`, **no** client secret (PKCE is the proof), Authorization URL `https://nevermined.app/oauth/authorize?consent_type=commerce`, Token URL `https://api.live.nevermined.app/oauth/token` (or `https://api.sandbox.nevermined.app/oauth/token` to rehearse — one provider points at one environment; edit its token URL to switch).
     2. **Settings → Integrations → Add custom MCP.** Name it, paste **`https://mcp.api.live.nevermined.app/mcp`** (note the `mcp.api.` host — Fleet looks for auth when it first connects, and this host challenges on the first request rather than on the first paid call), choose **OAuth 2.1 (Manual)** and select the provider from step 1. Save.
     3. Fleet asks *Connect now?* → the consent page opens. Check the **Sandbox / Live** badge, set the **cap** and **validity**, **Grant access**. Fleet reports *Authentication complete*.
     4. In a new thread ask for the categories, then to buy a slug. Fleet resolves the tools through its *Find Tools* step, calls `get_service` and `pay_service`, and shows the merchant's response.
@@ -112,7 +112,7 @@ Pick the environment first: **`https://mcp.live.nevermined.app/mcp`** pays real 
 </Tabs>
 
 <Note>
-**Which clients can obtain a commerce grant is a per-environment allow-list**, not a self-serve setting: Nevermined decides which client identities may request an account-wide spending mandate. Claude, ChatGPT and LangSmith Fleet are enabled. If you are building your own MCP host or run a LangSmith workspace whose provider ID is not yet registered, [contact us](https://nevermined.ai) with the client identity (the metadata-document URL, or the LangSmith provider ID) before you try — an unknown client is refused at the consent page, not silently granted.
+**Which clients can obtain a commerce grant is a per-environment allow-list**, not a self-serve setting: Nevermined decides which client identities may request an account-wide spending mandate. Claude, ChatGPT and LangSmith Fleet (any workspace, through the `nevermined` provider id) are enabled. If you are building your own MCP host, [contact us](https://nevermined.ai) with its client identity (the metadata-document URL) before you try — an unknown client is refused at the consent page, not silently granted.
 </Note>
 
 ### What the consent page asks
