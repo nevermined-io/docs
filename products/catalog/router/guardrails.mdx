@@ -120,7 +120,7 @@ Every code below also appears in the canonical [API error catalogue](/developmen
 Across the whole Router surface, only `0006`, `0007` and `0020` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer. On the *paying* path the set is narrower still — see below.
 
 <Warning>
-**`0010` is a 500 that must never be retried** — which makes it the exception to "retry the 5xx". In fact `0006`, the one retryable 500, is raised only by the payments *summary* read and never by a payment, so on the paying path **`0007` is the only code worth retrying at all**.
+**`0010` is a 500 that must never be retried** — which makes it the exception to "retry the 5xx". In fact `0006`, the one retryable 500, is raised only by the payments *summary* read and never by a payment, so on the paying path **`0007` and `0020` are the only codes worth retrying** (with backoff).
 
 `0010` fails *after* a payment credential has already been minted, and because no payment record was written, your `requestId` can't suppress a retry. Idempotency is enforced against the record, and there isn't one — so a retry is treated as a fresh purchase, mints another credential, and then fails identically, because the cause is a deterministic defect rather than a transient blip.
 
