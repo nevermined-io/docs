@@ -145,7 +145,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
   No charge or cap debit, though signing may already have occurred. Parse JSON-string `params` for `requiredTotalCents`; only raise the ceiling if this call is intended.
   Reuse the same `requestId` after a refusal. Do not auto-retry unchanged.
 - `BCK.ROUTER.0019` (4xx) — a cataloged service rejected the request (a 4xx, or a rare 3xx the Router does not follow; not a 402/429). The upstream body is withheld as a host oracle; the typed error preserves the real status. Fix the request from the service's Catalog detail — not retryable.
-- `BCK.ROUTER.0020` (5xx / 429) — a cataloged service errored or rate-limited (upstream/transient). Body and headers are withheld; the real status is preserved. The Router charges no routing fee for an undelivered call; retry with backoff, reusing the same `requestId`.
+- `BCK.ROUTER.0020` (5xx / 429) — a cataloged service errored or rate-limited (upstream/transient). Body and headers are withheld; the real status is preserved. The Router charges no routing fee for an undelivered call; retry with backoff — reuse the same `requestId` only if no `X-Router-Payment-Id` came back, else use a NEW id and reconcile via `GET /router/payments`.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one

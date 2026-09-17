@@ -96,7 +96,7 @@ If you drive the Router API directly, there is **one convention in three forms**
 | **Header proxy** | `ANY /api/v1/router/proxy` | `X-Router-Target-Slug` header (cataloged) **or** `X-Router-Target-Url` (off-catalog) — exactly one | pointing an existing HTTP client at the Router transparently |
 | **Path** | `ANY /api/v1/router/svc/<slug>[/<subpath>]` | the slug in the path | a REST-shaped call that maps cleanly onto the service's sub-paths |
 
-Both forms need the same two facts — **which delegation pays** and **an idempotency id** — but they carry them differently.
+All three forms need the same two facts — **which delegation pays** and **an idempotency id** — but they carry them differently.
 
 **The JSON form** (`/router/route`) takes them as **body fields**: `delegationId` and `requestId` (both required — a header-only `/route` call fails validation), and returns the payment in the JSON response envelope (`payment.paymentId`, `payment.status`, `payment.txHash`, `payment.failureReason`).
 
@@ -120,7 +120,8 @@ Address a cataloged service by its **slug**, never a raw URL: the Router hides t
 Some services are asynchronous — media generation, for example. The first call returns a `taskId` instead of the result, and you poll a status endpoint until the result appears. It is fully supported; keep these in mind:
 
 - **A placeholder `callBackUrl` is fine.** Some generators require the field even when you intend to poll — pass any well-formed URL; you do not need to receive the callback.
-- **Give every poll a *fresh* `X-Router-Request-Id`.** The Router de-duplicates on that id, so reusing one makes each repeat a *duplicate* that is refused (`409 BCK.ROUTER.0002`, the original `paymentId` in `params`, no result) — it is **not** a new charge, but it never reaches the service either, so a naive poller stalls and never advances. A fresh id per poll advances it — **and each real poll is a separately-billed call** (the merchant charges per status check), so bound the number of polls against your delegation cap. The [Catalog MCP](/products/catalog/mcp)'s `pay_service` exposes a `fresh` flag that does this for you.
+- **Know whether the status endpoint is paid or free.** If it answers `402`, each poll is a paid call (see the next bullet). If it is **free** (non-`402`) on a cataloged service, the Router relays only the *status* and withholds the body by default — the free-follow-up window is off unless the deployment enabled it *and* the merchant declared the path — so a free poll can return `200` with no result. Check the endpoint on the listing.
+- **Give every poll a *fresh* `X-Router-Request-Id`.** The Router de-duplicates on that id, so reusing one makes each repeat a *duplicate* that is refused (`409 BCK.ROUTER.0002`, the original `paymentId` in `params`, no result) — it is **not** a new charge, but it never reaches the service either, so a naive poller stalls and never advances. A fresh id per poll advances it — and on a **paid (`402`) status endpoint** each real poll is a separately-billed call (the merchant charges per status check), so bound the number of polls against your delegation cap. (A free status endpoint relays with `paid: false` — no charge.) The [Catalog MCP](/products/catalog/mcp)'s `pay_service` exposes a `fresh` flag that mints the fresh id for you.
 - **Read the generate and status endpoints — and the field that carries the `taskId` and the result — from the service's Catalog detail** (`requestExample` / `responseFields`).
 
 ## The principles that make it smooth
