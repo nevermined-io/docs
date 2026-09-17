@@ -84,8 +84,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive rounded reserve.
   No charge/cap debit; may sign. Parse JSON `params` for `requiredTotalCents`.
   Raise only if intended; reuse `requestId`.
-- `BCK.ROUTER.0019` (4xx) — cataloged service rejected the request; body withheld, status preserved. Fix it from Catalog detail. No retry.
-- `BCK.ROUTER.0020` (5xx/429) — cataloged upstream errored/429; body+headers withheld; no fee; retry w/ backoff; if `X-Router-Payment-Id` returned use a NEW `requestId`, else reuse it.
+- `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected the request; body withheld, status preserved. Fix from Catalog detail. No retry.
+- `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - Only `BCK.ROUTER.0006` (500), `0007` (429) and `0020` (5xx/429) are **retryable**; everything
   else is a decision, and retrying it unchanged gives the same answer.
 
