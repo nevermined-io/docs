@@ -122,7 +122,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0002` (409) — `requestId` already used; the original `paymentId` is in the response.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; `details` names it.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
-- Only `BCK.ROUTER.0006` (500) and `0007` (429, too many concurrent) are **retryable**. Everything
+- Only `BCK.ROUTER.0006` (500), `0007` (429, too many concurrent) and `0020` (5xx/429) are **retryable**. Everything
   else is a decision — retrying unchanged gives the same answer.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry it:** a credential was already minted and
   no record was written, so `requestId` will not suppress the retry. Report it.
@@ -144,6 +144,8 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive, rounded reserve.
   No charge or cap debit, though signing may already have occurred. Parse JSON-string `params` for `requiredTotalCents`; only raise the ceiling if this call is intended.
   Reuse the same `requestId` after a refusal. Do not auto-retry unchanged.
+- `BCK.ROUTER.0019` (4xx) — (streaming `/proxy`·`/svc` only) a cataloged service rejected the request (a 4xx, or a rare 3xx the Router does not follow; not a 402/429). The upstream body is withheld as a host oracle; the typed error preserves the real status. Fix the request from the service's Catalog detail — not retryable.
+- `BCK.ROUTER.0020` (5xx / 429) — (streaming `/proxy`·`/svc` only) a cataloged service errored or rate-limited (upstream/transient). Body and headers are withheld; the real status is preserved. The Router charges no routing fee for an undelivered call; retry with backoff — reuse the same `requestId` only if no `X-Router-Payment-Id` came back, else use a NEW id and reconcile via `GET /router/payments`.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
