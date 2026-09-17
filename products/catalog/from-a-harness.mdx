@@ -96,16 +96,20 @@ If you drive the Router API directly, there is **one convention in three forms**
 | **Header proxy** | `ANY /api/v1/router/proxy` | `X-Router-Target-Slug` header (cataloged) **or** `X-Router-Target-Url` (off-catalog) — exactly one | pointing an existing HTTP client at the Router transparently |
 | **Path** | `ANY /api/v1/router/svc/<slug>[/<subpath>]` | the slug in the path | a REST-shaped call that maps cleanly onto the service's sub-paths |
 
-Every form carries the same two required headers (the JSON form accepts them too):
+Both forms need the same two facts — **which delegation pays** and **an idempotency id** — but they carry them differently.
+
+**The JSON form** (`/router/route`) takes them as **body fields**: `delegationId` and `requestId` (both required — a header-only `/route` call fails validation), and returns the payment in the JSON response envelope (`payment.paymentId`, `payment.status`, `payment.txHash`, `payment.failureReason`).
+
+**The two transparent forms** (`/router/proxy`, `/router/svc`) carry them as `X-Router-*` **request headers** instead, and return the payment as **response headers**:
 
 | Header | Required | Meaning |
 |---|---|---|
 | `X-Router-Delegation-Id` | yes | which delegation (budget) pays |
-| `X-Router-Request-Id` | yes | your idempotency id — reuse it on a retry so a hiccup never double-charges; use a **fresh** one per new purchase (and per async poll — see below) |
+| `X-Router-Request-Id` | yes | your idempotency id — reuse it on a retry so a hiccup never double-charges (a duplicate is refused with `409 BCK.ROUTER.0002`, the original `paymentId` in `params`); use a **fresh** one per new purchase, and per async poll (see below) |
 | `X-Router-Upstream-Authorization` | no | the agent's own auth to the upstream, if it needs one |
 | `X-Router-Forward-<name>` | no | forward one extra header to the upstream |
 
-The response carries `X-Router-Payment-Id`, `X-Router-Payment-Status`, `X-Router-Tx-Hash`, and — on a failed/unsettled payment — `X-Router-Failure-Reason`.
+The transparent response carries `X-Router-Payment-Id`, `X-Router-Payment-Status`, `X-Router-Tx-Hash`, and — on a failed/unsettled payment — `X-Router-Failure-Reason`.
 
 <Tip>
 Address a cataloged service by its **slug**, never a raw URL: the Router hides the vendor's host on purpose, so paying one by raw URL is refused (`409 BCK.ROUTER.0014`). Keep raw **URLs and hosts** out of the path — a security guard blocks anything there that looks like it changes the destination host. The resolved `slug` in `/svc/<slug>` is exempt, because the Router maps it to the host server-side.
@@ -113,10 +117,10 @@ Address a cataloged service by its **slug**, never a raw URL: the Router hides t
 
 ## Async services (generate, then poll)
 
-Some services are asynchronous — media generation, for example. The first call returns a `taskId` instead of the result, and you poll a status endpoint until the result appears. It is fully supported; two rules keep it safe:
+Some services are asynchronous — media generation, for example. The first call returns a `taskId` instead of the result, and you poll a status endpoint until the result appears. It is fully supported; keep these in mind:
 
 - **A placeholder `callBackUrl` is fine.** Some generators require the field even when you intend to poll — pass any well-formed URL; you do not need to receive the callback.
-- **Give every poll a *fresh* `X-Router-Request-Id`.** The Router de-duplicates on that id, so reusing one makes each repeat a *duplicate* that is refused (`409 BCK.ROUTER.0002`) — it is **not** a new charge, but it never reaches the service either, so a naive poller stalls and never advances. A fresh id per poll advances it; each real poll is a new paid call. The [Catalog MCP](/products/catalog/mcp)'s `pay_service` exposes a `fresh` flag that does this for you.
+- **Give every poll a *fresh* `X-Router-Request-Id`.** The Router de-duplicates on that id, so reusing one makes each repeat a *duplicate* that is refused (`409 BCK.ROUTER.0002`, the original `paymentId` in `params`, no result) — it is **not** a new charge, but it never reaches the service either, so a naive poller stalls and never advances. A fresh id per poll advances it — **and each real poll is a separately-billed call** (the merchant charges per status check), so bound the number of polls against your delegation cap. The [Catalog MCP](/products/catalog/mcp)'s `pay_service` exposes a `fresh` flag that does this for you.
 - **Read the generate and status endpoints — and the field that carries the `taskId` and the result — from the service's Catalog detail** (`requestExample` / `responseFields`).
 
 ## The principles that make it smooth
@@ -136,7 +140,7 @@ These are the habits that turn trial-and-error into a clean run. Treat them as t
 
 Read your delegation's remaining budget and the Nevermined payment [ledger](/products/catalog/router/ledger) to see exactly what each call cost and how much of the cap is left. This is also your audit trail. See the environment's [OpenAPI reference](https://api.live.nevermined.app/api/v1/rest/docs-json) for the delegation and payment endpoints.
 
-When a call errors (`BCK.ROUTER.0019` / `0020`), the ledger tells you what you actually paid: `status` is what you *got* (a non-`2xx` leaves the row unsettled), and `merchantSettlementObservedAt` — reconciled on-chain — is whether the merchant leg actually charged you. The Router never takes its own routing fee for a call that did not deliver.
+When a call errors (`BCK.ROUTER.0019` / `0020`), `status` is the primary read — it is what you *got* (a non-`2xx` leaves the row unsettled). On the **x402** rail there is also `merchantSettlementObservedAt`: when it is **set** alongside `status: Issued`/`Failed`, the merchant redeemed the payment on-chain and delivered nothing (charged-but-undelivered — worth alerting on). It is `null` on a clean settlement **and on both MPP rails** (which cannot record it), so `null` is *not* proof you weren't charged — fall back to `txHash` / `status` there. Either way, the Router never takes its own routing fee for a call that did not deliver.
 
 ## Safety & etiquette
 
