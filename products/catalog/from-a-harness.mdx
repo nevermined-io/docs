@@ -92,7 +92,7 @@ If you drive the Router API directly, there is **one convention in three forms**
 
 | Form | Endpoint | How you name the service | Best for |
 |---|---|---|---|
-| **JSON** | `POST /api/v1/router/route` | `slug` in the JSON body | most harnesses (the quickstart's form) |
+| **JSON** | `POST /api/v1/router/route` | `url` (off-catalog) **or** `slug` (cataloged) in the JSON body — exactly one | most harnesses (the quickstart uses `url`) |
 | **Header proxy** | `ANY /api/v1/router/proxy` | `X-Router-Target-Slug` header (cataloged) **or** `X-Router-Target-Url` (off-catalog) — exactly one | pointing an existing HTTP client at the Router transparently |
 | **Path** | `ANY /api/v1/router/svc/<slug>[/<subpath>]` | the slug in the path | a REST-shaped call that maps cleanly onto the service's sub-paths |
 
@@ -108,7 +108,7 @@ Every form carries the same two required headers (the JSON form accepts them too
 The response carries `X-Router-Payment-Id`, `X-Router-Payment-Status`, `X-Router-Tx-Hash`, and — on a failed/unsettled payment — `X-Router-Failure-Reason`.
 
 <Tip>
-Address a cataloged service by its **slug**, never a raw URL: the Router hides the vendor's host on purpose, so paying one by raw URL is refused (`409 BCK.ROUTER.0014`). And keep any target in the body or headers, never in the path.
+Address a cataloged service by its **slug**, never a raw URL: the Router hides the vendor's host on purpose, so paying one by raw URL is refused (`409 BCK.ROUTER.0014`). Keep raw **URLs and hosts** out of the path — a security guard blocks anything there that looks like it changes the destination host. The resolved `slug` in `/svc/<slug>` is exempt, because the Router maps it to the host server-side.
 </Tip>
 
 ## Async services (generate, then poll)
@@ -116,7 +116,7 @@ Address a cataloged service by its **slug**, never a raw URL: the Router hides t
 Some services are asynchronous — media generation, for example. The first call returns a `taskId` instead of the result, and you poll a status endpoint until the result appears. It is fully supported; two rules keep it safe:
 
 - **A placeholder `callBackUrl` is fine.** Some generators require the field even when you intend to poll — pass any well-formed URL; you do not need to receive the callback.
-- **Give every poll a *fresh* `X-Router-Request-Id`.** The Router de-duplicates on that id, so reusing one makes every poll return the *first* status forever (`409 BCK.ROUTER.0002`) — a naive poller stalls while still paying per poll. A fresh id per poll advances it. The [Catalog MCP](/products/catalog/mcp)'s `pay_service` exposes a `fresh` flag that does this for you.
+- **Give every poll a *fresh* `X-Router-Request-Id`.** The Router de-duplicates on that id, so reusing one makes each repeat a *duplicate* that is refused (`409 BCK.ROUTER.0002`) — it is **not** a new charge, but it never reaches the service either, so a naive poller stalls and never advances. A fresh id per poll advances it; each real poll is a new paid call. The [Catalog MCP](/products/catalog/mcp)'s `pay_service` exposes a `fresh` flag that does this for you.
 - **Read the generate and status endpoints — and the field that carries the `taskId` and the result — from the service's Catalog detail** (`requestExample` / `responseFields`).
 
 ## The principles that make it smooth
@@ -128,7 +128,7 @@ These are the habits that turn trial-and-error into a clean run. Treat them as t
 3. **Address a service by its slug and let the Router resolve the endpoint.** Don't fight it with hand-assembled sub-paths — the common failure is a mis-resolved path, not a payment problem.
 4. **Put target URLs in the request body, never in the path.** A security guard blocks anything in the path that looks like it changes the destination host.
 5. **Give every purchase a stable idempotency id.** Reuse the same id when you retry, so a network hiccup never double-charges; use a fresh id only for a genuinely new purchase.
-6. **Async services: poll, don't wait on a callback.** Synchronous services are simplest, but async ones (e.g. media generation) are fully supported — see [Async services](#async-services-generate-then-poll) above. The one trap is a naive poller: give **each poll a fresh idempotency id**, or the Router returns the first status forever and you stall while still paying per poll.
+6. **Async services: poll, don't wait on a callback.** Synchronous services are simplest, but async ones (e.g. media generation) are fully supported — see [Async services](#async-services-generate-then-poll) above. The one trap is a naive poller: give **each poll a fresh idempotency id**. Reuse one and the Router refuses each repeat as a duplicate (`409`, no charge) so the poll never advances; a fresh id per poll advances it, and each real poll is a new paid call.
 7. **The delegation is the source of truth for spend.** Reconcile against your delegation's remaining budget, not a local tally.
 8. **Prove the flow cheaply — payment is Live-only.** You can't rehearse paying in sandbox (its Router funds testnets only), so validate discovery → pay → result end-to-end with a **small delegation cap and the cheapest sub-cent service** before scaling spend up.
 

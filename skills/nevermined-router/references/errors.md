@@ -29,7 +29,7 @@ obstacles is exactly the failure mode this design exists to prevent.
 | `BCK.ROUTER.0019` | 400 | A cataloged service returned a **non-retryable** status — a 4xx client error, or a rare 3xx the Router does not follow (a 402 re-challenge and a 429 are **not** this code). The upstream body is withheld (it can name the merchant host); this typed body preserves the **real** upstream status (on the HTTP status line and in JSON-string `params`). Build a valid request from the service's Catalog detail (`requestExample` / `responseFields`). | No — **fix the request first**, then retry with a fresh `requestId` |
 | `BCK.ROUTER.0020` | 502 | A cataloged service returned a server error (5xx) or rate-limited (429) — an upstream/transient condition, not your request. Body **and** headers are withheld (host oracle, including `Retry-After`); this typed body preserves the **real** status. The Router charges **no routing fee** for an undelivered call; whether the merchant leg itself charged is reconciled on-chain and reported as `merchantSettlementObservedAt` on `GET /api/v1/router/payments`. | **Yes**, with backoff — reuse the same `requestId` so a retry never double-charges |
 
-**Only `0006` and `0007` are worth retrying automatically.** The rest are decisions; retrying them
+**Only `0006`, `0007` and `0020` are worth retrying automatically.** The rest are decisions; retrying them
 unchanged produces the same answer.
 
 ### Two refusals that are not `BCK.ROUTER.*` at all
@@ -86,7 +86,7 @@ Here the card is fine; it simply has not been authenticated for this charge.
 
 `0006` and `0010` are both 500s and behave in opposite ways, so "retry 5xx" is the wrong reflex
 here. Note also that `0006` is raised **only by the payments summary read**, never by a payment —
-so on the paying path, `0007` is the only code worth retrying at all.
+so on the paying path, `0007` and `0020` are the codes worth retrying (with backoff).
 
 `0010` means a payment handler reported a settlement amount in cents that isn't a non-negative
 integer, so the routing-fee arithmetic can't compute what to reserve. It deliberately fails rather
