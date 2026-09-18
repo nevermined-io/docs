@@ -122,6 +122,7 @@ Out of the box on every Nevermined tier, at `["commerce"]` only:
 | Assistant | `client_id` it presents |
 | --- | --- |
 | ChatGPT | `https://chatgpt.com/oauth/client.json` |
+| Claude (the claude.ai connector) | `https://claude.ai/oauth/mcp-oauth-client-metadata` |
 | Claude Code | `https://claude.ai/oauth/claude-code-client-metadata` |
 
 To enable another self-registering assistant for `commerce`, its operator adds the URL it presents as `client_id` to the registry with `allowAccountLevel: true`, `trustTier: "verified"` and `accountLevelConsentTypes: ["commerce"]` — one line, no redirect list, no code. The URL is whatever the assistant sends; the API logs it (`CIMD:` lines) the first time an unlisted one starts a consent.
