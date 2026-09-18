@@ -83,10 +83,15 @@ A short, agent-discoverable index that follows the [llms.txt convention](https:/
 
 ## Nevermined Reference
 
-- [x402 payments reference (TypeScript)](https://nevermined.ai/docs/integrate/patterns/stablecoin-payments)
+- [x402 payments reference (TypeScript)](https://nevermined.ai/docs/api-reference/typescript/x402)
 - [This environment's API reference (OpenAPI JSON)](https://api.live.nevermined.app/api/v1/rest/docs-json)
 - [Get your Nevermined API Keys](https://nevermined.ai/docs/api-reference/typescript/initializing-the-library#get-your-nvm-api-key)
+- [x402 card-delegation](https://nevermined.ai/docs/specs/x402-card-delegation)
+- [x402 stablecoins](https://nevermined.ai/docs/integrate/patterns/stablecoin-payments)
+- [Nevermined Payments Skill](https://nevermined.ai/docs/development-guide/build-using-nvm-skill)
 - [Nevermined API Reference](https://nevermined.ai/docs/api-reference/introduction)
+- [Nevermined Concise Context for AI Agents](https://nevermined.ai/docs/llms.txt)
+- [Nevermined Full Context for AI Agents](https://nevermined.ai/docs/llms-full.txt)
 ```
 
 **Use it when** you want to give an agent (or an LLM crawler) a lightweight starting point. It's small, cache-friendly, and points onward to everything else.
@@ -95,21 +100,7 @@ A short, agent-discoverable index that follows the [llms.txt convention](https:/
 
 The operational guide. Where `llms.txt` is a map, this is the *how-to*: a plain-Markdown document — consumed raw by agents like Claude Code — that tells an autonomous agent exactly how to discover and pay for your agents through Nevermined's **x402 and MPP** flows. Both settle against the same Payment Plans; the agent picks the flow from the service's `402` response.
 
-It opens by stating the environment ("you are talking to the sandbox / live environment"), then walks the ordered path:
-
-<Steps>
-  <Step title="Get a Nevermined API key">
-    A one-time, human-in-the-loop step. The document links the embedded login flow so the key can be issued and returned automatically.
-  </Step>
-  <Step title="Set up a payment method">
-    A stablecoin method works immediately; a card needs a one-time embedded enrollment. The agent then creates a spending **delegation** — a budget it can spend within, no human per purchase. The same delegation backs both x402 and MPP.
-  </Step>
-  <Step title="Pay with x402 or MPP">
-    Pick a plan from the registry and settle it. For an **x402** service (or a plain plan top-up) the agent uses `verify` + `settle`; for an **MPP** service — recognised by a `WWW-Authenticate: Payment …` challenge — it mints at `/api/v1/mpp/permissions` and returns an `Authorization: Payment` credential. The document spells out the exact endpoints and request bodies for each.
-  </Step>
-</Steps>
-
-It then lists your **registry of agent-payable APIs** (your plans and agents) and links out to the Nevermined ecosystem docs.
+It opens by stating the environment ("you are talking to the sandbox / live environment"), then walks the ordered path — **get a Nevermined API key → set up a payment method and a spending delegation → pay via x402 or MPP** — with the exact endpoints and request bodies inline, so an agent can act on it end to end. The agent picks x402 vs. MPP from the service's `402` response; the same delegation backs both. The key-minting and authentication foundations it relies on are the ones described in [`auth.md`](https://nevermined.app/auth.md). It then lists your **registry of agent-payable APIs** (your plans and agents) and links out to the Nevermined ecosystem docs.
 
 <Tip>
   This is the single URL to share with a coding agent or harness. Point Claude Code (or any x402-aware agent) at `…/agentic-instructions.md` and it has everything it needs — environment, endpoints, the login → delegation → x402 path, and your catalog — to buy and call your agents on its own.

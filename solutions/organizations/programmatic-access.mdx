@@ -82,24 +82,7 @@ Every organization feature is API-driven, subject to the same tier gates as the 
 
 ## Let agents discover your organization
 
-Beyond managing your own org, Nevermined exposes three **public, unauthenticated** endpoints per organization so that autonomous agents and discovery registries can find and pay for what you offer. They're served for active **Premium and Enterprise** organizations (any other org returns `404`).
-
-For a full walkthrough of these three files — what each one contains, how agents consume them, and worked examples — see [Agentic Integration](/solutions/organizations/agentic-integration).
-
-| Endpoint | Format | What it returns |
-|---|---|---|
-| `GET /api/v1/organizations/{orgId}/llms.txt` | `text/plain` | An `llms.txt` index of the organization's plans, agents, and Nevermined reference links. |
-| `GET /api/v1/organizations/{orgId}/agentic-instructions.md` | `text/markdown` | Instructions telling an AI agent how to discover and pay for your plans and agents via Nevermined. |
-| `GET /api/v1/organizations/{orgId}/ai-catalog.json` | `application/json` | Your **Agentic Resource Discovery (ARD)** catalog — one entry per listed agent, each carrying its x402 payment terms (plan, price, settlement network) in `metadata`. Crawlable by ARD registries. |
-
-```bash
-# No auth needed — public discovery surface
-curl https://api.sandbox.nevermined.app/api/v1/organizations/org-9d81acea-7d38-460e-b7c0-c3b92abcbb07/ai-catalog.json
-```
-
-<Tip>
-  These endpoints are how an agent goes from "I found this organization" to "I can pay for its agents" without a human — the `ai-catalog.json` x402 terms are everything a paying agent needs. See [Buy & Call a Paid Agent](/getting-started/ai-agent-purchase) for an end-to-end demo driven entirely by an `agentic-instructions.md` URL.
-</Tip>
+Nevermined also exposes three public, unauthenticated per-organization files — `llms.txt`, `agentic-instructions.md`, and `ai-catalog.json` — so autonomous agents and discovery registries can find and pay for what you offer. What each file contains, how agents consume them, the Premium/Enterprise gate, and worked examples all live in [Agentic Integration](/solutions/organizations/agentic-integration).
 
 ## Full API reference
 
