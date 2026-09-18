@@ -41,21 +41,13 @@ The agent never holds card numbers or wallet keys and never calls Stripe or a ch
 - App (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
 - Live API base: `https://api.live.nevermined.app` — your API key for this network is prefixed `live:` (send the whole string, prefix included).
 
-**Create an account / sign in.** Open [nevermined.app](https://nevermined.app) and sign in.
+**Sign in and get a key.** Open [nevermined.app](https://nevermined.app), sign in, and get a Nevermined API Key — a one-time, human-in-the-loop step (SDK-minted, the embedded `/auth/cli` login, or the OAuth 2.1 device flow for headless agents). See [Authentication](/integrate/authentication/overview) for every path. Store it, reuse it, and keep it out of logs.
 
-**Get a Nevermined API Key.** You cannot mint the first key programmatically — a human signs in once. Two ways:
-
-- **Embedded login (recommended, hands the key back automatically):** your agent opens a local callback and sends the human to `https://nevermined.app/auth/cli` to sign in; the key is returned to the agent, no copy/paste.
-- **Manual (works anywhere):** sign in at [nevermined.app](https://nevermined.app), create an API Key (or open `https://nevermined.app/auth/cli` with no callback to see it on screen), and paste it back to the agent.
-- **Fully headless agents** can obtain a key via OAuth 2.1 device flow. Full guide: [Authentication](/integrate/authentication/overview).
-
-Store the key securely and reuse it — it goes on every call as a bearer token. **Keep it out of chat transcripts, shell history, and logs.**
-
-**Fund a way to pay.** Check your payment methods in the app. A **stablecoin** method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. To pay by **card** instead, enroll one once via the app (Payment Methods → Enroll card) or the embedded card flow. Background: [Stablecoin payments](/integrate/patterns/stablecoin-payments) · [x402 card delegation](/specs/x402-card-delegation).
+**Fund a way to pay.** A **stablecoin** method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. To pay by **card** instead, [enroll one once](/agents-guide/enroll-card) (a one-time in-browser step).
 
 ## Step 1 — Set a budget you cannot exceed (the delegation)
 
-A **delegation** is capped, time-boxed spending authority — the single most important safety control. The cap is enforced by Nevermined's servers, so a runaway agent physically cannot overspend it. Delegations are reusable until spent or expired.
+The [delegation](/specs/x402-card-delegation) is your capped, server-enforced spending authority (see the mental model above) — the single most important safety control here.
 
 - Create or reuse one in the app (Payment Methods → Delegate) or programmatically; reuse any delegation whose status is *Active*.
 - Set the cap to the most you're willing to spend on the whole task (e.g. $1), and keep a **soft stop** a little below it in your agent so a run halts cleanly rather than erroring at the wall.

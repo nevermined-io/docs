@@ -15,42 +15,7 @@ related:
 Start with [Authentication for AI agents](/integrate/authentication/for-agents) — it points to the machine-readable manifest an agent can fetch and follow on its own.
 </Note>
 
-Every agent-callable Nevermined endpoint is authenticated by a single header:
-
-```http
-Authorization: Bearer <nevermined-api-key>
-```
-
-That's the whole contract. Getting the key is the only interesting part — and depending on whether a human is in the loop and whether a browser is available, there's a path for each case.
-
-## The one rule
-
-```http
-GET /api/v1/protocol/plans
-Authorization: Bearer <nevermined-api-key>
-```
-
-`Bearer` in the `Authorization` header is the only accepted form — not a query parameter, not a body field. Keys are environment-prefixed (`sandbox:…` / `live:…`); send the whole string, prefix included.
-
-## Environments
-
-| Environment | API base | Funds |
-| --- | --- | --- |
-| **Sandbox** | `https://api.sandbox.nevermined.app` | Test only |
-| **Live** | `https://api.live.nevermined.app` | Real money |
-
-Both are fully independent: an account, key, and balance in one do not exist in the other. Start in sandbox.
-
-## What a Nevermined key actually is
-
-A Nevermined API key is not an opaque random string — it's an **encrypted, signed JWT that carries an on-chain session key**. That has two consequences worth internalizing before you integrate:
-
-- **The real enforcement boundary is on-chain.** The account's smart-account kernel rejects any call outside the session key's policy. The API-layer permission flags a key carries (`canRegister` / `canOrder` / `canMint` / `canBurn`) are a *derived, advisory projection* of that on-chain policy — they tell you what the key was minted to do, not what a request-time guard will check.
-- **Don't hand-roll a key.** Because the credential wraps a session key, minting one is the SDK's job. Use `@nevermined-io/payments` (TypeScript) or `payments-py` (Python), or have a human create one for you in the app (**Profile → API Keys**).
-
-<Note>
-Scope is deliberately **not** advertised in our authorization-server metadata — you won't find `scopes_supported`. We don't publish a scope vocabulary the API layer doesn't itself enforce. Treat the on-chain policy as authoritative.
-</Note>
+Every agent-callable Nevermined endpoint is authenticated by a single bearer token. The full mechanics — the exact header, the per-tier base URLs and key prefixes (`sandbox:…` / `live:…`), what a Nevermined key actually is, and how to read a `401` — are the canonical, always-current [`auth.md`](https://nevermined.app/auth.md) manifest. This page covers the decisions around that ceremony: **which path to use, which credential each yields, and the per-tier discovery quirk.**
 
 ## Which path do I use?
 
@@ -72,15 +37,7 @@ Scope is deliberately **not** advertised in our authorization-server metadata �
 
 ## Discovery
 
-Everything the ceremony needs is advertised in standards-based metadata. If a capability is absent from these documents, it does not exist — don't infer it.
-
-| Document | Path | Standard |
-| --- | --- | --- |
-| Authorization Server Metadata | `/.well-known/oauth-authorization-server` | RFC 8414 |
-| Protected Resource Metadata | `/.well-known/oauth-protected-resource` | RFC 9728 |
-| JWKS (ES256K / secp256k1) | `/.well-known/jwks.json` | RFC 7517 (ES256K curve: RFC 8812) |
-
-Because a transport now mints a credential this API accepts, discovery reflects it: the Protected Resource Metadata names this issuer in `authorization_servers`, and a genuine authentication `401` carries an RFC 6750 `WWW-Authenticate: Bearer resource_metadata="…"` challenge pointing at it.
+Everything the ceremony needs is advertised in standards-based OAuth metadata — the RFC 8414 authorization-server document, the RFC 9728 protected-resource document, and the JWKS. See [`auth.md`](https://nevermined.app/auth.md) for the endpoint list and what each returns. If a capability is absent from these documents, it does not exist — don't infer it.
 
 ### Each tier is its own issuer, and its authorize URL says so
 
@@ -96,34 +53,9 @@ Sandbox and Live are separate authorization servers with separate discovery docu
 
 `network` is `sandbox` or `live` — the same parameter the embeddable widgets take, and distinct from the x402 request body's `network` field, which names the settlement rail (`eip155:<chainId>`, or `stripe` / `braintree` / `visa` — [details](/development-guide/nevermined-x402#paymentrequired-response-402)), never a tier. The device flow's `verification_uri` carries it too. **Keep the query string** when you append your own parameters (RFC 6749 §3.1 requires it). Not every client does: the official Python MCP client (`mcp`, every release through 2.2.0) concatenates a second `?`, producing `…?network=sandbox?response_type=code&…` — the consent page tolerates that shape, taking the tier from the head and recovering the one swallowed parameter, so such clients still work; but do not rely on it for a client you control — extend the query with `&`. A discovery-driven client gets the right value for free; if you configure an OAuth provider **by hand** — a connector's "authorization URL" form field, say — copy the endpoint from the tier's discovery document, query string included. **The endpoint must end up as `…/oauth/authorize?network=sandbox` or `…?network=live`; if the document you fetch carries no `network`, append it yourself.** An authorize link without `network` is served on whichever tier the user's browser last used (Live by default), and a connector registered only on Sandbox is then refused as *"Connector not authorized"* until the user switches manually.
 
-### Reading a 401
+## What needs a human
 
-A `401` is *usually* a missing, malformed, or invalid key — not a hint to go discover something. It isn't *always* an authentication problem, though: a few endpoints return `401` when you're authenticated but lack access to a specific resource. Distinguish by the error body's `category` field:
-
-- `category: validation` → fix your request (a malformed or missing parameter).
-- `category: auth` → fix your credential.
-- `category: business` or `integration` → you reached something that isn't yours.
-- `category: internal` → not your fault; retry, or report it with the correlation id.
-
-The `x-correlation-id` header is always present — quote it (and the `BCK.*` code, if any) when asking for help. See the [API error codes](/development-guide/api-errors/codes).
-
-## What needs a human, and why
-
-Three things require a person in the loop. None is an oversight:
-
-<CardGroup cols={3}>
-  <Card title="Card enrolment" icon="credit-card">
-    The card number never reaches Nevermined — it's tokenized inside a VGS iframe in the browser. There is no server-to-server path, by design (PCI scope). You drive the hand-off; see [Enroll a card](/agents-guide/enroll-card).
-  </Card>
-  <Card title="First account" icon="user-plus">
-    First login at [nevermined.app](https://nevermined.app) is a browser flow (Privy — Google or email OTP). A human onboards, then hands you a key.
-  </Card>
-  <Card title="Visa delegations" icon="shield-halved">
-    A `provider=visa` delegation needs a per-delegation FIDO/passkey device-binding ceremony in the browser. You can *use* an existing Visa delegation but can't create one. Stripe, Braintree, and crypto delegations you create yourself.
-  </Card>
-</CardGroup>
-
-Once a card is enrolled, spending on **Stripe, Braintree, and crypto** delegations is yours to drive with no further browser step — create a delegation and reuse its id on your x402 requests. Visa is the exception noted above: an existing Visa delegation you can use, but *creating* one needs the per-delegation device-binding ceremony in the browser.
+Three things require a person in the loop — card enrolment (the card is tokenized in-browser, never reaching Nevermined), first-account creation, and creating a `provider=visa` delegation (a per-delegation FIDO/passkey device-binding ceremony). You can *use* an existing Visa delegation, and Stripe, Braintree, and crypto delegations you create yourself. [`auth.md`](https://nevermined.app/auth.md) documents each, and why, in full.
 
 ## Next steps
 
