@@ -41,7 +41,7 @@ The agent never holds card numbers or wallet keys and never calls Stripe or a ch
 - App (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
 - Live API base: `https://api.live.nevermined.app` — your API key for this network is prefixed `live:` (send the whole string, prefix included).
 
-**Sign in and get a key.** Open [nevermined.app](https://nevermined.app), sign in, and get a Nevermined API Key — a one-time, human-in-the-loop step (SDK-minted, the embedded `/auth/cli` login, or the OAuth 2.1 device flow for headless agents). See [Authentication](/integrate/authentication/overview) for every path. Store it, reuse it, and keep it out of logs.
+**Sign in and get a key.** Open [nevermined.app](https://nevermined.app), sign in, and get a Nevermined API Key — a one-time, human-in-the-loop step (SDK-minted, the embedded `/auth/cli` login, or the [device flow (RFC 8628)](/integrate/authentication/device-flow) for headless agents). See [Authentication](/integrate/authentication/overview) for every path. Store it, reuse it, and keep it out of logs.
 
 **Fund a way to pay.** A **stablecoin** method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. To pay by **card** instead, [enroll one once](/agents-guide/enroll-card) (a one-time in-browser step).
 
