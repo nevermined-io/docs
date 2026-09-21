@@ -217,7 +217,7 @@ Open it, set your limits, and tell the agent to try again — `pay_service` pick
 
 If your host *can* receive a redirect — a CLI listening on `http://127.0.0.1:<port>/…` — pass it as `returnUrl` and your browser returns there with the `delegationId`. Any other origin has to be allow-listed on the deployment first; one that isn't comes back as `{ "error": "return_url_not_allowed" }` before you open a browser, rather than failing after you've filled in the form.
 
-If a usable Delegation already exists, the tool answers `{ "status": "already_active", "delegationId": "…" }` and nobody is interrupted.
+If a usable Delegation already exists — including the one an OAuth commerce grant just created — the tool answers `{ "status": "already_active", "delegationId": "…", "budget": { "capCents", "spentCents", "remainingCents", "currency", "expiresAt" }, "source": "oauth_grant" | "account", "message": "Your spending budget is in place: delegation … — cap 5.00 USDC, 0.00 USDC spent, …" }` and nobody is interrupted: the assistant can state the budget without a second call (`budget` carries only the figures the API reported).
 
 ### 5. Make a paid call
 
