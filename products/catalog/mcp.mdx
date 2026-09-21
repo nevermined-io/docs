@@ -99,7 +99,7 @@ Point an MCP client at the server URL and set the `Authorization` header to your
 </Warning>
 
 <Tip>
-**Sandbox has something to buy.** The sandbox Router funds testnets only, so the mainnet listings the sandbox Catalog mirrors from live can't be paid there — but two free **testnet test merchants** can, so you can run the whole loop (discover, pay, read the ledger) without spending anything: `mpp-dev-paid-ping` (MPP on Tempo Moderato, `GET`, $0.10 in testnet pathUSD) and `x402-org-protected` (x402 on Base Sepolia, `GET`, $0.01 in testnet USDC). Both are tagged `testnet` and listed last, and `pay_service` with just the `slug` settles against either. They don't exist on live.
+**Sandbox has something to buy.** The sandbox Router funds testnets only, so the mainnet listings the sandbox Catalog also carries — the same content seeds populate both databases; nothing propagates between tiers afterwards — can't be paid there. Two free **testnet test merchants** can, so you can run the whole loop (discover, pay, read the ledger) without spending anything — you still need a Delegation whose wallet holds the testnet asset for the rail you pick (see [step 4](#4-prepare-to-pay)): `mpp-dev-paid-ping` (MPP on Tempo Moderato, `GET`, $0.10 in testnet pathUSD) and `x402-org-protected` (x402 on Base Sepolia, `GET`, $0.01 in testnet USDC). Both are tagged `testnet` and listed last, and `pay_service` with just the `slug` settles against either. They don't exist on live.
 </Tip>
 
 <Note>
@@ -124,7 +124,7 @@ In natural language that's just: *"List the Nevermined categories, then find x40
 
 ### 4. Prepare to pay
 
-`pay_service` moves real money, so it needs a funded budget on your account:
+`pay_service` moves money — real on live, testnet funds on sandbox — so it needs a funded budget on your account: a Delegation whose wallet holds the asset the rail settles in (on sandbox, testnet pathUSD on Tempo Moderato for MPP, testnet USDC on Base Sepolia for x402).
 
 <Steps>
   <Step title="Create a Delegation">
@@ -178,14 +178,15 @@ For example:
 }
 ```
 
-A bare `slug` reaches the service's base URL, which for a multi-endpoint API is a 404, not a purchase — `fal-ai-mpp`, for instance, needs `"path": "/fal-ai/flux/schnell"`. Only a single-endpoint service (the sandbox test merchants, say) is called by slug alone. `method` is optional: the server takes it from the Catalog endpoint matching your `path` and falls back to `POST` only when the Catalog records none, so a `GET`-only merchant just works. The `body` is yours to build from the endpoint description or the vendor's docs; the Catalog doesn't hold one.
+A bare `slug` reaches the service's base URL, which for a multi-endpoint API is a 404, not a purchase — `fal-ai-mpp`, for instance, needs `"path": "/fal-ai/flux/schnell"`. Only a single-endpoint service (the sandbox test merchants, say) is called by slug alone. `method` is optional: the server takes it from the Catalog endpoint matching your `path`, and falls back to `POST` when the Catalog records no method, when no Catalog endpoint matches your `path`, or when the matching ones disagree on the method — so a `GET`-only merchant called by slug alone (or by its exact Catalog path) just works, while a path the Catalog doesn't list gets a `POST` the merchant may reject. The `body` is yours to build from the endpoint description or the vendor's docs; the Catalog doesn't hold one.
 
-The server resolves the slug, confirms it's payable, pays the vendor's `402` from your Delegation, and relays the vendor's own response — with a `request` block showing exactly what was sent and where the `method` came from (`caller`, `catalog`, or `default`):
+The server resolves the slug, confirms it's payable, pays the vendor's `402` from your Delegation, and relays the vendor's own response — with a `request` block showing exactly what was sent and where the `method` came from (`caller`, `catalog`, or `default`). The same `request` block rides on every result that got as far as resolving the endpoint (`already_paid`, `payment_failed`, `payment_indeterminate`, …), not only the paid one; `payment` is the Router's record, richer than the two fields shown, and `null` when the upstream turned out to be free:
 
 ```json
 {
   "paid": true,
   "upstreamStatus": 200,
+  "priceLabel": "$0.02",
   "payment": { "paymentId": "b1f9c2e4-…", "txHash": "0xfc8af37b…" },
   "request": { "method": "POST", "path": "/quote", "methodSource": "catalog", "catalogEndpoint": "/quote" },
   "response": { "…": "the vendor's body, unchanged" }
