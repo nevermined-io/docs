@@ -29,7 +29,7 @@ Your agent never holds a private key, never learns a payment protocol, and never
 
 ## The tool surface
 
-Seven tools. Discovery is **free** — no credential needed. Paying and reading your ledger are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
+Eight tools. Discovery is **free** — no credential needed. Paying, reading your ledger and reading your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
 
 | Tool | Auth | What it does |
 | --- | --- | --- |
@@ -40,6 +40,7 @@ Seven tools. Discovery is **free** — no credential needed. Paying and reading 
 | `setup_delegation` | paid | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
 | `list_payments` | paid | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
 | `payment_summary` | paid | Total spend plus a time series. Filters: `from`, `to`. |
+| `wallet_balance` | paid | What your funding wallet holds, on every network the Catalog settles on. Filter: `network`. |
 
 Every tool declares this split in its listing (`securitySchemes`: `noauth` on the free tools, `oauth2` with the `commerce` scope on the paid ones), so a host that reads tool metadata — ChatGPT does — knows which tools need linking before it calls one.
 
@@ -127,6 +128,8 @@ In natural language that's just: *"List the Nevermined categories, then find x40
   </Step>
   <Step title="Fund its wallet">
     Both rails **pull** from your own wallet, so it must hold the payment asset on the network you'll pay on. See [Fund your wallet](/products/catalog/router/quickstart#3-fund-your-wallet).
+
+    Once funded, **`wallet_balance`** reads it back from inside the chat — including after a payment fails for lack of funds. See [step 6](#6-check-your-spend-and-your-balance).
   </Step>
 </Steps>
 
@@ -188,12 +191,42 @@ If the service isn't on a payable rail (only x402 / MPP listings are), nothing i
 **Retries are deduped, not double-charged.** The `requestId` is derived from your key plus the full request, so a host that retries the same call hits the Router's idempotency guard and gets `{ "status": "already_paid", "paymentId": "…" }` back — the original payment, not a second one. Pass an explicit `requestId` only when you *want* to buy again.
 </Note>
 
-### 6. Check what you spent
+### 6. Check your spend and your balance
 
 - **`list_payments`** — your Router payments, newest first, across every protocol. Filter by `delegationId`, `from`, `to`.
 - **`payment_summary`** — total spend plus a time series over an optional `from` / `to` window.
 
 Both read the same unified ledger the [Router ledger page](/products/catalog/router/ledger) documents, so a payment made here is reconcilable with everything else your agents spend.
+
+- **`wallet_balance`** — what your funding wallet actually *holds*. Different question, different answer: the ledger says what you've spent, and your Delegation says what you're *allowed* to spend, but [both rails pull from your wallet](/products/catalog/router/how-it-works) and neither of those tells you whether the money is there.
+
+Call it with no arguments and you get every network the Catalog settles on:
+
+```json
+{
+  "address": "0x1234…abcd",
+  "networks": [
+    { "network": 8453, "balances": [{ "symbol": "USDC", "decimals": 6, "atomic": "1500000", "formatted": "1.5" }] },
+    { "network": 4217, "balances": [{ "symbol": "USDC", "decimals": 6, "atomic": "0", "formatted": "0" }] }
+  ]
+}
+```
+
+Pass `network` (a chain id) to read one chain instead.
+
+<Warning>
+**Read the network the merchant quoted, not the one with money in it.** Live settles on two chains with two different tokens — USDC on Base (`8453`) and USDC.e on Tempo (`4217`) — and most listed services accept only one of them. A healthy balance on Base says nothing about a Tempo purchase. That's why the tool reports every chain by default.
+</Warning>
+
+<Note>
+A balance of `null` is **not** zero — it means that chain's on-chain read failed and the amount is unknown. A chain that couldn't be read at all comes back as `{ "network": 4217, "error": "…" }` alongside the ones that answered.
+</Note>
+
+#### When a payment says you're short
+
+`pay_service` returning `{ "error": "payment_failed", "code": "BCK.ROUTER.0009" }` means the wallet couldn't cover the charge — and that error [deliberately names neither the wallet nor the balance it checked](/products/catalog/router/quickstart#3-fund-your-wallet), so it can't tell you *which* network is short. `wallet_balance` is how you find out without leaving the chat.
+
+What it can't do is fix it. There's no on-ramp and your agent can't top its own wallet up, so a genuine shortfall is a stop condition: a human funds the wallet on the right chain, and the agent retries. Widening your Delegation cap does nothing here — a cap authorizes a spend, it doesn't supply the funds.
 
 ### When a payment is refused
 
@@ -204,6 +237,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 | HTTP `401` with a `WWW-Authenticate` challenge | A paid tool was called with no credential, or with one Nevermined refused (`error="invalid_token"`). An OAuth-capable host handles this itself — connect (or reconnect) when it asks. A headers-only host can't: set your API key (step 2). |
 | `{ "error": "authentication_required" }` | The same refusal, in-band — you'll only see it on a self-hosted instance that has no OAuth surface configured. Set your API key (step 2). |
 | `{ "error": "payment_failed", "code": "BCK.ROUTER.0003", … }` | The spend would exceed your Delegation cap, or it expired. Widening the cap in response is almost always the wrong move — see [Guardrails](/products/catalog/router/guardrails). |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0009", … }` | Your wallet couldn't fund the payment. Nothing was signed. Call **`wallet_balance`** to see which network is short — the error doesn't say. A human has to fund it; there's no on-ramp and no cap to widen. |
 | `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped. **Not a failure** — you weren't charged twice. |
 | `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
 | `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No Delegation on the account yet. Call `setup_delegation` and open the URL it returns — see [step 4](#getting-a-delegation-from-inside-the-chat). |
