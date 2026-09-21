@@ -127,7 +127,7 @@ In natural language that's just: *"List the Nevermined categories, then find x40
     **Or let the agent ask for one.** Calling `setup_delegation` returns a single URL for you to open; you set the currency, cap, duration and transaction limit in the browser, and the agent carries on. The agent cannot choose those numbers — that is the point of a mandate. See [Getting a Delegation from inside the chat](#getting-a-delegation-from-inside-the-chat).
   </Step>
   <Step title="Fund its wallet">
-    Both rails **pull** from your own wallet, so it must hold the payment asset on the network you'll pay on. See [Fund your wallet](/products/catalog/router/quickstart#3-fund-your-wallet).
+    The **crypto** rails **pull** from your own wallet, so it must hold the payment asset on the network you'll pay on. See [Fund your wallet](/products/catalog/router/quickstart#3-fund-your-wallet). (A card-funded Delegation has no wallet to fund — it charges the card instead.)
 
     Once funded, **`wallet_balance`** reads it back from inside the chat — including after a payment fails for lack of funds. See [step 6](#6-check-your-spend-and-your-balance).
   </Step>
@@ -240,12 +240,12 @@ A balance of `null` is **not** zero — it means that chain's on-chain read fail
 
 | Rail | What `BCK.ROUTER.0009` means | What to do |
 | --- | --- | --- |
-| **MPP** | Your wallet was read *before* anything was signed and came up short. The error names the wallet and the chain — what it never says is **how much** is there. | `wallet_balance` supplies the amount. A human funds that wallet on that chain. |
-| **MPP, card-funded** | Your card **issuer declined**. There is no wallet involved and nothing to top up. | `wallet_balance` doesn't apply. Use a different card. |
+| **MPP-tempo** | Your wallet was read *before* anything was signed and came up short. The error names the wallet and the chain — what it never says is **how much** is there. | `wallet_balance` supplies the amount. A human funds that wallet on that chain. |
+| **MPP-stripe** (card-funded) | Your card **issuer declined**. There is no wallet involved and nothing to top up. | `wallet_balance` doesn't apply. Use a different card. |
 | **x402** | You won't see `0009` at all — [this rail has no balance pre-check](/products/catalog/router/rails-x402#funding-your-wallet). The credential is minted, budget is reserved, and a short wallet only surfaces when the merchant's on-chain transfer fails. The reserved merchant leg is **not** returned. | Call `wallet_balance` **before** paying on this rail, not after. |
 
 <Note>
-`wallet_balance` reads your **personal** wallet. If your Delegation is backed by an [organization wallet](/products/catalog/router/overview), the Router pays from *that* wallet and this tool reports a different one.
+`wallet_balance` reads your **personal** wallet. If your Delegation is backed by an [organization wallet](/solutions/organizations/wallets), the Router pays from *that* wallet and this tool reports a different one.
 </Note>
 
 What it can't do is fix anything. There's no on-ramp and your agent can't top its own wallet up, so a genuine shortfall is a stop condition: a human funds the wallet on the right chain, and the agent retries. Widening your Delegation cap does nothing here — a cap authorizes a spend, it doesn't supply the funds.
@@ -259,7 +259,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 | HTTP `401` with a `WWW-Authenticate` challenge | A paid tool was called with no credential, or with one Nevermined refused (`error="invalid_token"`). An OAuth-capable host handles this itself — connect (or reconnect) when it asks. A headers-only host can't: set your API key (step 2). |
 | `{ "error": "authentication_required" }` | The same refusal, in-band — you'll only see it on a self-hosted instance that has no OAuth surface configured. Set your API key (step 2). |
 | `{ "error": "payment_failed", "code": "BCK.ROUTER.0003", … }` | The spend would exceed your Delegation cap, or it expired. Widening the cap in response is almost always the wrong move — see [Guardrails](/products/catalog/router/guardrails). |
-| `{ "error": "payment_failed", "code": "BCK.ROUTER.0009", … }` | The funding source couldn't cover the charge. Nothing was signed. **On the crypto rails** the wallet is short — the error names the wallet and chain but not the amount, so call **`wallet_balance`** for that; a human has to fund it, and there's no cap to widen. **On the card rail** the issuer declined: no wallet, nothing to top up, use another card. |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0009", … }` | The funding source couldn't cover the charge. Nothing was signed. **On MPP-tempo** the wallet is short — the error names the wallet and chain but not the amount, so call **`wallet_balance`** for that; a human has to fund it, and there's no cap to widen. **On MPP-stripe** the issuer declined: no wallet, nothing to top up, use another card. x402 never raises this code at all. |
 | `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped. **Not a failure** — you weren't charged twice. |
 | `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
 | `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No Delegation on the account yet. Call `setup_delegation` and open the URL it returns — see [step 4](#getting-a-delegation-from-inside-the-chat). |
