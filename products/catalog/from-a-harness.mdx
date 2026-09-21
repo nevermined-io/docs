@@ -42,7 +42,7 @@ Five pieces, and it clicks:
 | **Catalog** | the marketplace of pay-per-call services |
 | **Router / Facilitator** | Nevermined's broker that reads a service's payment challenge, pays it, and returns the result — so your agent never touches a vendor account or a private key |
 | **Delegation** | your spending authority: a hard, time-boxed budget cap the agent pays *within* |
-| **API key** | authenticates your agent to Nevermined on every call |
+| **API key** | authenticates your agent to Nevermined on every call — an assistant host that runs OAuth (Claude, ChatGPT, LangSmith Fleet) obtains one for you through the commerce consent, so your agent never handles it |
 
 The agent never holds card numbers or wallet keys and never calls Stripe or a chain directly. It holds an API key and a delegation; Nevermined does the rest.
 
@@ -56,6 +56,12 @@ The agent never holds card numbers or wallet keys and never calls Stripe or a ch
 - Live API base: `https://api.live.nevermined.app` — your API key for this network is prefixed `live:` (send the whole string, prefix included).
 
 **Sign in and get a key.** Open [nevermined.app](https://nevermined.app), sign in, and get a Nevermined API Key — a one-time, human-in-the-loop step (SDK-minted, the embedded `/auth/cli` login, or the [device flow (RFC 8628)](/integrate/authentication/device-flow) for headless agents). See [Get a Nevermined API key](/agents-guide/get-api-key) for the embedded-login and SDK paths, and [Authentication](/integrate/authentication/overview) for the OAuth ones. Store it, reuse it, and keep it out of logs.
+
+<Tip>
+**The agent-facing version of this step is [`auth.md`](https://nevermined.app/auth.md)** — the machine-readable manifest kept in lockstep with the API: the discovery documents, the bearer contract and key format, every ceremony that ends in a key (SDK, device flow, and the OAuth **commerce consent**), and what needs a human. Hand it to your harness alongside this page; where the two differ, `auth.md` is the one that names endpoints that exist today.
+</Tip>
+
+**Or let your assistant get it for you.** If your harness is an AI assistant that runs OAuth on your behalf — Claude (the claude.ai connector), ChatGPT, Claude Code, LangSmith Fleet, or any MCP host that follows the MCP authorization spec — you skip this step and the next two: add the [Catalog MCP](/products/catalog/mcp#auth--transport) by URL with no key, and the first time the agent tries to pay, the assistant sends you to Nevermined to approve a **spending cap** once. That approval is the delegation of Step 1 *and* the credential of this step, in one screen; the assistant renews the credential silently and the cap is the whole boundary. The mechanics the host follows are `auth.md` §6.
 
 **Fund a way to pay.** A **stablecoin** method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. To pay by **card** instead, [enroll one once](/agents-guide/enroll-card) (a one-time in-browser step).
 
@@ -86,7 +92,7 @@ Two paths — pick one:
 | | **Catalog MCP** | **Router API** |
 |---|---|---|
 | Best for | harnesses that speak MCP | any harness / quick start |
-| How | add the Nevermined Catalog MCP server to your harness config with your API key; you get discovery + payment tools natively | call Nevermined's Router to pay any service by its slug |
+| How | add the Nevermined Catalog MCP server to your harness config with your API key — or, in an assistant that runs OAuth (Claude, ChatGPT, Fleet), by URL alone and approve a spending cap on the first paid call; you get discovery + payment tools natively | call Nevermined's Router to pay any service by its slug |
 | Note | most harnesses load MCP servers **at startup** — add it, then restart the session | works immediately, no restart |
 | Docs | [Catalog MCP](/products/catalog/mcp) | [Router quickstart](/products/catalog/router/quickstart) · [OpenAPI](https://api.live.nevermined.app/api/v1/rest/docs-json) |
 
@@ -163,7 +169,7 @@ When a call errors on `/router/proxy` or `/router/svc` (`BCK.ROUTER.0019` / `002
 - Router quickstart: [/products/catalog/router/quickstart](/products/catalog/router/quickstart)
 - An agent buying on its own (worked end-to-end run): [/products/catalog/router/agent-autonomy](/products/catalog/router/agent-autonomy)
 - Nevermined app (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
-- Get an API key / authentication: [/integrate/authentication/overview](/integrate/authentication/overview)
+- Get an API key / authentication: [/integrate/authentication/overview](/integrate/authentication/overview) · the agent-facing manifest: [nevermined.app/auth.md](https://nevermined.app/auth.md)
 - x402 explained: [glossary](https://nevermined.ai/glossary/x402/) · reference: [/api-reference/typescript/x402](/api-reference/typescript/x402)
 - Stablecoin payments: [/integrate/patterns/stablecoin-payments](/integrate/patterns/stablecoin-payments)
 - Docs index: [/getting-started/overview](/getting-started/overview) · SDK/API index: [llms.txt](https://nevermined.ai/docs/llms.txt)
