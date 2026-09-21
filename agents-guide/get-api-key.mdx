@@ -81,6 +81,10 @@ There are two ways to get the key — the agent should prefer the embedded flow,
   </Step>
 </Steps>
 
+<Note>
+**Two cases need neither option.** A **headless** agent with no browser and no localhost can still get a key with a human's approval through the [device flow (RFC 8628)](/integrate/authentication/device-flow). And an agent running **inside an AI assistant** that runs OAuth for it — Claude, ChatGPT, Claude Code, LangSmith Fleet — never handles a key at all: the assistant connects the [Catalog MCP](/products/catalog/mcp#auth--transport) by URL and obtains one when the human approves a spending cap. Both ceremonies, and the key format, are in the agent-facing manifest [`auth.md`](https://nevermined.app/auth.md).
+</Note>
+
 ## Related
 
 <CardGroup cols={2}>
