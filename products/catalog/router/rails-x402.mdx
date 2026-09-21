@@ -88,7 +88,7 @@ The payment is a **pull**: your signature authorizes the merchant to take the am
 Get the address from your Delegation's `providerPaymentMethodId` — see [step 3 of the quickstart](/products/catalog/router/quickstart#3-fund-your-wallet).
 
 <Warning>
-**On x402 the Router does not check your balance before signing.** A short wallet isn't refused up front: the credential is minted, your Delegation budget is reserved, and the shortfall only appears when the merchant attempts the transfer on-chain. The payment then lands as `Failed` — and the reserved **merchant** leg is **not** given back. (`402 BCK.ROUTER.0009` is an [MPP-only](/products/catalog/router/rails-mpp#funding-your-wallet) error; this rail never raises it.)
+**On x402 the Router does not check your balance before signing.** A short wallet isn't refused up front: the credential is minted, your Delegation budget is reserved, and the shortfall only appears when the merchant attempts the transfer on-chain. The payment then lands as `Failed`, and the reserved **merchant leg** comes back only once the reconciler has confirmed the authorization expired **unconsumed** — it is kept for good only if the merchant did take the money. Until then your cap stays reserved. (`402 BCK.ROUTER.0009` is an [MPP-only](/products/catalog/router/rails-mpp#funding-your-wallet) error; this rail never raises it.)
 
 Only a routing fee reserved on top can be credited back, and only on [the closed list of paths that release one](/products/catalog/router/how-it-works#when-a-fee-is-not-collected) — never the merchant leg.
 

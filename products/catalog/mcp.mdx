@@ -242,7 +242,7 @@ A balance of `null` is **not** zero — it means that chain's on-chain read fail
 | --- | --- | --- |
 | **MPP-tempo** | Your wallet was read *before* anything was signed and came up short. The error names the wallet and the chain — what it never says is **how much** is there. | `wallet_balance` supplies the amount. A human funds that wallet on that chain. |
 | **MPP-stripe** (card-funded) | Your card **issuer declined**. There is no wallet involved and nothing to top up. | `wallet_balance` doesn't apply. Use a different card. |
-| **x402** | You won't see `0009` at all — [this rail has no balance pre-check](/products/catalog/router/rails-x402#funding-your-wallet). The credential is minted, budget is reserved, and a short wallet only surfaces when the merchant's on-chain transfer fails. The reserved merchant leg is **not** returned. | Call `wallet_balance` **before** paying on this rail, not after. |
+| **x402** | You won't see `0009` at all — [this rail has no balance pre-check](/products/catalog/router/rails-x402#funding-your-wallet). The credential is minted, budget is reserved, and a short wallet only surfaces when the merchant's on-chain transfer fails — after the money is committed. The reserve comes back only once the reconciler confirms the authorization expired unconsumed. | Call `wallet_balance` **before** paying on this rail, not after. |
 
 <Note>
 `wallet_balance` reads your **personal** wallet. If your Delegation is backed by an [organization wallet](/solutions/organizations/wallets), the Router pays from *that* wallet and this tool reports a different one.
