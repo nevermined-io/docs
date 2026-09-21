@@ -101,7 +101,7 @@ The address is the same on every EVM chain — it's one key-derived wallet, so t
 </Note>
 
 <Warning>
-Always read this address back from the live Delegation rather than reusing one you saved. A stale address is the single most common cause of a confusing `402 BCK.ROUTER.0009` — the error deliberately doesn't echo the address it checked, so it can't tell you that you funded the wrong wallet.
+Always read this address back from the live Delegation rather than reusing one you saved. A stale address is the single most common cause of a confusing `402 BCK.ROUTER.0009`. On MPP the error does name the wallet and the chain it checked — so compare it against the one you funded — but it never echoes the **balance**, and on x402 there is no pre-check and no `0009` at all. [`wallet_balance`](/products/catalog/mcp#6-check-your-spend-and-your-balance) in the Catalog MCP reads the amount back.
 </Warning>
 
 ## 4. Make a paid call

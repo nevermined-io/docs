@@ -235,7 +235,7 @@ That is the property that makes an autonomous agent something you can leave runn
 
 Before a first run, check the things that most often turn into a "Router bug" that was nothing of the sort:
 
-- **Read the wallet address back from the live Delegation** (`providerPaymentMethodId`), never from anything you wrote down — funding a stale address fails as `402 BCK.ROUTER.0009`, which deliberately does not name the address it checked.
+- **Read the wallet address back from the live Delegation** (`providerPaymentMethodId`), never from anything you wrote down — funding a stale address fails as `402 BCK.ROUTER.0009`. On MPP that error names the wallet and chain it checked, so compare the two; it never echoes the balance, and x402 raises no `0009` at all.
 - **Fund it on both chains** you intend to pay on. Base and Tempo are separate balances.
 - **Confirm the merchant still answers `402`** on the rail you expect. A service that stops charging is relayed with `paid: false`, and a run can otherwise "succeed" having bought nothing.
 - **Check the catalog is loaded**, not serving placeholder rows — compare `total` and look at the `targetUrl`s.
