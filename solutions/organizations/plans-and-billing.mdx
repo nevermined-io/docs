@@ -15,10 +15,10 @@ Organizations come in three paid tiers — **Starter**, **Premium**, and **Enter
     - Up to **20 agents**
     - Up to **10 plans**
     - **1 member**
-    - **[Publish to the Catalog](/products/catalog/publish-ai-service)**
+    - **[Publish 1 agent to the Catalog](/products/catalog/publish-ai-service)**
+    - **1 organization wallet**
     - Embeddable widgets
     - Activity feed
-    - No recurring credit bundle
   </Card>
   <Card title="Premium" icon="building">
     For teams shipping their first Nevermined-powered product.
@@ -27,7 +27,7 @@ Organizations come in three paid tiers — **Starter**, **Premium**, and **Enter
     - Up to **50 plans**
     - Up to **5 team members**
     - Member invitations
-    - **[Publish to the Catalog](/products/catalog/publish-ai-service)**
+    - **[Publish up to 3 agents to the Catalog](/products/catalog/publish-ai-service)**
     - Groups, budgets & shared payment methods
     - Organization wallets
     - Analytics dashboards
@@ -39,7 +39,7 @@ Organizations come in three paid tiers — **Starter**, **Premium**, and **Enter
   <Card title="Enterprise" icon="buildings">
     For organizations operating at scale across many products and teams.
 
-    - **Everything in Premium** (including **[Publish to the Catalog](/products/catalog/publish-ai-service)**)
+    - **Everything in Premium**, with **[up to 10 Catalog listings](/products/catalog/publish-ai-service)**
     - **Customer management** (CRM)
     - **Realtime activity stream** (WebSocket)
     - **Unlimited** agents
@@ -66,8 +66,8 @@ From the **Billing** tab, an Admin can move between tiers at any time:
 
 | Change | What happens |
 |---|---|
-| **Personal → Starter / Premium / Enterprise** | Create the organization through Stripe Checkout. |
-| **Between paid tiers** (Starter ↔ Premium ↔ Enterprise) | An in-place, prorated swap — no re-checkout. New caps and features take effect immediately. On a downgrade, make sure your usage fits the lower tier's caps first. |
+| **Personal → Starter / Premium / Enterprise** | Create the organization through the in-app Stripe checkout. |
+| **Between paid tiers** (Starter ↔ Premium ↔ Enterprise) | In place on the same subscription, no re-checkout. **Upgrades** bill the prorated difference now — confirm the card charge in the dialog and the higher tier is granted once it's paid. **Downgrades** apply right away (the credit lands on your next invoice); anything published beyond the lower tier's caps — agents, plans, and Catalog listings — is unlisted automatically, newest first. |
 | **Cancel** | Your access continues until the end of the current billing period, then the organization lapses. |
 
 The Billing page also shows your **invoices** (date, amount, period, and status) so you have a record of every charge.
@@ -81,6 +81,9 @@ The Billing page surfaces a live **caps table** showing what you've used versus 
 | Agents | 20 | 20 | 100 | Unlimited |
 | Plans | 10 | 10 | 50 | Unlimited |
 | Team members | — | 1 | 5 | Unlimited |
+| Catalog listings | — | 1 | 3 | 10 |
+
+**Catalog listings are capped separately from agents.** Enterprise has unlimited agents but still lists at most 10 in the Catalog; publishing over your tier's listing cap is refused until you remove a listing or upgrade.
 
 Caps are enforced when you create resources. If you hit a cap, registering a new agent or plan is blocked until you remove something or upgrade. Below the caps, a **features list** shows which capabilities your current tier includes, with the locked ones clearly marked.
 
@@ -90,6 +93,8 @@ If a subscription is canceled or a payment ultimately fails, the organization be
 
 - Creating new agents and plans is disabled (existing ones remain).
 - Paid-tier features (catalog publishing, analytics, widgets, customers, activity, integration surfaces) are switched off.
+
+When you **cancel**, your active Catalog listings are taken down as well. Resubscribing restores your organization and its members, but it does not relist them — resubmit each service and it goes through validation again.
 
 Reactivate at any time by resubscribing from the Billing page — your agents, plans, members, and customers are all still there waiting.
 

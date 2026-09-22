@@ -1,18 +1,22 @@
 ---
 title: "Publish to the Catalog"
-description: "Two ways to list your AI service in the Nevermined Catalog — self-serve from a paid organization, or email review. Listing is gated on an automated health probe."
+description: "Two ways to list your AI service in the Nevermined Catalog — self-serve from a paid organization, or email review. Listing is gated on a health probe."
 icon: "upload"
 ---
 
 The Catalog is where you list a service **you** own so other buyers' agents discover and pay for it on the wire. There are two ways to get listed: a self-serve flow you drive from the app, and an email review for cases that don't fit it.
 
 <Note>
-Either way, **listing is gated on an automated health probe** — Nevermined never publishes a service on the submitter's word. A monitor calls your endpoint and only lists it once it responds healthy, then keeps checking so the Catalog stays a directory of services that currently work. See the health lifecycle in [AI Services](/products/catalog/ai-services).
+When you publish it yourself, **listing is gated on an automated health probe** — Nevermined never lists a self-served service on your word alone. A monitor calls your endpoint and only lists it once it responds healthy, and it keeps checking **every** listing afterwards, so the Catalog stays a directory of services that currently work. See the health lifecycle in [AI Services](/products/catalog/ai-services).
 </Note>
+
+<Warning>
+Publishing is a **Live**-environment flow. The Catalog has no sandbox deployment, and a subscription applies to one environment only — a Starter bought on sandbox can't publish. Subscribe and publish on **Live**.
+</Warning>
 
 <CardGroup cols={2}>
   <Card title="Option A — Self-serve" icon="rocket">
-    **Recommended.** Subscribe a paid org (**Starter is enough**), create an organization agent, and send it to the Catalog. Published automatically once it's healthy.
+    **Recommended.** Subscribe a paid org (**Starter is enough for one service**), create an organization agent, and send it to the Catalog. Published automatically once it's healthy.
   </Card>
   <Card title="Option B — Email review" icon="envelope">
     Email [info@nevermined.io](mailto:info@nevermined.io). The team reviews submissions periodically — slower than self-serve, and **not guaranteed**.
@@ -21,17 +25,17 @@ Either way, **listing is gated on an automated health probe** — Nevermined nev
 
 ## Option A — Self-serve (recommended)
 
-The fastest path, entirely in your hands. It requires a **paid organization tier** — the cheapest one that unlocks catalog publishing is **Starter**.
+The fastest path, entirely in your hands. It requires a **paid organization tier** — the cheapest one that unlocks catalog publishing is **Starter**, which lists **one** service (Premium lists up to 3, Enterprise up to 10; see [Plans & Billing](/solutions/organizations/plans-and-billing)).
 
 <Steps>
   <Step title="Subscribe an organization">
-    Any paid tier can publish, so **Starter is enough**. Subscribe or upgrade from the [Billing](/solutions/organizations/plans-and-billing) tab of your organization dashboard.
+    Any paid tier can publish, so **Starter is enough** for a single service. Subscribe or upgrade from the [Billing](/solutions/organizations/plans-and-billing) tab of your organization dashboard — on the **Live** environment, since the Catalog has no sandbox deployment.
   </Step>
   <Step title="Register an organization agent">
-    Create the agent you want to list — see [Register a plan and agent](/agents-guide/register-plan-and-agent). It must expose a callable endpoint that prices each request **on the wire** (x402 or MPP): that's what the Router pays and what the health probe checks.
+    Create the agent you want to list **with your organization workspace active** — see [Register a plan and agent](/agents-guide/register-plan-and-agent) and [Workspaces & Members](/solutions/organizations/workspaces-and-members). A personal agent can't be published; it must belong to the organization. It must expose a callable endpoint that prices each request **on the wire** (x402 or MPP): that's what the Router pays and what the health probe checks.
   </Step>
   <Step title="Send it to the Catalog">
-    From **`/organization/agents`** in the [Nevermined app](https://nevermined.app), pick the agent and publish it — choose a category and add presentation details (title, description, logo, tags, features).
+    From **`/organization/agents`** in the [Nevermined app](https://nevermined.app) — with the app switched to **Live** — open the agent and publish it from its **Catalog** tab: choose a category and add presentation details (title, description, logo, tags, features).
 
     You supply only presentation and the endpoint. The payment **protocol** and **price** are detected from your endpoint and ownership is taken from the agent, so a listing can't misrepresent what it charges or who runs it.
   </Step>
@@ -44,7 +48,7 @@ The fastest path, entirely in your hands. It requires a **paid organization tier
 
 If self-serve doesn't fit — you're not ready to run a paid organization, or your case needs a human look — email [info@nevermined.io](mailto:info@nevermined.io) with your service and its endpoint.
 
-The team reviews submissions **from time to time** and publishes some, but this path is **not guaranteed** and is slower than self-serve. Listing still depends on the same automated health probe: even an email-submitted service is only listed once its endpoint responds healthy.
+The team reviews submissions **from time to time** and publishes some, but this path is **not guaranteed** and is slower than self-serve. Once a service is listed, the same monitor keeps checking it and unlists it if it stops responding.
 
 ## Related
 
