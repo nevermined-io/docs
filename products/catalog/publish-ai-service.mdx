@@ -1,0 +1,68 @@
+---
+title: "Publish to the Catalog"
+description: "Two ways to list your AI service in the Nevermined Catalog — self-serve from a paid organization, or email review. Listing is gated on a health probe."
+icon: "upload"
+---
+
+The Catalog is where you list a service **you** own so other buyers' agents discover and pay for it on the wire. There are two ways to get listed: a self-serve flow you drive from the app, and an email review for cases that don't fit it.
+
+<Note>
+When you publish it yourself, **listing is gated on an automated health probe** — Nevermined never lists a self-served service on your word alone. A monitor calls your endpoint and only lists it once it responds healthy, and it keeps checking **every** listing afterwards, so the Catalog stays a directory of services that currently work. See the health lifecycle in [AI Services](/products/catalog/ai-services).
+</Note>
+
+<Warning>
+Publishing is a **Live**-environment flow. The Catalog has no sandbox deployment, and a subscription applies to one environment only — a Starter bought on sandbox can't publish. Subscribe and publish on **Live**.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Option A — Self-serve" icon="rocket">
+    **Recommended.** Subscribe a paid org (**Starter is enough for one service**), create an organization agent, and send it to the Catalog. Published automatically once it's healthy.
+  </Card>
+  <Card title="Option B — Email review" icon="envelope">
+    Email [info@nevermined.io](mailto:info@nevermined.io). The team reviews submissions periodically — slower than self-serve, and **not guaranteed**.
+  </Card>
+</CardGroup>
+
+## Option A — Self-serve (recommended)
+
+The fastest path, entirely in your hands. It requires a **paid organization tier** — the cheapest one that unlocks catalog publishing is **Starter**, which lists **one** service (Premium lists up to 3, Enterprise up to 10; see [Plans & Billing](/solutions/organizations/plans-and-billing)).
+
+<Steps>
+  <Step title="Subscribe an organization">
+    Any paid tier can publish, so **Starter is enough** for a single service. Subscribe or upgrade from the [Billing](/solutions/organizations/plans-and-billing) tab of your organization dashboard — on the **Live** environment, since the Catalog has no sandbox deployment.
+  </Step>
+  <Step title="Register an organization agent">
+    Create the agent you want to list **with your organization workspace active** — see [Register a plan and agent](/agents-guide/register-plan-and-agent) and [Workspaces & Members](/solutions/organizations/workspaces-and-members). A personal agent can't be published; it must belong to the organization. It must expose a callable endpoint that prices each request **on the wire** (x402 or MPP): that's what the Router pays and what the health probe checks.
+  </Step>
+  <Step title="Send it to the Catalog">
+    From **`/organization/agents`** in the [Nevermined app](https://nevermined.app) — with the app switched to **Live** — open the agent and publish it from its **Catalog** tab: choose a category and add presentation details (title, description, logo, tags, features).
+
+    You supply only presentation and the endpoint. The payment **protocol** and **price** are detected from your endpoint and ownership is taken from the agent, so a listing can't misrepresent what it charges or who runs it.
+  </Step>
+  <Step title="Nevermined validates and publishes">
+    A monitor probes the endpoint. Once it responds healthy, the listing goes **Live** automatically — there's no manual approval step. If it never responds healthy within 24h it stays unlisted (**Action needed**). Track the state on the same page; the full health lifecycle (Validating / Live / Action needed / Degraded / Removed) is in [AI Services](/products/catalog/ai-services).
+  </Step>
+</Steps>
+
+## Option B — Email review
+
+If self-serve doesn't fit — you're not ready to run a paid organization, or your case needs a human look — email [info@nevermined.io](mailto:info@nevermined.io) with your service and its endpoint.
+
+The team reviews submissions **from time to time** and publishes some, but this path is **not guaranteed** and is slower than self-serve. Once a service is listed, the same monitor keeps checking it and unlists it if it stops responding.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="AI Services" icon="grid-2" href="/products/catalog/ai-services">
+    What's in the Catalog, what gets listed, and the full health-status lifecycle.
+  </Card>
+  <Card title="Plans & Billing" icon="credit-card" href="/solutions/organizations/plans-and-billing">
+    The paid tiers — Starter is the cheapest that unlocks catalog publishing.
+  </Card>
+  <Card title="Register a plan and agent" icon="pen-to-square" href="/agents-guide/register-plan-and-agent">
+    Create the organization agent you'll send to the Catalog.
+  </Card>
+  <Card title="Discovering services" icon="magnifying-glass" href="/products/catalog/discover">
+    How buyers browse and query the public Catalog you're listing into.
+  </Card>
+</CardGroup>
