@@ -27,12 +27,12 @@ Every agent-callable Nevermined endpoint is authenticated by a single bearer tok
     You're a headless agent with no browser, but a human can approve for you. Approval is collected without a browser on your side — typically ending in an **NVM API key** bound to the approver. See [Device flow](/integrate/authentication/device-flow).
   </Card>
   <Card title="Authorization Code + PKCE" icon="browser">
-    You're a browser-based MCP client (Cursor, Claude). The user approves in a browser — typically to obtain an **x402 payment permission** for a specific agent. See [Authorization Code](/integrate/authentication/oauth-authorization-code).
+    You're a browser-based MCP client (Cursor, Claude). The user approves in a browser — to obtain an **x402 payment permission** for a specific agent, or, with `scope=commerce`, an **NVM API key** plus a spending cap an AI assistant (Claude, ChatGPT) pays external services with. See [Authorization Code](/integrate/authentication/oauth-authorization-code).
   </Card>
 </CardGroup>
 
 <Note>
-**The credential you receive is chosen by the requested `resource`, not by the grant.** A `resource` (RFC 8707 audience) matching this API's host mints an **NVM API key**; any other resource mints an **x402 payment permission**. An `account_access` consent always yields an API key; with no `resource`, a delegation-backed binding yields an x402 permission and a plan-only binding yields an API key. The two grants differ only in *how the human approves* — Authorization Code in a browser, the device flow without one — so pick the grant by your environment and the `resource` by the credential you need.
+**The credential you receive is chosen by the requested `resource`, not by the grant.** A `resource` (RFC 8707 audience) matching this API's host mints an **NVM API key**; any other resource mints an **x402 payment permission**. An account-level consent — `commerce` or `account_access` — always yields an API key, whatever `resource` says; with no `resource`, a delegation-backed agent-specific binding yields an x402 permission and a plan-only binding yields an API key. The two grants differ only in *how the human approves* — Authorization Code in a browser, the device flow without one — so pick the grant by your environment and the `resource` by the credential you need.
 </Note>
 
 ## Discovery
@@ -72,7 +72,7 @@ Three things require a person in the loop — card enrolment (the card is tokeni
     Get an API key with a human's approval, no browser on your side.
   </Card>
   <Card title="Authorization Code + PKCE" icon="browser" href="/integrate/authentication/oauth-authorization-code">
-    Browser-based MCP clients paying for a specific agent.
+    Browser-based MCP clients paying for a specific agent — and AI assistants obtaining a commerce grant.
   </Card>
   <Card title="Connected agents" icon="link" href="/integrate/authentication/connections">
     List and revoke the agents a user has authorized.

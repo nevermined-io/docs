@@ -713,7 +713,7 @@ When submitting documentation changes:
 1. Describe what pages were added/modified
 2. Link to the preview deployment (or, while PR previews are absent — see "Testing & Preview Workflow" step 3 — say so and note the page was checked with `mintlify dev`)
 3. Confirm you tested locally with `mintlify dev`
-4. Confirm links are not broken with `mintlify broken-links`
+4. Confirm links are not broken with `mintlify broken-links` — **it validates page paths only, never `#fragments`**, so check every anchor you add against the RENDERED page: `curl -sL https://nevermined.ai/docs/<route> | grep -o 'id="[^"]*"'`. Mintlify keeps `&` in a heading's id (`## Auth & transport` → `id="auth-&-transport"`, not `auth--transport`); a wrong fragment lands the reader at the top of the page with every check green (docs#429, 2026-09-21).
 5. List any new cross-references added
 6. Update architecture.md status if needed
 
