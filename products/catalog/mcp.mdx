@@ -50,7 +50,7 @@ Every tool declares this split in its listing (`securitySchemes`: `noauth` on th
 - **Two ways to authenticate, one server.**
   - **API key** (any host that can send headers): put your Nevermined key on `Authorization: Bearer <key>`. Every tool is served exactly as before; this is the path the [quickstart](#quickstart) below uses.
   - **OAuth** (hosts that can't be handed a key — Claude connectors, and hosts that follow the MCP authorization spec): connect with **no** header at all. The server is an OAuth 2.0 protected resource — when it needs a credential it answers `401` with a `WWW-Authenticate` challenge that points your host at the discovery document (`/.well-known/oauth-protected-resource/mcp`) and asks for the **`commerce`** scope. Your host follows it to Nevermined, you approve a spending cap once, and the host retries the call with the credential it was granted. The credential is a `commerce` grant: it spends only from the Delegation you approved, through the Router, and nothing else.
-- **Which hosts can be granted `commerce`.** A host that follows the MCP spec identifies itself with a URL (its Client ID Metadata Document), so it never needs registering — but a `commerce` grant is account-level authority, and Nevermined grants it only to hosts its operator has listed by that URL. **ChatGPT, Claude (the claude.ai connector) and Claude Code are listed out of the box**; a host that is not is refused at the consent screen (`BCK.OAUTH.0018`), never silently granted. The consent screen shows the host's domain (`chatgpt.com`) beside the name it calls itself, so you can check who is asking. How an operator lists another assistant: [self-registering clients](/integrate/authentication/oauth-authorization-code#self-registering-clients-identity-from-the-document-trust-from-the-operator).
+- **Which hosts can be granted `commerce`.** A host that follows the MCP spec identifies itself with a URL (its Client ID Metadata Document), so it never needs registering — but a `commerce` grant is account-level authority, and Nevermined grants it only to hosts its operator has listed by that URL. **ChatGPT, Claude (the claude.ai connector) and Claude Code are listed out of the box**, and a statically registered connector (LangSmith Fleet, with a registered redirect allow-list instead of a URL) is enabled the same way; a host that is neither is refused when you press Approve (`BCK.OAUTH.0018`), never silently granted. For a self-registering host the consent screen shows its domain (`chatgpt.com`) beside the name it calls itself, so you can check who is asking; a statically registered one shows its registered name only. How an operator lists another assistant: [self-registering clients](/integrate/authentication/oauth-authorization-code#self-registering-clients-identity-from-the-document-trust-from-the-operator).
 - The credential — key or grant — is forwarded to the Nevermined API **per request**, never stored, never logged. Never send it to the merchant you're paying; it authenticates you to Nevermined, nothing else.
 
 ### What happens without a credential
@@ -70,9 +70,64 @@ An expired or revoked credential on a paid call also comes back as a `401` (`err
 Environments are `sandbox` and `live` — `mcp.sandbox.nevermined.app` and `mcp.live.nevermined.app`. The OAuth ceremony lands you on the same consent screen for both; on **live** the cap you approve is real money.
 </Note>
 
+## Connect from your assistant
+
+If your assistant can run OAuth for you — Claude, ChatGPT, LangSmith Fleet — you never handle a key. You add the server URL, browse the Catalog for free, and the **first time the agent tries to pay** the assistant sends you to Nevermined to approve a spending cap. That approval is a **commerce grant**: it spends only from the Delegation you approve there, only through the Router, and you can revoke it at any time. The click paths below are what each product shows today; the mechanics underneath are the same for any host that follows the MCP authorization spec.
+
+Pick the environment first: **`https://mcp.live.nevermined.app/mcp`** pays real merchants with real money; **`https://mcp.sandbox.nevermined.app/mcp`** pays the sandbox test merchants with testnet funds and is the right place for a first run. (LangSmith Fleet is the exception: it needs the `mcp.api.` host on either tier — see its tab.)
+
+<Tabs>
+  <Tab title="Claude (claude.ai)">
+    1. **Settings → Connectors → Add custom connector.** Give it a name and paste the server URL. Leave the OAuth client ID and secret **empty** — Claude identifies itself to Nevermined with its own client metadata document; there is nothing to register.
+    2. In a chat, enable the connector from the tools menu and ask something free: *"list the Nevermined catalog categories"*. It answers with no sign-in.
+    3. Ask it to buy: *"buy the service with slug `<slug>` through the Nevermined connector and show me the merchant's response"*. The paid tool answers `401`, and Claude shows an inline **Connect** card.
+    4. Connect → Nevermined's consent page opens in a popup. Check the **Sandbox / Live** badge, set the **cap** and **validity**, then **Grant access**.
+    5. Claude reports *Authentication complete* and **retries the same call** with the grant. The result carries the price, the fee and the merchant's response.
+  </Tab>
+  <Tab title="ChatGPT">
+    ChatGPT connects custom MCP servers through **Developer mode**, which needs a paid plan (Plus or above).
+
+    1. **Settings → Security and login → enable Developer mode.** *Plugins* then appears in the sidebar.
+    2. **Plugins → ＋ (new).** Name it, paste the server URL, and set **Authentication: OAuth**. No client ID or secret.
+    3. ChatGPT runs the OAuth ceremony **at creation time**, before any tool call: it discovers Nevermined from the server, shows *Add Nevermined … to ChatGPT?*, and opens the consent page. Check the **Sandbox / Live** badge, set the **cap** and **validity**, **Grant access**. The plugin shows as connected.
+    4. In a chat, add the plugin from the composer's ＋ menu and ask for the categories, then to buy a slug. Each paid call first asks *Allow ChatGPT to use Nevermined …?* — **Allow** (once, or always).
+
+    ChatGPT presents its **stable** identity (`https://chatgpt.com/oauth/client.json`) to Nevermined, so the grant survives reconnecting the same plugin.
+  </Tab>
+  <Tab title="LangSmith Fleet">
+    Fleet authenticates MCP servers through a LangSmith **OAuth provider**, so there are two objects to create.
+
+    1. **Settings → OAuth providers → New.** Provider ID **`nevermined`** — exactly that: it becomes the path of the callback LangSmith uses, and `nevermined` is the one Nevermined redirects to. Client ID `langsmith-fleet`, **no** client secret (PKCE is the proof), Authorization URL **`https://nevermined.app/oauth/authorize?network=live&consent_type=commerce`** and Token URL `https://api.live.nevermined.app/oauth/token` — or, to rehearse, `…/oauth/authorize?network=sandbox&consent_type=commerce` with `https://api.sandbox.nevermined.app/oauth/token`. `network` is what selects the tier: without it the consent screen opens on whichever tier your browser last used (Live by default), which either dead-ends the code against the other tier's token endpoint or has you approve a real-money cap while you meant to rehearse. There is exactly **one** provider — its ID must be `nevermined`, so a second one named anything else is refused at Approve (`BCK.OAUTH.0017`, redirect not registered) — and it points at one environment at a time; to switch tiers, edit **three** values together: the provider's authorization URL (`network=`), its token URL, and the MCP integration's server URL in step 2.
+    2. **Settings → Integrations → Add custom MCP.** Name it, paste **`https://mcp.api.live.nevermined.app/mcp`** — or `https://mcp.api.sandbox.nevermined.app/mcp` when the provider is pointed at sandbox. Note the `mcp.api.` host on **both** tiers: Fleet only starts the OAuth ceremony when the server challenges on connect, and that is what this host does (the `mcp.<tier>` hosts from the intro answer discovery with no challenge, so Fleet would connect and never ask you to authenticate). Choose **OAuth 2.1 (Manual)** and select the provider from step 1. Save.
+    3. Fleet asks *Connect now?* → the consent page opens. Check the **Sandbox / Live** badge, set the **cap** and **validity**, **Grant access**. Fleet reports *Authentication complete*.
+    4. In a new thread ask for the categories, then to buy a slug. Fleet resolves the tools through its *Find Tools* step, calls `get_service` and `pay_service`, and shows the merchant's response.
+
+    <Warning>
+    If the workspace already has a Nevermined MCP server configured with static headers, remove or disable it first: both servers expose the same tool names and the agent may dispatch the paid call to either one.
+    </Warning>
+  </Tab>
+  <Tab title="Any other MCP host">
+    A host that follows the [MCP authorization spec](https://modelcontextprotocol.io/specification/latest/basic/authorization) needs only the URL: the server's `401` challenge points it at `/.well-known/oauth-protected-resource/mcp`, which names the Nevermined authorization server, and Nevermined accepts clients that identify with a **client metadata document** (an `https` URL as `client_id`) as well as pre-registered ones. Discovery-driven hosts that prompt for auth only when they first connect should use the `mcp.api.<env>` host. A host that cannot run OAuth at all uses an API key instead — that is the [quickstart](#quickstart) below.
+  </Tab>
+</Tabs>
+
+<Note>
+**Which clients can obtain a commerce grant is a per-environment allow-list**, not a self-serve setting: ChatGPT, Claude, Claude Code, and LangSmith Fleet (any workspace, through the `nevermined` provider id) are enabled today; [how listing works](#auth--transport) is described above. If you are building your own MCP host, [contact us](https://nevermined.ai) with its client identity — a metadata-document URL, or the client id and redirect URIs you need registered — before you try. An unknown client is refused when you press **Approve**, never silently granted.
+</Note>
+
+### What the consent page asks
+
+One screen: the **environment** badge (Sandbox or Live — on Live the cap is real money), the **spending cap** in USDC or EURC, how long the grant is **valid for**, and who is asking (the assistant's name, with its origin — `chatgpt.com`, `claude.ai` — beside it for a self-registering client; a statically registered client such as LangSmith Fleet shows its name only). Read the copy: the assistant may pay **any service it can reach, not a fixed list**, and **Nevermined's routing fee comes out of the same cap** — the cap is the total debited, not what merchants receive. Granting creates a Delegation confined to that cap and window, funded from your own wallet, and hands the assistant a credential that spends only through it. Beyond spending, the grant lets the assistant read your Router payment history, your spend totals, and the funding wallet's address and balance — the cap bounds what it can *spend*, not what it can *see*. It grants no other authority on your account; in particular, it never authorizes a card mandate.
+
+### When the grant runs out
+
+- **The credential itself is short-lived** (about an hour) and the assistant renews it silently with a refresh token for as long as the Delegation is usable **and the assistant keeps using it**: a grant left idle for 30 days can no longer be renewed silently (the renewal answers HTTP 400, `BCK.OAUTH.0011`) and has to be re-linked, even on a 90-day cap — the Delegation itself is untouched. You see nothing otherwise.
+- **When you disconnect**, the credential is refused on its next use — a `401` on the paid call — and the assistant surfaces it as a connection that needs re-linking. **When the cap is spent or the validity window ends**, the credential itself is still valid: the paid call fails with an error naming the exhausted or expired Delegation (an in-band tool error, not a re-link prompt), and the next renewal is refused with an HTTP 400 carrying `BCK.OAUTH.0013` (budget exhausted) or `BCK.OAUTH.0012` (delegation expired). Discovery keeps working in every case. Re-run the connect step to approve a **new** cap — a Delegation is never widened or extended in place.
+- **To revoke early**, open **Connections** in the [Nevermined app](https://nevermined.app/connections) and disconnect the assistant. The credential stops working on its next call.
+
 ## Quickstart
 
-Connect a host, run a discovery call, then a paid call — end to end. Discovery works with no credentials; paying needs a Nevermined **API key** and a **funded, spend-capped Delegation**.
+The **API-key** route, for hosts that can send headers but cannot run OAuth (a coding agent with a config file, a script, a stdio bridge). Connect a host, run a discovery call, then a paid call — end to end. Discovery works with no credentials; paying needs a Nevermined **API key** and a **funded, spend-capped Delegation**. Using Claude, ChatGPT or Fleet? You want [Connect from your assistant](#connect-from-your-assistant) instead — no key involved.
 
 ### 1. Connect your host
 
@@ -162,7 +217,20 @@ Open it, set your limits, and tell the agent to try again — `pay_service` pick
 
 If your host *can* receive a redirect — a CLI listening on `http://127.0.0.1:<port>/…` — pass it as `returnUrl` and your browser returns there with the `delegationId`. Any other origin has to be allow-listed on the deployment first; one that isn't comes back as `{ "error": "return_url_not_allowed" }` before you open a browser, rather than failing after you've filled in the form.
 
-If a usable Delegation already exists, the tool answers `{ "status": "already_active", "delegationId": "…" }` and nobody is interrupted.
+If a usable Delegation already exists — including the one an OAuth commerce grant just created — nobody is interrupted; the tool answers with the budget so the assistant can state it without a second call:
+
+```json
+{
+  "status": "already_active",
+  "delegationId": "121b880a-…",
+  "budget": { "capCents": "500", "spentCents": "8", "remainingCents": "492", "currency": "usdc", "expiresAt": "2026-09-23T13:29:31.691Z" },
+  "source": "oauth_grant",
+  "message": "Your spending budget is in place: delegation 121b880a… — cap 5.00 USDC, 0.08 USDC spent, 4.92 USDC remaining, valid until 2026-09-23T13:29:31.691Z. …",
+  "instructions": "No human action is needed now. Call pay_service; it spends from this budget by default."
+}
+```
+
+`budget` carries only the figures the API reported and is omitted entirely when none did; `source` (`oauth_grant` or `account`) is omitted when the origin is unknown; `message` is the human-relayable half and `instructions` the agent-facing next step — both are always present.
 
 ### 5. Make a paid call
 
