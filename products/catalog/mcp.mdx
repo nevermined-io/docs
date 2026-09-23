@@ -75,8 +75,10 @@ Environments are `sandbox` and `live` — `mcp.sandbox.nevermined.app` and `mcp.
 If your assistant can run OAuth for you — Claude, ChatGPT, LangSmith Fleet — you never handle a key. The shape is the same in all three:
 
 <Steps>
-  <Step title="Add the server URL">
-    That is the entire configuration. No client ID, no client secret, no API key — your assistant discovers everything else from the server.
+  <Step title="Point your assistant at the server">
+    For **Claude** and **ChatGPT** that is the entire configuration: paste the server URL, leave the client ID and secret empty, and the assistant discovers everything else from the server. No API key either way.
+
+    **LangSmith Fleet is the exception** — it does not discover, so you enter the endpoints yourself, once: an OAuth provider (ID `nevermined`, client ID `langsmith-fleet`, a placeholder secret, the authorization and token URLs, PKCE/S256) and then the MCP server pointed at it. Its tab below has the values.
   </Step>
   <Step title="Browse the Catalog for free">
     Discovery answers with no sign-in at all. Ask for the categories, search for a service, read its price.
@@ -264,7 +266,9 @@ Granting creates a Delegation confined to that cap and window, funded from your 
     The redirect is not registered. On Fleet that means the OAuth provider's ID is not exactly `nevermined` — the provider ID is what forms the callback path. Recreate the provider with the right ID, and expect the cached-credential behaviour above on the next connect.
   </Accordion>
   <Accordion title="The agent says the budget is spent, or the grant expired">
-    That is the Delegation, not the connection — see [When the grant runs out](#when-the-grant-runs-out). A Delegation is never widened or extended in place: re-run the connect step and approve a new cap.
+    That is the Delegation, not the connection — see [When the grant runs out](#when-the-grant-runs-out). A Delegation is never widened or extended in place, so you approve a **new** cap rather than raising the old one.
+
+    On **Claude** and **ChatGPT**, re-running the connect step opens the consent screen again. On **LangSmith Fleet** it usually will not: the server-side token is still cached and still authenticates, so Fleet reconnects silently and the paid call keeps failing against the spent Delegation. Wait for the access token to expire (about an hour) and connect again, or use a different LangSmith organization — the same two remedies as the silent-connect case above.
   </Accordion>
   <Accordion title="It answers the question without paying anything">
     Usually the prompt, not the connector. The assistant answered from its own knowledge, or Catalog search returned nothing and it fell back to its own tooling — see the phrasing tips at the top of this section. Confirm the connection separately by asking for the Catalog categories, which is a free tool call and either works or doesn't.
