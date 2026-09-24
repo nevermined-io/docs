@@ -3762,11 +3762,23 @@
           },
           "amountSpentCents": {
             "type": "string",
-            "example": "2500"
+            "example": "2500",
+            "description": "What the delegation has spent, rounded UP to a whole cent. The cap accrues at sub-cent resolution — `amountSpentMicros` is the exact figure — so this is within one cent of it, and `amountSpentCents + remainingBudgetCents` equals `spendingLimitCents` while the delegation is within its cap."
+          },
+          "amountSpentMicros": {
+            "type": "string",
+            "example": "24995000",
+            "description": "What the delegation has spent, in micros — millionths of the currency unit, i.e. 1/10,000 of a cent. The figure the spending cap is enforced on."
           },
           "remainingBudgetCents": {
             "type": "string",
-            "example": "7500"
+            "example": "7500",
+            "description": "Whole cents left under the cap: `spendingLimitCents - amountSpentCents`, never negative."
+          },
+          "remainingBudgetMicros": {
+            "type": "string",
+            "example": "75005000",
+            "description": "Micros left under the cap, never negative. A delegation with any micros left can still take a payment that fits in them, even when `remainingBudgetCents` reads 0."
           },
           "currency": {
             "type": "string",
@@ -3824,7 +3836,9 @@
           "status",
           "spendingLimitCents",
           "amountSpentCents",
+          "amountSpentMicros",
           "remainingBudgetCents",
+          "remainingBudgetMicros",
           "currency",
           "transactionCount",
           "expiresAt",
@@ -4263,11 +4277,23 @@
           },
           "amountSpentCents": {
             "type": "string",
-            "example": "2500"
+            "example": "2500",
+            "description": "What the delegation has spent, rounded UP to a whole cent. The cap accrues at sub-cent resolution — `amountSpentMicros` is the exact figure — so this is within one cent of it, and `amountSpentCents + remainingBudgetCents` equals `spendingLimitCents` while the delegation is within its cap."
+          },
+          "amountSpentMicros": {
+            "type": "string",
+            "example": "24995000",
+            "description": "What the delegation has spent, in micros — millionths of the currency unit, i.e. 1/10,000 of a cent. The figure the spending cap is enforced on."
           },
           "remainingBudgetCents": {
             "type": "string",
-            "example": "7500"
+            "example": "7500",
+            "description": "Whole cents left under the cap: `spendingLimitCents - amountSpentCents`, never negative."
+          },
+          "remainingBudgetMicros": {
+            "type": "string",
+            "example": "75005000",
+            "description": "Micros left under the cap, never negative. A delegation with any micros left can still take a payment that fits in them, even when `remainingBudgetCents` reads 0."
           },
           "currency": {
             "type": "string",
@@ -4276,6 +4302,14 @@
           "transactionCount": {
             "type": "number",
             "example": 12
+          },
+          "maxTransactions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "example": 50,
+            "description": "Maximum number of payments this delegation may make, or null for no count limit."
           },
           "expiresAt": {
             "format": "date-time",
@@ -4303,9 +4337,12 @@
           "status",
           "spendingLimitCents",
           "amountSpentCents",
+          "amountSpentMicros",
           "remainingBudgetCents",
+          "remainingBudgetMicros",
           "currency",
           "transactionCount",
+          "maxTransactions",
           "expiresAt",
           "createdAt"
         ]
@@ -4541,7 +4578,7 @@
           },
           "approxCents": {
             "type": "string",
-            "description": "The MERCHANT leg in cents (rounded up) — what this credential pays the upstream agent. This is not necessarily the whole cap charge: Nevermined’s routing fee is reserved on top, so the total debited from the delegation is `approxCents + fee.cents` (also reported directly as `fee.capChargedCents`). With no fee configured the two are equal.",
+            "description": "The MERCHANT leg in cents (rounded up) — what this credential pays the upstream agent. This is not necessarily the whole cap charge: Nevermined’s routing fee is reserved on top, so the whole-cent total debited from the delegation is `approxCents + fee.cents` (also reported directly as `fee.capChargedCents`; the exact sub-cent debit is `fee.capChargedMicros`). With no fee configured the two are equal.",
             "example": "1"
           },
           "scheme": {
@@ -4581,15 +4618,21 @@
           },
           "capChargedCents": {
             "type": "string",
-            "description": "Total debited from the delegation cap for this payment (merchant leg + routing fee), in cents.",
+            "description": "The delegation-cap debit for this payment (merchant leg + routing fee), rounded UP to a whole cent. The cap itself accrues at sub-cent resolution, so the exact debit is `capChargedMicros`; this figure is the per-call price guard that `maxTotalCents` is compared against.",
             "example": "1"
+          },
+          "capChargedMicros": {
+            "type": "string",
+            "description": "The exact delegation-cap debit for this payment (merchant leg + routing fee), in micros — millionths of the currency unit, i.e. 1/10,000 of a cent. It is a ceiling of the true price at that resolution, never below it. It is the debit AT MINT: if the routing fee or the merchant leg is later found uncollected, that part is given back to the cap while this figure stays as minted.",
+            "example": "2040"
           }
         },
         "required": [
           "bps",
           "amount",
           "cents",
-          "capChargedCents"
+          "capChargedCents",
+          "capChargedMicros"
         ]
       },
       "MintPaymentResponseDto": {
@@ -4683,11 +4726,16 @@
             "type": "string",
             "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
           },
+          "delegationId": {
+            "type": "string",
+            "example": "a1b2c3d4-e5f6-4a90-8bcd-ef1234567890",
+            "description": "The delegation whose spending cap this payment was reserved against. On the commerce route it is derived from the OAuth grant, so read it here rather than assuming which delegation paid — e.g. to fetch the remaining budget with `GET /delegation/{delegationId}`."
+          },
           "settlement": {
             "$ref": "#/components/schemas/SettlementDescriptorDto"
           },
           "fee": {
-            "description": "Nevermined’s routing fee for this payment. Mode B charges it exactly as mode A does, so it is disclosed here too — `settlement.approxCents` is only the merchant leg, and `fee.capChargedCents` is what the delegation cap was actually debited.",
+            "description": "Nevermined’s routing fee for this payment. Mode B charges it exactly as mode A does, so it is disclosed here too — `settlement.approxCents` is only the merchant leg, and `fee.capChargedMicros` is exactly what the delegation cap was debited (`fee.capChargedCents` is that debit rounded up to a whole cent).",
             "allOf": [
               {
                 "$ref": "#/components/schemas/RouterFeeDto"
@@ -4712,6 +4760,7 @@
         },
         "required": [
           "paymentId",
+          "delegationId",
           "settlement",
           "fee",
           "status"
