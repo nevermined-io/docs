@@ -29,7 +29,7 @@ Your agent never holds a private key, never learns a payment protocol, and never
 
 ## The tool surface
 
-Eight tools. Discovery is **free** — no credential needed. Paying, reading your ledger and reading your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
+Nine tools. Discovery is **free** — no credential needed. Paying, reading your budget, your ledger and your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you. ("Paid" is about access, not price — `get_budget` and the ledger tools charge nothing.)
 
 | Tool | Auth | What it does |
 | --- | --- | --- |
@@ -38,6 +38,7 @@ Eight tools. Discovery is **free** — no credential needed. Paying, reading you
 | `get_service` | free | One service by `slug` — protocol, price label, and a `requestShape` naming each callable endpoint and the exact `pay_service` arguments for it. |
 | `pay_service` | paid | Pay for a service and return the vendor's response. **Charges real funds.** |
 | `setup_delegation` | paid | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
+| `get_budget` | paid | Your spending budget: cap, spent, remaining, payments made and expiry. Charges nothing. Optional: `delegationId`. |
 | `list_payments` | paid | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
 | `payment_summary` | paid | Total spend plus a time series. Filters: `from`, `to`. |
 | `wallet_balance` | paid | What your funding wallet holds, on every network the Catalog settles on. Filter: `network`. |
@@ -264,7 +265,7 @@ Granting creates a Delegation confined to that cap and window, funded from your 
 ### When the grant runs out
 
 - **The credential itself is short-lived** (about an hour) and the assistant renews it silently with a refresh token for as long as the Delegation is usable **and the assistant keeps using it**: a grant left idle for 30 days can no longer be renewed silently (the renewal answers HTTP 400, `BCK.OAUTH.0011`) and has to be re-linked, even on a 90-day cap — the Delegation itself is untouched. You see nothing otherwise.
-- **When you disconnect**, the credential is refused on its next use — a `401` on the paid call — and the assistant surfaces it as a connection that needs re-linking. **When the cap is spent or the validity window ends**, the credential itself is still valid: the paid call fails with an error naming the exhausted or expired Delegation (an in-band tool error, not a re-link prompt), and the next renewal is refused with an HTTP 400 carrying `BCK.OAUTH.0013` (budget exhausted) or `BCK.OAUTH.0012` (delegation expired). Discovery keeps working in every case. Re-run the connect step to approve a **new** cap — a Delegation is never widened or extended in place.
+- **When you disconnect**, the credential is refused on its next use — a `401` on the paid call — and the assistant surfaces it as a connection that needs re-linking. **When the cap is spent or the validity window ends**, the credential itself is still valid: the paid call fails with an error naming the exhausted or expired Delegation (an in-band tool error, not a re-link prompt; the last successful `pay_service` result, or `get_budget` with its `delegationId`, shows how the cap was used), and the next renewal is refused with an HTTP 400 carrying `BCK.OAUTH.0013` (budget exhausted) or `BCK.OAUTH.0012` (delegation expired). Discovery keeps working in every case. Re-run the connect step to approve a **new** cap — a Delegation is never widened or extended in place.
 - **To revoke early**, open **Connections** in the [Nevermined app](https://nevermined.app/connections) and disconnect the assistant. The credential stops working on its next call.
 
 ### When connecting goes wrong
@@ -388,9 +389,9 @@ If a usable Delegation already exists — including the one an OAuth commerce gr
 {
   "status": "already_active",
   "delegationId": "121b880a-…",
-  "budget": { "capCents": "500", "spentCents": "8", "remainingCents": "492", "currency": "usdc", "expiresAt": "2026-09-23T13:29:31.691Z" },
+  "budget": { "capCents": "500", "spentCents": "8.16", "remainingCents": "491.84", "currency": "usdc", "expiresAt": "2026-09-23T13:29:31.691Z", "transactionCount": 40, "maxTransactions": null, "status": "Active" },
   "source": "oauth_grant",
-  "message": "Your spending budget is in place: delegation 121b880a… — cap 5.00 USDC, 0.08 USDC spent, 4.92 USDC remaining, valid until 2026-09-23T13:29:31.691Z. …",
+  "message": "Your spending budget is in place: delegation 121b880a… — cap 5.00 USDC, 0.0816 USDC spent, 4.9184 USDC remaining, valid until 2026-09-23T13:29:31.691Z. …",
   "instructions": "No human action is needed now. Call pay_service; it spends from this budget by default."
 }
 ```
@@ -440,6 +441,19 @@ If the service isn't on a payable rail (only x402 / MPP listings are), nothing i
 
 - **`list_payments`** — your Router payments, newest first, across every protocol. Filter by `delegationId`, `from`, `to`.
 - **`payment_summary`** — total spend plus a time series over an optional `from` / `to` window.
+- **`get_budget`** — what your Delegation has left: cap, spent, remaining, payments made (and the limit, if any) and expiry. It charges nothing, and it is the answer to *"how much is left?"* without leaving the chat.
+
+```json
+{
+  "delegationId": "121b880a-…",
+  "budget": { "capCents": "500", "spentCents": "1.632", "remainingCents": "498.368", "currency": "usdc", "expiresAt": "2026-10-01T00:00:00.000Z", "transactionCount": 8, "maxTransactions": 50, "status": "Active" },
+  "message": "Spending budget for delegation 121b880a…: cap 5.00 USDC, 0.01632 USDC spent, 4.98368 USDC remaining, valid until 2026-10-01T00:00:00.000Z, 8 payments of 50 allowed."
+}
+```
+
+Amounts are in **cents**. `capCents` is whole cents; `spentCents` and `remainingCents` can carry up to four decimals, because a Delegation is charged at 1/10,000 of a cent — a 0.204¢ call costs 0.204¢ of your cap, not a whole cent — and `spentCents + remainingCents` equals `capCents` while the budget is within its cap. The same `budget` block rides on `setup_delegation`'s answer and on **every paid `pay_service` result** (the running total *after* that call, with its `delegationId`), so the assistant can repeat a real figure instead of adding up its own calls. `budget: null` on a `pay_service` result means the budget could not be read that time, not that it is zero.
+
+With no arguments `get_budget` reads the Delegation `pay_service` would spend from. That only includes budgets that can still pay, so once a cap is spent or expired it answers `{ "status": "no_active_delegation" }`; pass the `delegationId` from an earlier `pay_service` result to read that spent budget anyway.
 
 Both read the same unified ledger the [Router ledger page](/products/catalog/router/ledger) documents, so a payment made here is reconcilable with everything else your agents spend.
 
