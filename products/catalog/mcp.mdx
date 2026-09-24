@@ -273,9 +273,11 @@ Granting creates a Delegation confined to that cap and window, funded from your 
   <Accordion title="Connect completed instantly and no consent screen ever appeared">
     On **LangSmith Fleet**, a grant is stored as an **account** under the integration — not on the OAuth provider or the MCP server. Deleting both of those leaves the accounts untouched, so recreating the provider with the same ID hands the old credential straight back from the account list.
 
-    The symptom is quiet. Connect completes with no consent screen, the tools list fine, and then paid calls fail with an authorization error while the agent falls back to its own tooling and charges nothing. If the Nevermined grant was revoked in the meantime, the cached token still authenticates — but the Delegation behind it is gone.
+    The symptom is quiet. Connect completes with no consent screen, the integration keeps showing its tools, and then paid calls fail with an authorization error while the agent falls back to its own tooling and charges nothing. If the Nevermined grant was revoked in the meantime, nothing in Fleet says so: the integration still reads **Connected** because it still holds the stored account.
 
-    The MCP servers row offers only *Refresh tools* and *Delete*; there is no reconnect or disconnect control. Two remedies work: wait for the access token to expire (about an hour — the refresh is then refused and consent fires normally), or use a different LangSmith **organization**, which has its own credential store (organizations are a paid-plan feature). Clearing browser storage or signing out does **not** help — the credential is not in your browser.
+    **The control is on the integration, not on the MCP servers row** — that row offers only *Refresh tools* and *Delete*. Go to **Settings → Integrations → Nevermined** and work on its **Accounts** list: remove the stale account, or use **+ Connect new account** and then **set the new one as Primary**. Read the next entry before you do — a new consent *adds* an account and does not take the **☆ Primary** star, which is the difference between this working and appearing to.
+
+    Waiting about an hour for the access token to expire also makes the next connect prompt for consent, and a different LangSmith **organization** has its own account list (organizations are a paid-plan feature) — but neither removes the stale account, so both land you in the Primary trap below. Clearing browser storage or signing out does **not** help: the accounts are not in your browser.
   </Accordion>
   <Accordion title="Fleet still says Authorization required after you reconnect it">
     On **LangSmith Fleet** a grant is stored as an **account** under the integration, and a new consent **adds** one rather than replacing the old. The dead account stays in the list, keeps the **☆ Primary** star, and Primary is what the agent uses — so re-authorizing appears to succeed, the integration still shows **Connected**, a working credential is sitting right there, and every paid call keeps failing.
@@ -285,7 +287,7 @@ Granting creates a Delegation confined to that cap and window, funded from your 
     Old accounts accumulate. They are safe to leave, but only the Primary one is used, so prune them if you cannot tell which is current — Fleet names them itself and the label says nothing about which grant it holds.
   </Accordion>
   <Accordion title="`BCK.OAUTH.0017` when you press Approve">
-    The redirect is not registered. On Fleet that means the OAuth provider's ID is not exactly `nevermined` — the provider ID is what forms the callback path. Recreate the provider with the right ID, and expect the cached-credential behaviour above on the next connect.
+    The redirect is not registered. On Fleet that means the OAuth provider's ID is not exactly `nevermined` — the provider ID is what forms the callback path. Recreate the provider with the right ID, and expect the stale-account behaviour above on the next connect.
   </Accordion>
   <Accordion title="The agent says the budget is spent, or the grant expired">
     That is the Delegation, not the connection — see [When the grant runs out](#when-the-grant-runs-out). A Delegation is never widened or extended in place, so you approve a **new** cap rather than raising the old one.
