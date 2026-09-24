@@ -30,7 +30,7 @@ curl -s "https://api.live.nevermined.app/api/v1/catalog/services?category=Search
 
 | Param | Notes |
 | --- | --- |
-| `search` | Free-text over **title and description only** |
+| `search` | Words in any order, matched across title, descriptions and tags, most relevant first. If no listing contains every word, listings containing any of them are returned |
 | `category` | One of the curated categories — an unknown value is rejected with `400` |
 | `subCategory` | Granular label under a category; discover values from `/categories` |
 | `protocol` | `x402` or `mpp` for payable services |
