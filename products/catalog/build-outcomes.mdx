@@ -1,0 +1,186 @@
+---
+title: "Build Outcomes"
+description: "Describe an outcome and a budget; the Nevermined Catalog proposes the AI services your agent chains to solve it — with copy-paste prompts you can run today."
+icon: "puzzle-piece"
+---
+
+Most integrations start the wrong way round: you pick a search API, a scraper, and an LLM, sign up for each, wire in three keys, and glue them together — before you've solved anything. The Catalog flips it. You describe the **outcome** you want, attach a **budget**, and your agent uses the [Nevermined Catalog](/products/catalog/overview) to discover the building-block services and chain them into a solution. No per-vendor signup, no wiring — each service settles per call against a budget you cap.
+
+<Note>
+This is the composition mindset: an AI service is a **building block**, not a destination. A real problem — *"tell me everything the web knows about this person"* — is several blocks (search, scrape, capture, synthesis) the Catalog proposes and the [Router](/products/catalog/router/overview) pays for, one call at a time.
+</Note>
+
+## Services are building blocks
+
+<CardGroup cols={2}>
+  <Card title="The old way" icon="xmark">
+    Choose a vendor per capability. Create an account with each. Manage a key per account. Write the glue that calls them in order. Repeat for the next problem.
+  </Card>
+  <Card title="The Catalog way" icon="check">
+    State the outcome and a budget. Your agent searches the Catalog for each block, proposes a chain of real services, and the Router pays per call — no accounts, no keys, no glue.
+  </Card>
+</CardGroup>
+
+The **categories** are the block types — read live from the Catalog, never a hard-coded list. Today they include:
+
+**Search & Research** · **Web Scraping & Automation** · **Data & Enrichment** · **Crypto & Blockchain** · **Finance & Markets** · **AI & Media** · **Sales & Business Intelligence** · **Communication & Voice** · **Infrastructure & Compute** · **Social & Creator** · **Identity & Compliance** · **Weather** · **Travel**
+
+Browse them in [Discovering AI Services](/products/catalog/discover), or query the live set yourself — [the last section](#see-what-the-catalog-proposes) shows how.
+
+## How an outcome comes together
+
+<Steps>
+  <Step title="State the problem and a budget">
+    One prompt: the result you want, and the most you'll spend getting it. The budget is the guardrail — the agent works *within* it.
+  </Step>
+  <Step title="The agent searches the Catalog (free)">
+    Discovery needs no key and costs nothing. The agent breaks the problem into blocks and searches for each — *search*, *scrape*, *synthesis* — reading real slugs, prices, and health.
+  </Step>
+  <Step title="The Catalog proposes a chain">
+    Candidate services per block, ranked and priced. This is the "solution" — a concrete set of services that, chained, produce the outcome. You can see it before a cent is spent.
+  </Step>
+  <Step title="Approve a cap once, and it runs">
+    Approve a spending cap, and the Router pays each call within it. Connecting and paying is covered in [Using the Catalog from your web assistant](/products/catalog/from-your-web-assistant) and [from a harness](/products/catalog/from-a-harness).
+  </Step>
+</Steps>
+
+Everything up to the proposal is **free and reproducible right now** — that's what this page's prompts and queries exercise. Turning a proposal into a paid run needs a connected harness and a funded budget.
+
+## Prompts you can paste
+
+Paste any of these into a harness connected to the Catalog — [Claude Code](/products/catalog/from-a-harness), [Claude.ai or ChatGPT with the Nevermined connector](/products/catalog/from-your-web-assistant), or any [MCP host](/products/catalog/mcp). Each states an outcome and a budget; the agent discovers the building blocks and proposes the chain before spending. The services and prices under each are **what the Live Catalog returns today** — verified, not illustrative.
+
+<Note>
+Prices are per call, **as listed today** — the Catalog is live and prices drift, so your harness reads the current label. Totals aren't fixed: a run costs the sum of the calls the agent actually makes, always bounded by the budget you set.
+</Note>
+
+### 1. Everything the open web knows about a person
+
+```text
+Use the Nevermined Catalog to design and run a workflow that, given a
+person's name, compiles a report of everything findable about them online
+from multiple sources, then hand me the report.
+Budget: $1.00. Browse the Catalog first (discovery is free), propose the
+chain of services before spending, and stay within budget.
+```
+
+**What the Catalog proposes** — four blocks, four real services:
+
+| Building block | Category | Example service (live) | Per-call price |
+| --- | --- | --- | --- |
+| Web search | Search & Research | `orth-seltz` — Seltz | $0.00625 |
+| Web scraping | Web Scraping & Automation | `serper-scrape` — Serper Scrape | $0.02 |
+| Page capture | Web Scraping & Automation | `screenshotone` — ScreenshotOne | $0.055 |
+| AI synthesis | AI & Media | `deepseek` — DeepSeek | per-model |
+
+The agent searches, scrapes the top results, captures the pages, and has the LLM write the report — each call drawn from your $1.00 cap.
+
+### 2. A daily brief on a crypto position, priced and sourced
+
+```text
+Use the Nevermined Catalog to design and run a workflow that gives me a
+daily brief on my BTC and ETH position: the current price, the 24-hour
+move, and the headlines driving it, each with a source.
+Budget: $0.50. Discover and propose the services before paying, and stay
+within budget.
+```
+
+**What the Catalog proposes:**
+
+| Building block | Category | Example service (live) | Per-call price |
+| --- | --- | --- | --- |
+| Token prices | Crypto & Blockchain | `coingecko-via-mpp` — CoinGecko · `coinstats-app` — CoinStats | $0.06 · $0.001 |
+| News & sources | Search & Research | `serper` — Serper · `you-com` — You.com | $0.002–$0.006 · $0.005 |
+| AI synthesis | AI & Media | `deepseek` — DeepSeek (or any listed LLM) | per-model |
+
+### 3. Qualify an inbound lead before you reply
+
+```text
+Use the Nevermined Catalog to design and run a workflow that, given a work
+email address, enriches the person and their company and tells me whether
+they're worth a call, with a short rationale.
+Budget: $0.50. Browse the Catalog and propose the chain first, then stay
+within budget.
+```
+
+**What the Catalog proposes:**
+
+| Building block | Category | Example service (live) | Per-call price |
+| --- | --- | --- | --- |
+| Contact & company enrichment | Data & Enrichment · Sales & Business Intelligence | `hunter-mpp` — Hunter · `ocean-io` — Ocean.io · `apollo-api-via-mpp` — Apollo | $0.003–$0.023 · $0.01 · $0.01–$0.05 |
+| Company page scrape | Web Scraping & Automation | `serper-scrape` — Serper Scrape · `firecrawl-tempo-mpp` — Firecrawl | $0.02 · $0.002 |
+| Score & rationale | AI & Media | any listed LLM (`deepseek`, `openai`, …) | per-model |
+
+### More outcomes, same shape
+
+Every one of these is a single prompt with a budget — no wiring, no per-service integration:
+
+- **Watch a competitor page and report what changed** — *Web Scraping* (`serper-scrape`, `screenshotone`) + *AI synthesis*.
+- **Check a product batch against public safety recalls** — *Data & Enrichment* + *AI synthesis*.
+- **Find the cheapest venue to execute a trade right now** — *Crypto & Blockchain* + *Finance & Markets* (`coingecko-via-mpp`, `crypto-data`).
+
+## See what the Catalog proposes
+
+The discovery step is **public and free** — no key, no budget, no spend. Run these against production and you'll see the same services a harness would propose. All four are verified working as written.
+
+**Browse the whole catalog**, see the real shape of a listing (`.total` is the live count):
+
+```bash
+curl -s https://nevermined.app/catalog/ai-catalog.json | jq '{total, first: .services[0]}'
+```
+
+**List the categories** through the Catalog MCP server (Streamable HTTP, stateless — one POST, no key):
+
+```bash
+curl -s -H "Content-Type: application/json" \
+     -H "Accept: application/json, text/event-stream" \
+     -X POST https://mcp.live.nevermined.app/mcp \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_categories","arguments":{}}}' \
+  | jq -r '.result.content[0].text' | jq .
+```
+
+**Find the building blocks for an outcome** — one search per block, top 3 hits each:
+
+```bash
+for q in "web search" scrape screenshot chat; do
+  curl -s -H "Content-Type: application/json" \
+       -H "Accept: application/json, text/event-stream" \
+       -X POST https://mcp.live.nevermined.app/mcp \
+       -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"search_services\",\"arguments\":{\"query\":\"$q\"}}}" \
+    | jq -r '.result.content[0].text' \
+    | jq --arg q "$q" '{query:$q, total, top:[.services[0:3][]|{slug,title,protocol,priceLabel}]}'
+done
+```
+
+**Read one service's callable shape** — endpoints, method, and the exact arguments to pay it:
+
+```bash
+curl -s -H "Content-Type: application/json" \
+     -H "Accept: application/json, text/event-stream" \
+     -X POST https://mcp.live.nevermined.app/mcp \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_service","arguments":{"slug":"orth-seltz"}}}' \
+  | jq -r '.result.content[0].text' | jq '.requestShape'
+```
+
+<Tip>
+**Search is a whole-substring match on a service's title or short description, and it is order-sensitive** — so query with single words or a known substring. `web search` finds services and `search web` finds none; `weather` finds four and `weather forecast` finds none. Narrow with the `category` and `tag` filters rather than by stacking words. The results also carry each service's `healthStatus` (`operational` / `unverified`) and recent uptime, so an agent can prefer a service that's actually up.
+</Tip>
+
+## Turn a proposal into a run
+
+The proposal is free; executing it — paying each call within your cap — is the connect-and-pay flow:
+
+<CardGroup cols={2}>
+  <Card title="From your web assistant" icon="comments" href="/products/catalog/from-your-web-assistant">
+    Connect the Catalog to Claude.ai, ChatGPT, or LangSmith Fleet and approve a cap once.
+  </Card>
+  <Card title="From a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The code-free playbook for driving discovery and payment from your own agent.
+  </Card>
+  <Card title="Catalog MCP" icon="plug" href="/products/catalog/mcp#connect-from-your-assistant">
+    The `pay_service` tool, the spending Delegation, and every refusal code.
+  </Card>
+  <Card title="Payment ledger" icon="receipt" href="/products/catalog/router/ledger">
+    Read back exactly what each call cost and how much of the cap is left.
+  </Card>
+</CardGroup>
