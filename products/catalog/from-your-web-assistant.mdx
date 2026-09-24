@@ -1,0 +1,181 @@
+---
+title: "Using the Catalog from your web assistant"
+description: "Connect the Nevermined Catalog to a web AI assistant like Claude.ai or ChatGPT — paste one URL, approve one spending cap, and it pays for services as it works."
+icon: "comments"
+---
+
+Web AI assistants — **Claude.ai**, **ChatGPT**, **LangSmith Fleet** — can browse the [Nevermined Catalog](/products/catalog/overview) and pay for services as they work, without you ever handing over an API key. You paste one URL, approve a single spending cap, and the assistant does the rest. This is the no-code, in-the-browser counterpart to [Using the Catalog from a harness](/products/catalog/from-a-harness).
+
+<Note>
+This is the **buyer** side — giving an assistant you already use a wallet. Driving the Catalog from your own code or a coding agent? See [Using the Catalog from a harness](/products/catalog/from-a-harness). The exhaustive per-host click paths (name warnings, Fleet's OAuth provider table, every refusal code) live on the [Catalog MCP](/products/catalog/mcp#connect-from-your-assistant) page — this page is the walkthrough that gets you there.
+</Note>
+
+## See it in action
+
+Give an assistant a budget and ask it to go and buy what it needs — a search, a page fetch, a live forecast — and it pays per call, for a few cents, against a cap you set.
+
+<Frame caption="Your AI assistant can now pay for things.">
+  <iframe
+    src="https://www.youtube.com/embed/KJxlW6qI6So"
+    title="Your AI assistant can now pay for things"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+    style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: "0.5rem", border: 0, display: "block" }}
+  ></iframe>
+</Frame>
+
+The per-assistant walkthroughs are below, and collected on the [Catalog videos](/products/catalog/videos#connect-from-your-assistant) page.
+
+## What you get
+
+- **No API key, no client secret, no vendor account.** Claude and ChatGPT discover everything from one URL; Fleet takes the endpoints once.
+- **One consent screen** sets who can spend, how much, and for how long. The grant *is* the credential — your assistant never holds a key.
+- **Every payment is on the record** — merchant, amount, transaction hash, and what's left of the cap — in your [payment ledger](/products/catalog/router/ledger).
+- **Your assistant can pay any service it discovers**, not a fixed list you wire up in advance.
+- **Revoking is instant and self-service**, from [Connections](https://nevermined.app/connections) in the Nevermined app.
+
+## How it works — three moves
+
+<Steps>
+  <Step title="Point your assistant at one URL">
+    The Catalog MCP server URL. In **Claude** and **ChatGPT** that's the whole configuration — paste it, leave the OAuth client ID and secret empty, and the assistant discovers the rest. **LangSmith Fleet** doesn't discover, so you enter its endpoints once.
+  </Step>
+  <Step title="Browse the Catalog for free">
+    Discovery needs no sign-in. Ask for the categories, search for a service, read its price — all before you approve anything.
+  </Step>
+  <Step title="Approve a spending cap, once">
+    Nevermined's consent page opens: check the **Sandbox / Live** badge, set the **cap** and how long it's **valid for**, then **Grant access**. That approval is a **commerce grant** — it spends only from the budget you just approved, only through the [Router](/products/catalog/router/overview), and you can revoke it any time. Your assistant retries the call it was blocked on.
+  </Step>
+</Steps>
+
+<Tip>
+**Ask in a way that makes the assistant reach for the Catalog.** All three will happily answer from their own knowledge and charge nothing — which looks like a broken connector and isn't. Name the connector in the prompt (*"using the Nevermined connector, …"*), ask for something only live data can answer, and name services in single words. More on phrasing in the [Catalog MCP tips](/products/catalog/mcp#connect-from-your-assistant).
+</Tip>
+
+## Pick your assistant
+
+The click paths differ; the mechanics underneath are identical. Each tab has the short version and a link to the full walkthrough.
+
+<Tabs>
+  <Tab title="Claude (claude.ai)">
+    <Steps>
+      <Step title="Add the connector">
+        **Settings → Connectors → Add custom connector.** Name it and paste the server URL. Leave the OAuth client ID and secret **empty** — Claude identifies itself to Nevermined on its own, so there's nothing to register.
+      </Step>
+      <Step title="Ask for something free, then ask it to buy">
+        Enable the connector and ask *"list the Nevermined catalog categories"* (no sign-in). Then ask it to buy a service — the paid call returns `401` and Claude shows an inline **Connect** card.
+      </Step>
+      <Step title="Approve the cap">
+        **Connect** → the consent page opens. Set the **cap** and **validity**, **Grant access**, and Claude retries the call with the grant.
+      </Step>
+    </Steps>
+
+    <Frame caption="Connect to the Catalog from claude.ai.">
+      <iframe
+        src="https://www.youtube.com/embed/uW-_V-dOeSw"
+        title="Connect to the Catalog from claude.ai"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: "0.5rem", border: 0, display: "block" }}
+      ></iframe>
+    </Frame>
+
+    Full click path: [Catalog MCP → Claude](/products/catalog/mcp#connect-from-your-assistant).
+  </Tab>
+  <Tab title="ChatGPT">
+    <Steps>
+      <Step title="Turn on Developer mode">
+        **Settings → Security and login → Developer mode** (needs a paid plan). *Plugins* then appears in the sidebar.
+      </Step>
+      <Step title="Create an MCP app">
+        **Plugins → ＋ → Create app → Create MCP app.** Paste the server URL, choose **OAuth**, and leave the client ID and secret empty — ChatGPT discovers the OAuth settings from the server.
+      </Step>
+      <Step title="Approve the cap at creation">
+        ChatGPT runs the consent **immediately**, before any tool call. Set the **cap** and **validity**, **Grant access**, and the plugin shows as connected.
+      </Step>
+    </Steps>
+
+    <Frame caption="Connect to the Catalog from ChatGPT.">
+      <iframe
+        src="https://www.youtube.com/embed/fI_llp5BBYM"
+        title="Connect to the Catalog from ChatGPT"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: "0.5rem", border: 0, display: "block" }}
+      ></iframe>
+    </Frame>
+
+    <Warning>
+    **Choose the plugin name carefully — a ChatGPT plugin cannot be deleted or renamed.** Full detail and the rest of the dialog: [Catalog MCP → ChatGPT](/products/catalog/mcp#connect-from-your-assistant).
+    </Warning>
+  </Tab>
+  <Tab title="LangSmith Fleet">
+    Fleet doesn't discover, so you create two objects once: a LangSmith **OAuth provider** (ID exactly `nevermined`) and a **custom MCP server** pointed at the `mcp.api.<tier>` host so Fleet is challenged on connect.
+
+    <Steps>
+      <Step title="Create the OAuth provider">
+        **Settings → OAuth providers → New** — provider ID `nevermined`, client ID `langsmith-fleet`, a placeholder secret, the authorization and token URLs, PKCE method **S256**. The exact values are in the provider table on the Catalog MCP page.
+      </Step>
+      <Step title="Add the MCP server">
+        **Settings → Integrations → Add custom MCP** — paste `https://mcp.api.live.nevermined.app/mcp` (or the sandbox host), choose **OAuth 2.1 (Manual)**, and select the provider from step 1.
+      </Step>
+      <Step title="Connect and approve the cap">
+        Fleet asks *Connect now?* → the consent page opens. Set the **cap** and **validity**, **Grant access**.
+      </Step>
+    </Steps>
+
+    <Frame caption="Connect the Catalog to a LangSmith Fleet agent.">
+      <iframe
+        src="https://www.youtube.com/embed/A7HcBsnRYG8"
+        title="Connect the Catalog to a LangSmith Fleet agent"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: "0.5rem", border: 0, display: "block" }}
+      ></iframe>
+    </Frame>
+
+    Full provider table, the `mcp.api.` host requirement, and the cached-credential gotcha: [Catalog MCP → LangSmith Fleet](/products/catalog/mcp#connect-from-your-assistant).
+  </Tab>
+</Tabs>
+
+### Which URL to point at
+
+| Where you point it | Server URL |
+| --- | --- |
+| **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
+| **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
+| **LangSmith Fleet** (either tier) | `https://mcp.api.sandbox.nevermined.app/mcp` · `https://mcp.api.live.nevermined.app/mcp` |
+
+Fleet needs the `mcp.api.` host so it's challenged for auth on connect; Claude and ChatGPT use the plain host and are prompted when they first try to pay.
+
+## What the consent screen asks
+
+One screen, and it's the only place a human is required. **You set** the spending **cap** (in USDC or EURC) and how long the grant is **valid for**. The **environment** badge (Sandbox or Live) and **who is asking** are shown, not chosen. Before you grant, know that:
+
+- On **Live**, the cap is real money.
+- The assistant may pay **any service it can reach**, not a fixed list.
+- **Nevermined's routing fee comes out of the same cap** — the cap is the total debited, not what merchants receive.
+- The grant also lets the assistant read your payment history and wallet balance. **The cap bounds what it can spend, not what it can see.**
+
+Granting creates a budget confined to that cap and window, funded from your own wallet, and hands the assistant a credential that spends only through it — never a card mandate. Full breakdown of the consent screen: [Catalog MCP → What the consent page asks](/products/catalog/mcp#what-the-consent-page-asks). What happens once the cap is spent or the window ends: [When the grant runs out](/products/catalog/mcp#when-the-grant-runs-out).
+
+## Revoke any time
+
+Open [Connections](https://nevermined.app/connections) in the Nevermined app and disconnect the assistant — the credential stops working on its next call. To spend again after that, or after a cap is used up, re-run the connect step and approve a **new** cap; a budget is never widened or extended in place.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Catalog MCP — full click paths" icon="plug" href="/products/catalog/mcp#connect-from-your-assistant">
+    Every step for Claude, ChatGPT and Fleet, the consent details, and every refusal code.
+  </Card>
+  <Card title="Using the Catalog from a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The code-free playbook for driving discovery and payment from your own agent or coding harness.
+  </Card>
+  <Card title="Catalog videos" icon="circle-play" href="/products/catalog/videos#connect-from-your-assistant">
+    The connect walkthroughs for each assistant, plus the Catalog overview and outcome examples.
+  </Card>
+  <Card title="Router: pay" icon="route" href="/products/catalog/router/overview">
+    Delegations, the spending cap, the rails, and every refusal code.
+  </Card>
+</CardGroup>
