@@ -14,7 +14,7 @@ GET /api/v1/catalog/services
 
 | Param | Type | Notes |
 | --- | --- | --- |
-| `search` | string | Free-text over **title and description only** — not tags, not provider |
+| `search` | string | Words, in any order, matched with stemming across title, descriptions and **tags** — not provider, not slug. Listings containing **every** word come back first; if none does, listings containing **any** word are returned instead. See below |
 | `protocol` | enum | `x402` · `mpp` · `rest` · `a2a` · `other`. Anything else is rejected by the query validator with a plain `400` |
 | `category` | enum | **Closed set of 13** — see below. Anything else is rejected by the query validator with a plain `400` |
 | `subCategory` | string | Granular label under a `category`. Free text, exact match — discover values from `/categories` |
@@ -29,6 +29,13 @@ each filter once.
 
 **`offset` is a page size.** It is not an offset in the SQL sense. To walk the catalog, hold
 `offset` fixed and increment `page`.
+
+**`search` ranks by relevance.** With a `search` and no `sortBy`, the best matches come first and the
+curated order below only breaks ties. Short keywords work best — `weather forecast`, `web scraping`, `places` — but
+a full sentence no longer returns an empty page: when no listing contains every word, the catalog
+falls back to listings containing any of them. A word no listing uses (`restaurants`, say) still
+matches nothing, so if a search comes back empty, retry with the kind of service you need rather than
+the task you are doing.
 
 **Default ordering is intentionally not stable.** With no `sortBy`, results come back by curation
 tier ascending, then *time-seeded shuffled within each tier* — the rotation changes periodically so
@@ -200,7 +207,7 @@ with no filtering or pagination. The feed is for registries crawling you, not fo
 ## Choosing well
 
 1. Filter to `protocol=x402` or `protocol=mpp`.
-2. Narrow with `search` (title + description), or `category` / `subCategory` / `tag` for precision —
+2. Narrow with `search` (title, descriptions and tags), or `category` / `subCategory` / `tag` for precision —
    taking the category values from `/categories`, never from memory.
 3. Read `endpoints[]` — pick the one whose `description` and `method` match your need, and note its
    `priceLabel`.
