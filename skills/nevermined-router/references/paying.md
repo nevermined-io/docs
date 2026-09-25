@@ -20,7 +20,8 @@ You describe the request; the Router probes the merchant, **auto-detects** the p
 ```json
 {
   "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
-  "url": "https://superhighway.walls.sh/search",
+  "slug": "superhighway",
+  "path": "/search",
   "method": "POST",
   "headers": { "X-Merchant-Api-Key": "…" },
   "body": { "query": "nevermined router" },
@@ -136,6 +137,10 @@ you actually wanted.
 
 - Same id on retry → `409 BCK.ROUTER.0002` with the original `paymentId`, **not the resource**. Safe — and never escape that 409 with a fresh id.
 - Fresh id on retry → buys again. Also safe, *if that is what you meant*.
+- From API version 1.48 (a key pinned at or above it), a same-id retry within 24 h returns the
+  retained paid result instead of the 409, and a merchant slower than 45 s is answered
+  `202 { paymentId, resultUrl, status: "Pending" }` — read it later from
+  `GET /api/v1/router/payments/{id}/result` (`404 BCK.ROUTER.0030` once expired). Keep the same id.
 
 Derive it from the work (`"search-nevermined-router-v1"`, a hash of the query, a task id). **A fresh
 `uuid4()` per HTTP attempt is how an agent double-spends** — it is the default reflex and it is
@@ -284,7 +289,7 @@ Had you passed a v2 `target` (the default), the same call would return `"x402Ver
 that is a deployment with no rate configured**, not because mode A is free. ⚠️ **Mode A charges the
 routing fee on every call**, whether or not you pass a `requestId`.
 
-`requestId` no longer changes *whether* you are charged — it changes whether a **retry** is charged
+`requestId` does not change *whether* you are charged — it changes whether a **retry** is charged
 again. Reuse one stable id across every retry of the same purchase and the retry returns
 `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting: one purchase, one fee. Omit it,
 or generate a fresh id per HTTP attempt, and the retry is a new purchase — a second credential and a
@@ -292,10 +297,6 @@ second real fee transfer for one thing you meant to buy once.
 
 So derive the id from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per
 attempt. Mode B requires one already and is unaffected.
-
-> **Changed:** mode A used to collect *only* when a `requestId` was present, refusing the fee outright
-> without one. That is no longer true — omitting the key now costs you money on a retry rather than
-> saving you the fee.
 
 ### 3 · Attach it and re-send
 
@@ -313,7 +314,8 @@ Read the name off the response rather than hardcoding it — that is why the fie
 ### 4 · Close the record
 
 The merchant returns a settlement reference: `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE` (x402) or
-`Payment-Receipt` (MPP). Report it:
+`Payment-Receipt` (MPP). Report the on-chain transaction hash it carries — `txHash` must be a
+`0x`-prefixed 32-byte hex hash, and card-rail records cannot be closed this way:
 
 ```bash
 curl -sX POST "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/settled" \
