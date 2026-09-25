@@ -1,65 +1,79 @@
 # Discovery — finding something to buy
 
-The **Agent Services Catalog** is a Nevermined-curated list of external agent services. It is
-**public, unauthenticated, read-only, and cached for 5 minutes**. Send no `Authorization` header;
-none is required and none is checked.
+The **Agent Services Catalog** is a Nevermined-curated list of external agent services. Discovery is
+**public, unauthenticated and free**. Send no `Authorization` header; none is required.
 
-Base: `$NVM_API_URL` — `https://api.sandbox.nevermined.app` or `https://api.live.nevermined.app`.
+| Surface | Use it for |
+| --- | --- |
+| `https://nevermined.app/catalog/ai-catalog.json` | **The default.** Every listed service in one JSON document — fetch once, filter locally |
+| Catalog MCP at `https://mcp.live.nevermined.app/mcp` | Server-side search: `search_services`, `get_service`, `list_categories` |
+| `https://nevermined.app/.well-known/ard.json` | The ARD host document, for registries crawling the Catalog — and per-service health |
+| `https://nevermined.app/catalog/llms.txt` | Plain-text entry point for an agent landing cold |
+| `https://nevermined.app/catalog/services` | Human browsing |
 
-## List services
+⚠️ **`/api/v1/catalog/services`, `/api/v1/catalog/services/{slug}` and `/api/v1/catalog/categories`
+are not a public integration.** They return `403` on both `api.live` and `api.sandbox`, by design —
+not an outage, and not something a key fixes. Do not retry them; read the feed.
 
-```
-GET /api/v1/catalog/services
-```
+The feed lists the **live** Catalog. It is live-only for payment: listed services settle on mainnet,
+and a sandbox deployment funds testnets only.
 
-| Param | Type | Notes |
-| --- | --- | --- |
-| `search` | string | Free-text over **title and description only** — not tags, not provider |
-| `protocol` | enum | `x402` · `mpp` · `rest` · `a2a` · `other`. Anything else is rejected by the query validator with a plain `400` |
-| `category` | enum | **Closed set of 13** — see below. Anything else is rejected by the query validator with a plain `400` |
-| `subCategory` | string | Granular label under a `category`. Free text, exact match — discover values from `/categories` |
-| `tag` | string | Exact match against one entry of `tags[]` |
-| `page` | int ≥ 1 | Default 1 |
-| `offset` | int ≥ 1 | Page **size**, not a skip count. Default **20**, capped at **100** |
-| `sortBy` | enum | Omit for the curated default. Unknown value → 400 |
-| `sortOrder` | `asc`/`desc` | |
+## The feed
 
-A repeated param (`?search=a&search=b`) parses as an array and fails validation with a `400` — send
-each filter once.
-
-**`offset` is a page size.** It is not an offset in the SQL sense. To walk the catalog, hold
-`offset` fixed and increment `page`.
-
-**Default ordering is intentionally not stable.** With no `sortBy`, results come back by curation
-tier ascending, then *time-seeded shuffled within each tier* — the rotation changes periodically so
-no single service permanently owns the top slot. Never assume `services[0]` is the same service
-across two calls; if you need determinism, pass an explicit `sortBy`.
-
-### Response
-
-```json
-{ "total": 9, "page": 1, "offset": 20, "services": [ /* CatalogService */ ] }
+```bash
+curl -s https://nevermined.app/catalog/ai-catalog.json -o ai-catalog.json
+jq '{total, generatedAt}' ai-catalog.json
 ```
 
-`total` is the count **matching your filters**, not the catalog size.
+`{ version, catalog, generatedAt, total, count, services: [ … ] }`. It is cached for five minutes
+(`Cache-Control: max-age=300`), so re-fetching more often buys nothing. There are no query
+parameters and no pagination — `services` is the whole Catalog.
 
 ### Fields you will actually use
 
 | Field | Use |
 | --- | --- |
-| `slug` | Stable id. Case-sensitive — use it for the per-slug lookup |
+| `slug` | Stable id. Case-sensitive — how you address the service through the Router |
 | `protocol` | **`x402` or `mpp` = payable through the Router.** See below |
-| `targetUrl` | The default endpoint's **complete URL** — see the gotcha below |
-| `endpoints[]` | `{ path, method, description, priceLabel, docsUrl }` — the other callable paths |
+| `endpoints[]` | `{ path, method, description, priceLabel }`, plus `invokePath`, `requestExample`, `responseFields` on some — see [rule 2](#2-pay-by-slug-and-send-invokepath--path) |
 | `priceLabel` | Human string like `"$0.001"`. **Indicative only** — the wire price governs |
-| `network` | Display name (`"Base"`, `"Tempo"`). Not a chain id |
+| `network` / `networks` | Display names (`"Base"`, `"Tempo"`). Not chain ids |
 | `category` | One of the **13 curated values** — see [Categories](#categories) |
-| `subCategory` | Granular label under `category`, or `null` for the generic top bucket |
-| `tags[]`, `features[]` | Selection signals |
-| `discovery` | Machine-readable pointers: `x402` manifest, `mcp`, `a2a` agent card, `openapi`, `llmsTxt`, `mppRegistry`. `{}` when none |
+| `subCategory` | Granular label under `category`. **Absent** (no key, not `null`) for the generic top bucket — in JS test `s.subCategory == null`, not `=== null` |
+| `tags[]` | Selection signals |
+| `invokeUrl` | The service's Router URL: `…/api/v1/router/svc/<slug>` |
+| `invoke` | A ready-made Router call: `method`, `router`, `invokeUrl` and the `X-Router-*` headers |
+| `url` | The service's human page in the Catalog |
 
-`isListed` is always `true` on this API — unlisted rows are never exposed, so you cannot use it to
-tell payable from unpayable.
+The feed deliberately omits health status, long descriptions and the merchant's own URL. For health,
+read the ARD host document (each entry's `nvm:catalog.healthStatus` and `uptime30d` — see
+[below](#the-ard-host-document)); for a request body, use the endpoint's `requestExample` when
+present — the Catalog holds no body schema otherwise.
+
+### Filter recipes
+
+All run against the file saved above.
+
+```bash
+# Payable on one rail, in one category
+jq '[.services[] | select(.protocol == "x402" and .category == "Search & Research") | {slug, title, priceLabel}]' ai-catalog.json
+
+# Free text over title + description, case-insensitive
+jq --arg q "crypto" '[.services[]
+     | select((.title + " " + .description) | ascii_downcase | contains($q | ascii_downcase))
+     | {slug, title, protocol, priceLabel}]' ai-catalog.json
+
+# Exact tag
+jq '[.services[] | select(.tags | index("search")) | .slug]' ai-catalog.json
+
+# One service by slug, with the subpath to send for each endpoint
+jq '.services[] | select(.slug == "superhighway")
+     | {slug, protocol, endpoints: [.endpoints[] | {method, path: (.invokePath // .path), priceLabel}]}' ai-catalog.json
+```
+
+A misspelt `category`, `protocol` or slug in a filter returns an **empty result, not an error** —
+the feed has no validator. So an empty list means "check the string" before it means "nothing to
+buy". Take category values from the feed itself (below), never from memory.
 
 ## Two rules that cost real money if you get them wrong
 
@@ -75,9 +89,8 @@ any payment header, none serves a real x402 manifest.** The ones that respond me
 `401` or `403` — "authenticate", not "pay".
 
 Curation already protects you from this: those services are deliberately loaded **unlisted**, and
-the API only ever exposes listed ones — so in practice today the catalog returns `x402` and `mpp`
-only. **Filter with `?protocol=x402` or `?protocol=mpp` anyway.** Listing is a curation decision that
-can change, the `protocol` filter accepts values the Router cannot pay, and an explicit filter makes
+the feed only carries listed ones — so in practice today it holds `x402` and `mpp` only. **Filter on
+`.protocol` anyway.** Listing is a curation decision that can change, and an explicit filter makes
 your agent's assumption visible instead of load-bearing-and-implicit.
 
 **Routable is not the same as payable on *your* deployment.** The two rails are enabled
@@ -90,43 +103,42 @@ another MPP service will fail identically. See `references/errors.md`.
 If you ever do hold a non-routable entry, do not call `/route` on it — tell the user that service
 needs its own account.
 
-### 2. `targetUrl` is a full URL, not a base
+### 2. Pay by slug, and send `invokePath ?? path`
 
-This is the single easiest way to waste a payment.
+The feed carries **no merchant URL**, on purpose. You address a listed service by its `slug` — the
+Router resolves the upstream server-side, and refuses a raw-URL payment to a cataloged host with
+`409 BCK.ROUTER.0014`. An unknown slug is `404 BCK.CATALOG.0001`.
+
+For an endpoint, the subpath to send is its **`invokePath` when present, else its `path`**.
+`invokePath: ""` is meaningful: the service's base already *is* that endpoint, so the Router must
+append nothing.
 
 ```
-slug=superhighway
-  targetUrl = https://superhighway.walls.sh/search      ← already includes /search
-  endpoints = ["/search", "/news", "/images"]
-
-slug=2s
-  targetUrl = https://2s.io                             ← bare origin here
-  endpoints = ["/api/directory"]
+slug=edgar-search
+  endpoints[0] = { path: "/edgar-search/search", invokePath: "" }   ← send "", not the path
 ```
 
-`targetUrl` is the **default endpoint's complete URL**. Concatenating `targetUrl + endpoint.path`
-gives `https://superhighway.walls.sh/search/news`, which 404s — and if the merchant charges before
-routing, you paid for it.
-
-Resolve against the origin instead. Because every `endpoint.path` is absolute (`/…`), plain URL
-resolution does exactly the right thing on both shapes above:
+Sending `path` there double-stacks it (`…/edgar-search/search/edgar-search/search`), which 404s —
+and if the merchant charges before routing, you paid for it. So use a *nullish* fallback, never a
+falsy one:
 
 ```js
-const url = endpoint
-  ? new URL(endpoint.path, service.targetUrl).toString()
-  : service.targetUrl          // default endpoint — use targetUrl verbatim
+const subpath = endpoint.invokePath ?? endpoint.path   // NOT `||` — it turns '' back into the path
 ```
 
 ```python
-from urllib.parse import urljoin
-url = urljoin(service["targetUrl"], endpoint["path"]) if endpoint else service["targetUrl"]
+subpath = endpoint["path"] if endpoint.get("invokePath") is None else endpoint["invokePath"]   # NOT `or` — same trap
 ```
+
+In jq, `.invokePath // .path` is already correct: `//` falls through on `null`/`false` only, and
+`""` is truthy there.
+
+Then pay with `POST /api/v1/router/route` and `{ "slug": …, "path": subpath }` — see `paying.md`.
 
 ## Categories
 
-`category` is a **closed set of exactly 13 curated values**, validated server-side — an unrecognised
-string is a plain `400`, not an empty result. Match them **verbatim**, ampersands and spacing
-included:
+`category` is a **closed set of exactly 13 curated values**. Match them **verbatim**, ampersands and
+spacing included:
 
 - `Data & Enrichment`
 - `Sales & Business Intelligence`
@@ -143,47 +155,63 @@ included:
 - `Travel`
 
 The obvious guesses are wrong: it is `"Search & Research"`, not `"Search"`. Do not shorten, split on
-`&`, or invent one. The list is curated by hand and can grow, so prefer `/categories` over hardcoding
-this one — with the caveat below.
+`&`, or invent one. The list is curated by hand and can grow, so read what is in use from the feed:
+
+```bash
+jq '.services | group_by(.category)
+     | map({category: .[0].category, count: length, subCategories: (map(.subCategory // empty) | unique)})' ai-catalog.json
+```
 
 `subCategory` is the granular label *under* a category (`"Browser automation"`), and unlike
-`category` it is free text. A service with no granular label has `subCategory: null` — the generic
-top bucket.
+`category` it is free text. A service with no granular label has **no `subCategory` key** — the
+generic top bucket — and so appears in no `subCategories[]` list above.
 
-```
-GET /api/v1/catalog/categories
-# → [ { "category": "Search & Research", "count": 3,
-#       "subCategories": [ { "subCategory": "Browser automation", "count": 2 }, … ] }, … ]
-```
+⚠️ **The feed shows what is *populated*, not what is *legal*.** A valid category with no listed
+services right now simply does not appear. Treat an absent category as "nothing to buy there today",
+**not** as "that value is invalid" — the closed set above is the enum; the feed is the inventory.
 
-Counts are over listed services. **Each entry carries a `subCategories[]` array**, so one call gives
-you both filter levels — build your filters from this response rather than guessing a string.
-Services whose `subCategory` is null are counted in `count` but appear in no `subCategories[]` entry,
-so the sub-counts do not have to add up to `count`.
+## Server-side search: the Catalog MCP
 
-⚠️ **`/categories` enumerates what is *populated*, not what is *legal*.** It is a grouping over
-currently-listed services, so a perfectly valid category with no listed services right now simply
-does not appear. Treat an absent category as "nothing to buy there today", **not** as "that value
-would be rejected" — the closed set above is the enum; this endpoint is the inventory.
+When you would rather not filter locally, the Catalog MCP server searches for you. Its read tools are
+free and need no key; each call is one stateless JSON-RPC POST:
 
-## One service by slug
-
-```
-GET /api/v1/catalog/services/{slug}
+```bash
+curl -s -H "Content-Type: application/json" \
+     -H "Accept: application/json, text/event-stream" \
+     -X POST https://mcp.live.nevermined.app/mcp \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_services","arguments":{"query":"crypto","protocol":"x402"}}}' \
+  | jq -r '.result.content[0].text' | jq .
 ```
 
-Returns the same object as a list row. Slugs are **case-sensitive**; no match → `404
-BCK.CATALOG.0001`. Unlisted services are not exposed here either.
+| Tool | Arguments |
+| --- | --- |
+| `search_services` | `query` (always send one), plus optional `category`, `protocol`, `tag` |
+| `get_service` | `slug` — returns the service plus its `requestShape` (each endpoint's `payServiceArgs`) |
+| `list_categories` | none — each category with a `count` and its `subCategories[]` |
 
-## The crawlable feed
+- **`search_services` is moving to ARD hybrid ranking** (semantic + lexical) in the next MCP
+  release. `query` becomes **required**, `page` / `offset` are removed (a `pageSize` replaces them,
+  with no next-page input yet), and the result changes from `{ total, page, offset, services }` to
+  `{ results, pageToken }` — ARD records keyed by an `identifier` URN, whose last segment is the slug
+  (`urn:air:api.live.nevermined.app:service:superhighway` → `superhighway`). So: always send `query`,
+  parse `content[0].text` without assuming `services[]`, and **do not build a pager on it** — after the release an unknown `page` is silently
+  dropped and you would get the first page forever. To walk everything, use the feed.
+- **Errors come back as a tool result with `isError: true`** and a plain-text message, not a
+  JSON-RPC error: an unknown slug in `get_service` reads `… returned 404`; a bad `protocol` fails the
+  input schema with `MCP error -32602: Input validation error …`. Check `isError` before parsing
+  `content[0].text` as JSON.
+
+Full MCP setup, including the paid tools: https://nevermined.ai/docs/products/catalog/mcp
+
+## The ARD host document
 
 ```
-GET /.well-known/agent-services-catalog.json
+GET https://nevermined.app/.well-known/ard.json
 ```
 
 A Google **Agentic Resource Discovery (ARD)** document over the same listed services — one entry
-each, with the Router pay-through target and the discovery pointers under `x-nevermined-catalog`.
-Public and crawlable by any registry.
+each, with the Router pay-through target and health (`healthStatus`, `uptime30d`) under
+`nvm:catalog`. Public and crawlable by any registry.
 
 ```json
 { "specVersion": "1.0",
@@ -191,35 +219,22 @@ Public and crawlable by any registry.
   "entries": [ … ] }
 ```
 
-Note the key is **`entries`**, not `services` — a parser looking for `services` sees an empty feed
-and silently concludes the catalog is empty.
+Note the key is **`entries`**, not `services` — a parser looking for `services` sees an empty
+document and silently concludes the catalog is empty. It also carries one entry that is the registry
+itself, not a service.
 
-Prefer `/api/v1/catalog/services` when you are choosing something to buy: the feed is a flat dump
-with no filtering or pagination. The feed is for registries crawling you, not for you choosing.
+Prefer `ai-catalog.json` when you are choosing something to buy: it carries the endpoints and the
+ready-made `invoke` block in a flat shape. The ARD document is for registries crawling the Catalog.
 
 ## Choosing well
 
-1. Filter to `protocol=x402` or `protocol=mpp`.
-2. Narrow with `search` (title + description), or `category` / `subCategory` / `tag` for precision —
-   taking the category values from `/categories`, never from memory.
+1. Fetch `ai-catalog.json` once and filter to `protocol` `x402` or `mpp`.
+2. Narrow with free text (title + description), or `category` / `subCategory` / `tags` for
+   precision — taking category values from the feed, never from memory. Or let the Catalog MCP's
+   `search_services` do it.
 3. Read `endpoints[]` — pick the one whose `description` and `method` match your need, and note its
    `priceLabel`.
-4. Build the URL per the rule above.
+4. Take the `slug` and the endpoint's `invokePath ?? path`, per rule 2.
 5. Pay with `POST /api/v1/router/route` — see `paying.md`.
 
-If nothing matches, say so. Do not fall back to a `rest` entry and do not invent a `targetUrl`.
-
-## Errors
-
-| Code | Status | Meaning |
-| --- | --- | --- |
-| `BCK.CATALOG.0001` | 404 | No listed service with that slug. Case-sensitive |
-| `BCK.CATALOG.0002` | 500 | Transient read failure — **retryable** |
-| `BCK.CATALOG.0003` | 400 | `protocol` must be `x402`, `mpp`, `rest`, `a2a`, or `other`. **Catalogued, but you will not see it** — see below |
-
-**A bad `protocol` or `category` does not come back as `BCK.CATALOG.0003`.** Both are `@IsIn`
-constraints on the query DTO, so the global validation pipe rejects them before the catalog service
-runs — what you actually receive is a plain `400` on the standard envelope with the generic
-`code: "BCK.HTTP.400"` and the field error in `message`. `BCK.CATALOG.0003` still exists in the error
-catalogue and the service still throws it, but that path is unreachable through this endpoint. Branch
-on the status here, not on a `BCK.CATALOG.*` code.
+If nothing matches, say so. Do not fall back to a `rest` entry and do not guess a merchant URL.

@@ -35,24 +35,28 @@ Watch for that code specifically. It is *not* the refusal in step 6 — that one
 
 ## 1. Discover
 
-The catalog is public. No key, no account, no signup:
+The catalog is public. No key, no account, no signup — one JSON feed of every listed service, filtered locally:
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/catalog/services?search=crypto&limit=20"
+curl -s https://nevermined.app/catalog/ai-catalog.json \
+  | jq -r '.services[] | select((.title + " " + .description) | ascii_downcase | contains("crypto"))
+           | "\(.title)  [\(.protocol)]  \(.priceLabel)"'
 ```
 
 ```
-search 'crypto' → 14 services, e.g.
-  · Kraken Crypto Signals  [x402]  $0.01
-  · 2s                     [x402]  $0.001–$0.144 per call (USDC)
-  · CoinGecko via MPP      [mpp]   $0.06
-  · Laevitas x402          [x402]  $0.001
+Alpha Vantage  [mpp]  $0.008
+CoinGecko via MPP  [mpp]  $0.06
+Otto AI x402  [x402]  From $0.001/call (USDC)
+AgentOracle  [x402]  $0.01
+…
 ```
 
-142 services, listing their protocol, network and price up front. Each entry carries everything needed to place a call — `targetUrl`, the endpoint `path` and `method`, and a `priceLabel`:
+Every service lists its protocol, network and price up front. Each entry carries everything needed to place a call — the `slug`, each endpoint's `path` and `method`, and a `priceLabel`:
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/catalog/services/coingecko-via-mpp"
+curl -s https://nevermined.app/catalog/ai-catalog.json \
+  | jq '.services[] | select(.slug == "coingecko-via-mpp")
+        | {slug, title, protocol, network, priceLabel, endpoints: [.endpoints[0] | {path: (.invokePath // .path), method, priceLabel}]}'
 ```
 
 ```json
@@ -61,7 +65,6 @@ curl -s "$NVM_API_URL/api/v1/catalog/services/coingecko-via-mpp"
   "title": "CoinGecko via MPP",
   "protocol": "mpp",
   "network": "Tempo",
-  "targetUrl": "https://coingecko.mpp.paywithlocus.com",
   "priceLabel": "$0.06",
   "endpoints": [
     { "path": "/coingecko/simple-price", "method": "POST", "priceLabel": "$0.06" }
@@ -70,7 +73,7 @@ curl -s "$NVM_API_URL/api/v1/catalog/services/coingecko-via-mpp"
 ```
 
 <Note>
-`?search=` matches titles, descriptions and categories — **not** slugs. To fetch one known service, use the by-slug route above. `limit` is capped server-side at 20, so paginating the whole catalog client-side isn't the answer either.
+The feed is the whole catalog in one document — there are no query parameters, so filter it on your side. `/api/v1/catalog/services` isn't a public integration and returns `403`; for server-side search, use the Catalog MCP's `search_services` (see [Discovering AI Services](/products/catalog/discover#search-server-side-with-the-catalog-mcp)).
 </Note>
 
 The agent picked two services with deliberately different plumbing:
@@ -238,7 +241,7 @@ Before a first run, check the things that most often turn into a "Router bug" th
 - **Read the wallet address back from the live Delegation** (`providerPaymentMethodId`), never from anything you wrote down — funding a stale address fails as `402 BCK.ROUTER.0009`. On MPP-tempo that error names the wallet and chain it checked, so compare the two; it never echoes the balance, and x402 raises no `0009` at all.
 - **Fund it on both chains** you intend to pay on. Base and Tempo are separate balances.
 - **Confirm the merchant still answers `402`** on the rail you expect. A service that stops charging is relayed with `paid: false`, and a run can otherwise "succeed" having bought nothing.
-- **Check the catalog is loaded**, not serving placeholder rows — compare `total` and look at the `targetUrl`s.
+- **Check the catalog is loaded**, not serving placeholder rows — compare the feed's `total` and look at the `endpoints`.
 
 If you'd rather have *your* agent do the run than drive it yourself, give it the public **`nevermined-router` skill** — the same six steps plus the guardrails, written for an assistant to act on:
 
