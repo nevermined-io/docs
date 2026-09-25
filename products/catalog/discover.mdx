@@ -75,7 +75,7 @@ The fields you'll actually use on each service:
 | `category` / `subCategory` | Curated category and its granular label (`subCategory` is absent when there is none) |
 | `priceLabel` | Human string like `"$0.001"` — **indicative only**; the wire price governs |
 | `network` / `networks` | Display names (`"Base"`, `"Tempo"`), not chain ids |
-| `endpoints[]` | `{ path, method, description, priceLabel }`; some also carry `invokePath`, `requestExample` and `responseFields` |
+| `endpoints[]` | `{ path, method, description, priceLabel }`; some also carry `invokePath`, `requestExample` and `responseFields`. An endpoint with a live `quote` shows the price per call **on the rail and network the Router actually pays it on** — `rail`, `network`, `asset`, `amountAtomic` and `decimals`, read from the merchant's own 402 in the last 48 hours — and its `priceLabel` then shows that same price. It is the merchant's price: the Router's routing fee is charged on top, and `POST /api/v1/router/quote` returns the total |
 | `invokeUrl` | The service's Router URL, `…/api/v1/router/svc/<slug>` |
 | `invoke` | A ready-made Router call: method, URL and the `X-Router-*` headers to send |
 
