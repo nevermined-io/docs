@@ -489,6 +489,7 @@ await client.sendA2AMessage({ message: { kind: 'message', role: 'user', messageI
 ### Python (`payments-py`)
 
 ```python
+import asyncio
 from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
 
 # Initialize
