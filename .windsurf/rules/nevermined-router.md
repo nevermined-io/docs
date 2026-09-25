@@ -84,8 +84,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected the request; body withheld, status preserved. Fix from Catalog detail. No retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0024` (413) — body exceeds ~5 MB. **No retry as-is**; reduce it below the limit.
-- `BCK.ROUTER.0025` (502) — reply too large; payment unclear. No `X-Router-Payment-Id`: find `requestId` in `GET /api/v1/router/payments`; check `status` / `merchantSettlementObservedAt`. Reuse that id if retrying; never use a fresh one.
-- Only `0006` (500), `0007` (429) and `0020` (5xx/429) are **retryable**. Other refusals need a decision.
+- `BCK.ROUTER.0025` (502) — reply too large; payment unclear. No `X-Router-Payment-Id`; JSON-string `params` may carry `paymentId`. Otherwise, list `GET /api/v1/router/payments` with `delegationId` and `from` just before the call, then match `requestId` in the newest 1000 rows (no `requestId` filter). `status: Failed` means delivery failed, not proof of no charge. Non-null `merchantSettlementObservedAt` confirms x402 settlement; null does not prove no charge, including MPP. Do not retry: the same id returns 409 `BCK.ROUTER.0002` with the original `paymentId` and no reply; a fresh id risks another charge.
+- Only `BCK.ROUTER.0006` (500), `BCK.ROUTER.0007` (429) and `BCK.ROUTER.0020` (5xx/429) are **retryable**. Other refusals need a decision.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision; a fresh one to escape an exhausted Delegation defeats it.
