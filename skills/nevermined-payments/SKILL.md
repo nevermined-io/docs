@@ -547,7 +547,7 @@ client = payments.a2a["get_client"](
     agent_base_url=url, agent_id=agent_id, plan_id=plan_id,
     delegation_config=DelegationConfig(delegation_id=delegation_id),
 )
-result = await client.send_message({"message": {"kind": "message", "role": "user", "messageId": "1", "parts": [{"kind": "text", "text": "Hello"}]}})
+result = asyncio.run(client.send_message({"message": {"kind": "message", "role": "user", "messageId": "1", "parts": [{"kind": "text", "text": "Hello"}]}}))  # or `await` inside async code
 ```
 
 ## x402 Payment Headers
