@@ -23,6 +23,18 @@ The **Delegation** is the control you own. It carries a hard cap in cents and an
 
 Delegation cap, expiry, or status failures give you **`402 BCK.ROUTER.0003`**. Check the current state any time with `GET /api/v1/delegation/{id}` — `remainingBudgetCents` and `expiresAt` tell you which it was. A quote above `maxTotalCents` gives **`402 BCK.ROUTER.0018`** without a charge or budget reserve, although signing may already have occurred; raise that per-call ceiling only if the call is intended.
 
+### Check the price first: `POST /router/quote`
+
+`maxTotalCents` refuses an over-price call, but it runs after the rail has prepared the payment, so it is not free price discovery. To learn the price first, **quote** the call with the same body as `/route` (no `requestId`; `delegationId` optional):
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/quote" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "slug": "webscrape-pro", "path": "scrape", "method": "POST", "body": { "url": "https://example.com" } }'
+```
+
+The Router makes the same unpaid probe `/route` makes, selects the option a payment would (MPP first) and prices it with the routing fee — then stops. **Nothing is signed, minted, recorded or reserved.** The `200` answer carries `paymentRequired`, `optionSet` (`delegation` when you sent a `delegationId`, else `deployment` — what a personal crypto Delegation selects), `protocol`, and the same `settlement` and `fee` objects `/route` returns. Route with `maxTotalCents` set to `fee.capChargedCents` so a price that moved in between is refused rather than paid. A quote checks neither the remaining cap nor the wallet balance; a failed chain read it depends on is `503 BCK.ROUTER.0028`, retryable.
+
 An agent cannot spend past its cap by looping, by retrying, or by being confidently wrong about its own budget. That's the point of the mechanism, and it's why an agent should treat `0003` as a stop signal rather than something to route around.
 
 <Warning>
@@ -120,6 +132,7 @@ Every code below also appears in the canonical [API error catalogue](/developmen
 | `BCK.ROUTER.0022` | 500 | Server-side service selection is not wired on this deployment (a configuration fault, not your request) — nothing was ranked or charged. Only reachable on a misconfigured deployment; never in a healthy environment. | **Yes**, later — it is a transient/config condition on our side; if it persists, quote `correlationId` when reporting it |
 | `BCK.ROUTER.0023` | 502 | On an autoPay `POST /router/select` (or `/router/commerce/select`): the chosen service was paid but the downstream call did not complete cleanly **after** the payment was created, so the charge outcome is **indeterminate** — the merchant leg may or may not have settled. JSON-string `params` carries the `paymentId` when one was created. | No — do **not** retry with a fresh `requestId` (that could double-charge). Reconcile via `GET /api/v1/router/payments`, then reuse the **same** `requestId` to retry safely |
 | `BCK.ROUTER.0026` | 415 | Streaming surfaces only (`/proxy` · `/svc`): the request body cannot be forwarded. They forward a body only when it is JSON (`application/json`) or a URL-encoded form (`application/x-www-form-urlencoded`), and never on a `GET` or `HEAD`; anything else — a `multipart/form-data` file upload above all, but also `text/plain`, `application/octet-stream` or a vendor `+json` type — would have reached the service **empty**, so the Router refuses it instead. **Nothing was minted, no budget was reserved and no money moved.** JSON-string `params.contentType` names the request's content type (`null` if absent or malformed) | No — for a body on `GET`/`HEAD`, send none (or use `POST`/`PUT` if the service takes one) — changing the content type does not help; otherwise resend the body as JSON or a URL-encoded form if the service accepts one. A service that only takes a file upload cannot be paid through the Router yet. Retrying unchanged fails identically |
+| `BCK.ROUTER.0028` | 503 | `POST /router/quote` could not price the call because a chain read the price depends on failed (today: the MPP-tempo settlement token's `decimals`). A quote never signs, mints or charges anything, so **nothing was signed, reserved or charged**. | **Yes** — retry the quote with backoff; the same condition would also fail a payment, so do not route the call meanwhile. If it persists, quote `correlationId` |
 
 Across the whole Router surface, only `0006`, `0007` and `0020` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer. On the *paying* path the set is narrower still — see below.
 

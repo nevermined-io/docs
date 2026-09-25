@@ -7,7 +7,7 @@ Full skill: https://github.com/nevermined-io/docs/tree/main/skills/nevermined-ro
 
 **The Router pays a price quoted on the wire for one request.** A SaaS API billed by a plan and a
 long-lived key is not routable, nor is anything answering `401`/`403` rather than `402` — that wants
-**authentication, not payment**. Say so instead of routing it.
+authentication, not payment. Say so instead of routing it.
 
 Environment: `NVM_API_URL` (`https://api.sandbox.nevermined.app` or
 `https://api.live.nevermined.app`), `NVM_API_KEY` (`sandbox:…` / `live:…` — **never send it to the
@@ -30,7 +30,7 @@ outright, neither retryable:
 
 Both rails **pull** from your own wallet: a Delegation authorizes a spend, it does not
 supply funds. Read the address off the live Delegation every time (`GET /api/v1/delegation/{id}` →
-`providerPaymentMethodId`) — **never a cached one**, the top cause of `402 BCK.ROUTER.0009`, which
+`providerPaymentMethodId`) — never a cached one, the top cause of `402 BCK.ROUTER.0009`, which
 does not name the address it checked.
 
 **One x402 network is funded per deployment, fixed by its environment: sandbox → `base-sepolia`,
@@ -54,7 +54,7 @@ server-side search: Catalog MCP `search_services` (`mcp.live.nevermined.app/mcp`
 `POST $NVM_API_URL/api/v1/router/route`, bearer `$NVM_API_KEY`, JSON body
 `{ delegationId, url, method, body, requestId }` — the 1st, 2nd and 5th required.
 
-The Router probes, auto-detects the protocol from the 402, pays and relays; `status`/`body` are the
+The Router probes, detects the protocol from the 402, pays and relays; `status`/`body` are the
 merchant's own, and `paid: false` with no `payment` means it was free. Streaming: `ALL /router/proxy`
 with `X-Router-{Target-Url,Delegation-Id,Request-Id}`.
 
@@ -62,7 +62,7 @@ with `X-Router-{Target-Url,Delegation-Id,Request-Id}`.
 across its retries: the same id returns the original payment, a fresh id buys again — **a fresh
 `uuid4()` per attempt is how an agent double-spends.**
 
-**Money.** Budget is debited in **whole cents, rounded up**. `settlement.approxCents` is only the
+**Money.** Budget is debited in whole cents, rounded up. `settlement.approxCents` is only the
 **merchant** leg; the routing fee rides on top in
 `payment.fee`, always present. `fee.capChargedCents` is
 what the call **reserved**, not a final figure — a mode-B hop missing `2xx` releases the fee half
@@ -86,8 +86,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
   Raise only if intended; reuse `requestId`.
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected the request; body withheld, status preserved. Fix from Catalog detail. No retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
-- Only `BCK.ROUTER.0006` (500), `0007` (429) and `0020` (5xx/429) are **retryable**; everything
-  else is a decision, and retrying it unchanged gives the same answer.
+- Only `BCK.ROUTER.0006` (500), `0007` (429), `0020` (5xx/429) are **retryable**, plus `BCK.ROUTER.0028` (503); everything
+  else is a decision; an unchanged retry gives the same answer.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision; a fresh one to escape an exhausted Delegation defeats it.
