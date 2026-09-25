@@ -86,6 +86,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
   Raise only if intended; reuse `requestId`.
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected the request; body withheld, status preserved. Fix from Catalog detail. No retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
+- `BCK.ROUTER.0024` (413) — request body exceeds the Router limit (~5 MB); reduce it before retrying.
+- `BCK.ROUTER.0025` (502) — upstream reply too large after a paid request; payment may have gone through. Reconcile via `list_payments`; do not retry with a fresh `requestId`.
 - Only `BCK.ROUTER.0006` (500), `0007` (429) and `0020` (5xx/429) are **retryable**; everything
   else is a decision, and retrying it unchanged gives the same answer.
 
