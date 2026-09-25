@@ -523,7 +523,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 
 ## Let the platform pick a service
 
-`route_by_intent` turns a plain-language need into the **single best payable service** in the Catalog, plus the ranked shortlist it was chosen from — so your agent doesn't search, compare listings and pick one itself. The ranking is deterministic: Nevermined's own relevance and quality signals, behind a payability gate (listed, not flagged unpayable, healthy, not held by moderation, on x402 or MPP). No model reads the merchant listings, and when nothing passes the gate you get an explicit refusal, never a weak match.
+`route_by_intent` turns a plain-language need into the **single best payable service** in the Catalog, plus the ranked shortlist it was chosen from — so your agent doesn't search, compare listings and pick one itself. The ranking is deterministic — no randomness, and no model doing the picking — but it's recomputed on every call from the live Catalog, so the pick can change as listings, health and payability change. It uses Nevermined's own relevance and quality signals, behind a payability gate (listed, not flagged unpayable, healthy, not held by moderation, on x402 or MPP). No model reads the merchant listings, and when nothing passes the gate you get an explicit refusal, never a weak match.
 
 <Note>
 **Rolling out.** `route_by_intent` and the semantic `search_services` ranking reach each environment with the next Catalog MCP release. If `route_by_intent` isn't in your host's tool list yet, that environment hasn't received it: until then `search_services` keeps its previous substring matching and its `page` / `offset` filters, and `search_services` → `get_service` → `pay_service` does the same job in three calls.
