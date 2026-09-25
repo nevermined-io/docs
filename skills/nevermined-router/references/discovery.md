@@ -46,8 +46,8 @@ parameters and no pagination — `services` is the whole Catalog.
 | `url` | The service's human page in the Catalog |
 
 The feed deliberately omits health status, long descriptions and the merchant's own URL. For health,
-use the Catalog MCP (its results carry `healthStatus`); for a request body, use the endpoint's
-`requestExample` when present, or `get_service`'s `requestShape`.
+use the Catalog MCP (its search results carry `healthStatus`); for a request body, use the endpoint's
+`requestExample` when present — the Catalog holds no body schema otherwise.
 
 ### Filter recipes
 
