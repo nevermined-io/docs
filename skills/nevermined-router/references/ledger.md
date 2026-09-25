@@ -166,13 +166,10 @@ than reported by the facilitator has **no `feeTxHash` at all** — the chain ans
 authorization consumed" with a boolean, not a transaction — so `feeNonce` is the audit key for those
 rows. A null `feeTxHash` is not evidence the fee did not settle.
 
-**For CSV consumers:** every column added since the original set — the six fee ones, then
-`assetSymbol` and `assetDecimals`, then `feeFailureReason` — was **appended after** it, so a parser
-reading the original columns by **index from the left** is unaffected. One that **asserts a header
-count**, or maps positionally **from the right**, breaks: the set has grown **four times** already —
-#2191 added the first four fee columns, #2840 added `feeTxHash`/`feeNonce`, #2779 added the derived
-pair, #3094 added `feeFailureReason` — and neither `feeNonce` nor `assetDecimals` is the last column
-any more. Key off the header names.
+**For CSV consumers:** new columns are only ever **appended** (the fee columns, `assetSymbol` /
+`assetDecimals` and `feeFailureReason` all came after the original set), so reading the original
+columns by **index from the left** is safe. A parser that **asserts a header count** or maps
+positionally **from the right** breaks each time a column is added. Key off the header names.
 
 ## Aggregate summary
 
@@ -217,6 +214,8 @@ curl -sX POST "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/settled" \
 Take the reference from the merchant's `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE` (x402) or
 `Payment-Receipt` (MPP) header.
 
+- `txHash` must be a `0x`-prefixed 32-byte hex transaction hash (the crypto rails); anything else is
+  a `400`. Card-rail (MPP-stripe) records cannot be closed here — Nevermined reconciles them.
 - Only an `Issued` payment can be settled. Re-reporting the **same** hash is a harmless no-op; a
   **different** hash, or a non-`Issued` record, is `409 BCK.ROUTER.0005`.
 - A payment id that is not yours is `404 BCK.ROUTER.0004`.

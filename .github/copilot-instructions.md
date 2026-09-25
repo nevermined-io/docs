@@ -5,7 +5,7 @@ This repository contains documentation for Nevermined, an AI payment infrastruct
 ## SDK Packages
 
 - **TypeScript**: `@nevermined-io/payments` on npm
-- **Python**: `payments-py` on PyPI (with extras: `payments-py[mcp]`, `payments-py[fastapi]`, `payments-py[strands]`)
+- **Python**: `payments-py` on PyPI (MCP support is included; extras: `payments-py[fastapi]`, `payments-py[strands]`, `payments-py[langchain]`)
 
 ## Required Environment Variables
 
@@ -61,7 +61,7 @@ await payments.mcp.start({ port: 3000, agentId, serverName })
 ### Google A2A (TypeScript / Python)
 
 ```typescript
-const agentCard = payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
+const agentCard = Payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
 await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 ```
 
@@ -74,7 +74,7 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 ## Important API Notes
 
 - Use `verifyPermissions` / `settlePermissions` (not the deprecated `isValidRequest`)
-- Credits use `BigInt` in TypeScript (`1n`) and `int`/`str` in Python
+- TypeScript credits are `bigint` in the MCP integration (`{ credits: 5n }`) but a plain `number` in the Express route config and the A2A agent card; Python takes `int`/`str`
 - Middleware handles verify/settle automatically; manual integration requires both calls
 - `buildPaymentRequired()` (TS) / `build_payment_required()` (Python) generates the 402 payload
 
@@ -197,7 +197,7 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 
 **`0010` is the one 500 you must not retry.** A payment credential **was already minted** before it failed, and because no payment record was written your `requestId` will *not* suppress a retry — so retrying re-mints a fresh credential and fails identically. Report it instead. (`0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. On the paying path `0007` and `0020` (an upstream 5xx/429) are worth retrying.)
 
-**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. **On the paying path `0007` and `0020` are the retryable codes** — `0006` can only come from the summary read, and `0010` (a 500 that already minted a credential) must never be retried; anything else is a decision, not a retry. Everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
+**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. **Retry only the codes the table marks retryable — `0006`, `0007`, `0020` and `0028`; on the paying path that means `0007` and `0020`.** Everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
 
 ## Full Reference
 

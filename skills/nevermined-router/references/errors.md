@@ -38,8 +38,8 @@ obstacles is exactly the failure mode this design exists to prevent.
 | `BCK.ROUTER.0028` | 503 | `POST /router/quote` could not price the call because a read it depends on failed (for example the settlement-token details on the payment network). Nothing is signed, minted or charged on the quote path. | **Yes**, with backoff — a quote never charges, so nothing needs unwinding. The same condition would also fail a payment, so do not route the call meanwhile; if it persists, quote `correlationId` |
 | `BCK.ROUTER.0030` | 404 | No retained paid result for that paymentId under your account. A paid Router result is retained for 24h after the call ends, for the paying user only; it is not retained for a response that had already started streaming when the call completed, or for a payment never routed through `/router/route`, `/router/proxy` or `/router/svc`. The payment record itself is unaffected. | No — the result is gone (or was never retained); read the payment with `GET /api/v1/router/payments` |
 
-**Only `0006`, `0007` and `0020` are worth retrying automatically.** The rest are decisions; retrying them
-unchanged produces the same answer.
+**Only `0006`, `0007`, `0020`, `0022` and `0028` are worth retrying automatically** — on the paying path,
+`0007` and `0020`. The rest are decisions; retrying them unchanged produces the same answer.
 
 ### Two refusals that are not `BCK.ROUTER.*` at all
 

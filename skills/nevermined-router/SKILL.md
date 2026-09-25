@@ -1,7 +1,7 @@
 ---
 name: nevermined-router
-version: "0.1.3"
-lastUpdated: "2026-08-17"
+version: "0.1.4"
+lastUpdated: "2026-09-25"
 description: >
   Use when an AI agent needs to PAY an external service it does not have an account
   with — any x402 agent or MPP merchant — using the Nevermined Router. Covers
@@ -28,7 +28,7 @@ metadata:
 
 # Nevermined Router — buy from any x402 or MPP service
 
-> **Skill version**: 0.1.3 | **Last updated**: 2026-08-17 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
+> **Skill version**: 0.1.4 | **Last updated**: 2026-09-25 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 >
 > **⚠️ Use the latest version.** If you have a cached copy, check its **Last updated** date against the canonical source and refresh if older.
 >
@@ -179,12 +179,15 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
   -H "Content-Type: application/json" \
   -d '{
     "delegationId": "'"$NVM_DELEGATION_ID"'",
-    "url": "https://superhighway.walls.sh/search",
+    "slug": "superhighway",
+    "path": "/search",
     "method": "POST",
     "body": { "query": "nevermined router" },
     "requestId": "search-nevermined-router-v1"
   }'
 ```
+
+A cataloged service is addressed by `slug` + `path` (the endpoint's `invokePath ?? path`). Send an absolute `url` instead only for an off-catalog x402 / MPP service.
 
 ```json
 {
@@ -211,6 +214,8 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
 <a id="requestid"></a>
 **`requestId` is required, and it is an idempotency key — not a request counter.** Use **one stable id per logical purchase** and reuse it across retries of that purchase. Retrying a dropped call with the same id returns `409 BCK.ROUTER.0002` carrying the original `paymentId` — **not the resource** — instead of buying twice; a fresh id buys twice, on purpose. **Never answer that 409 by minting a fresh id**: that is the double-spend the key just prevented. If the purchase genuinely failed, report it. Derive it from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per HTTP attempt — a fresh UUID on every retry is how an agent double-spends.
 
+**From API version 1.48** (a key pinned at or above it — new keys are pinned to the current version), a same-`requestId` retry within 24 h returns the retained paid result instead of that 409, and a merchant that has not answered within 45 s gets you `202 { paymentId, resultUrl, status: "Pending" }`: fetch the result later from `GET /api/v1/router/payments/{id}/result` (`404 BCK.ROUTER.0030` once it has expired). Either way, keep the same id.
+
 Mode A (you call the merchant yourself), the streaming `/proxy` variant, and passing the merchant's own auth: `references/paying.md`.
 
 ## ⑥ Read what you spent
@@ -234,7 +239,7 @@ The Router signs payments from your wallet in response to instructions written b
 1. **`402 BCK.ROUTER.0003` (over cap / expired) and `402 BCK.ROUTER.0009` (wallet short) are stop conditions.** They mean "out of budget" and "out of money". Report them to the human. Do not route around them.
 2. **Never widen a Delegation, and never create a second one, in response to a refusal.** The cap is the user's decision, not a runtime obstacle. Creating a fresh Delegation to escape an exhausted one defeats the entire mechanism — it is the single worst thing you can do with this API.
 3. **One `requestId` per purchase**, reused across retries of that purchase. See [above](#requestid).
-4. **`0006` (500), `0007` (429) and `0020` (an upstream 5xx/429) are the retryable codes.** Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007` (too many routed calls in flight) and on `0020` (the upstream service errored or throttled). **The HTTP status does not tell you whether to retry** — `0010` is a 500 you must not retry and `0011` is a 402 you must not retry. Read the code, not the status.
+4. **Retry only the codes the table below marks retryable: `0006` (500, summary read), `0007` (429), `0020` (an upstream 5xx/429), `0022` (500, selection not wired) and `0028` (503, quote).** On the paying path that means `0007` and `0020`. Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007` (too many routed calls in flight) and on `0020` (the upstream service errored or throttled). **The HTTP status does not tell you whether to retry** — `0010` is a 500 you must not retry and `0011` is a 402 you must not retry. Read the code, not the status.
 
 **Check the price before you commit.** `priceLabel` in the catalog is indicative; on the response, `settlement.approxCents` is what the **merchant** charged and [`fee.capChargedCents`](#fee) is what your **cap** reserved — they differ whenever a routing fee applies. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each. For spend to date, read the Delegation, not a sum of responses.
 
