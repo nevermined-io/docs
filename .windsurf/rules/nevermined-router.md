@@ -39,15 +39,15 @@ live → `base`.** A merchant on the other chain is unpayable from here and fail
 
 ## 3. Discover
 
-`GET https://nevermined.app/catalog/ai-catalog.json` — public, no key, every listed service; filter
-locally. `/api/v1/catalog/services|categories` are **not public** (`403`); for server-side search use
-the Catalog MCP `search_services` (`mcp.live.nevermined.app/mcp`).
+`https://nevermined.app/catalog/ai-catalog.json` — public, no key, every service; filter
+locally. `/api/v1/catalog/services` and `/api/v1/catalog/categories` are **not public** (`403`);
+server-side search: Catalog MCP `search_services` (`mcp.live.nevermined.app/mcp`).
 
 - **Only `protocol` of `x402` or `mpp` is routable.** Filter for them.
 - **Pay a listed service by `slug`, never by URL** (`409 BCK.ROUTER.0014`). Send
   `endpoint.invokePath ?? endpoint.path` — not `||`: `""` means "append nothing".
-- `category` is a **closed 13-value enum**; a typo filters to empty, not an error. Read values from
-  the feed.
+- `category` is a **closed 13-value enum**; a typo filters to empty, not an error. Use the
+  feed's values.
 
 ## 4. Pay
 
