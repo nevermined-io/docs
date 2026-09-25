@@ -70,7 +70,7 @@ python3 -c "print(len(open('.windsurf/rules/nevermined-router.md',encoding='utf-
 
 (Characters, not bytes — `wc -c` over-counts here because the files are full of `—`, `→` and `⚠️`.)
 
-⚠️ **`AGENTS.md` is parsed by Mintlify as MDX, so it must not contain HTML comments.** A `<!-- … -->` there fails the Mintlify Deployment check with *"Unexpected character `!` … to create a comment in MDX, use `{/* text */}`"* — verified on docs#289. Use `{/* … */}` in `AGENTS.md`. `.github/copilot-instructions.md` is **not** in Mintlify's content set (it appears in no `docs.json` route and there is no `.mintignore`), so plain HTML comments are fine there — which is why the two files legitimately differ on this one point.
+⚠️ **`AGENTS.md` is parsed by Mintlify as MDX, so it must not contain HTML comments.** A `<!-- … -->` there fails the Mintlify Deployment check with *"Unexpected character `!` … to create a comment in MDX, use `{/* text */}`"* — verified on docs#289. Use `{/* … */}` in `AGENTS.md`. `.github/copilot-instructions.md` is **not** in Mintlify's content set (Mintlify skips `.github/` and the other dot-directories; every other `.md`/`.mdx` file is published whether or not `docs.json` routes it, unless `.mintignore` excludes it — which is how this `CLAUDE.md` stays off the site), so plain HTML comments are fine there — which is why the two files legitimately differ on this one point.
 
 `.cursor/` is otherwise gitignored; `.gitignore` re-includes `.cursor/rules/` specifically, because those files are published — users `curl` them from `main`, so one that fails to commit becomes a 404 in their editor. Both `development-guide/build-using-nvm-skill.mdx` (the install page) and its "Supported Tools at a Glance" table must be updated when this set changes.
 
@@ -249,11 +249,10 @@ Example usage:
   <Tab title="Python">
     ```python
     import os
-    from payments_py import Payments
+    from payments_py import Payments, PaymentOptions
     
-    payments = Payments(
-      api_key=os.environ.get('NVM_API_KEY'),
-      environment='sandbox'
+    payments = Payments.get_instance(
+      PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
     )
     
     # Your code here
@@ -343,7 +342,7 @@ When updating documentation, ensure:
 
 #### Prerequisites
 
-- Node.js 16+ (for Mintlify)
+- Node.js 18+ (for Mintlify)
 - npm or yarn
 - Git for version control
 
@@ -366,14 +365,14 @@ The dev server automatically reloads when you edit `.mdx` files, allowing real-t
 
 ### Build Process
 
-#### Local Build
+#### Local Build Check
 
 ```bash
-# Verify documentation builds without errors
-mintlify build
+# Validate the documentation build (strict: exits non-zero on warnings or errors)
+mintlify validate
 ```
 
-This generates a static site in the `.mintlify` directory.
+There is no local static-site build; Mintlify builds and hosts the site on deploy.
 
 #### CI/CD Deployment
 
@@ -402,15 +401,11 @@ Before finalizing any documentation:
 
 1. **Local test** - Run `mintlify dev` and verify layout and links
 2. **Create PR** - Push branch and create pull request
-3. **Preview** - Mintlify bot adds a preview deployment link to the PR. ⚠️ **It has not done so
-   since #389 (2026-09-11 — #389's preview succeeded at 08:53Z, #393 was the first skip)**: every
-   later PR, draft or not, gets either no `Mintlify Deployment` check run or
-   `skipped — No eligible deployments found for changes`, and flipping ready, force-pushing or
-   close/reopen does not revive it. **Production deploys from `main` are unaffected** — every
-   `main` commit still carries `Mintlify Deployment = success`, so this is the PR-preview half
-   only. The cause is not established; the skip reason reads like configuration, so check the
-   Mintlify dashboard's preview-deployment setting before assuming a vendor problem. Until then
-   the preview is `mintlify dev` locally.
+3. **Preview** - ⚠️ **PR preview deployments are currently not generated**: a PR gets either no
+   `Mintlify Deployment` check or `skipped — No eligible deployments found for changes`, and
+   marking ready, force-pushing or close/reopen does not change that. Production deploys from
+   `main` are unaffected. Preview with `mintlify dev` locally; if you are fixing the previews,
+   start with the Mintlify dashboard's preview-deployment setting.
 4. **Review** - Check the preview for layout, images, and code rendering
 5. **Merge** - Upon approval, merge to main and auto-deploy
 
@@ -453,7 +448,7 @@ Before finalizing any documentation:
 - **Structure**: Overview → Setup → Method details → Examples → Error handling
 - **Tone**: Technical and precise
 - **Examples**: [api-reference/introduction.mdx](api-reference/introduction.mdx)
-- **Source of Documentation**: All the documentation included in the "api-reference" folder is sourced from different repositories. Don't modify it directly.
+- **Source of Documentation**: The SDK/CLI subtrees (`api-reference/typescript/`, `python/`, `cli/`, `openclaw-plugin/`) are synced from their source repositories — don't modify them here. `api-reference/openapi.json` and the endpoint pages built on it (`router/`, `x402/`, `delegation/`, …) are maintained in this repo (see Key Files).
 
 ### 5. Integration Guides
 
@@ -578,11 +573,13 @@ page once shipped You.com's org id in Baselayer's agentic-instructions link.
 .                             # repo root IS the content directory
 ├── getting-started/          # Onboarding and core concepts
 ├── solutions/                # Use cases and business scenarios
+├── integrate/                # Quickstarts, framework integrations, auth, payment patterns
 ├── integrations/             # Integration partners and flows
-├── integration-guide/        # Step-by-step integration paths
 ├── development-guide/        # Deep SDK documentation
 ├── api-reference/            # API method reference
-├── products/                 # Product-specific docs (Payments, NVM ID)
+├── products/                 # Product-specific docs (Payments, Catalog, Router)
+├── agents-guide/             # Guides written for agents
+├── skills/                   # Published AI skills (nevermined-payments, nevermined-router)
 └── snippets/                 # Reusable content blocks
 ```
 
@@ -689,7 +686,7 @@ description: "Register AI agents and create payment plans in 5 minutes using the
 - Link to broken or non-existent pages
 - Forget both TypeScript and Python examples
 - Write overly long paragraphs
-- Modify the "api-reference/" folder documentation, that is sourced from different repos
+- Modify the synced SDK/CLI subtrees of `api-reference/` (typescript, python, cli, openclaw-plugin) — they are sourced from other repos
 
 ---
 
@@ -750,5 +747,4 @@ mintlify dev, mintlify broken-links, mintlify install, mintlify update, mintlify
 
 ---
 
-**Last Updated**: February 2026
 **Maintained By**: Nevermined Team

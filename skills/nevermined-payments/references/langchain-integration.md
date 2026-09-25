@@ -212,7 +212,7 @@ def my_tool(query: str, config: RunnableConfig = None) -> str: ...
 
 The `credits` argument is sent to the facilitator as `max_amount`. The amount actually redeemed depends on the plan's server-side credit config:
 
-- **Fixed plans** (where `plan.credits.minAmount == plan.credits.maxAmount`) always burn `plan.credits.maxAmount`. The decorator's `credits=N` is effectively a no-op (per [nvm-monorepo#1568](https://github.com/nevermined-io/nvm-monorepo/issues/1568)).
+- **Fixed plans** (where `plan.credits.minAmount == plan.credits.maxAmount`) always burn `plan.credits.maxAmount`. The decorator's `credits=N` is effectively a no-op.
 - **Range plans** clamp the value into `[plan.credits.minAmount, plan.credits.maxAmount]`.
 
 Configure the plan as fixed if you want predictable per-call cost; the decorator value is then a client-side declaration.
@@ -341,7 +341,7 @@ const summarize = tool(
 
 The fixed-vs-range credits semantics ([above](#credits-semantics--fixed-vs-range-plans)) apply identically — `credits` is sent as `maxAmount`.
 
-**Observability is Python-only for now.** LangSmith span tracing for the TypeScript SDK (the `nvm:verify` / `nvm:settlement` spans) is not yet shipped — it lands in a follow-up (`@nevermined-io/payments/langsmith`, [nvm-monorepo#1709](https://github.com/nevermined-io/nvm-monorepo/issues/1709)).
+**Observability.** Install the optional `langsmith` peer dependency and set `LANGSMITH_TRACING=true`: `requiresPayment` then emits the same `nvm:verify` / `nvm:settlement` spans as the Python SDK, attribute for attribute. The span helpers are also exported from `@nevermined-io/payments/langsmith` for manual use outside LangChain; they no-op when tracing is off or `langsmith` isn't installed.
 
 ## Alternative: HTTP middleware
 
@@ -364,7 +364,7 @@ See [`fastapi-integration.md`](./fastapi-integration.md) for the full FastAPI pa
 ## Environment Variables
 
 ```bash
-NVM_API_KEY=nvm:your-api-key
+NVM_API_KEY=sandbox:your-api-key
 NVM_ENVIRONMENT=sandbox             # or 'live'
 NVM_PLAN_ID=your-plan-id
 NVM_AGENT_ID=your-agent-id          # Optional

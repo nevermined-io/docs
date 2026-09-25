@@ -5,7 +5,7 @@ This repository contains documentation for Nevermined, an AI payment infrastruct
 ## SDK Packages
 
 - **TypeScript**: `@nevermined-io/payments` on npm
-- **Python**: `payments-py` on PyPI (with extras: `payments-py[mcp]`, `payments-py[fastapi]`, `payments-py[strands]`)
+- **Python**: `payments-py` on PyPI (MCP support is included; extras: `payments-py[fastapi]`, `payments-py[strands]`, `payments-py[langchain]`)
 
 ## Required Environment Variables
 
@@ -55,13 +55,13 @@ def my_tool(query: str, tool_context=None) -> dict:
 
 ```typescript
 payments.mcp.registerTool(name, config, handler, { credits: 5n })
-await payments.mcp.start({ port: 3000, agentId, serverName })
+await payments.mcp.start({ port: 3000, planId, serverName })
 ```
 
 ### Google A2A (TypeScript / Python)
 
 ```typescript
-const agentCard = payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
+const agentCard = Payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
 await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 ```
 
@@ -74,7 +74,7 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 ## Important API Notes
 
 - Use `verifyPermissions` / `settlePermissions` (not the deprecated `isValidRequest`)
-- Credits use `BigInt` in TypeScript (`1n`) and `int`/`str` in Python
+- TypeScript credits are `bigint` in the MCP integration (`{ credits: 5n }`) but a plain `number` in the Express route config and the A2A agent card; Python takes `int`/`str`
 - Middleware handles verify/settle automatically; manual integration requires both calls
 - `buildPaymentRequired()` (TS) / `build_payment_required()` (Python) generates the 402 payload
 
@@ -183,9 +183,11 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 | `BCK.ROUTER.0019` | 400 | Streaming surfaces only (`/proxy` · `/svc`; `/route` returns the envelope status with `body: null`). A cataloged service returned a **non-retryable** status — a 4xx client error, or a rare 3xx the Router does not follow (a 402 re-challenge and a 429 are **not** this code). The upstream body is withheld (it can name the merchant host); this typed body preserves the **real** upstream status (on the HTTP status line and in JSON-string `params`). Build a valid request from the service's Catalog detail (`requestExample` / `responseFields`). | No — **fix the request first**, then retry with a fresh `requestId` |
 | `BCK.ROUTER.0020` | 502 | Streaming surfaces only (`/proxy` · `/svc`; `/route` returns the envelope status with `body: null`). A cataloged service returned a server error (5xx) or rate-limited (429) — an upstream/transient condition, not your request. Body **and** headers are withheld (host oracle, including `Retry-After`); this typed body preserves the **real** status. The Router charges **no routing fee** for an undelivered call; whether the merchant leg itself charged is reported as `merchantSettlementObservedAt` (x402 only — `null` on a clean settlement and on both MPP rails, so `null` is not proof of no charge; read alongside `status`) on `GET /api/v1/router/payments`. | **Yes**, with backoff — reuse the same `requestId` only if no `X-Router-Payment-Id` came back; if one did, a payment is already recorded, so use a NEW id and reconcile via `GET /router/payments` |
 | `BCK.ROUTER.0021` | 400 | The rail this service advertised carries its payment credential in a header you are **already using**. On the MPP rails that header is `Authorization`, which is also where your own merchant auth goes (`headers.Authorization` on `/route`, `X-Router-Upstream-Authorization` on `/proxy` · `/svc`). Rather than silently dropping yours on the paid hop, the Router refuses: **nothing was minted, no cap was reserved and no money moved**. JSON-string `params` names the contested header. | No — **name the header the service documents** for its credential: `credentialHeader` in the `/route` body, or the `X-Router-Credential-Header` request header on `/proxy` · `/svc` (a separate `Payment` header is the common one). If the service documents none, it wants the credential in `Authorization` itself and cannot also take your bearer there: drop your own auth for that call, or pay it over an x402 endpoint (whose credential travels in `PAYMENT-SIGNATURE`). Retrying unchanged fails identically |
+| `BCK.ROUTER.0022` | 500 | Server-side service selection (`POST /router/select`, MCP `route_by_intent`) is not wired on this deployment — a configuration fault on our side, not your request. Nothing was ranked or charged. | **Yes**, later; if it persists, quote `correlationId` |
 | `BCK.ROUTER.0024` | 413 | The request body exceeds the Router's size limit (about 5 MB). | No — reduce the request body before trying again |
 | `BCK.ROUTER.0025` | 502 | The upstream reply was too large to deliver after a paid request. The payment outcome is indeterminate; it may have gone through. | No — reconcile with `GET /api/v1/router/payments`; do **not** retry with a fresh `requestId` |
 | `BCK.ROUTER.0026` | 415 | The Router cannot forward this request body. The streaming surfaces (`/router/svc/:slug`, `/router/proxy`) forward only JSON (`application/json`) or URL-encoded (`application/x-www-form-urlencoded`) bodies; any other type — `multipart/form-data` above all, but also `text/plain`, `application/octet-stream` or a vendor `+json` — and any body on GET/HEAD is refused. No payment was minted and no money moved. JSON-string `params` names the refused `contentType` (null when none was sent). | No — resend the body as JSON or a URL-encoded form the service accepts; a service that only takes a file upload cannot be paid through the Router yet, and retrying unchanged fails identically |
+| `BCK.ROUTER.0027` | 413 | The request body is larger than the catalog endpoint accepts (its `maxRequestBytes` on the service detail and in MCP `get_service`; the Locus gateways take 8,000 bytes). A slug-routed call is refused before the service is contacted. No payment was minted and no money moved. JSON-string `params` carries `bodyBytes` and `maxRequestBytes`. | No — shrink the body or pick a service that takes it (`POST /router/select` with the same `body` skips endpoints that cannot); retrying unchanged fails identically |
 | `BCK.ROUTER.0028` | 503 | `POST /router/quote` could not price the call because a read it depends on failed (for example the settlement-token details on the payment network). Nothing is signed, minted or charged on the quote path. | **Yes**, with backoff — a quote never charges, so nothing needs unwinding. The same condition would also fail a payment, so do not route the call meanwhile; if it persists, quote `correlationId` |
 | `BCK.OAUTH.0030` | 403 | The API key was OAuth-minted; it may not create Delegations or use `/router/{payments,route,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant, `POST /router/commerce/route` | No |
 | `BCK.HTTP.412` | 412 | `{"error":"consent_required"}` on `POST /delegation/create` — the account's legal consent lapsed. The code is generic; branch on `body.error` | No — **needs a human** |
@@ -196,7 +198,7 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 
 **`0010` is the one 500 you must not retry.** A payment credential **was already minted** before it failed, and because no payment record was written your `requestId` will *not* suppress a retry — so retrying re-mints a fresh credential and fails identically. Report it instead. (`0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. On the paying path `0007` and `0020` (an upstream 5xx/429) are worth retrying.)
 
-**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. **On the paying path `0007` and `0020` are the retryable codes** — `0006` can only come from the summary read, and `0010` (a 500 that already minted a credential) must never be retried; anything else is a decision, not a retry. Everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
+**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. **Retry only the codes the table marks retryable — `0006`, `0007`, `0020`, `0022` and `0028`; on the paying path that means `0007` and `0020`.** Everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
 
 ## Full Reference
 

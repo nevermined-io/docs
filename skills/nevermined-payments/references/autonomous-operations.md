@@ -63,7 +63,7 @@ Response — array of payment methods:
     "expYear": 2030,
     "alias": "My Card",
     "provider": "stripe",
-    "status": "active",
+    "status": "Active",
     "allowedApiKeyIds": null
   }
 ]

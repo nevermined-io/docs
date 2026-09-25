@@ -82,13 +82,13 @@ def my_tool(query: str, tool_context=None) -> dict:
 
 ```typescript
 payments.mcp.registerTool(name, config, handler, { credits: 5n })
-const { info, stop } = await payments.mcp.start({ port: 3000, agentId, serverName })
+const { info, stop } = await payments.mcp.start({ port: 3000, planId, serverName })
 ```
 
 ## Google A2A (TypeScript / Python)
 
 ```typescript
-const agentCard = payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
+const agentCard = Payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
 await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 ```
 
@@ -102,7 +102,7 @@ await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 
 - Use `verifyPermissions` / `settlePermissions` for manual x402 (not deprecated `isValidRequest`)
 - Use `buildPaymentRequired()` (TS) or `build_payment_required()` (Python) to generate 402 responses
-- Credits are `BigInt` in TypeScript (`1n`), `int` or `str` in Python
+- TypeScript credits are `bigint` in the MCP integration (`{ credits: 5n }`) but a plain `number` in the Express route config and the A2A agent card; Python takes `int` or `str`
 - Always settle after processing — middleware does this automatically
 
 ## Autonomous Operations (REST, no SDK)

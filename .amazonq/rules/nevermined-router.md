@@ -125,8 +125,9 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0002` (409) — `requestId` already used; the original `paymentId` is in the response.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; `details` names it.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
-- Only `BCK.ROUTER.0006` (500), `0007` (429, too many concurrent) and `0020` (5xx/429) are **retryable**. Everything
-  else is a decision — retrying unchanged gives the same answer.
+- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429, too many concurrent), `0020` (5xx/429), `0022` (500,
+  selection not wired) and `0028` (503, quote) are **retryable** — on the paying path, `0007` and `0020`. Everything else is a decision — retrying
+  unchanged gives the same answer.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry it:** a credential was already minted and
   no record was written, so `requestId` will not suppress the retry. Report it.
 - `BCK.ROUTER.0011` (402) — card rail: needs cardholder 3-D Secure, which an agent can't complete.
@@ -153,6 +154,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0024` (413) — the request body exceeds the Router's size limit (about 5 MB). Do not retry unchanged; reduce the request body.
 - `BCK.ROUTER.0025` (502) — the upstream reply was too large to deliver after a paid request. Payment may have gone through; reconcile with `GET /api/v1/router/payments`. Do not retry with a fresh `requestId`.
 - `BCK.ROUTER.0026` (415) — the Router cannot forward this request body. The streaming surfaces (`/router/svc/:slug`, `/router/proxy`) forward only JSON or URL-encoded bodies; any other type (`multipart/form-data`, `text/plain`, `application/octet-stream`, a vendor `+json`) or any body on GET/HEAD is refused. No payment was minted and no money moved. Resend as JSON or a URL-encoded form; retrying unchanged fails identically.
+- `BCK.ROUTER.0027` (413) — the request body is larger than the catalog endpoint accepts (`maxRequestBytes` on the service detail / MCP `get_service`; Locus gateways take 8,000 bytes). Refused before the service is contacted: no payment was minted and no money moved. `params` carries `bodyBytes` and `maxRequestBytes`. Shrink the body or pick a service that takes it; do not retry unchanged.
 - `BCK.ROUTER.0028` (503) — `POST /router/quote` could not price the call because a dependent read failed (e.g. settlement-token details). Nothing is signed or charged on the quote path; retry with backoff. The same condition would also fail a payment, so do not route the call meanwhile.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the

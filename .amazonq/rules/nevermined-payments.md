@@ -7,11 +7,11 @@ Provide correct patterns for integrating Nevermined payment infrastructure into 
 ## Instructions
 
 - **TypeScript SDK**: `@nevermined-io/payments` on npm
-- **Python SDK**: `payments-py` on PyPI (with extras: `payments-py[mcp]`, `payments-py[fastapi]`, `payments-py[strands]`)
+- **Python SDK**: `payments-py` on PyPI (MCP support is included; extras: `payments-py[fastapi]`, `payments-py[strands]`, `payments-py[langchain]`)
 - Always use environment variables: `NVM_API_KEY`, `NVM_ENVIRONMENT`, `NVM_PLAN_ID`, `NVM_AGENT_ID`
 - Use `verifyPermissions` / `settlePermissions` for x402 (not the deprecated `isValidRequest`)
 - Use `buildPaymentRequired()` (TS) or `build_payment_required()` (Python) for 402 responses
-- Credits are `BigInt` in TypeScript (`1n`) and `int` or `str` in Python
+- TypeScript credits are `bigint` in the MCP integration (`{ credits: 5n }`) but a plain `number` in the Express route config and the A2A agent card; Python takes `int` or `str`
 - x402 headers: `payment-signature` (client token), `payment-required` (402 response), `payment-response` (settlement receipt)
 
 ## Express.js Pattern
@@ -49,13 +49,13 @@ def my_tool(query: str, tool_context=None) -> dict:
 
 ```typescript
 payments.mcp.registerTool(name, config, handler, { credits: 5n })
-await payments.mcp.start({ port: 3000, agentId, serverName })
+await payments.mcp.start({ port: 3000, planId, serverName })
 ```
 
 ## Google A2A Pattern
 
 ```typescript
-const agentCard = payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
+const agentCard = Payments.a2a.buildPaymentAgentCard(baseCard, { paymentType: "dynamic", credits: 1, planId, agentId })
 await payments.a2a.start({ port: 3005, basePath: '/a2a/', agentCard, executor })
 ```
 
