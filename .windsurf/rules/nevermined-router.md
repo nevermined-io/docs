@@ -85,7 +85,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0024` (413) — body exceeds ~5 MB. **No retry as-is**; reduce it below the limit.
 - `BCK.ROUTER.0025` (502) — reply too large after payment; outcome **indeterminate**. Reconcile via `list_payments`; **no retry with a fresh `requestId`**.
-- Only `BCK.ROUTER.0006` (500), `0007` (429) and `0020` (5xx/429) are **retryable**; everything
+- `BCK.ROUTER.0028` (503) — `/router/quote` pricing read failed; nothing charged. **Retry w/ backoff**.
+- Only `BCK.ROUTER.0006` (500), `0007` (429), `0020` (5xx/429) and `0028` (503) are **retryable**; everything
   else is a decision, and retrying it unchanged gives the same answer.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
