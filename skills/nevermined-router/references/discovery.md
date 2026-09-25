@@ -7,7 +7,7 @@ The **Agent Services Catalog** is a Nevermined-curated list of external agent se
 | --- | --- |
 | `https://nevermined.app/catalog/ai-catalog.json` | **The default.** Every listed service in one JSON document — fetch once, filter locally |
 | Catalog MCP at `https://mcp.live.nevermined.app/mcp` | Server-side search: `search_services`, `get_service`, `list_categories` |
-| `https://nevermined.app/.well-known/ard.json` | The ARD host document, for registries crawling the Catalog |
+| `https://nevermined.app/.well-known/ard.json` | The ARD host document, for registries crawling the Catalog — and per-service health |
 | `https://nevermined.app/catalog/llms.txt` | Plain-text entry point for an agent landing cold |
 | `https://nevermined.app/catalog/services` | Human browsing |
 
@@ -39,15 +39,16 @@ parameters and no pagination — `services` is the whole Catalog.
 | `priceLabel` | Human string like `"$0.001"`. **Indicative only** — the wire price governs |
 | `network` / `networks` | Display names (`"Base"`, `"Tempo"`). Not chain ids |
 | `category` | One of the **13 curated values** — see [Categories](#categories) |
-| `subCategory` | Granular label under `category`, or `null` for the generic top bucket |
+| `subCategory` | Granular label under `category`. **Absent** (no key, not `null`) for the generic top bucket — in JS test `s.subCategory == null`, not `=== null` |
 | `tags[]` | Selection signals |
 | `invokeUrl` | The service's Router URL: `…/api/v1/router/svc/<slug>` |
 | `invoke` | A ready-made Router call: `method`, `router`, `invokeUrl` and the `X-Router-*` headers |
 | `url` | The service's human page in the Catalog |
 
 The feed deliberately omits health status, long descriptions and the merchant's own URL. For health,
-use the Catalog MCP (its search results carry `healthStatus`); for a request body, use the endpoint's
-`requestExample` when present — the Catalog holds no body schema otherwise.
+read the ARD host document (each entry's `nvm:catalog.healthStatus` and `uptime30d` — see
+[below](#the-ard-host-document)); for a request body, use the endpoint's `requestExample` when
+present — the Catalog holds no body schema otherwise.
 
 ### Filter recipes
 
@@ -162,8 +163,8 @@ jq '.services | group_by(.category)
 ```
 
 `subCategory` is the granular label *under* a category (`"Browser automation"`), and unlike
-`category` it is free text. A service with no granular label has `subCategory: null` — the generic
-top bucket — and so appears in no `subCategories[]` list above.
+`category` it is free text. A service with no granular label has **no `subCategory` key** — the
+generic top bucket — and so appears in no `subCategories[]` list above.
 
 ⚠️ **The feed shows what is *populated*, not what is *legal*.** A valid category with no listed
 services right now simply does not appear. Treat an absent category as "nothing to buy there today",
@@ -179,21 +180,24 @@ curl -s -H "Content-Type: application/json" \
      -H "Accept: application/json, text/event-stream" \
      -X POST https://mcp.live.nevermined.app/mcp \
      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_services","arguments":{"query":"crypto","protocol":"x402"}}}' \
-  | jq -r '.result.content[0].text' | jq '{total, services: [.services[] | {slug, title, priceLabel, healthStatus}]}'
+  | jq -r '.result.content[0].text' | jq .
 ```
 
 | Tool | Arguments |
 | --- | --- |
-| `search_services` | `query`, `category`, `protocol`, `tag`, `page`, `offset` — all optional |
+| `search_services` | `query` (always send one), plus optional `category`, `protocol`, `tag` |
 | `get_service` | `slug` — returns the service plus its `requestShape` (each endpoint's `payServiceArgs`) |
 | `list_categories` | none — each category with a `count` and its `subCategories[]` |
 
-- **`query` is a whole-substring match, and order-sensitive.** `web search` finds services;
-  `search web` finds none. Use single words or a known substring, and narrow with `category` / `tag`.
-- **`offset` is the page size, not a skip count.** Hold it fixed and increment `page` to walk.
+- **`search_services` is moving to ARD hybrid ranking** (semantic + lexical) in the next MCP
+  release. `query` becomes **required**, `page` / `offset` are removed (a `pageSize` replaces them,
+  with no next-page input yet), and the result changes from `{ total, page, offset, services }` to
+  `{ results, pageToken }`. So: always send `query`, parse `content[0].text` without assuming
+  `services[]`, and **do not build a pager on it** — after the release an unknown `page` is silently
+  dropped and you would get the first page forever. To walk everything, use the feed.
 - **Errors come back as a tool result with `isError: true`** and a plain-text message, not a
-  JSON-RPC error: a bad `category` reads `… returned 400`, an unknown slug `… returned 404`, a bad
-  `protocol` `MCP error -32602: Input validation error …`. Check `isError` before parsing
+  JSON-RPC error: an unknown slug in `get_service` reads `… returned 404`; a bad `protocol` fails the
+  input schema with `MCP error -32602: Input validation error …`. Check `isError` before parsing
   `content[0].text` as JSON.
 
 Full MCP setup, including the paid tools: https://nevermined.ai/docs/products/catalog/mcp
@@ -205,7 +209,8 @@ GET https://nevermined.app/.well-known/ard.json
 ```
 
 A Google **Agentic Resource Discovery (ARD)** document over the same listed services — one entry
-each, with the Router pay-through target under `nvm:catalog`. Public and crawlable by any registry.
+each, with the Router pay-through target and health (`healthStatus`, `uptime30d`) under
+`nvm:catalog`. Public and crawlable by any registry.
 
 ```json
 { "specVersion": "1.0",

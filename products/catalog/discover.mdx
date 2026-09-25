@@ -72,7 +72,7 @@ The fields you'll actually use on each service:
 | --- | --- |
 | `slug` | Stable, case-sensitive id — how you address the service through the Router |
 | `protocol` | `x402` or `mpp` — payable through the Router |
-| `category` / `subCategory` | Curated category and its granular label (`subCategory` can be `null`) |
+| `category` / `subCategory` | Curated category and its granular label (`subCategory` is absent when there is none) |
 | `priceLabel` | Human string like `"$0.001"` — **indicative only**; the wire price governs |
 | `network` / `networks` | Display names (`"Base"`, `"Tempo"`), not chain ids |
 | `endpoints[]` | `{ path, method, description, priceLabel }`; some also carry `invokePath`, `requestExample` and `responseFields` |
@@ -85,21 +85,21 @@ The fields you'll actually use on each service:
 
 ## Search server-side with the Catalog MCP
 
-The [Catalog MCP server](/products/catalog/mcp) does the search for you. Its `search_services`, `get_service` and `list_categories` tools are free and need no key, and search results also carry each service's health status. One stateless POST per call:
+The [Catalog MCP server](/products/catalog/mcp) does the search for you. Its `search_services`, `get_service` and `list_categories` tools are free and need no key. One stateless POST per call:
 
 ```bash
 curl -s -H "Content-Type: application/json" \
      -H "Accept: application/json, text/event-stream" \
      -X POST https://mcp.live.nevermined.app/mcp \
      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_services","arguments":{"query":"crypto","protocol":"x402"}}}' \
-  | jq -r '.result.content[0].text' | jq '{total, services: [.services[] | {slug, title, priceLabel}]}'
+  | jq -r '.result.content[0].text' | jq .
 ```
 
-`search_services` takes `query`, `category`, `protocol`, `tag`, `page` and `offset` — where **`offset` is the page size, not a skip count**. More worked calls, including `get_service`'s `requestShape`, are in [Build Outcomes](/products/catalog/build-outcomes#see-what-the-catalog-proposes).
+Always send a `query`, and read the result as plain JSON rather than a fixed shape — search ranking and its result format are being upgraded. Don't page through it: to see the whole Catalog, use the feed. More worked calls, including `get_service`'s `requestShape`, are in [Build Outcomes](/products/catalog/build-outcomes#see-what-the-catalog-proposes).
 
 ## For crawlers and registries
 
-- **[`/.well-known/ard.json`](https://nevermined.app/.well-known/ard.json)** — the [Agentic Resource Discovery](/integrate/authentication/for-agents) host document: one entry per service with its Router pay-through target. Its list key is `entries`, not `services`.
+- **[`/.well-known/ard.json`](https://nevermined.app/.well-known/ard.json)** — the [Agentic Resource Discovery](/integrate/authentication/for-agents) host document: one entry per service with its Router pay-through target and health status (`nvm:catalog.healthStatus`). Its list key is `entries`, not `services`.
 - **[`/catalog/llms.txt`](https://nevermined.app/catalog/llms.txt)** — the plain-text entry point for an agent landing on the Catalog cold.
 
 <Tip>
