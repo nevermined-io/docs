@@ -1,13 +1,12 @@
 # Nevermined Router — paying external services
 
-You are writing an agent that must **pay** an external service it has no account with — any x402
-agent or MPP merchant. If you are *receiving* payments, use `nevermined-payments`.
+Pay an external x402 agent or MPP merchant through the Router. For receiving payments, use
+`nevermined-payments`.
 
 Full skill: https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 
-**The Router pays a price quoted on the wire for one request.** A SaaS API billed by a plan and a
-long-lived key is not routable, nor is anything answering `401`/`403` rather than `402` — that wants
-**authentication, not payment**. Say so instead of routing it.
+**The Router pays the on-wire price per request.** Plan-billed APIs and `401`/`403` replies need
+authentication, not routing.
 
 Environment: `NVM_API_URL` (`https://api.sandbox.nevermined.app` or
 `https://api.live.nevermined.app`), `NVM_API_KEY` (`sandbox:…` / `live:…` — **never send it to the
@@ -28,14 +27,12 @@ outright, neither retryable:
 
 ## 2. Fund the buyer wallet
 
-Both rails **pull** from your own wallet: a Delegation authorizes a spend, it does not
-supply funds. Read the address off the live Delegation every time (`GET /api/v1/delegation/{id}` →
-`providerPaymentMethodId`) — **never a cached one**, the top cause of `402 BCK.ROUTER.0009`, which
-does not name the address it checked.
+Both rails **pull** from your wallet; a Delegation authorizes spending but supplies no funds.
+Read `GET /api/v1/delegation/{id}` → `providerPaymentMethodId` each time. A cached address can
+cause `402 BCK.ROUTER.0009`, which does not name the address checked.
 
-**One x402 network is funded per deployment, fixed by its environment: sandbox → `base-sepolia`,
-live → `base`.** A merchant on the other chain is unpayable from here and fails
-`400 BCK.ROUTER.0001 … no fundable option` — which looks like a broken service and is not.
+**Each deployment funds one x402 network: sandbox → `base-sepolia`, live → `base`.** A merchant
+on the other chain fails `400 BCK.ROUTER.0001 … no fundable option`.
 
 ## 3. Discover
 
@@ -86,6 +83,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
   Raise only if intended; reuse `requestId`.
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected the request; body withheld, status preserved. Fix from Catalog detail. No retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
+- `BCK.ROUTER.0024` (413) — body exceeds ~5 MB. **No retry as-is**; reduce it below the limit.
+- `BCK.ROUTER.0025` (502) — reply too large after payment; outcome **indeterminate**. Reconcile via `list_payments`; **no retry with a fresh `requestId`**.
 - Only `BCK.ROUTER.0006` (500), `0007` (429) and `0020` (5xx/429) are **retryable**; everything
   else is a decision, and retrying it unchanged gives the same answer.
 
