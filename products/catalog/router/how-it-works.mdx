@@ -113,7 +113,7 @@ Some paid calls take a while — video generation, long crawls. The Router does 
 
 On `/router/proxy` and `/router/svc` it's a `202` with `Location` and `X-Router-Payment-Id` headers — and only **before** the service starts responding. A response that has started streaming to you streams to the end, as before.
 
-The payment is made and the call keeps running on the Router, up to its usual 120-second limit. The routing fee follows the same rule as a call you waited for: collected when the service answers `2xx`, released otherwise. Read the result with the same API key:
+The payment is made and the call keeps running on the Router: up to its usual 120-second limit on `/router/route`, while a streamed call waits up to 120 seconds for the service to start answering and then up to the stream deadline (5 minutes by default) for the rest of its body. The routing fee follows the same rule as a call you waited for: collected when the service answers `2xx`, released otherwise. Read the result with the same API key:
 
 ```bash
 curl -s "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/result" \
