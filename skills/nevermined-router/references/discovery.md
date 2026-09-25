@@ -192,8 +192,9 @@ curl -s -H "Content-Type: application/json" \
 - **`search_services` is moving to ARD hybrid ranking** (semantic + lexical) in the next MCP
   release. `query` becomes **required**, `page` / `offset` are removed (a `pageSize` replaces them,
   with no next-page input yet), and the result changes from `{ total, page, offset, services }` to
-  `{ results, pageToken }`. So: always send `query`, parse `content[0].text` without assuming
-  `services[]`, and **do not build a pager on it** — after the release an unknown `page` is silently
+  `{ results, pageToken }` — ARD records keyed by an `identifier` URN, whose last segment is the slug
+  (`urn:air:api.live.nevermined.app:service:superhighway` → `superhighway`). So: always send `query`,
+  parse `content[0].text` without assuming `services[]`, and **do not build a pager on it** — after the release an unknown `page` is silently
   dropped and you would get the first page forever. To walk everything, use the feed.
 - **Errors come back as a tool result with `isError: true`** and a plain-text message, not a
   JSON-RPC error: an unknown slug in `get_service` reads `… returned 404`; a bad `protocol` fails the
