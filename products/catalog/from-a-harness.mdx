@@ -81,8 +81,14 @@ The catalog's read surface is **public** — browse or filter it before spending
 
 Every listing tells you what you need to choose: its **slug** (how you address it), **protocol** (x402 or MPP — handled for you), a **price label**, its **endpoints**, and **tags**/category. Filter by task (e.g. web search, email enrichment, scraping, social data) and by price, and shortlist the cheapest service that answers the need.
 
+Listings are returned in a **recommended order** — Nevermined's own quality ranking, not alphabetical — so the top of the list is a sensible default rather than something you score yourself. Treat that order as *guidance, not a contract*: it is recomputed as health and traction change. Each feed entry also carries a `displayPriceSource` of `settled` or `quoted` (a `settled` price means real, multi-payer settlement — the service is genuinely used, not just advertised) and `partner`/`featured` flags you can weigh.
+
 <Tip>
 **Build the request body from the listing, not from guesswork.** Each endpoint publishes a `requestExample` and `responseFields` in its Catalog detail — copy the example and change the values. In particular, multi-model services expect a **provider-prefixed model id** (e.g. `openai/gpt-4o-mini`, `google/gemini-2.5-flash-lite`); a bare `gpt-4o-mini` is usually rejected with a typed `400`. Read the exact id from the `requestExample` rather than probing paid calls.
+</Tip>
+
+<Tip>
+**Don't know which service to pay?** Let the Router pick instead of scoring listings yourself: `POST /api/v1/router/select` with a plain-language `intent` (and optional `filters` — `category`, `protocol`, `network`, `maxPriceLabel`) returns the single best **payable** service plus a ranked `shortlist`, chosen deterministically on Nevermined's own relevance and quality signals behind a payability gate. **Take the returned order as authoritative — read the order, not the numbers**: the `relevance` scores can sit on different scales (semantic vs keyword), so re-sorting by them yourself can pick worse. Add `autoPay: true` (with `requestId` + `delegationId`) to select **and** pay in one call. This uses your API key — see the [Router quickstart](/products/catalog/router/quickstart), and [Let the platform pick a service](/products/catalog/mcp#let-the-platform-pick-a-service) for the full shortlist shape.
 </Tip>
 
 ## Step 3 — Connect the harness to the Catalog
