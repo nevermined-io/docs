@@ -69,7 +69,7 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
 
 - `BCK.ROUTER.0003` (402) — Delegation over cap, expired, exhausted, revoked. **Stop.**
 - `BCK.ROUTER.0009` (402) — wallet short on the target network; nothing was signed. **Stop.**
-- `BCK.ROUTER.0002` (409) — `requestId` already used; the original `paymentId` is in the body.
+- `BCK.ROUTER.0002` (409) — `requestId` reused; body has the original `paymentId`.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; read `details`.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry:** a credential was minted and no record
@@ -84,9 +84,8 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected the request; body withheld, status preserved. Fix from Catalog detail. No retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0024` (413) — body exceeds ~5 MB. **No retry as-is**; reduce it below the limit.
-- `BCK.ROUTER.0025` (502) — reply too large after payment; outcome **indeterminate**. Reconcile via `list_payments`; **no retry with a fresh `requestId`**.
-- Only `BCK.ROUTER.0006` (500), `0007` (429) and `0020` (5xx/429) are **retryable**; everything
-  else is a decision, and retrying it unchanged gives the same answer.
+- `BCK.ROUTER.0025` (502) — reply too large; payment unclear. No `X-Router-Payment-Id`: find `requestId` in `GET /api/v1/router/payments`; check `status` / `merchantSettlementObservedAt`. Reuse that id if retrying; never use a fresh one.
+- Only `0006` (500), `0007` (429) and `0020` (5xx/429) are **retryable**. Other refusals need a decision.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision; a fresh one to escape an exhausted Delegation defeats it.
