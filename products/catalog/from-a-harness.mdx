@@ -81,8 +81,14 @@ The catalog's read surface is **public** — browse or filter it before spending
 
 Every listing tells you what you need to choose: its **slug** (how you address it), **protocol** (x402 or MPP — handled for you), a **price label**, its **endpoints**, and **tags**/category. Filter by task (e.g. web search, email enrichment, scraping, social data) and by price, and shortlist the cheapest service that answers the need.
 
+**Listings come back best-first**, already ordered by Nevermined's own quality ranking — so reading from the top is a sound default, no scoring of your own required. A **settled** display price (rather than a **quoted** one) and any **partner**/**featured** badges are signals that a service is genuinely used, not just advertised.
+
 <Tip>
 **Build the request body from the listing, not from guesswork.** Each endpoint publishes a `requestExample` and `responseFields` in its Catalog detail — copy the example and change the values. In particular, multi-model services expect a **provider-prefixed model id** (e.g. `openai/gpt-4o-mini`, `google/gemini-2.5-flash-lite`); a bare `gpt-4o-mini` is usually rejected with a typed `400`. Read the exact id from the `requestExample` rather than probing paid calls.
+</Tip>
+
+<Tip>
+**Don't know which service to pay?** Let the Router pick instead of scoring listings yourself: `POST /api/v1/router/select` with a plain-language `intent` (and optional `filters` like protocol, network, or a max price) returns the single best **payable** service plus a ranked `shortlist`, chosen on Nevermined's own relevance **and** quality signals — relevance-dominant, with quality promoting a near-equally-relevant service. Each shortlist entry carries `relevance` and `rankScore` so you can re-rank if you prefer. Add `autoPay: true` (with `requestId` + `delegationId`) to select **and** pay in one call. Unlike browsing the feed, this call uses your API key — see the [Router quickstart](/products/catalog/router/quickstart).
 </Tip>
 
 ## Step 3 — Connect the harness to the Catalog
