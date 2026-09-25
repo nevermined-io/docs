@@ -41,6 +41,7 @@ Discovery is **free** — no credential needed. Picking or paying for a service,
 | `pay_service` | paid | Pay for a service and return the vendor's response. **Charges real funds.** |
 | `route_by_intent` | paid | Describe a need in plain language; get back the single best payable service plus a ranked shortlist. With `autoPay: true` it also pays that service. **Charges real funds when `autoPay` is true.** |
 | `setup_delegation` | paid | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
+| `get_payment_result` | paid | Read a paid call's result by `paymentId` — for a `pay_service` that answered `pending`, or a response you lost. Charges nothing; results are kept for 24 hours. |
 | `list_payments` | paid | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
 | `payment_summary` | paid | Total spend plus a time series. Filters: `from`, `to`. |
 | `wallet_balance` | paid | What your funding wallet holds, on every network the Catalog settles on. Filter: `network`. |
@@ -519,6 +520,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 | `{ "error": "payment_failed", "code": "BCK.ROUTER.0009", … }` | The funding source couldn't cover the charge. Nothing was signed. **On MPP-tempo** the wallet is short — the error names the wallet and chain but not the amount, so call **`wallet_balance`** for that; a human has to fund it, and there's no cap to widen. **On MPP-stripe** the issuer declined: no wallet, nothing to top up, use another card. x402 never raises this code at all. |
 | `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped — you weren't charged twice. The original payment is authoritative, but it may itself have `Failed`: check its status in `list_payments` before assuming the purchase went through. |
 | `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
+| `{ "status": "pending", "paymentId": "…", "nextTool": "get_payment_result" }` | Not a refusal: the payment was made and the service is still working (it took longer than 45 seconds). Call **`get_payment_result`** with the `paymentId` until it reports `Ready` or `Failed`. Don't call `pay_service` again for it — the same call returns the same `pending`, and a new `requestId` would buy it twice. |
 | `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No Delegation on the account yet. Call `setup_delegation` and open the URL it returns — see [step 4](#getting-a-delegation-from-inside-the-chat). |
 
 ## Let the platform pick a service

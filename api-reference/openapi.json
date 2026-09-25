@@ -2076,7 +2076,7 @@
     },
     "/router/route": {
       "post": {
-        "description": "Hand the Router the request you want made to an upstream x402 agent; it probes, pays any 402\nwith your Delegation (same engine as `POST /router/payments`), and relays the agent’s response in ONE\ncall — you never see the 402 or handle the credential yourself.\n\nPrerequisite: a Delegation `id` (`POST /api/v1/delegation/create`, provider `erc4337`).\n\nProvide the target `url` (+ optional `method`, `headers`, `body`). A free (non-402) upstream is\nrelayed unchanged with `paid=false` and no `payment`. `requestId` is REQUIRED (the Router pays automatically, so a retry must be idempotency-keyed); a duplicate returns 409 with the original paymentId.\n\nFor LARGE or STREAMED responses, a transparent streaming variant exists at `ALL /api/v1/router/proxy`:\npoint your HTTP client at it with headers `X-Router-Target-Url` and `X-Router-Delegation-Id`\n(optional `X-Router-Upstream-Authorization` for the agent’s own auth). Method/body/headers pass\nthrough and the response streams back, with payment metadata in `X-Router-Payment-Id`,\n`X-Router-Payment-Status`, and `X-Router-Tx-Hash` response headers. Use this JSON endpoint when\nyou want a single structured result instead.",
+        "description": "Hand the Router the request you want made to an upstream x402 agent; it probes, pays any 402\nwith your Delegation (same engine as `POST /router/payments`), and relays the agent’s response in ONE\ncall — you never see the 402 or handle the credential yourself.\n\nPrerequisite: a Delegation `id` (`POST /api/v1/delegation/create`, provider `erc4337`).\n\nProvide the target `url` (+ optional `method`, `headers`, `body`). A free (non-402) upstream is\nrelayed unchanged with `paid=false` and no `payment`. `requestId` is REQUIRED (the Router pays automatically, so a retry must be idempotency-keyed); a duplicate returns 409 with the original paymentId (from API 1.48, the first purchase's retained result instead — see `GET /router/payments/{id}/result`).\n\nFor LARGE or STREAMED responses, a transparent streaming variant exists at `ALL /api/v1/router/proxy`:\npoint your HTTP client at it with headers `X-Router-Target-Url` and `X-Router-Delegation-Id`\n(optional `X-Router-Upstream-Authorization` for the agent’s own auth). Method/body/headers pass\nthrough and the response streams back, with payment metadata in `X-Router-Payment-Id`,\n`X-Router-Payment-Status`, and `X-Router-Tx-Hash` response headers. Use this JSON endpoint when\nyou want a single structured result instead.",
         "operationId": "routeAndPayRequest",
         "parameters": [],
         "requestBody": {
@@ -2107,6 +2107,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RouteResultDto"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "API version 1.48 or later: the payment was made but the merchant had not answered within 45 s. The call keeps running on the Router (bounded at 120 s) and its result will be readable by you for 24 hours at `resultUrl` (also the `Location` header). Poll `GET /api/v1/router/payments/{id}/result`; do not repeat the call — a retry with the same `requestId` returns this same answer, then the result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePendingDto"
                 }
               }
             }
@@ -2204,6 +2214,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RouteResultDto"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "API version 1.48 or later: the payment was made but the merchant had not answered within 45 s. The call keeps running on the Router (bounded at 120 s) and its result will be readable by you for 24 hours at `resultUrl` (also the `Location` header). Poll `GET /api/v1/router/payments/{id}/result`; do not repeat the call — a retry with the same `requestId` returns this same answer, then the result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePendingDto"
                 }
               }
             }
@@ -2384,6 +2404,80 @@
           }
         },
         "summary": "Report the on-chain settlement tx for a minted payment (completes the record)",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
+    "/router/payments/{id}/result": {
+      "get": {
+        "description": "Every paid call made through `POST /router/route` (and its `commerce` counterpart) is kept for you, the paying user, for 24 hours after it ends, so a response lost on the way back — a client timeout, a dropped connection — can still be read. `/router/proxy` and `/router/svc` keep a result only when they answered `202`; a response that had already started streaming to you is never stored.\n\nA paid call whose merchant has not answered within 45 s is answered `202` with `{ paymentId, resultUrl, status: \"Pending\" }` instead of holding your connection (API 1.48 or later). Poll this endpoint:\n\n- `202`, `state: Pending` — still running.\n- `200`, `state: Ready` — `status` and `body` are the relayed response, withheld exactly as the original response would have been.\n- `200`, `state: Failed` — the call ended without a response; `failureReason` says why.\n- `404` `BCK.ROUTER.0030` — nothing to return: expired, never retained, or not a payment of yours (deliberately indistinguishable).",
+        "operationId": "getRouterPaymentResult",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "The `paymentId` of the paid call.",
+            "schema": {
+              "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The result is `Ready`, or the call ended `Failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterPaymentResultDto"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The paid call is still running (`state: Pending`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterPaymentResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` is not a valid uuid (BCK.HTTP.400).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No retained result for this id under your account — expired, never retained, or not yours (BCK.ROUTER.0030).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Read a paid Router result (retained for 24 hours)",
         "tags": [
           "Router"
         ]
@@ -4679,6 +4773,11 @@
       "RouteResultPaymentDto": {
         "type": "object",
         "properties": {
+          "resultUrl": {
+            "description": "Where this paid result stays readable by you for 24 hours (GET it with the same API key), in case the response is lost on the way back to you. Relative to the API host. API 1.48 and later.",
+            "type": "string",
+            "example": "/api/v1/router/payments/b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13/result"
+          },
           "paymentId": {
             "type": "string",
             "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
@@ -4750,6 +4849,138 @@
           "status",
           "body",
           "paid"
+        ]
+      },
+      "RoutePendingDto": {
+        "type": "object",
+        "description": "`202` answer of the `/route` family when the paid call outlives the 45 s sync budget: the payment was made, the call is still running on the Router, and its result will be readable at `resultUrl`.",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
+          },
+          "resultUrl": {
+            "type": "string",
+            "description": "Read the result here with the same API key. Relative to the API host.",
+            "example": "/api/v1/router/payments/b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13/result"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending"
+            ],
+            "example": "Pending"
+          }
+        },
+        "required": [
+          "paymentId",
+          "resultUrl",
+          "status"
+        ]
+      },
+      "RouterPaymentResultPaymentDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Issued",
+              "Settled",
+              "Failed"
+            ],
+            "example": "Settled"
+          },
+          "txHash": {
+            "type": "string",
+            "nullable": true,
+            "description": "The settlement reference, once the merchant reported one."
+          }
+        },
+        "required": [
+          "paymentId",
+          "status",
+          "txHash"
+        ]
+      },
+      "RouterPaymentResultDto": {
+        "type": "object",
+        "description": "A paid Router result retained for its payer for 24 hours.",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Ready",
+              "Failed"
+            ],
+            "example": "Ready"
+          },
+          "resultUrl": {
+            "type": "string",
+            "example": "/api/v1/router/payments/b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13/result"
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "When the result is deleted. Until then only you can read it.",
+            "example": "2026-09-26T10:12:00.000Z"
+          },
+          "status": {
+            "type": "number",
+            "nullable": true,
+            "description": "The upstream HTTP status of the paid call. `Ready` only.",
+            "example": 200
+          },
+          "body": {
+            "description": "The relayed response body, exactly as the original call would have returned it — a cataloged service's non-2xx body is withheld (null). Its form is named by `bodyEncoding`. `Ready` only.",
+            "example": {
+              "ok": true
+            }
+          },
+          "bodyEncoding": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "json",
+              "text",
+              "base64"
+            ],
+            "description": "`json` — the parsed JSON value; `text` — a UTF-8 string; `base64` — binary, base64-encoded. Null when there is no body."
+          },
+          "contentType": {
+            "type": "string",
+            "nullable": true,
+            "description": "The upstream content type, for a streamed call (`/router/proxy`, `/router/svc`)."
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The response headers the streamed call would have relayed. Empty for a `/router/route` result."
+          },
+          "failureReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Why a `Failed` result has no response."
+          },
+          "payment": {
+            "$ref": "#/components/schemas/RouterPaymentResultPaymentDto"
+          }
+        },
+        "required": [
+          "paymentId",
+          "state",
+          "resultUrl",
+          "expiresAt",
+          "payment"
         ]
       },
       "SettleResponseDto": {
