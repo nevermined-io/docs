@@ -69,7 +69,7 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
 
 - `BCK.ROUTER.0003` (402) — Delegation over cap, expired, exhausted, revoked. **Stop.**
 - `BCK.ROUTER.0009` (402) — wallet short on the target network; nothing was signed. **Stop.**
-- `BCK.ROUTER.0002` (409) — `requestId` already used; the original `paymentId` is in the body.
+- `BCK.ROUTER.0002` (409) — `requestId` reused; body has the original `paymentId`.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; read `details`.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry:** a credential was minted and no record
@@ -84,10 +84,9 @@ back. For spend to date read `GET /api/v1/delegation/{id}` → `amountSpentCents
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected the request; body withheld, status preserved. Fix from Catalog detail. No retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0024` (413) — body exceeds ~5 MB. **No retry as-is**; reduce it below the limit.
-- `BCK.ROUTER.0025` (502) — reply too large after payment; outcome **indeterminate**. Reconcile via `list_payments`; **no retry with a fresh `requestId`**.
+- `BCK.ROUTER.0025` (502) — reply too large; payment unclear. No `X-Router-Payment-Id`; JSON-string `params` may carry `paymentId`. Otherwise, list `GET /api/v1/router/payments` with `delegationId` and `from` just before the call, then match `requestId` in the newest 1000 rows (no `requestId` filter). `status: Failed` means delivery failed, not proof of no charge. Non-null `merchantSettlementObservedAt` confirms x402 settlement; null does not prove no charge, including MPP. Do not retry: the same id returns 409 `BCK.ROUTER.0002` with the original `paymentId` and no reply; a fresh id risks another charge.
+- Only `BCK.ROUTER.0006` (500, summary read), `BCK.ROUTER.0007` (429), `BCK.ROUTER.0020` (5xx/429), `BCK.ROUTER.0022` (500, selection), and `BCK.ROUTER.0028` (503, quote) are **retryable**. On the paying path, retry `0007` and `0020` with backoff. Other refusals need a decision.
 - `BCK.ROUTER.0028` (503) — `/router/quote` pricing read failed; nothing charged. **Retry w/ backoff**.
-- Only `BCK.ROUTER.0006` (500), `0007` (429), `0020` (5xx/429), `0022` (500) and `0028` (503) are **retryable**;
-  the rest are decisions: retrying unchanged gives the same answer.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision; a fresh one to escape an exhausted Delegation defeats it.
