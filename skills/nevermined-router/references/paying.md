@@ -71,13 +71,44 @@ failure. You can omit it entirely and send the same call for both rails.
 
 - `status` / `body` are the merchant's own, relayed unchanged. `body` is parsed JSON when the
   merchant returned JSON, otherwise a string.
-- `paid: false` and **no `payment` block** means the resource was free — the Router relayed it and
-  charged nothing. Handle this; not every URL you route is actually paid.
+- `paid: false` and **no `payment` block** means the merchant answered without asking for payment,
+  and nothing was charged. With a raw `url` the body is relayed. With a `slug` the body is
+  `null` (it could name the merchant's host), **except** for a follow-up read of a job you paid
+  for — see [Async services](#async-services-pay-then-poll). Handle this; not every call you
+  route is actually paid.
 - `settlement.approxCents` is the **merchant leg only**. What came off your cap is
   `fee.capChargedCents` — see [the fee object](#the-fee-object) below. Trust either over any catalog
   `priceLabel`.
 - `status: "Issued"` (rather than `Settled`) means the hop succeeded and you have your resource, but
   the settlement anchor is still pending. Normal, not a failure — see `ledger.md`.
+
+<a id="async-services-pay-then-poll"></a>
+### Async services — pay, then poll
+
+Some catalog services answer a paid call with a job id and deliver the result later, on a **free**
+status/result endpoint: Tavily research, 2Captcha, Browserbase sessions, Nyne, Parallel tasks,
+Apify runs, Allium query runs. Poll that endpoint through the **same slug** with `/route`:
+
+```json
+{ "delegationId": "…", "slug": "tavily-api-mpp", "path": "/research", "method": "POST",
+  "body": { "input": "…" }, "requestId": "research-agent-payments-v1" }
+```
+```json
+{ "delegationId": "…", "slug": "tavily-api-mpp", "path": "/research/<request_id>",
+  "method": "GET", "requestId": "research-agent-payments-v1-poll-3" }
+```
+
+The poll comes back `paid: false` with the merchant's body, and nothing is charged. It is
+relayed only when all of these hold:
+
+- **you** have a `Settled` payment for that slug within the deployment's follow-up window;
+- the path is one the service declares as a follow-up, i.e. its job status/result path;
+- the merchant answers `2xx`.
+
+Outside those conditions the body is `null`. An unpaid call to a follow-up path, or a poll after
+the window, gets the status but not the body. A read the merchant answers with a `402` (for
+example one that needs the creating wallet's signature) is paid like any other call.
+The poll is a new request, so give each one its own `requestId`.
 
 <a id="the-fee-object"></a>
 ### The `fee` object — read `capChargedCents`, not `approxCents`
