@@ -49,7 +49,7 @@ def my_tool(query: str, tool_context=None) -> dict:
 
 ```typescript
 payments.mcp.registerTool(name, config, handler, { credits: 5n })
-await payments.mcp.start({ port: 3000, agentId, serverName })
+await payments.mcp.start({ port: 3000, planId, serverName })
 ```
 
 ## Google A2A Pattern

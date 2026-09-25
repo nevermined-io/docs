@@ -107,7 +107,7 @@ payments.mcp.registerTool(
 | `credits` | `bigint` or `function` | Credits to consume per call |
 | `planId` | `string` | Per-tool plan ID (otherwise the server-level `planId` from `start()` / `configure()`) |
 | `maxAmount` | `bigint` | Max credits to verify during authentication (default: `1n`) |
-| `onRedeemError` | `string` | `'ignore'` (default) returns the in-band payment error when settlement fails; `'propagate'` throws a `-32002` error instead. Either way the tool's content is not returned |
+| `onRedeemError` | `string` | For non-streaming tools: `'ignore'` (default) returns the in-band payment error when settlement fails; `'propagate'` throws a `-32002` error instead. Either way the tool's content is not returned |
 
 ## Response Metadata (`_meta`)
 
@@ -131,7 +131,7 @@ After a paywall-protected call settles, the SDK adds two keys to the result's `_
 }
 ```
 
-If settlement fails after the tool ran, the tool's content is **not** returned: the call comes back as an error tool result (`isError: true`, the `PaymentRequired` object in `structuredContent`), so a paid result is never delivered unpaid.
+For a non-streaming tool, if settlement fails after the tool ran, the tool's content is **not** returned: the call comes back as an error tool result (`isError: true`, the `PaymentRequired` object in `structuredContent`), so a paid result is never delivered unpaid. A streaming tool (a handler returning an `AsyncIterable`) has already yielded its chunks when settlement runs, so a failure is reported only in the final `_meta` chunk: `nevermined/credits` with `success: false` and an `errorReason`, and no `x402/payment-response`.
 
 Fields of `_meta['nevermined/credits']`:
 
@@ -145,6 +145,7 @@ Fields of `_meta['nevermined/credits']`:
 | `orderTx` | `string` | Charge reference on pay-as-you-go plans (when present) |
 | `planId` | `string` | Plan used for the operation |
 | `subscriberAddress` | `string` | Subscriber's wallet address |
+| `errorReason` | `string` | Streaming tools only, on a failed settlement: why it failed |
 
 ## Client Usage
 

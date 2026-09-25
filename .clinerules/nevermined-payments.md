@@ -82,7 +82,7 @@ def my_tool(query: str, tool_context=None) -> dict:
 
 ```typescript
 payments.mcp.registerTool(name, config, handler, { credits: 5n })
-const { info, stop } = await payments.mcp.start({ port: 3000, agentId, serverName })
+const { info, stop } = await payments.mcp.start({ port: 3000, planId, serverName })
 ```
 
 ## Google A2A (TypeScript / Python)
