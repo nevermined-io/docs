@@ -27,16 +27,19 @@ The Catalog MCP is the same two-step motion the rest of the Catalog documents, e
 
 Your agent never holds a private key, never learns a payment protocol, and never needs an account with the service it just paid. The Router, not the agent, speaks each rail — see [How the Router works](/products/catalog/router/how-it-works).
 
+If your agent would rather not choose among listings at all, `route_by_intent` does both steps in one call: describe the need, get back the best payable service, and optionally pay it — see [Let the platform pick a service](#let-the-platform-pick-a-service).
+
 ## The tool surface
 
-Eight tools. Discovery is **free** — no credential needed. Paying, reading your ledger and reading your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
+Nine tools. Discovery is **free** — no credential needed. Picking or paying for a service, reading your ledger and reading your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
 
 | Tool | Auth | What it does |
 | --- | --- | --- |
 | `list_categories` | free | Catalog categories, with a count each. |
-| `search_services` | free | Search listings. Filters (all optional): `query`, `category`, `protocol`, `tag`, `page`, `offset`. |
+| `search_services` | free | Search listings, most relevant first (semantic + keyword ranking). `query` is required; optional filters: `category`, `protocol`, `tag`, `pageSize`. |
 | `get_service` | free | One service by `slug` — protocol, price label, and a `requestShape` naming each callable endpoint and the exact `pay_service` arguments for it. |
 | `pay_service` | paid | Pay for a service and return the vendor's response. **Charges real funds.** |
+| `route_by_intent` | paid | Describe a need in plain language; get back the single best payable service plus a ranked shortlist. With `autoPay: true` it also pays that service. **Charges real funds when `autoPay` is true.** |
 | `setup_delegation` | paid | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
 | `list_payments` | paid | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
 | `payment_summary` | paid | Total spend plus a time series. Filters: `from`, `to`. |
@@ -111,7 +114,7 @@ If your assistant can run OAuth for you — Claude, ChatGPT, LangSmith Fleet —
 
 - **Name the connector in the prompt** — *"using the Nevermined connector, …"*.
 - **Ask for something only live data can answer.** Anything the model can answer from training, it will — for free, and usually correctly.
-- **Name services in single words** — `OpenWeather`, `Serper`. Catalog search matches your whole query as one substring of a service's title or short description, so it is order-sensitive and multi-word phrases often come back empty: `web search` finds listings and `search web` finds none, and `weather forecast` finds none although several services match `weather`. Narrow with the `category` and `tag` filters rather than by stacking words.
+- **Describe the need, or name the service** — *"translate documents to German"*, `OpenWeather`. Catalog search ranks by meaning as well as by keyword, so a plain-language need finds services that never use your exact words. When the semantic half is unavailable it falls back to keyword-only ranking, where a distinctive service name is the query that still lands. Narrow with the `category`, `tag` and `protocol` filters rather than by stacking words. (Semantic ranking is [still rolling out](#let-the-platform-pick-a-service); where it hasn't landed, search matches your whole query as one substring, so use a single distinctive word.)
 </Tip>
 
 ### Pick an environment
@@ -346,7 +349,7 @@ The key is sent as a request header, forwarded to the Nevermined API per call, a
 Discovery is public — call these before you've set any key. Ask your host to run:
 
 - **`list_categories`** — the Catalog's categories, each with a count.
-- **`search_services`** with `{ "protocol": "x402" }` — listings on the x402 rail. Also filter by `query`, `category`, `tag`, and page with `page` / `offset`.
+- **`search_services`** with `{ "query": "weather", "protocol": "x402" }` — weather listings on the x402 rail, most relevant first. `query` is required; also filter by `category` and `tag` (both narrow the same tag set, so passing both matches a listing tagged with either), and set `pageSize` (1–100). You get the first page only: the `pageToken` in the result can't be passed back yet, so narrow the query rather than paging. Each result is an ARD record carrying an `identifier` URN, not a `slug` — the slug is its last segment (`urn:air:api.live.nevermined.app:service:openweather-mpp` → `openweather-mpp`).
 - **`get_service`** with `{ "slug": "<a-slug-from-the-search>" }` — one service's protocol, price label, and its **`requestShape`**: every callable endpoint with its `path`, HTTP `method` and price, each carrying the exact `payServiceArgs` to hand to `pay_service`. The Catalog stores no request-body schema, and `requestShape` says so (`bodySchema: null`) rather than leaving you to guess; a service the Catalog knows nothing about gets an explicit `unknown — the catalog holds no request schema` note.
 
 In natural language that's just: *"List the Nevermined categories, then find x402 services for weather."* The host picks the tools.
@@ -517,6 +520,78 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 | `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped. **Not a failure** — you weren't charged twice. |
 | `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
 | `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No Delegation on the account yet. Call `setup_delegation` and open the URL it returns — see [step 4](#getting-a-delegation-from-inside-the-chat). |
+
+## Let the platform pick a service
+
+`route_by_intent` turns a plain-language need into the **single best payable service** in the Catalog, plus the ranked shortlist it was chosen from — so your agent doesn't search, compare listings and pick one itself. The ranking is deterministic: Nevermined's own relevance and quality signals, behind a payability gate (listed, healthy, not held by moderation, on x402 or MPP). No model reads the merchant listings, and when nothing passes the gate you get an explicit refusal, never a weak match.
+
+<Note>
+**Rolling out.** `route_by_intent` and the semantic `search_services` ranking reach each environment with the next Catalog MCP release. If `route_by_intent` isn't in your host's tool list yet, that environment hasn't received it: until then `search_services` keeps its previous substring matching and its `page` / `offset` filters, and `search_services` → `get_service` → `pay_service` does the same job in three calls.
+</Note>
+
+### Which tool to reach for
+
+| You want to… | Use |
+| --- | --- |
+| Get the right service for a task in one call — and optionally pay it | `route_by_intent` |
+| Browse, compare, or show a person the options | `search_services`, then `get_service` |
+| Pay a service you've already picked | `pay_service` |
+
+### Arguments
+
+| Argument | Required | What it does |
+| --- | --- | --- |
+| `intent` | yes | What you need, in plain language — *"current weather for Lisbon"*. |
+| `filters` | no | Narrow the candidates: `category`, `protocol` (`x402` or `mpp`), `network`, and `maxPriceLabel` — an upper price bound such as `"$0.05"`, applied best-effort. |
+| `limit` | no | Shortlist size, 1–20. Default 5. |
+| `autoPay` | no | `true` also pays the winner in the same call, through the same path as `pay_service`. Default **`false`**: return the pick and charge nothing. |
+| `requestId` | with `autoPay` | Idempotency key for the payment. Reuse it verbatim on any retry of the same purchase. |
+| `delegationId` | with `autoPay`, on an API key | The Delegation to charge. An OAuth commerce grant brings its own Delegation, so leave it out there. |
+
+With `autoPay: true` the call also takes `pay_service`'s request arguments — `path`, `method`, `search`, `body`, `headers`, `credentialHeader` and `maxTotalCents` — and applies them to whichever service wins. That is the catch: you're shaping a request for a service you haven't seen yet, and a bare call reaches the winner's base URL, which for a multi-endpoint API is a 404, not a purchase (see [step 5](#5-make-a-paid-call)). When the endpoint matters, propose first, read `get_service` on `chosen.slug`, then pay with `pay_service`.
+
+It needs a credential even when it charges nothing — an API key or an OAuth commerce grant, like the other paid tools. You don't pick the path: an API key selects through the Router's `/router/select`, and a credential minted by an OAuth commerce grant is switched to `/router/commerce/select`, where the Delegation comes from your grant. So Claude, ChatGPT and LangSmith Fleet use it exactly as a host with an API key does.
+
+### What comes back
+
+With `autoPay: false`, a proposal — nothing is charged:
+
+```json
+{
+  "chosen": {
+    "slug": "openweather-mpp",
+    "title": "OpenWeather",
+    "priceLabel": "$0.005–$0.01",
+    "network": "Tempo",
+    "protocol": "mpp",
+    "invokeUrl": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp"
+  },
+  "shortlist": [
+    { "slug": "openweather-mpp", "relevance": 100, "rankScore": 1.42, "healthy": true, "priceLabel": "$0.005–$0.01" },
+    { "slug": "…", "relevance": 87, "rankScore": null, "healthy": true, "priceLabel": "…" }
+  ],
+  "rankingSource": "semantic",
+  "instructions": "This is a proposal — nothing was charged. `chosen` is the best payable service and `shortlist` is the ranked set. To pay it, either call route_by_intent again with autoPay:true (plus requestId and delegationId), or call pay_service with slug \"openweather-mpp\"."
+}
+```
+
+- **`chosen`** is the winner. Its `invokeUrl` is the Router's opaque alias for the service, never the merchant's own host; pay it by `slug`.
+- **`shortlist`** is the payable candidates in pick order: `relevance` (0–100) first, then `rankScore` — an opaque quality score, higher first, `null` until the service has been scored — to break ties. `healthy` is whether it passed the health check.
+- **`rankingSource`** says which ranking produced the order: `semantic`, or `lexical` when semantic ranking was unavailable.
+- **`instructions`** is always present and names the agent's next step for this exact result.
+
+With `autoPay: true`, the same fields plus **`result`**: the upstream response and the payment receipt (`result.payment`). Read the outcome from `result.payment.status` — `Settled`, `Issued` (attempted, not yet confirmed) or `Failed` — not from `paid` alone, which only says a payment was attempted. The `instructions` string spells out which case you're in.
+
+### Refusals and retries
+
+| Result | What happened | What to do |
+| --- | --- | --- |
+| `{ "status": "no_fundable_match", … }` | No listed, healthy, payable service matched the intent and filters — or the Router rejected an input; `message` says which. Nothing was charged. | Broaden or rephrase `intent`, or relax `filters`, and call again. |
+| `{ "status": "missing_autopay_fields", … }` | `autoPay: true` without a `requestId` — or, on an API key, without a `delegationId`. Nothing was charged. | Add the missing field and call again. |
+| `{ "status": "payment_indeterminate", "requestId": "…", … }` | On `autoPay`, the charge outcome for this `requestId` couldn't be confirmed: the payment may or may not have landed. It covers [`BCK.ROUTER.0023`](/products/catalog/router/guardrails#every-error-code) and a connection that dropped mid-call. | **Never retry with a fresh `requestId`** — that can pay twice. Reconcile with `list_payments` first; to retry, send the **same** `requestId` verbatim. |
+| `{ "status": "already_paid", "code": "BCK.ROUTER.0002", "paymentId": "…", … }` | A retry of a `requestId` that was already paid. **Not a new charge** — the original payment stands. | Treat the purchase as done; `paymentId` names it. Don't retry with a fresh `requestId`. |
+
+Any other refusal on `autoPay` — the cap exceeded, a wallet short, a card declined — comes back as an error result carrying the Router's own `BCK.ROUTER.*` code, with the same meaning it has for `pay_service`: see [When a payment is refused](#when-a-payment-is-refused).
 
 ## Not this MCP
 
