@@ -73,7 +73,7 @@ Content-Type: application/json
 `status` and `body` are the merchant's, relayed unchanged. `paid: false` means the resource was free — the Router relayed it and there is no `payment` block.
 
 <Note>
-**`requestId` is required in mode B.** Because the Router pays automatically, a retry after a dropped connection must not buy the same thing twice. At most one payment is minted per `(caller, requestId)`; a duplicate returns **409** carrying the original `paymentId` instead of paying again. Use one stable id per logical purchase, not per HTTP attempt.
+**`requestId` is required in mode B.** Because the Router pays automatically, a retry after a dropped connection must not buy the same thing twice. At most one payment is minted per `(caller, requestId)`. From API version 1.48 a duplicate returns the first purchase's [retained result](#slow-services-and-retained-results) (or its `202` while it is still running); on older versions it returns **409** carrying the original `paymentId`. Either way nothing is paid again. Use one stable id per logical purchase, not per HTTP attempt.
 </Note>
 
 ### Streaming variant
@@ -100,6 +100,42 @@ Need another one — a merchant keyed on `X-Api-Key`, say? Send the **value**, p
 </Note>
 
 Use `/route` when you want one structured result; use `/proxy` when you want the bytes.
+
+### Slow services and retained results
+
+Some paid calls take a while — video generation, long crawls. The Router does not make you hold a connection open for them, and it does not lose what you paid for when a connection drops.
+
+**If the service hasn't answered within 45 seconds**, the Router answers `202` instead of making you wait:
+
+```json
+{ "paymentId": "b1f9c2e4-8a3d-4f27-9c6b-5d2e17a04f8b", "resultUrl": "/api/v1/router/payments/b1f9c2e4-8a3d-4f27-9c6b-5d2e17a04f8b/result", "status": "Pending" }
+```
+
+On `/router/proxy` and `/router/svc` it's a `202` with `Location` and `X-Router-Payment-Id` headers — and only **before** the service starts responding. A response that has started streaming to you streams to the end, as before.
+
+The payment is made and the call keeps running on the Router, up to its usual 120-second limit. The routing fee follows the same rule as a call you waited for: collected when the service answers `2xx`, released otherwise. Read the result with the same API key:
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/result" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+| Answer | Meaning |
+| --- | --- |
+| `202`, `state: "Pending"` | Still running. Poll again in a few seconds. |
+| `200`, `state: "Ready"` | `status` and `body` are the service's response, exactly as `/route` would have returned them (a cataloged service's non-`2xx` body stays withheld). `bodyEncoding` says whether `body` is parsed JSON, text or base64. |
+| `200`, `state: "Failed"` | The call ended without a response — it failed, or ran past 120 seconds. `failureReason` says which. |
+| `404` `BCK.ROUTER.0030` | Nothing to return: the result expired, was never kept, or isn't your payment. |
+
+**Every paid mode-B result is kept for 24 hours**, for the account that paid, whether or not you received it the first time. A paid `/route` response carries it as `payment.resultUrl`, so a response lost to a client timeout or a dropped connection can still be read. Results are not kept for a `/proxy` or `/svc` response that streamed to you live.
+
+<Note>
+**What is stored, and for whom.** The Router stores the service's response — status, the headers it would have relayed, and the body, up to 10 MiB — exactly as it would have returned it to you, and nothing else: not your request, not your credentials. Only the account that paid can read it, with its own API key; anyone else gets the same `404` as for a payment that doesn't exist. It is deleted 24 hours after the call ends.
+</Note>
+
+Retrying with the same `requestId` returns the same `202`, then the result — never a second payment. Answering a `202` with a new `requestId` buys the call again.
+
+These behaviours apply to API keys on version **1.48 or later** (see [API versioning](/development-guide/api-versioning)); a key pinned to an older version keeps waiting as before, and its results are still kept.
 
 ## Mode A — you call the merchant yourself
 
@@ -224,7 +260,7 @@ The fee is collected on **both** the x402 and MPP rails, but each rail settles i
 
 Both charge the same 2% — it's one fee reached two ways, not two fees. The only rail that can't carry a fee is the **card rail**: a card payment can't produce a second fee movement, so it reserves the merchant leg alone and its row reads [`feeStatus: "None"`](/products/catalog/router/ledger#fee-lifecycle).
 
-Both modes then charge on every call. `requestId` does not change *whether* you are charged — it changes whether a **retry** is charged again. Reuse one stable id across every retry of the same purchase and the retry returns `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting a second payment, so one purchase carries one fee. Omit it, or generate a fresh id per HTTP attempt, and the retry is billed as a new purchase. Mode B requires the id already; on mode A it is optional, which is exactly why it is worth passing.
+Both modes then charge on every call. `requestId` does not change *whether* you are charged — it changes whether a **retry** is charged again. Reuse one stable id across every retry of the same purchase and the retry returns the original payment instead of minting a second one — its retained result from API 1.48, `409 BCK.ROUTER.0002` with the original `paymentId` before that — so one purchase carries one fee. Omit it, or generate a fresh id per HTTP attempt, and the retry is billed as a new purchase. Mode B requires the id already; on mode A it is optional, which is exactly why it is worth passing.
 
 The mode then decides when the fee settles. Mode B settles it only after the merchant returns 2xx, so a hop that fails releases the fee. Mode A settles it at mint, before your credential is ever presented — so on mode A a wallet holding only the merchant's price typically pays the fee and then loses the merchant leg on-chain, and there is nothing to release.
 
