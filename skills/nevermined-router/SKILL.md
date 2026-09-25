@@ -202,7 +202,7 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
 }
 ```
 
-`status` and `body` are the merchant's own, unchanged. `paid: false` with no `payment` block means the resource was free — the Router relayed it and charged nothing.
+`status` and `body` are the merchant's own, unchanged. `paid: false` with no `payment` block means nothing was charged. For a catalog `slug`, the body of a free answer is withheld (`null`), except when you poll the result of an async job you already paid for through the same slug: see [Async services](references/paying.md#async-services-pay-then-poll).
 
 <a id="fee"></a>
 **`settlement.approxCents` is the merchant leg, not your bill.** Nevermined charges a routing fee on top, disclosed in the **always-present `fee` object** (zeroed when no fee applied, so never branch on its absence): `fee.capChargedCents` is what this call **reserved** against your Delegation cap — `settlement.approxCents + fee.cents`. Sum `capChargedCents`, not `approxCents`, or your accounting drifts by exactly the fee.
