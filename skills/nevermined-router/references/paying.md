@@ -86,8 +86,8 @@ failure. You can omit it entirely and send the same call for both rails.
 ### Async services — pay, then poll
 
 Some catalog services answer a paid call with a job id and deliver the result later, on a **free**
-status/result endpoint: Tavily research, 2Captcha, Browserbase sessions, Nyne, Parallel tasks,
-Apify runs, Allium query runs. Poll that endpoint through the **same slug** with `/route`:
+status/result endpoint (Tavily research is one). Poll that endpoint through the **same slug** with
+`/route`:
 
 ```json
 { "delegationId": "…", "slug": "tavily-api-mpp", "path": "/research", "method": "POST",
