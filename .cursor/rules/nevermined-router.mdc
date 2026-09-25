@@ -130,7 +130,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0002` (409) — `requestId` already used; the original `paymentId` is in the response.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; `details` names it.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
-- Only `BCK.ROUTER.0006` (500), `0007` (429, too many concurrent) and `0020` (5xx/429) are **retryable**. Everything
+- Only `BCK.ROUTER.0006` (500), `0007` (429, too many concurrent), `0020` (5xx/429), and quote-only `0028` (503) are **retryable**. Everything
   else is a decision — retrying unchanged gives the same answer.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry it:** a credential was already minted and
   no record was written, so `requestId` will not suppress the retry. Report it.
@@ -157,6 +157,8 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0021` (400) — the payment credential would overwrite a header you asked the Router to forward: the MPP rails carry it in `Authorization`, which is also where your own merchant auth goes. Nothing was minted and no money moved. Name the header the service documents for its credential — `credentialHeader` in the `/route` body, or `X-Router-Credential-Header` on `/proxy`·`/svc` (a separate `Payment` header is the common one) — and your `Authorization` is left untouched. Do not retry unchanged.
 - `BCK.ROUTER.0024` (413) — the request body exceeds the Router's size limit (about 5 MB). Do not retry unchanged; reduce the request body.
 - `BCK.ROUTER.0025` (502) — reply too large after a paid request; payment may have gone through. The reply has no `X-Router-Payment-Id`; JSON-string `params` may carry `paymentId`. If absent, call `GET /api/v1/router/payments` with `delegationId` and `from` just before the call, then match `requestId` in the returned rows (newest 1000 maximum; there is no `requestId` filter). The row reads `status: Failed` because delivery failed, not because the merchant was uncharged. A non-null `merchantSettlementObservedAt` confirms x402 settlement; null does not prove no charge, including on MPP rails. Do not retry: the same `requestId` returns 409 `BCK.ROUTER.0002` with the original `paymentId` and cannot re-deliver the reply; a fresh id risks another charge.
+- `BCK.ROUTER.0026` (415) — the Router cannot forward this request body. The streaming surfaces (`/router/svc/:slug`, `/router/proxy`) forward only JSON or URL-encoded bodies; any other type (`multipart/form-data`, `text/plain`, `application/octet-stream`, a vendor `+json`) or any body on GET/HEAD is refused. No payment was minted and no money moved. Resend as JSON or a URL-encoded form; retrying unchanged fails identically.
+- `BCK.ROUTER.0028` (503) — `POST /router/quote` could not price the call because a dependent read failed (e.g. settlement-token details). Nothing is signed or charged on the quote path; retry with backoff. The same condition would also fail a payment, so do not route the call meanwhile.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
