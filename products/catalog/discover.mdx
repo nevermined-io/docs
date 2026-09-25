@@ -75,7 +75,7 @@ The fields you'll actually use on each service:
 | `category` / `subCategory` | Curated category and its granular label (`subCategory` is absent when there is none) |
 | `priceLabel` | Human string like `"$0.001"` — **indicative only**; the wire price governs |
 | `network` / `networks` | Display names (`"Base"`, `"Tempo"`), not chain ids |
-| `endpoints[]` | `{ path, method, description, priceLabel }`; some also carry `invokePath`, `requestExample` and `responseFields` |
+| `endpoints[]` | `{ path, method, description, priceLabel }`; some also carry `invokePath`, `requestExample` (graded by `exampleEvidence`: `paid-run` · `challenge` · `docs`) and `responseFields`. The service's detail adds a merchant-declared `requestSchema` or `noParameters` per endpoint |
 | `invokeUrl` | The service's Router URL, `…/api/v1/router/svc/<slug>` |
 | `invoke` | A ready-made Router call: method, URL and the `X-Router-*` headers to send |
 
