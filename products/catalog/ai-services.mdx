@@ -56,6 +56,13 @@ Each listing moves through a simple lifecycle:
 | **Degraded** | Still listed, but failing health checks. If no healthy probe arrives within 72h the listing is **unlisted automatically** — any healthy probe inside that window restores it. |
 | **Removed** | The listing has been taken down. |
 
+### Health is also judged on paid calls
+
+The monitor's probe does not pay, so it proves your endpoint answers, not that a paid call delivers. The Catalog also reads the outcome of real purchases made through the [Router](/products/catalog/router/overview):
+
+- **Hidden while payments don't go through.** If a listing's paid calls over the last 7 days all went undelivered, it is hidden from discovery. That takes at least 3 undelivered calls from at least 2 different buyers, and none settled. An undelivered call is one that failed, or one where your endpoint collected the payment and returned no result. One settled call brings the listing back. If there are no new calls, it comes back automatically after 3 days.
+- **No uptime claim without a settled call.** If a listing has at least 3 paid calls from at least 2 buyers in the last 30 days and none of them settled, it stays listed but shows no "operational" status, uptime or last-healthy time until a call settles.
+
 <Note>
 Publishing requires an **active paid tier** (Starter or above) — see [Plans & Billing](/solutions/organizations/plans-and-billing). See [Agentic integration](/solutions/organizations/agentic-integration) for the organization API context, and [Register a plan and agent](/agents-guide/register-plan-and-agent) for creating the agent you'll list.
 </Note>
