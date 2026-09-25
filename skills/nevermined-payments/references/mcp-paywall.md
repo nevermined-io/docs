@@ -30,7 +30,7 @@ payments.mcp.registerTool(
     })
   },
   async (args, extra, context) => {
-    console.log(`Request ID: ${context?.authResult.requestId}`)
+    console.log(`Request ID: ${context?.agentRequest?.agentRequestId}`)
     console.log(`Credits charged: ${context?.credits}`)
 
     const weather = await fetchWeather(args.city)
@@ -47,7 +47,8 @@ payments.mcp.registerTool(
 // Start everything (MCP Server + Express + OAuth)
 const { info, stop } = await payments.mcp.start({
   port: 3000,
-  agentId: process.env.NVM_AGENT_ID!,
+  planId: process.env.NVM_PLAN_ID!,    // required — the plan every paywalled tool charges against
+  agentId: process.env.NVM_AGENT_ID,   // optional, informational
   serverName: "my-weather-server",
   version: "1.0.0",
   description: "Weather MCP server with OAuth authentication"
@@ -104,51 +105,47 @@ payments.mcp.registerTool(
 | Option | Type | Description |
 |--------|------|-------------|
 | `credits` | `bigint` or `function` | Credits to consume per call |
-| `planId` | `string` | Optional override for the plan ID (otherwise inferred from token) |
+| `planId` | `string` | Per-tool plan ID (otherwise the server-level `planId` from `start()` / `configure()`) |
 | `maxAmount` | `bigint` | Max credits to verify during authentication (default: `1n`) |
-| `onRedeemError` | `string` | `'ignore'` (default) or `'propagate'` to throw on redemption failure |
+| `onRedeemError` | `string` | For non-streaming tools: `'ignore'` (default) returns the in-band payment error when settlement fails; `'propagate'` throws a `-32002` error instead. Either way the tool's content is not returned |
 
 ## Response Metadata (`_meta`)
 
-After each paywall-protected call, the SDK injects a `_meta` field into the response:
+After a paywall-protected call settles, the SDK adds two keys to the result's `_meta`: the x402 settlement receipt under `x402/payment-response`, and a Nevermined summary under `nevermined/credits`:
 
 ```typescript
-// Successful redemption
 {
   content: [{ type: 'text', text: 'result' }],
   _meta: {
-    success: true,
-    txHash: '0xabc...',
-    creditsRedeemed: '5',
-    remainingBalance: '95',
-    planId: 'plan-123',
-    subscriberAddress: '0x123...',
-  }
-}
-
-// Failed redemption (onRedeemError: 'ignore')
-{
-  content: [{ type: 'text', text: 'result' }],
-  _meta: {
-    success: false,
-    creditsRedeemed: '0',
-    planId: 'plan-123',
-    subscriberAddress: '0x123...',
-    errorReason: 'Insufficient credits',
-  }
+    'x402/payment-response': { success: true, transaction: '0xabc...', network: 'eip155:84532', /* ...full settle receipt */ },
+    'nevermined/credits': {
+      success: true,
+      billingModel: 'credits',
+      txHash: '0xabc...',
+      creditsRedeemed: '5',
+      remainingBalance: '95',
+      planId: 'plan-123',
+      subscriberAddress: '0x123...',
+    },
+  },
 }
 ```
 
+For a non-streaming tool, if settlement fails after the tool ran, the tool's content is **not** returned: the call comes back as an error tool result (`isError: true`, the `PaymentRequired` object in `structuredContent`), so a paid result is never delivered unpaid. A streaming tool (a handler returning an `AsyncIterable`) has already yielded its chunks when settlement runs, so a failure is reported only in the final `_meta` chunk: `nevermined/credits` with `success: false` and an `errorReason`, and no `x402/payment-response`.
+
+Fields of `_meta['nevermined/credits']`:
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `success` | `boolean` | Whether credit redemption succeeded |
-| `billingModel` | `string` | `credits` or `pay-as-you-go`. **Read this before either credit field** — the SDK merges it into this same object. Absent on a deployment predating it; treat that as `credits`. |
-| `txHash` | `string` | Blockchain transaction hash (only on success) |
-| `creditsRedeemed` | `string` | Number of credits burned (`'0'` on failure — **and always `'0'` on a pay-as-you-go plan, including a successful charge**) |
+| `success` | `boolean` | Whether settlement succeeded (`true` for calls that settle nothing) |
+| `billingModel` | `string` | `credits` or `pay-as-you-go`. **Read this before either credit field.** Absent on a deployment predating it; treat that as `credits`. |
+| `txHash` | `string` | Settlement transaction reference (when present) |
+| `creditsRedeemed` | `string` | Number of credits burned — **always `'0'` on a pay-as-you-go plan, including a successful charge**. Omitted when the settle reported no figure |
 | `remainingBalance` | `string` | Credits remaining after redemption (also always `'0'` on pay-as-you-go) |
+| `orderTx` | `string` | Charge reference on pay-as-you-go plans (when present) |
 | `planId` | `string` | Plan used for the operation |
 | `subscriberAddress` | `string` | Subscriber's wallet address |
-| `errorReason` | `string` | Error message (only on failure) |
+| `errorReason` | `string` | Streaming tools only, on a failed settlement: why it failed |
 
 ## Client Usage
 
@@ -168,12 +165,16 @@ const { accessToken } = await paymentsClient.x402.getX402AccessToken(planId, age
 ```typescript
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
+import { decodeAccessToken } from "@nevermined-io/payments"
 
+// Nevermined MCP servers do not read the `payment-signature` header. The `/mcp`
+// endpoint requires `Authorization: Bearer <accessToken>`; the paywall prefers the
+// in-band `_meta["x402/payment"]` payload (below) when present.
 const transport = new StreamableHTTPClientTransport(
   new URL("http://localhost:3000/mcp"),
   {
     requestInit: {
-      headers: { 'payment-signature': accessToken }
+      headers: { Authorization: `Bearer ${accessToken}` }
     }
   }
 )
@@ -183,7 +184,8 @@ await client.connect(transport)
 
 const result = await client.callTool({
   name: "weather.today",
-  arguments: { city: "Madrid" }
+  arguments: { city: "Madrid" },
+  _meta: { "x402/payment": decodeAccessToken(accessToken) },
 })
 ```
 
@@ -206,9 +208,13 @@ OAuth authentication is handled automatically by the server.
 
 ## Advanced: Low-Level APIs
 
+`withPaywall` and `attach` need a resolvable plan ID when a handler is registered — configure it server-wide first or pass `planId` per handler; otherwise registration throws `Server misconfiguration: missing planId`.
+
 ### `withPaywall` for Custom Servers
 
 ```typescript
+payments.mcp.configure({ planId: process.env.NVM_PLAN_ID!, serverName: "my-server" })
+
 const protectedHandler = payments.mcp.withPaywall(
   myHandler,
   {
@@ -235,9 +241,11 @@ registrar.registerTool(
 
 ## MCP Error Codes
 
+For **tools**, Payment Required (no token, invalid token, insufficient credits, or settlement failed after execution) is not a JSON-RPC error: it comes back in band as a tool result with `isError: true` and the `PaymentRequired` object in `structuredContent` (x402 v2 MCP transport). Resources and prompts have no tool-result channel, so there it surfaces as a JSON-RPC error.
+
 | Error Code | Description |
 |---|---|
-| `-32003` | Payment Required — no token, invalid token, or insufficient credits |
+| `-32003` | Payment Required — resources and prompts only (see above for tools); the MCP SDK may forward only the message, not the code |
 | `-32002` | Misconfiguration — server setup error |
 | `-32603` | Internal Error — handler execution failed |
 
@@ -257,7 +265,8 @@ For dynamic URIs, use placeholders: `mcp://weather-mcp/resources/weather.today?c
 ```bash
 NVM_API_KEY=sandbox:your-api-key
 NVM_ENVIRONMENT=sandbox
-NVM_AGENT_ID=your-agent-id
+NVM_PLAN_ID=your-plan-id
+NVM_AGENT_ID=your-agent-id          # Optional
 ```
 
 ## Tutorial

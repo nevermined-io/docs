@@ -35,7 +35,9 @@ async function main() {
       tags: ['ai', 'payments'],
       dateCreated: new Date()
     },
-    // Agent interface
+    // Agent interface — endpoints and agentDefinitionUrl are both optional.
+    // Provide endpoints only when you want the Nevermined platform to enforce
+    // route-level Additional Security on top of your library middleware.
     {
       endpoints: [{ POST: 'https://your-api.com/query' }]
     },
@@ -85,6 +87,9 @@ def main():
             'description': 'A paid AI service',
             'tags': ['ai', 'payments']
         },
+        # agent_api is required, but its `endpoints` and `agent_definition_url`
+        # fields are optional: omit them for an open agent (no platform-side
+        # route enforcement); include `endpoints` for Additional Security.
         agent_api={
             'endpoints': [{'POST': 'https://your-api.com/query'}]
         },
