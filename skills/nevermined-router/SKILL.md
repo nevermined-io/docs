@@ -131,44 +131,43 @@ If the wallet is empty and you cannot fund it yourself, that is a **stop conditi
 
 ## ④ Discover a service
 
-The **Agent Services Catalog** is public and unauthenticated — no API key:
+The **Agent Services Catalog** is one public JSON feed — no API key, no query parameters. Fetch it and filter on your side:
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/catalog/services?protocol=x402&search=web+search&offset=5"
+curl -s https://nevermined.app/catalog/ai-catalog.json \
+  | jq '[.services[] | select(.protocol == "x402" and .category == "Search & Research")
+         | {slug, title, priceLabel, endpoints: [.endpoints[] | {method, path: (.invokePath // .path), description}]}]'
 ```
 
 ```json
-{
-  "total": 9, "page": 1, "offset": 5,
-  "services": [{
+[
+  {
     "slug": "superhighway",
     "title": "Superhighway — Web Search for Agents",
-    "protocol": "x402",
-    "targetUrl": "https://superhighway.walls.sh/search",
     "priceLabel": "$0.001",
-    "network": "Base",
     "endpoints": [
-      { "path": "/search", "method": "POST", "priceLabel": "$0.001", "description": "Web search" },
-      { "path": "/news",   "method": "POST", "priceLabel": "$0.001", "description": "Real-time news search" }
-    ],
-    "tags": ["search", "web", "news", "markdown"]
-  }]
-}
+      { "method": "POST", "path": "/search", "description": "Web search" },
+      { "method": "POST", "path": "/news",   "description": "Real-time news search" },
+      { "method": "POST", "path": "/images", "description": "Image search" }
+    ]
+  }
+]
 ```
+
+(An excerpt: the real result lists every match.) `/api/v1/catalog/services` and `/api/v1/catalog/categories` are **not a public API** — they return `403` by design. For server-side search, the Catalog MCP (`search_services`, `get_service`, `list_categories` at `https://mcp.live.nevermined.app/mcp`) is free and needs no key.
 
 Two rules that will otherwise cost you a wasted payment:
 
 1. **Only `protocol` of `x402` or `mpp` is payable through the Router.** Filter for them. Anything else in the catalog is listed for discovery, not for routing — see [above](#not-for).
 
-2. **`targetUrl` is the *default endpoint's complete URL*, not a base.** Above it is `…/search`, and `endpoints[0].path` is *also* `/search`. Concatenating gives you `/search/search`. Resolve against the origin instead:
+2. **Pay a listed service by its `slug`, never by URL.** The feed carries no merchant URL on purpose: the Router resolves it server-side and refuses a raw-URL payment to a cataloged host (`409 BCK.ROUTER.0014`). The subpath to send is the endpoint's `invokePath` when present — **even `""`, which means "append nothing"** — and its `path` otherwise:
 
    ```js
-   const url = endpoint ? new URL(endpoint.path, service.targetUrl).toString()
-                        : service.targetUrl
-   // '/news' + 'https://superhighway.walls.sh/search' → 'https://superhighway.walls.sh/news'  ✓
+   const subpath = endpoint.invokePath ?? endpoint.path   // NOT `||`: '' must stay ''
+   // edgar-search: path '/edgar-search/search', invokePath '' → send ''. Sending the path double-stacks it and 404s after the charge.
    ```
 
-Filters, the categories endpoint, the per-slug lookup, and the crawlable ARD feed: `references/discovery.md`.
+More filter recipes, categories, the Catalog MCP, and the ARD host document: `references/discovery.md`.
 
 ## ⑤ Make the paid call
 
@@ -272,7 +271,7 @@ The Router signs payments from your wallet in response to instructions written b
 
 Note `0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. **On the paying path `0007` and `0020` are the codes worth retrying (with backoff).** And seeing `0010` at all means a Nevermined-side regression: no rail emits a non-numeric amount today, so it is a bug report, not a condition to handle. (On the card rail the minted credential is a Stripe Shared Payment Token, left stranded with no revoke path until `min(challenge expiry, Delegation expiry, 89 days)`.)
 
-Catalog errors: `BCK.CATALOG.0001` (404, no listed service with that slug — slugs are case-sensitive), `BCK.CATALOG.0002` (500, transient, retryable), `BCK.CATALOG.0003` (400, `protocol` filter must be one of `x402`, `mpp`, `rest`, `a2a`, `other`).
+Catalog errors: `BCK.CATALOG.0001` (404, no listed service with that slug — slugs are case-sensitive), `BCK.CATALOG.0002` (500, transient, retryable).
 
 What the Router refuses outright — private/loopback/metadata targets, redirects, MPP `splits`, forged `X-Router-*` headers — and the relay limits: `references/errors.md`.
 
@@ -280,7 +279,7 @@ What the Router refuses outright — private/loopback/metadata targets, redirect
 
 | You need… | Read |
 | --- | --- |
-| Catalog filters, categories, per-slug lookup, the ARD feed | `references/discovery.md` |
+| The Catalog feed, filter recipes, categories, the Catalog MCP, the ARD host document | `references/discovery.md` |
 | Mode A vs mode B, `/proxy` streaming, merchant auth, full payloads | `references/paying.md` |
 | Delegation fields, recipient scoping, wallet funding, networks | `references/bootstrap.md` |
 | Every guardrail, every code, what is retryable and why | `references/errors.md` |

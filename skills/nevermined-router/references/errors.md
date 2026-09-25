@@ -115,7 +115,7 @@ clean it up from the outside.
 so this is a bug to report, not a condition to handle. Report it to the human. Do not loop.
 
 Catalog codes: `BCK.CATALOG.0001` (404, unknown slug — case-sensitive), `BCK.CATALOG.0002` (500,
-transient, retryable), `BCK.CATALOG.0003` (400, bad `protocol` filter).
+transient, retryable).
 
 ## The four rules for an autonomous buyer
 

@@ -65,23 +65,26 @@ live → `base`.** A merchant on the other chain is unpayable from where you are
 ## 3. Discover (public, no API key)
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/catalog/services?protocol=x402&search=web+search"
+curl -s https://nevermined.app/catalog/ai-catalog.json \
+  | jq '[.services[] | select(.protocol == "x402" and .category == "Search & Research") | {slug, title, priceLabel}]'
 ```
 
+- One JSON feed of every listed service — filter it locally. `/api/v1/catalog/services` and
+  `/api/v1/catalog/categories` are **not a public API**: they return `403` by design. For server-side
+  search, use the Catalog MCP (`search_services`, `get_service`, `list_categories`) at
+  `https://mcp.live.nevermined.app/mcp` — free, no key.
 - **Only `protocol` of `x402` or `mpp` is routable.** Filter for them.
-- **`targetUrl` is the default endpoint's COMPLETE URL, not a base** — it may already contain the
-  path (`https://host/search` while `endpoints[0].path` is also `/search`), so concatenating yields
-  `/search/search`. Resolve instead:
+- **Pay a listed service by its `slug`, never by URL** — the feed has no merchant URL, and a raw-URL
+  payment to a cataloged host is refused (`409 BCK.ROUTER.0014`). The subpath to send is the
+  endpoint's `invokePath` when present — even `""`, which means "append nothing" — else its `path`:
 
 ```ts
-const url = endpoint ? new URL(endpoint.path, service.targetUrl).toString() : service.targetUrl
+const subpath = endpoint.invokePath ?? endpoint.path // NOT || — '' must stay '' or the path double-stacks
 ```
 
-- `offset` is the page **size**, not a skip count, and default ordering is shuffled within each
-  tier — never assume `services[0]` is stable.
 - `category` is a **closed 13-value enum** (`"Search & Research"`, not `"Search"`), with a free-text
-  `subCategory` under it. Take both from `GET /api/v1/catalog/categories`, which returns
-  `{ category, count, subCategories[] }` — never guess the string.
+  `subCategory` under it. A misspelt one filters to an empty list, not an error — read the values in
+  use from the feed (`group_by(.category)`), never guess the string.
 
 ## 4. Pay
 

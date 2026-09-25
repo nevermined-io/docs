@@ -127,17 +127,19 @@ Both rails **pull** from your own wallet: a Delegation authorizes a spend, it do
 ### 3. Discover a service (public catalog, no API key)
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/catalog/services?protocol=x402&search=web+search"
+curl -s https://nevermined.app/catalog/ai-catalog.json \
+  | jq '[.services[] | select(.protocol == "x402" and .category == "Search & Research") | {slug, title, priceLabel}]'
 ```
 
+- One JSON feed of every listed service — filter it locally. `/api/v1/catalog/services` and `/api/v1/catalog/categories` are **not a public API**: they return `403` by design. For server-side search, use the Catalog MCP (`search_services`, `get_service`, `list_categories`) at `https://mcp.live.nevermined.app/mcp` — free, no key.
 - Only `protocol` of `x402` or `mpp` is routable — filter for them.
-- **`targetUrl` is the default endpoint's complete URL, not a base** (it may already carry the path), so concatenating yields `/search/search`. Resolve instead:
+- **Pay a listed service by its `slug`, never by URL** — the feed has no merchant URL, and a raw-URL payment to a cataloged host is refused (`409 BCK.ROUTER.0014`). The subpath to send is the endpoint's `invokePath` when present — even `""`, which means "append nothing" — else its `path`:
 
 ```ts
-const url = endpoint ? new URL(endpoint.path, service.targetUrl).toString() : service.targetUrl
+const subpath = endpoint.invokePath ?? endpoint.path // NOT || — '' must stay '' or the path double-stacks
 ```
 
-`category` is a **closed 13-value enum** — `"Search & Research"`, not `"Search"` — with a free-text `subCategory` under it, and both are filter params. Read them from `GET /api/v1/catalog/categories`, which returns `{ category, count, subCategories[] }`; an unrecognised `category` is a plain 400, so never guess the string.
+`category` is a **closed 13-value enum** — `"Search & Research"`, not `"Search"` — with a free-text `subCategory` under it. A misspelt one filters to an empty list, not an error, so read the values in use from the feed (`group_by(.category)`) and never guess the string.
 
 ### 4. Pay
 
