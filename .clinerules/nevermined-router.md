@@ -44,8 +44,9 @@ All four fields are required — no defaults. `erc4337` is the crypto-funded Del
 stablecoin rails need. Two guards refuse this call outright, neither retryable:
 
 - `403 BCK.OAUTH.0030` — the key was OAuth-minted. It may not create Delegations or use
-  `/router/{payments,route,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant,
-  spend through `POST /router/commerce/route`, which derives the Delegation from the grant.
+  `/router/{payments,route,quote,select,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant,
+  spend through `POST /router/commerce/route` and price through `/router/commerce/quote`, which
+  derive the Delegation from the grant.
 - `412 {"error":"consent_required","outdated":[…]}` — the account's legal consent lapsed; a human
   must accept. ⚠️ Its only `code` is the generic `BCK.HTTP.412`, so branch on `body.error`.
 
@@ -111,6 +112,15 @@ merchant's own; `paid: false` with no `payment` means it was free — handle tha
 `ALL /api/v1/router/proxy` with `X-Router-Target-Url`, `X-Router-Delegation-Id` and
 `X-Router-Request-Id` headers.
 
+**Price it first (optional): `POST /api/v1/router/quote`** (API 1.48+) — the same body minus
+`requestId`, `maxTotalCents` and `protocol`, which are stripped, not refused (`delegationId` optional). Nothing is signed, minted, recorded or reserved, but the Router **does**
+send the unpaid request to the service (a service that does not charge for it performs it), and a
+quote spends the same per-key and per-service rate budgets as a payment — quote once per decision,
+don't poll. Pay with `maxTotalCents` set to its `fee.capChargedCents` (whole cents rounded **up**
+from `fee.capChargedMicros`), so a price that rose in between is refused (`402 BCK.ROUTER.0018`)
+instead of paid; any price up to that whole cent is still paid. It checks neither your cap nor your
+wallet. An OAuth `commerce` key quotes on `POST /router/commerce/quote` (no `delegationId`; first API release after 1.49, `404` until then).
+
 ### `requestId` is an idempotency key, not a request counter
 
 **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.** Use one stable id per logical
@@ -121,8 +131,9 @@ again. Derive it from the work being done.
 
 Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs **$10.00, not $1.00**.
 `settlement.approxCents` is only the **merchant** leg; Nevermined's routing fee rides on top in the
-always-present `payment.fee` (`{ bps, amount, cents, capChargedCents }`). **`fee.capChargedCents` is
-what the call reserved against your cap** — sum that, not `approxCents`, or your accounting
+always-present `payment.fee` (`{ bps, amount, cents, capChargedCents, capChargedMicros }`). **`fee.capChargedCents` is
+what the call reserved against your cap**, rounded up to a whole cent (from API 1.48 the exact reserve is
+`capChargedMicros`, in 1/10,000 of a cent) — sum that, not `approxCents`, or your accounting
 under-reports by exactly the fee. ⚠️ It is the reserve **at mint**: a mode-B hop that does not return
 `2xx` releases the fee half back, so a running total over-reports on those calls. For spend to date
 read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
@@ -151,7 +162,9 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0014` (409) — the target is a cataloged Nevermined service, whose upstream URL is
   deliberately hidden; the Router will not pay it by raw URL (mode A or a raw mode-B target puts
   the merchant's host on your wire). A retry with the same raw URL fails identically — invoke it
-  through the broker: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>`.
+  through the broker: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>`
+  (a `commerce` grant: `POST /router/commerce/route`). A refused **quote** is re-quoted by slug on
+  `/router/quote` or `/router/commerce/quote`, never paid.
   The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected.
 
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive, rounded reserve.
