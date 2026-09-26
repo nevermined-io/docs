@@ -4,24 +4,24 @@ Pay external x402 / MPP services through the Router (to receive: `nevermined-pay
 
 Full skill: https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 
-**The Router pays the on-wire price per request.** Plan-billed APIs and `401`/`403` replies need
-authentication, not routing.
+**The Router pays per-request, on-wire prices.** Plan-billed APIs and `401`/`403` replies need
+auth, not routing.
 
 Env: `NVM_API_URL` (`https://api.{sandbox,live}.nevermined.app`), `NVM_API_KEY` (`sandbox:…`
 / `live:…` — **never send it to the merchant**; its own auth goes in `headers`), and
 `NVM_DELEGATION_ID`. Relative paths: on `$NVM_API_URL`, bearer `$NVM_API_KEY`.
 
-## 1. Delegation (the budget)
+## 1. Delegation
 
 `POST /api/v1/delegation/create` with `provider: "erc4337"` (both stablecoin rails need it),
 `currency: "usdc"`, `spendingLimitCents`, `durationSecs` — all four required. Two guards refuse it,
 neither retryable:
 
 - `403 BCK.OAUTH.0030` — the key was OAuth-minted; it may not create Delegations or use
-  `/router/{payments,route,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant,
+  `/router/{payments,route,quote,select,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant,
   `/router/commerce/route`.
-- `412 {"error":"consent_required","outdated":[…]}` — the account's legal consent lapsed; a human
-  must accept. ⚠️ Its only `code` is the generic `BCK.HTTP.412` — branch on `body.error`.
+- `412 {"error":"consent_required","outdated":[…]}` — legal consent lapsed; a human must
+  accept. ⚠️ `code` is just the generic `BCK.HTTP.412`: branch on `body.error`.
 
 ## 2. Fund the wallet
 
@@ -34,7 +34,7 @@ on the other chain fails `400 BCK.ROUTER.0001 … no fundable option`.
 
 ## 3. Discover
 
-`https://nevermined.app/catalog/ai-catalog.json` — public, no key, every service; filter
+`https://nevermined.app/catalog/ai-catalog.json` — public, no key; filter
 locally. `/api/v1/catalog/{services,categories}` are **not public** (`403`);
 server-side search: Catalog MCP `search_services` (`mcp.live.nevermined.app/mcp`).
 
@@ -49,7 +49,7 @@ server-side search: Catalog MCP `search_services` (`mcp.live.nevermined.app/mcp`
 
 The Router probes, detects the protocol from the 402, pays and relays; `status`/`body` are the
 merchant's; `paid: false` with no `payment` means it was free. Streaming: `ALL /router/proxy`
-via `X-Router-*` headers.
+with `X-Router-{Target-Url,Delegation-Id,Request-Id}`.
 
 **`requestId` is an idempotency key:** one stable id per purchase, reused across its retries (same id →
 original payment; fresh id buys again). **A fresh `uuid4()` per attempt is how an agent double-spends.**
@@ -59,10 +59,10 @@ original payment; fresh id buys again). **A fresh `uuid4()` per attempt is how a
 `fee.capChargedCents` is what the call **reserved**, not final — a mode-B hop missing `2xx` releases
 the fee half. Spend to date: the Delegation's `amountSpentCents`.
 
-**Quote first:** `POST /api/v1/router/quote` (`commerce` grant: `/router/commerce/quote`), no
-`requestId`. Charges nothing, but **does** call the service unpaid and spends its rate budget: once
-per decision. Pay with `maxTotalCents` = `fee.capChargedCents`. `503 BCK.ROUTER.0028`: retry w/
-backoff.
+**Quote first:** `POST /api/v1/router/quote` (`commerce` grant, after 1.49: `/router/commerce/quote`),
+minus `requestId`/`maxTotalCents`. Charges nothing, but **does** call the service unpaid and spends
+its rate budget: once per decision. Pay with `maxTotalCents` = `fee.capChargedCents`.
+`503 BCK.ROUTER.0028`: retry w/ backoff.
 
 ## Guardrails
 
@@ -83,7 +83,7 @@ backoff.
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected it; body withheld, status kept. Fix from Catalog detail; no retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0024` (413) — body over ~5 MB. **No retry as-is**; shrink it.
-- `BCK.ROUTER.0025` (502) — reply too large; charge unknown. **No retry**: same id → 409 `0002` + original `paymentId`, no reply; fresh id may charge again. `paymentId`: JSON-string `params` (no `X-Router-Payment-Id`), else `/api/v1/router/payments` with `delegationId` + `from` just pre-call; match `requestId` in the newest 1000 rows (no filter for it). `status: Failed` is delivery, not charge; non-null `merchantSettlementObservedAt` = x402 settled; null proves nothing (MPP too).
+- `BCK.ROUTER.0025` (502) — reply too large; charge unknown. **No retry**: same id → 409 `0002` + original `paymentId`, no reply; fresh id may charge again. `paymentId`: JSON-string `params` (no `X-Router-Payment-Id`), else `/api/v1/router/payments` with `delegationId` + `from` just pre-call; match `requestId` in the newest 1000 rows (no filter). `status: Failed` is delivery, not charge; non-null `merchantSettlementObservedAt` = x402 settled; null proves nothing (MPP too).
 - Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, selection) and `0028` (503, quote) are **retryable**, with backoff; paying path: `0007`/`0020`. Others need a decision.
 
 **Never widen a Delegation, or create a second one, to get past a refusal.** The cap is the user's

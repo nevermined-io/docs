@@ -48,7 +48,7 @@ attempted — so handle them even though none carries a `BCK.ROUTER.*` code.
 
 | | Code | Status | Applies to | Retry? |
 | --- | --- | --- | --- | --- |
-| **OAuth-minted key** | `BCK.OAUTH.0030` | 403 | `POST /delegation/create`, `POST /router/payments`, `POST /router/route`, `POST /router/quote`, `ALL /router/proxy`, `ALL /router/svc/<slug>` | No |
+| **OAuth-minted key** | `BCK.OAUTH.0030` | 403 | `POST /delegation/create`, `POST /router/payments`, `POST /router/route`, `POST /router/route/with-controls`, `POST /router/quote`, `POST /router/select`, `ALL /router/proxy`, `ALL /router/svc/<slug>` | No |
 | **Not a commerce grant** | `BCK.OAUTH.0033` | 403 | `POST /router/commerce/route`, `/commerce/route/with-controls`, `/commerce/select`, `/commerce/quote` | No |
 | **`delegationId` on a commerce route** | `BCK.OAUTH.0034` | 400 | The same four commerce routes | No |
 | **Consent lapsed** | `BCK.HTTP.412` (generic — see below) | 412 | Account-wide; `POST /delegation/create` is the one on this path | No |
@@ -69,7 +69,9 @@ the grant the user approved.
 only a credential minted from a `commerce` authorization, because they spend or price the Delegation
 that grant is pinned to. A plain API key, or a credential from any other consent type, is refused:
 use the twin that names its own Delegation instead — `POST /api/v1/router/route` to pay,
-`POST /api/v1/router/select` to pick a service, `POST /api/v1/router/quote` to price a call. A
+`POST /api/v1/router/select` to pick a service, `POST /api/v1/router/quote` to price a call. Those
+twins take a **plain** API key only: a `credits_purchase` or `account_access` credential is refused
+there too (`403 BCK.OAUTH.0030`), and its fix is a plain key from the account owner. A
 `commerce` credential that still sees it has a grant whose Delegation is missing or empty, or is bound
 to a different one: re-run the authorization to mint a fresh mandate. Not retryable unchanged.
 

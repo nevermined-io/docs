@@ -524,7 +524,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 
 ## Price a call before paying
 
-`quote_service` answers *"what will this one call cost?"* without paying for it. It takes exactly the arguments you'd pass to `pay_service` and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`).
+`quote_service` answers *"what will this one call cost?"* without paying for it. It takes the `slug`, `path`, `method`, `search`, `headers`, `body` and `delegationId` you'd pass to `pay_service` (not `maxTotalCents`, `requestId` or `fresh`) and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`).
 
 <Note>
 **Rolling out.** `quote_service` reaches each environment with the next Catalog MCP release. If it isn't in your host's tool list yet, bound a call's price with `pay_service`'s `maxTotalCents` instead.
@@ -546,7 +546,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
       "delegationId": "121b880a-…",
       "protocol": "x402",
       "x402Version": 2,
-      "settlement": { "recipient": "0x2096…", "amount": "20000", "asset": "USDC", "network": "base", "approxCents": "2", "scheme": "exact" },
+      "settlement": { "recipient": "0x2096…", "amount": "20000", "asset": "USDC", "network": "base", "approxCents": "2" },
       "fee": { "bps": 200, "amount": "400", "cents": "1", "capChargedCents": "3", "capChargedMicros": "20400" },
       "request": { "method": "POST", "path": "/quote", "methodSource": "catalog", "catalogEndpoint": "/quote" },
       "nextTool": "pay_service",
@@ -564,7 +564,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
     { "slug": "dexter-x402", "path": "/quote", "body": { "pair": "ETH/USDC" }, "delegationId": "121b880a-…", "maxTotalCents": 3 }
     ```
 
-    If the price rises between the quote and the call, the payment is refused instead of paid. The ceiling has whole-cent resolution, so a rise that stays within the same cent is still paid.
+    If the price rises between the quote and the call, the payment is refused instead of paid. The ceiling has whole-cent resolution: with `maxTotalCents: 3`, any price up to 3.00¢ is still paid — here a rise of up to 0.96¢.
   </Step>
 </Steps>
 

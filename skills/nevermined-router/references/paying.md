@@ -63,7 +63,7 @@ failure. You can omit it entirely and send the same call for both rails.
     "paymentId": "b1f9c2e4-…",
     "settlement": {
       "recipient": "0x209693Bc…", "amount": "1000", "asset": "USDC",
-      "network": "base", "approxCents": "1", "scheme": "exact"
+      "network": "base", "approxCents": "1"
     },
     "fee": { "bps": 0, "amount": "0", "cents": "0", "capChargedCents": "1" },
     "txHash": "0xfc8af37b…",
@@ -152,8 +152,9 @@ wrong here.
 <a id="quote"></a>
 ### Price it first — `POST /api/v1/router/quote`
 
-The unpaid half of mode B. Send the same body as `/route` **minus `requestId`**; `delegationId` is
-optional. The Router makes the same unpaid request to the service that a payment would, reads the
+The unpaid half of mode B, on deployments running API 1.48 or later. Send the same body as `/route`
+**minus `requestId`, `maxTotalCents` and `protocol`** (they are stripped, not refused — a ceiling sent
+here does nothing); `delegationId` is optional. The Router makes the same unpaid request to the service that a payment would, reads the
 402, selects the payment option exactly as a payment would (MPP first, then x402), prices it with the
 routing fee — and stops. **Nothing is signed, no credential is minted, no payment is recorded and no
 budget is reserved.**
@@ -181,7 +182,7 @@ curl -sX POST "$NVM_API_URL/api/v1/router/quote" \
   "x402Version": 2,
   "settlement": {
     "recipient": "0x209693Bc…", "amount": "50000", "asset": "USDC",
-    "network": "base", "approxCents": "5", "scheme": "exact"
+    "network": "base", "approxCents": "5"
   },
   "fee": { "bps": 200, "amount": "1000", "cents": "1", "capChargedCents": "6", "capChargedMicros": "51000" }
 }
@@ -190,7 +191,8 @@ curl -sX POST "$NVM_API_URL/api/v1/router/quote" \
 A $0.05 call with a 2% routing fee: the exact cap debit is `51000` micros (5.1¢), and
 `capChargedCents` rounds that **up** to `6`. Then pay with `maxTotalCents: 6` on `/route`, so a price
 that rose in between is refused with `402 BCK.ROUTER.0018` instead of paid. The ceiling has whole-cent
-resolution, so a rise that stays within the same cent is still paid.
+resolution, so any price up to 6.00¢ is still paid — here a rise of up to 0.9¢. (`settlement` carries
+no `scheme` on the x402 rail; it defaults to `exact`. Read `protocol` for the rail.)
 
 | Field | Meaning |
 | --- | --- |
@@ -215,7 +217,8 @@ a raw URL on a cataloged host, `404 BCK.CATALOG.0001` for an unknown slug), and 
 depends on can fail with `503 BCK.ROUTER.0028`, which is retryable with backoff.
 
 **OAuth `commerce` credential:** an OAuth-minted key is refused here (`403 BCK.OAUTH.0030`). A key
-from a `commerce` grant quotes on **`POST /api/v1/router/commerce/quote`** — same body, same answer —
+from a `commerce` grant quotes on **`POST /api/v1/router/commerce/quote`** — same body, same answer;
+it ships in the first API release after 1.49 and answers `404` until your deployment has it —
 which prices the Delegation the grant is pinned to and so refuses a `delegationId`
 (`400 BCK.OAUTH.0034`). Pay the result on `POST /api/v1/router/commerce/route`. A plain key on the
 commerce route gets `403 BCK.OAUTH.0033`.
