@@ -31,13 +31,14 @@ If your agent would rather not choose among listings at all, `route_by_intent` d
 
 ## The tool surface
 
-Discovery is **free** — no credential needed. Picking or paying for a service, reading your ledger and reading your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
+Discovery is **free** — no credential needed. Pricing, picking or paying for a service, reading your ledger and reading your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
 
 | Tool | Auth | What it does |
 | --- | --- | --- |
 | `list_categories` | free | Catalog categories, with a count each. |
 | `search_services` | free | Search listings, most relevant first (semantic + keyword ranking). `query` is required; optional filters: `category`, `protocol`, `tag`, `pageSize`. |
 | `get_service` | free | One service by `slug` — protocol, price label, and a `requestShape` naming each callable endpoint and the exact `pay_service` arguments for it. |
+| `quote_service` | paid | Price one call before paying it: the live, fee-inclusive total for your exact request, and the rail and network it would pay on. **Charges nothing**, but the request does reach the service — see [Price a call before paying](#price-a-call-before-paying). |
 | `pay_service` | paid | Pay for a service and return the vendor's response. **Charges real funds.** |
 | `route_by_intent` | paid | Describe a need in plain language; get back the single best payable service plus a ranked shortlist. With `autoPay: true` it also pays that service. **Charges real funds when `autoPay` is true.** |
 | `setup_delegation` | paid | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
@@ -411,7 +412,7 @@ If a usable Delegation already exists — including the one an OAuth commerce gr
 
 ### 5. Make a paid call
 
-Read `get_service` first, then call **`pay_service`** with the `payServiceArgs` of the endpoint you want — the `slug`, its `path`, and the `body` and `headers` the vendor needs. If you omit `method`, the tool uses the catalog method for the matching endpoint, falling back to `POST`. For a slug-routed GET, put the query string without `?` in `search`, separate from `path`. Optional `maxTotalCents` is a non-negative safe integer that caps this call's fee-inclusive, whole-cent budget reserve; the Delegation cap still limits total spend.
+Read `get_service` first, then call **`pay_service`** with the `payServiceArgs` of the endpoint you want — the `slug`, its `path`, and the `body` and `headers` the vendor needs. If you omit `method`, the tool uses the catalog method for the matching endpoint, falling back to `POST`. For a slug-routed GET, put the query string without `?` in `search`, separate from `path`. Optional `maxTotalCents` is a non-negative safe integer that caps this call's fee-inclusive, whole-cent budget reserve; the Delegation cap still limits total spend. To learn that figure before paying, [quote the call](#price-a-call-before-paying).
 
 For example:
 
@@ -520,6 +521,81 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 | `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped — you weren't charged twice. The original payment is authoritative, but it may itself have `Failed`: check its status in `list_payments` before assuming the purchase went through. |
 | `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
 | `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No Delegation on the account yet. Call `setup_delegation` and open the URL it returns — see [step 4](#getting-a-delegation-from-inside-the-chat). |
+
+## Price a call before paying
+
+`quote_service` answers *"what will this one call cost?"* without paying for it. It takes exactly the arguments you'd pass to `pay_service` and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`).
+
+<Note>
+**Rolling out.** `quote_service` reaches each environment with the next Catalog MCP release. If it isn't in your host's tool list yet, bound a call's price with `pay_service`'s `maxTotalCents` instead.
+</Note>
+
+<Steps>
+  <Step title="Quote the call">
+    Call `quote_service` with the arguments you'd pay with — here, the ones from [step 5](#5-make-a-paid-call):
+
+    ```json
+    { "slug": "dexter-x402", "path": "/quote", "body": { "pair": "ETH/USDC" } }
+    ```
+
+    ```json
+    {
+      "paymentRequired": true,
+      "upstreamStatus": 402,
+      "optionSet": "delegation",
+      "delegationId": "121b880a-…",
+      "protocol": "x402",
+      "x402Version": 2,
+      "settlement": { "recipient": "0x2096…", "amount": "20000", "asset": "USDC", "network": "base", "approxCents": "2", "scheme": "exact" },
+      "fee": { "bps": 200, "amount": "400", "cents": "1", "capChargedCents": "3", "capChargedMicros": "20400" },
+      "request": { "method": "POST", "path": "/quote", "methodSource": "catalog", "catalogEndpoint": "/quote" },
+      "nextTool": "pay_service",
+      "instructions": "Nothing was charged. `fee.capChargedCents` is the fee-inclusive total this call would cost, …"
+    }
+    ```
+  </Step>
+  <Step title="Decide">
+    `fee.capChargedCents` is the call's fee-inclusive price in whole cents, rounded **up** from `fee.capChargedMicros` (exact, in 1/10,000 of a cent). Here a $0.02 call plus a 2% routing fee is 2.04¢, so the figure is `3`. Compare it with what you planned to spend on this call.
+  </Step>
+  <Step title="Pay with a ceiling">
+    Call `pay_service` with the same arguments, the quoted `delegationId`, and `maxTotalCents` set to that figure **as a number**:
+
+    ```json
+    { "slug": "dexter-x402", "path": "/quote", "body": { "pair": "ETH/USDC" }, "delegationId": "121b880a-…", "maxTotalCents": 3 }
+    ```
+
+    If the price rises between the quote and the call, the payment is refused instead of paid. The ceiling has whole-cent resolution, so a rise that stays within the same cent is still paid.
+  </Step>
+</Steps>
+
+### What a quote does and doesn't do
+
+- **It charges nothing.** Nothing is signed, no credential is minted, no payment is recorded and no budget is reserved.
+- **It does contact the service.** To read the price, the Router sends your request to the service unpaid, the same request a payment starts with. A service that doesn't charge for that request performs it, so take care quoting a method with side effects. The service's response is never returned to you.
+- **It spends rate budget.** A quote counts against the same per-key and per-service rate limits as a payment. Quote once per decision; don't poll.
+- **It checks neither your remaining budget nor your wallet balance.** `pay_service` still does.
+
+`optionSet` tells you what was priced:
+
+- **`delegation`**: the Delegation `pay_service` would charge, named in `delegationId`. A card Delegation pays over MPP-stripe, an organization-wallet Delegation pays only in its own currency, and a recipient allowlist is enforced, so the Delegation can change the rail and the price. With an API key that's your default Delegation, or the `delegationId` you pass. On an OAuth commerce connection it's always the Delegation your grant approved, whatever you pass.
+- **`deployment`**: you have no Delegation yet, so this is what a personal crypto Delegation would select. The answer carries `nextTool: "setup_delegation"`. Set one up, then quote again before paying, because the Delegation you create can select a different rail and price.
+
+`paymentRequired: false` means the service didn't ask for payment for this request, and `upstreamStatus` is its answer. A non-2xx there usually means the path, method or body isn't what the endpoint expects, so check `get_service` before paying.
+
+**A `get_service` endpoint may also carry a `quote`.** That's the last merchant price the Catalog observed, with the routing fee **excluded**. It's useful for comparing services. `quote_service` is live, for your exact request, with the fee **included**, so it's the figure to set `maxTotalCents` from.
+
+### When a quote can't be made
+
+Every one of these charges nothing:
+
+| Result | What happened | What to do |
+| --- | --- | --- |
+| `{ "payable": false, … }` | The service isn't on a rail the Router pays (only x402 and MPP are). | Nothing to quote or pay here. |
+| `{ "error": "service_not_found" }` | No listed service has that slug. | Check the slug with `search_services`. |
+| `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | A read the quote needs failed. | Transient: retry later. |
+| `{ "error": "quote_unavailable", "code": … }` | No quote can be made on this connection, and retrying won't change that. `code: null`: the API behind this server doesn't offer the quote route (it predates it, or the server isn't configured against it). `code: "BCK.OAUTH.0033"`: the connection isn't a commerce authorization, or its grant has no usable spending mandate. | Bound the price with `pay_service`'s `maxTotalCents` instead. For `BCK.OAUTH.0033`, re-authorize to get a usable mandate. |
+| `{ "error": "quote_failed", "code": …, "retryable": … }` | The Router refused to price the call, or didn't answer. | Read `code`, `message` and `retryable`. A no-answer is `retryable: true` and safe to retry, because nothing was charged. |
+| `{ "error": "credential_refused" }` | Your credential was refused. | Re-authorize. |
 
 ## Let the platform pick a service
 

@@ -24,7 +24,7 @@ obstacles is exactly the failure mode this design exists to prevent.
 | `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
 | `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
 | `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
-| `BCK.ROUTER.0014` | 409 | The target is a cataloged Nevermined service, whose upstream URL is deliberately hidden. The Router refuses to pay it by raw URL — mode A and a raw mode-B target both put the merchant's host on your wire, defeating the broker. The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected. | No — **use the slug**: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>` |
+| `BCK.ROUTER.0014` | 409 | The target is a cataloged Nevermined service, whose upstream URL is deliberately hidden. The Router refuses to pay it by raw URL — mode A and a raw mode-B target both put the merchant's host on your wire, defeating the broker. The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected. | No — **use the slug**: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>` (a `commerce` grant: `POST /router/commerce/route` with a `slug`). A refused **quote** is re-quoted by slug — `POST /router/quote`, or `/router/commerce/quote` for a grant — never paid |
 | `BCK.ROUTER.0018` | 402 | Per-call `maxTotalCents` is below the fee-inclusive, whole-cent cap reserve. No charge or cap reserve, though signing may already have occurred; parse JSON-string `params` for `requiredTotalCents`. | No — raise the ceiling only if this call is intended; reuse the same `requestId` |
 | `BCK.ROUTER.0019` | 400 | Streaming surfaces only (`/proxy` · `/svc`; `/route` returns the envelope status with `body: null`). A cataloged service returned a **non-retryable** status — a 4xx client error, or a rare 3xx the Router does not follow (a 402 re-challenge and a 429 are **not** this code). The upstream body is withheld (it can name the merchant host); this typed body preserves the **real** upstream status (on the HTTP status line and in JSON-string `params`). Build a valid request from the service's Catalog detail (`requestExample` / `responseFields`). | No — **fix the request first**, then retry with a fresh `requestId` |
 | `BCK.ROUTER.0020` | 502 | Streaming surfaces only (`/proxy` · `/svc`; `/route` returns the envelope status with `body: null`). A cataloged service returned a server error (5xx) or rate-limited (429) — an upstream/transient condition, not your request. Body **and** headers are withheld (host oracle, including `Retry-After`); this typed body preserves the **real** status. The Router charges **no routing fee** for an undelivered call; whether the merchant leg itself charged is reported as `merchantSettlementObservedAt` (x402 only — `null` on a clean settlement and on both MPP rails, so `null` is not proof of no charge; read alongside `status`) on `GET /api/v1/router/payments`. | **Yes**, with backoff — reuse the same `requestId` only if no `X-Router-Payment-Id` came back; if one did, a payment is already recorded, so use a NEW id and reconcile via `GET /router/payments` |
@@ -41,14 +41,16 @@ obstacles is exactly the failure mode this design exists to prevent.
 **Only `0006`, `0007`, `0020`, `0022` and `0028` are worth retrying automatically** — on the paying path,
 `0007` and `0020`. The rest are decisions; retrying them unchanged produces the same answer.
 
-### Two refusals that are not `BCK.ROUTER.*` at all
+### Refusals that are not `BCK.ROUTER.*` at all
 
 They guard the *caller* rather than the request, and they can end a run before a single payment is
-attempted — so handle them even though neither carries a `BCK.ROUTER.*` code.
+attempted — so handle them even though none carries a `BCK.ROUTER.*` code.
 
 | | Code | Status | Applies to | Retry? |
 | --- | --- | --- | --- | --- |
-| **OAuth-minted key** | `BCK.OAUTH.0030` | 403 | `POST /delegation/create`, `POST /router/payments`, `POST /router/route`, `ALL /router/proxy`, `ALL /router/svc/<slug>` | No |
+| **OAuth-minted key** | `BCK.OAUTH.0030` | 403 | `POST /delegation/create`, `POST /router/payments`, `POST /router/route`, `POST /router/quote`, `ALL /router/proxy`, `ALL /router/svc/<slug>` | No |
+| **Not a commerce grant** | `BCK.OAUTH.0033` | 403 | `POST /router/commerce/route`, `/commerce/route/with-controls`, `/commerce/select`, `/commerce/quote` | No |
+| **`delegationId` on a commerce route** | `BCK.OAUTH.0034` | 400 | The same four commerce routes | No |
 | **Consent lapsed** | `BCK.HTTP.412` (generic — see below) | 412 | Account-wide; `POST /delegation/create` is the one on this path | No |
 
 **`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony (today
@@ -58,8 +60,23 @@ Delegations: those routes sign from the account's full wallet, outside the narro
 such a credential advertises. For a `credits_purchase` or `account_access` key the fix is a **plain
 API key issued by the account owner** — no request change and no other Router endpoint will work
 around it, do not retry. A **`commerce`** key is the one exception: it spends through
-`POST /api/v1/router/commerce/route`, which takes no `delegationId` and derives the Delegation from
-the grant the user approved (sending one is refused with `400 BCK.OAUTH.0034`).
+`POST /api/v1/router/commerce/route` and prices a call without paying through
+`POST /api/v1/router/commerce/quote`. Both take no `delegationId` and derive the Delegation from
+the grant the user approved.
+
+**`403 BCK.OAUTH.0033`** — the reverse door. The commerce routes under `POST /api/v1/router` —
+`/commerce/route`, `/commerce/route/with-controls`, `/commerce/select` and `/commerce/quote` — accept
+only a credential minted from a `commerce` authorization, because they spend or price the Delegation
+that grant is pinned to. A plain API key, or a credential from any other consent type, is refused:
+use the twin that names its own Delegation instead — `POST /api/v1/router/route` to pay,
+`POST /api/v1/router/select` to pick a service, `POST /api/v1/router/quote` to price a call. A
+`commerce` credential that still sees it has a grant whose Delegation is missing or empty, or is bound
+to a different one: re-run the authorization to mint a fresh mandate. Not retryable unchanged.
+
+**`400 BCK.OAUTH.0034`** — `delegationId must not be supplied on a commerce route`. On those same four
+routes the Delegation is the one the user consented to and capped, and naming another is refused
+rather than ignored. Remove `delegationId` from the body; to choose a Delegation per call, use the
+plain-key twins above.
 
 <a id="consent-412"></a>
 **`412 {"error":"consent_required","outdated":[…]}`** — the account's legal-document consent has
