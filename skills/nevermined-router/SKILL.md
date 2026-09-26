@@ -1,13 +1,14 @@
 ---
 name: nevermined-router
-version: "0.1.4"
-lastUpdated: "2026-09-25"
+version: "0.1.5"
+lastUpdated: "2026-09-26"
 description: >
   Use when an AI agent needs to PAY an external service it does not have an account
   with — any x402 agent or MPP merchant — using the Nevermined Router. Covers
   discovering services in the Agent Services Catalog, creating a spending Delegation
-  from an API key, funding the buyer wallet, making paid calls through
-  /api/v1/router/route (or the streaming /proxy), reading the payment ledger, and the
+  from an API key, funding the buyer wallet, pricing a call first with
+  /api/v1/router/quote, making paid calls through /api/v1/router/route (or the
+  streaming /proxy), reading the payment ledger, and the
   guardrails an autonomous buyer must respect. Complements the nevermined-payments
   skill, which is about RECEIVING payments and buying Nevermined plans.
 metadata:
@@ -28,7 +29,7 @@ metadata:
 
 # Nevermined Router — buy from any x402 or MPP service
 
-> **Skill version**: 0.1.4 | **Last updated**: 2026-09-25 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
+> **Skill version**: 0.1.5 | **Last updated**: 2026-09-26 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 >
 > **⚠️ Use the latest version.** If you have a cached copy, check its **Last updated** date against the canonical source and refresh if older.
 >
@@ -106,7 +107,7 @@ That is a $5.00 cap for 7 days. `provider: "erc4337"` is the crypto-funded Deleg
 
 Two guards can refuse this call before your fields are read, and **neither is retryable**:
 
-- **`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony (`credits_purchase`, `account_access` or `commerce`) and may not create Delegations *or* use the paying routes. Use a plain API key issued by the account owner — or, if the key comes from a `commerce` grant, spend through `POST /api/v1/router/commerce/route`, which derives the Delegation from the grant instead of taking one from you.
+- **`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony (`credits_purchase`, `account_access` or `commerce`) and may not create Delegations *or* use the paying routes. Use a plain API key issued by the account owner — or, if the key comes from a `commerce` grant, spend through `POST /api/v1/router/commerce/route` (and price a call through `POST /api/v1/router/commerce/quote`), which derive the Delegation from the grant instead of taking one from you.
 - **`412 {"error":"consent_required","outdated":[…]}`** — the account's legal-document consent has lapsed. ⚠️ Its only `code` is the generic **`BCK.HTTP.412`**, which names the status and not the cause, so branch on `body.error === "consent_required"` — the one place "branch on `code`" needs a second field. A human must accept; report it and stop.
 
 Full field list, recipient scoping, both guards in detail, and reading a Delegation's live state: `references/bootstrap.md`.
@@ -216,6 +217,15 @@ A cataloged service is addressed by `slug` + `path` (the endpoint's `invokePath 
 
 **From API version 1.48** (a key pinned at or above it — new keys are pinned to the current version), a same-`requestId` retry within 24 h returns the retained paid result instead of that 409, and a merchant that has not answered within 45 s gets you `202 { paymentId, resultUrl, status: "Pending" }`: fetch the result later from `GET /api/v1/router/payments/{id}/result` (`404 BCK.ROUTER.0030` once it has expired). Either way, keep the same id.
 
+<a id="quote"></a>
+**Price it first: `POST /api/v1/router/quote`.** Send the same body as `/route` minus `requestId` (`delegationId` optional). The Router makes the same unpaid request to the service that a payment would, selects the option a payment would select, prices it with the routing fee — and stops. **Nothing is signed, minted, recorded or reserved.** It answers `200` with `paymentRequired`, `optionSet`, `protocol` and the same `settlement` and `fee` objects `/route` returns. Then route with `maxTotalCents` set to the quote's `fee.capChargedCents`, so a price that rose in between is refused (`402 BCK.ROUTER.0018`) instead of paid.
+
+- **It is not free of side effects.** The request really reaches the service, so a service that does not charge for it performs it — take care quoting a method with side effects. And a quote spends the same per-key and per-service rate budgets as a payment: **quote once per decision, don't poll.**
+- `fee.capChargedCents` is whole cents rounded **up** from `fee.capChargedMicros` (exact, in 1/10,000 of a cent), and it is the figure `maxTotalCents` is compared against. The ceiling has whole-cent resolution, so a rise within the same cent is still paid.
+- `optionSet: "delegation"` means the `delegationId` you sent was priced (a card Delegation pays over MPP-stripe, an organization-wallet Delegation pays in its own currency, a recipient allowlist is enforced); `"deployment"` means you sent none, so this is what a personal crypto Delegation would select. `paymentRequired: false` means the service did not ask for payment; `upstreamStatus` is its answer, and its body is never returned.
+- A quote checks neither your remaining cap nor your wallet balance — the payment still does. `503 BCK.ROUTER.0028` (a read the price depends on failed) is retryable with backoff.
+- **With an OAuth `commerce` credential**, quote on `POST /api/v1/router/commerce/quote` instead: same body and answer, but it prices the Delegation the grant is pinned to, so sending a `delegationId` is refused (`400 BCK.OAUTH.0034`). Then pay on `/router/commerce/route`.
+
 Mode A (you call the merchant yourself), the streaming `/proxy` variant, and passing the merchant's own auth: `references/paying.md`.
 
 ## ⑥ Read what you spent
@@ -241,7 +251,7 @@ The Router signs payments from your wallet in response to instructions written b
 3. **One `requestId` per purchase**, reused across retries of that purchase. See [above](#requestid).
 4. **Retry only the codes the table below marks retryable: `0006` (500, summary read), `0007` (429), `0020` (an upstream 5xx/429), `0022` (500, selection not wired) and `0028` (503, quote).** On the paying path that means `0007` and `0020`. Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007` (too many routed calls in flight) and on `0020` (the upstream service errored or throttled). **The HTTP status does not tell you whether to retry** — `0010` is a 500 you must not retry and `0011` is a 402 you must not retry. Read the code, not the status.
 
-**Check the price before you commit.** `priceLabel` in the catalog is indicative; on the response, `settlement.approxCents` is what the **merchant** charged and [`fee.capChargedCents`](#fee) is what your **cap** reserved — they differ whenever a routing fee applies. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each. For spend to date, read the Delegation, not a sum of responses.
+**Check the price before you commit.** `priceLabel` in the catalog is indicative — [quote the call](#quote) for its live, fee-inclusive price; on the response, `settlement.approxCents` is what the **merchant** charged and [`fee.capChargedCents`](#fee) is what your **cap** reserved — they differ whenever a routing fee applies. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each. For spend to date, read the Delegation, not a sum of responses.
 
 **Delegations expire silently.** A long-running agent that worked yesterday and fails today with `0003` has very often just aged out — check `expiresAt` before assuming anything is broken.
 
@@ -260,7 +270,7 @@ The Router signs payments from your wallet in response to instructions written b
 | `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
 | `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
 | `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
-| `BCK.ROUTER.0014` | 409 | The target is a cataloged Nevermined service, whose upstream URL is deliberately hidden. The Router refuses to pay it by raw URL — mode A and a raw mode-B target both put the merchant's host on your wire, defeating the broker. The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected. | No — **use the slug**: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>` |
+| `BCK.ROUTER.0014` | 409 | The target is a cataloged Nevermined service, whose upstream URL is deliberately hidden. The Router refuses to pay it by raw URL — mode A and a raw mode-B target both put the merchant's host on your wire, defeating the broker. The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected. | No — **use the slug**: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>` (a `commerce` grant: `POST /router/commerce/route` with a `slug`). A refused **quote** is re-quoted by slug — `POST /router/quote`, or `/router/commerce/quote` for a grant — never paid |
 | `BCK.ROUTER.0018` | 402 | Per-call `maxTotalCents` is below the fee-inclusive, whole-cent cap reserve. No charge or cap reserve, though signing may already have occurred; parse JSON-string `params` for `requiredTotalCents`. | No — raise the ceiling only if this call is intended; reuse the same `requestId` |
 | `BCK.ROUTER.0019` | 400 | Streaming surfaces only (`/proxy` · `/svc`; `/route` returns the envelope status with `body: null`). A cataloged service returned a **non-retryable** status — a 4xx client error, or a rare 3xx the Router does not follow (a 402 re-challenge and a 429 are **not** this code). The upstream body is withheld (it can name the merchant host); this typed body preserves the **real** upstream status (on the HTTP status line and in JSON-string `params`). Build a valid request from the service's Catalog detail (`requestExample` / `responseFields`). | No — **fix the request first**, then retry with a fresh `requestId` |
 | `BCK.ROUTER.0020` | 502 | Streaming surfaces only (`/proxy` · `/svc`; `/route` returns the envelope status with `body: null`). A cataloged service returned a server error (5xx) or rate-limited (429) — an upstream/transient condition, not your request. Body **and** headers are withheld (host oracle, including `Retry-After`); this typed body preserves the **real** status. The Router charges **no routing fee** for an undelivered call; whether the merchant leg itself charged is reported as `merchantSettlementObservedAt` (x402 only — `null` on a clean settlement and on both MPP rails, so `null` is not proof of no charge; read alongside `status`) on `GET /api/v1/router/payments`. | **Yes**, with backoff — reuse the same `requestId` only if no `X-Router-Payment-Id` came back; if one did, a payment is already recorded, so use a NEW id and reconcile via `GET /router/payments` |
@@ -273,7 +283,9 @@ The Router signs payments from your wallet in response to instructions written b
 | `BCK.ROUTER.0027` | 413 | The request body is larger than the catalog endpoint accepts. The catalog records a `maxRequestBytes` per endpoint (on the service detail and in MCP `get_service`) — the Locus gateways (`*.mpp.paywithlocus.com`) take 8,000 bytes — and a slug-routed call (`/router/route`, `/router/quote`, `/router/svc/:slug`, `/router/proxy` with a slug) whose body is larger is refused before the service is contacted. No payment was minted and no money moved. JSON-string `params` carries `bodyBytes` and `maxRequestBytes`. | No — shrink the body below the limit or split the work, or pick a service that takes larger requests (`POST /router/select` with the same `body` skips endpoints whose limit is below it); retrying unchanged fails identically |
 | `BCK.ROUTER.0028` | 503 | `POST /router/quote` could not price the call because a read it depends on failed (for example the settlement-token details on the payment network). Nothing is signed, minted or charged on the quote path. | **Yes**, with backoff — a quote never charges, so nothing needs unwinding. The same condition would also fail a payment, so do not route the call meanwhile; if it persists, quote `correlationId` |
 | `BCK.ROUTER.0030` | 404 | No retained paid result for that paymentId under your account. A paid Router result is retained for 24h after the call ends, for the paying user only; it is not retained for a response that had already started streaming when the call completed, or for a payment never routed through `/router/route`, `/router/proxy` or `/router/svc`. The payment record itself is unaffected. | No — the result is gone (or was never retained); read the payment with `GET /api/v1/router/payments` |
-| `BCK.OAUTH.0030` | 403 | This API key was OAuth-minted and may not create Delegations or use `/router/{payments,route,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant, `POST /router/commerce/route`. | No |
+| `BCK.OAUTH.0030` | 403 | This API key was OAuth-minted and may not create Delegations or use `/router/{payments,route,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant, `POST /router/commerce/route` to pay and `POST /router/commerce/quote` to price. | No |
+| `BCK.OAUTH.0033` | 403 | A commerce route (`/commerce/route`, `/commerce/route/with-controls`, `/commerce/select`, `/commerce/quote`) needs a credential minted from a `commerce` grant pinned to a usable Delegation. A plain key uses the twin that names its own Delegation: `POST /router/route` to pay, `/router/select` to pick, `/router/quote` to price. A commerce credential that still sees it: re-run the authorization. | No |
+| `BCK.OAUTH.0034` | 400 | `delegationId` sent on a commerce route; there it is derived from the grant. Remove it, or use the plain-key twins (`/router/route`, `/router/select`, `/router/quote`) to choose one. | No |
 | `BCK.HTTP.412` | 412 | `{"error":"consent_required"}` on `POST /delegation/create` — the account's legal-document consent lapsed. The code is generic; branch on `body.error`. | No — **needs a human** |
 
 **`0011` needs a human, not a retry.** The card issuer is demanding 3-D Secure and the Router has no browser to answer it. Nothing was charged. Do **not** loop: 3DS is often mandated per charge, so every attempt re-demands it and mints a fresh single-use card credential that is then abandoned. A later *human-driven* attempt may succeed — that is a decision, not a retry.
