@@ -47,7 +47,7 @@ server-side search: Catalog MCP `search_services` (`mcp.live.nevermined.app/mcp`
 
 ## 4. Pay
 
-`POST /api/v1/router/route`, JSON body `{ delegationId, url, method, body, requestId }` — the 1st, 2nd and 5th required.
+`POST /api/v1/router/route`, JSON body `{ delegationId*, url*, method, body, requestId* }` (`*` required).
 
 The Router probes, detects the protocol from the 402, pays and relays; `status`/`body` are the
 merchant's; `paid: false` with no `payment` means it was free. Streaming: `ALL /router/proxy`
