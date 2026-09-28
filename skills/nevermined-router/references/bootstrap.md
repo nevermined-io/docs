@@ -54,7 +54,8 @@ retryable and neither can be fixed from your side alone.
 `commerce`, but the guard keys on the binding rather than the consent type, so any future ceremony
 type is refused too) is refused on
 `POST /delegation/create` *and* on the paying routes — `POST /router/payments`, `POST /router/route`,
-`ALL /router/proxy`, `ALL /router/svc/<slug>`. Those routes sign from the account's full wallet,
+`POST /router/route/with-controls`, `POST /router/quote`, `POST /router/select`, `ALL /router/proxy`,
+`ALL /router/svc/<slug>`. Those routes sign from the account's full wallet,
 outside the narrow policy such a credential advertises, so the advertised scope would not be the real
 spend boundary. The fix is a **plain API key issued by the account owner** from the Nevermined app.
 Nothing about the request will make an OAuth-minted key work on these routes — do not retry. The one

@@ -2315,6 +2315,278 @@
         ]
       }
     },
+    "/router/quote": {
+      "post": {
+        "description": "Ask what `POST /route` would charge for this call, WITHOUT paying it. The Router makes the\nsame unpaid probe `/route` makes, reads the 402, selects the payment option exactly as a\npayment would (MPP first, then x402) and prices it with the Router fee — then stops. Nothing\nis signed, no credential is minted, no payment is recorded and no delegation budget is\nreserved, so a quote is free and can be repeated.\n\nUse it to decide whether ONE call fits the allocation you planned for it: compare\n`fee.capChargedMicros` (exact) or `fee.capChargedCents` (rounded up, the figure\n`maxTotalCents` is compared against) with what you want to spend, then call `/route` with\n`maxTotalCents` set to that figure so a price change between quote and call is refused rather\nthan paid.\n\n`delegationId` is optional. With it, the quote prices the options that delegation would select\n(an organization-wallet delegation pays only in its own currency, a card delegation pays over\nMPP-stripe, a recipient allowlist is enforced); without it, the options a personal crypto\ndelegation would select. `optionSet` says which. A quote checks neither the remaining cap nor\nthe wallet balance — those are the payment’s checks (BCK.ROUTER.0003, BCK.ROUTER.0009).\n\nProvide the target `url` OR a catalog `slug` (+ optional `path`, `search`, `method`, `headers`,\n`body`), as on `/route`. A non-402 answer returns `paymentRequired: false` with the upstream\nstatus only — the upstream body and headers are never returned.",
+        "operationId": "quoteRouteRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequestDto"
+              },
+              "examples": {
+                "quote-catalog-service": {
+                  "summary": "Quote a cataloged service",
+                  "value": {
+                    "slug": "webscrape-pro",
+                    "path": "scrape",
+                    "method": "POST",
+                    "body": {
+                      "url": "x"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The quote. `paymentRequired: false` means the upstream did not ask for payment; otherwise `settlement` and `fee` are what `/route` would pay and reserve.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, no fundable option, a pay-to outside the delegation’s allowed recipients, or an upstream/402 error (BCK.ROUTER.0001); or every option advertised an EIP-712 domain its own settlement token does not sign under (BCK.ROUTER.0012) — the same refusals `/route` raises before paying. A request-body validation failure arrives as BCK.HTTP.400 instead.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "BCK.OAUTH.0030 — an OAuth-minted key may not use the Router spend rails; use a plain account key. Permanent — do not retry. A `commerce` credential quotes on `POST /api/v1/router/commerce/quote` instead.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BCK.DELEGATION.0002 — no delegation with that `delegationId` belongs to this caller; or BCK.CATALOG.0001 — no listed catalog service has that `slug`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The target is a cataloged Nevermined service that must be addressed by its slug, not by raw URL (BCK.ROUTER.0014).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "BCK.ROUTER.0024 — the Router JSON request body exceeds the global 5 MiB ceiling. BCK.ROUTER.0027 — a slug-addressed request body is larger than the catalog endpoint accepts (its `maxRequestBytes` on the catalog service detail). Refused before the service is contacted: nothing was paid by this request (a retry of an already-paid `requestId` gets the 409 BCK.ROUTER.0002 instead). `params` gives `bodyBytes` and `maxRequestBytes`; shrink the body or pick a service that takes it. On `/select` it means every otherwise-payable match is below the body, reported against the largest of their limits. Not retryable unchanged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "BCK.ROUTER.0007 — too many mode-B relays in flight for this caller at once (each holds an upstream socket and a reserved budget). Retryable: let some relays finish, then try again. A slug-addressed call (using `slug`, not `url`) has a THIRD 429 source: a per-slug invoke rate limit (BCK.HTTP.429 with `Retry-After`). Two buckets again — the per-(key, slug) ceiling is yours, but the per-slug ceiling is SHARED by everyone invoking that slug, so heavy traffic to a popular slug can limit you even when your own rate is low. Retryable after the `Retry-After` backoff. Rate limit exceeded (BCK.HTTP.429). Two buckets can produce this. The per-API-key ceiling is genuinely yours and answers with `Retry-After` (seconds) — honour it. The global bucket is NOT: these routes authenticate after it runs, so it falls back to keying on the client IP, which is currently SHARED by all external callers — you can be limited by traffic that is not yours. That one answers with `Retry-After-short` / `Retry-After-long`, plus `RateLimit-Remaining: 0` and `RateLimit-Reset` at the same expiry. A per-key 429 has bare `Retry-After` and no `RateLimit-*` triple. Retryable after a backoff either way.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "BCK.ROUTER.0013 — Nevermined holds no EIP-712 signing domain for the selected settlement token; report it rather than looping. Any other 500 is an unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "BCK.ROUTER.0028 — the quote could not be computed because a read it depends on failed. Nothing was signed or charged; retry with backoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Quote a Router call: the fee-inclusive price, rail and network, without paying",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
+    "/router/commerce/quote": {
+      "post": {
+        "description": "The OAuth counterpart of `POST /api/v1/router/quote`, for a credential minted from a\n`commerce` authorization. Identical behaviour and identical response, with one difference:\n**you do not choose the delegation.** The quote prices the options the delegation your grant\nis pinned to would select, so it is what `POST /api/v1/router/commerce/route` would charge for\nthe same call. Sending a `delegationId` is refused, not ignored.\n\nNothing is signed, no credential is minted, no payment is recorded and no budget is reserved.\nThe Router still makes the unpaid request to the service, and the quote spends the same\nper-key and per-service rate budgets as a payment. Compare `fee.capChargedCents` with what you\nwant to spend, then call `/commerce/route` with `maxTotalCents` set to that figure.\n\nA plain (non-OAuth) API key cannot use this route: it has no grant to price. Use\n`POST /api/v1/router/quote` and name your own `delegationId` instead.",
+        "operationId": "quoteRouteRequestFromGrant",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommerceQuoteRequestDto"
+              },
+              "examples": {
+                "quote-catalog-service": {
+                  "summary": "Quote a cataloged service against your grant",
+                  "value": {
+                    "slug": "webscrape-pro",
+                    "path": "scrape",
+                    "method": "POST",
+                    "body": {
+                      "url": "x"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The quote. `paymentRequired: false` means the upstream did not ask for payment; otherwise `settlement` and `fee` are what `/commerce/route` would pay and reserve against the grant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A `delegationId` was supplied (BCK.OAUTH.0034 — it is derived from your grant); or the refusals `/quote` makes: invalid request, no fundable option, a pay-to outside the delegation’s allowed recipients, or an upstream/402 error (BCK.ROUTER.0001), or an EIP-712 domain its settlement token does not sign under (BCK.ROUTER.0012). A request-body validation failure arrives as BCK.HTTP.400 instead.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key — or the grant behind this credential has been revoked by the user, in which case every credential minted from it is invalid: restart the authorization to obtain a new one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "BCK.OAUTH.0033 — this credential is not a commerce grant, or its grant is not pinned to a usable delegation (re-run the authorization to mint a fresh mandate).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BCK.DELEGATION.0002 — the delegation your grant is pinned to could not be resolved for this credential (re-run the authorization to mint a fresh mandate); or BCK.CATALOG.0001 — no listed catalog service has that `slug`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The target is a cataloged Nevermined service that must be addressed by its slug, not by raw URL (BCK.ROUTER.0014).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "BCK.ROUTER.0024 — the Router JSON request body exceeds the global 5 MiB ceiling. BCK.ROUTER.0027 — a slug-addressed request body is larger than the catalog endpoint accepts (its `maxRequestBytes` on the catalog service detail). Refused before the service is contacted: nothing was paid by this request (a retry of an already-paid `requestId` gets the 409 BCK.ROUTER.0002 instead). `params` gives `bodyBytes` and `maxRequestBytes`; shrink the body or pick a service that takes it. On `/select` it means every otherwise-payable match is below the body, reported against the largest of their limits. Not retryable unchanged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "BCK.ROUTER.0007 — too many mode-B relays in flight for this caller at once (each holds an upstream socket and a reserved budget). Retryable: let some relays finish, then try again. A slug-addressed call (using `slug`, not `url`) has a THIRD 429 source: a per-slug invoke rate limit (BCK.HTTP.429 with `Retry-After`). Two buckets again — the per-(key, slug) ceiling is yours, but the per-slug ceiling is SHARED by everyone invoking that slug, so heavy traffic to a popular slug can limit you even when your own rate is low. Retryable after the `Retry-After` backoff. Rate limit exceeded (BCK.HTTP.429). Two buckets can produce this. The per-API-key ceiling is genuinely yours and answers with `Retry-After` (seconds) — honour it. The global bucket is NOT: these routes authenticate after it runs, so it falls back to keying on the client IP, which is currently SHARED by all external callers — you can be limited by traffic that is not yours. That one answers with `Retry-After-short` / `Retry-After-long`, plus `RateLimit-Remaining: 0` and `RateLimit-Reset` at the same expiry. A per-key 429 has bare `Retry-After` and no `RateLimit-*` triple. Retryable after a backoff either way.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "BCK.ROUTER.0013 — Nevermined holds no EIP-712 signing domain for the selected settlement token; report it rather than looping. Any other 500 is an unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "BCK.ROUTER.0028 — the quote could not be computed because a read it depends on failed. Nothing was signed or charged; retry with backoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Quote a Router call from your commerce grant, without paying (OAuth)",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
     "/router/payments/{id}/settled": {
       "post": {
         "description": "After you attached a mode-A credential and the agent settled on-chain, report the settlement\n`txHash` (from the agent’s `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE` header) so the payment\nrecord moves `Issued → Settled`. Idempotent: re-reporting the same txHash is a no-op; a\ndifferent txHash, or a record not in `Issued`, is rejected. NOT needed for mode B\n(`/route` and `/proxy` self-complete the record from the upstream settlement header).",
@@ -4470,6 +4742,117 @@
           "requestId"
         ]
       },
+      "QuoteRequestDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Absolute upstream URL to route to (http/https only). Provide EXACTLY ONE of `url` or `slug` — both together is a 400. Use `slug` for a cataloged service (the opaque broker); `url` is for an off-catalog target you already hold the URL of.",
+            "example": "https://agent.example/api/resource"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Catalog slug to invoke via the opaque Router broker. The Router resolves the slug to the real upstream server-side, so the URL is never exposed. Mutually exclusive with `url`.",
+            "example": "webscrape-pro"
+          },
+          "path": {
+            "type": "string",
+            "description": "Optional subpath appended to the resolved upstream when `slug` is used (e.g. `scrape` → the merchant's `/scrape`). Path segments only — it may not change the host: `//`, `..`, a backslash and an embedded absolute URL are rejected (400). An `@` is allowed (e.g. an `/inbox/foo@bar.com` route) — it stays in the path and the composed origin is re-asserted against the resolved host. Ignored when `url` is used.",
+            "example": "scrape"
+          },
+          "search": {
+            "type": "string",
+            "description": "Query string for a slug-routed request, without the leading ?. It is attached to the resolved merchant URL without changing its host. Use this instead of embedding ? in path. With a raw url, include the query in url; sending search with url is refused.",
+            "example": "flight_iata=AA217&limit=1",
+            "maxLength": 2048
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method to use for the upstream request.",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "default": "GET"
+          },
+          "headers": {
+            "type": "object",
+            "description": "Headers to forward to the upstream (e.g. the agent’s own auth). Optional."
+          },
+          "body": {
+            "description": "Request body to forward (JSON). Optional."
+          },
+          "credentialHeader": {
+            "type": "string",
+            "description": "Header the Router should carry the minted payment credential in on the paid hop. Send this only when the service needs its own auth AND a payment: the MPP rails carry their credential in `Authorization`, which is also where your merchant auth goes, and rather than silently replacing yours the Router refuses the call with BCK.ROUTER.0021. Naming the header the service documents for its credential (a separate `Payment` header is the common one) leaves your `Authorization` untouched. It is honoured on every rail, so do not set it by default: putting the credential somewhere the service does not read makes the paid hop fail.",
+            "example": "Payment",
+            "maxLength": 64
+          },
+          "delegationId": {
+            "type": "string",
+            "description": "The delegation you would pay with. Optional. When given, the quote prices the options that delegation would select: an organization-wallet delegation pays only in its own currency, a card delegation pays over the MPP-stripe rail, and a recipient allowlist refuses a pay-to address it would refuse. Without it, the quote prices what a personal crypto (erc4337) delegation would select. `optionSet` in the response says which was used. Either way the quote checks neither the remaining cap nor the wallet balance.",
+            "example": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1"
+          }
+        }
+      },
+      "CommerceQuoteRequestDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Absolute upstream URL to route to (http/https only). Provide EXACTLY ONE of `url` or `slug` — both together is a 400. Use `slug` for a cataloged service (the opaque broker); `url` is for an off-catalog target you already hold the URL of.",
+            "example": "https://agent.example/api/resource"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Catalog slug to invoke via the opaque Router broker. The Router resolves the slug to the real upstream server-side, so the URL is never exposed. Mutually exclusive with `url`.",
+            "example": "webscrape-pro"
+          },
+          "path": {
+            "type": "string",
+            "description": "Optional subpath appended to the resolved upstream when `slug` is used (e.g. `scrape` → the merchant's `/scrape`). Path segments only — it may not change the host: `//`, `..`, a backslash and an embedded absolute URL are rejected (400). An `@` is allowed (e.g. an `/inbox/foo@bar.com` route) — it stays in the path and the composed origin is re-asserted against the resolved host. Ignored when `url` is used.",
+            "example": "scrape"
+          },
+          "search": {
+            "type": "string",
+            "description": "Query string for a slug-routed request, without the leading ?. It is attached to the resolved merchant URL without changing its host. Use this instead of embedding ? in path. With a raw url, include the query in url; sending search with url is refused.",
+            "example": "flight_iata=AA217&limit=1",
+            "maxLength": 2048
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method to use for the upstream request.",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "default": "GET"
+          },
+          "headers": {
+            "type": "object",
+            "description": "Headers to forward to the upstream (e.g. the agent’s own auth). Optional."
+          },
+          "body": {
+            "description": "Request body to forward (JSON). Optional."
+          },
+          "credentialHeader": {
+            "type": "string",
+            "description": "Header the Router should carry the minted payment credential in on the paid hop. Send this only when the service needs its own auth AND a payment: the MPP rails carry their credential in `Authorization`, which is also where your merchant auth goes, and rather than silently replacing yours the Router refuses the call with BCK.ROUTER.0021. Naming the header the service documents for its credential (a separate `Payment` header is the common one) leaves your `Authorization` untouched. It is honoured on every rail, so do not set it by default: putting the credential somewhere the service does not read makes the paid hop fail.",
+            "example": "Payment",
+            "maxLength": 64
+          },
+          "delegationId": {
+            "type": "string",
+            "description": "Must NOT be sent. The quote prices the delegation your grant is pinned to — the one the user consented to and capped. Supplying one is refused rather than ignored; use POST /api/v1/router/quote with a plain API key to price a delegation of your choice."
+          }
+        }
+      },
       "SettlePaymentDto": {
         "type": "object",
         "properties": {
@@ -4541,15 +4924,16 @@
           },
           "approxCents": {
             "type": "string",
-            "description": "The MERCHANT leg in cents (rounded up) — what this credential pays the upstream agent. This is not necessarily the whole cap charge: Nevermined’s routing fee is reserved on top, so the total debited from the delegation is `approxCents + fee.cents` (also reported directly as `fee.capChargedCents`). With no fee configured the two are equal.",
+            "description": "The MERCHANT leg in cents (rounded up) — what this credential pays the upstream agent. This is not necessarily the whole cap charge: Nevermined’s routing fee is reserved on top, so the whole-cent total debited from the delegation is `approxCents + fee.cents` (also reported directly as `fee.capChargedCents`; the exact sub-cent debit is `fee.capChargedMicros`). With no fee configured the two are equal.",
             "example": "1"
           },
           "scheme": {
             "type": "string",
-            "description": "Ledger settlement scheme: `exact` for x402 (EIP-3009), `charge` for mpp (native Tempo tx). Omitted (defaults to `exact`) on the x402 path.",
+            "description": "Ledger settlement scheme: `exact` for x402 (EIP-3009), `charge` for MPP-tempo (a native Tempo transaction), `spt` for MPP-stripe (a Shared Payment Token). Omitted (defaults to `exact`) on the x402 path.",
             "enum": [
               "exact",
-              "charge"
+              "charge",
+              "spt"
             ],
             "example": "exact"
           }
@@ -4581,15 +4965,21 @@
           },
           "capChargedCents": {
             "type": "string",
-            "description": "Total debited from the delegation cap for this payment (merchant leg + routing fee), in cents.",
+            "description": "The delegation-cap debit for this payment (merchant leg + routing fee), rounded UP to a whole cent. The cap itself accrues at sub-cent resolution, so the exact debit is `capChargedMicros`; this figure is the per-call price guard that `maxTotalCents` is compared against.",
             "example": "1"
+          },
+          "capChargedMicros": {
+            "type": "string",
+            "description": "The exact delegation-cap debit for this payment (merchant leg + routing fee), in micros — millionths of the currency unit, i.e. 1/10,000 of a cent. It is a ceiling of the true price at that resolution, never below it. It is the debit AT MINT: if the routing fee or the merchant leg is later found uncollected, that part is given back to the cap while this figure stays as minted.",
+            "example": "2040"
           }
         },
         "required": [
           "bps",
           "amount",
           "cents",
-          "capChargedCents"
+          "capChargedCents",
+          "capChargedMicros"
         ]
       },
       "MintPaymentResponseDto": {
@@ -4750,6 +5140,72 @@
           "status",
           "body",
           "paid"
+        ]
+      },
+      "QuoteResultDto": {
+        "type": "object",
+        "properties": {
+          "paymentRequired": {
+            "type": "boolean",
+            "description": "Whether the upstream asked for payment (answered 402). `false` means the call is free, or the upstream answered with an error before any payment challenge: read `upstreamStatus`, and expect every priced field below to be absent.",
+            "example": true
+          },
+          "upstreamStatus": {
+            "type": "number",
+            "description": "The status the upstream answered the unpaid probe with — 402 when `paymentRequired` is true. The upstream body and headers are never returned.",
+            "example": 402
+          },
+          "optionSet": {
+            "type": "string",
+            "description": "Which set of payment options was priced. `delegation`: the options the supplied `delegationId` would select. `deployment`: no delegation was supplied, so the options a personal crypto (erc4337) delegation would select on this deployment. Present when `paymentRequired` is true.",
+            "enum": [
+              "delegation",
+              "deployment"
+            ],
+            "example": "deployment"
+          },
+          "delegationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The delegation whose options were priced, or null for the `deployment` option set. Present when `paymentRequired` is true.",
+            "example": null
+          },
+          "protocol": {
+            "type": "string",
+            "description": "The payment protocol the Router would pay with — the same auto-detection as `/route` (MPP first, then x402). Present when `paymentRequired` is true.",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "example": "x402"
+          },
+          "x402Version": {
+            "type": "number",
+            "description": "The x402 version that would be used, on the x402 rail.",
+            "example": 2
+          },
+          "settlement": {
+            "description": "What the payment would pay the merchant: the rail (`scheme`), `network`, `asset`, the merchant leg in atomic units (`amount`) and in cents (`approxCents`). The same descriptor `/route` returns as `payment.settlement`. Present when `paymentRequired` is true.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SettlementDescriptorDto"
+              }
+            ]
+          },
+          "fee": {
+            "description": "The Router fee and the fee-inclusive total the payment would reserve against the delegation cap — `capChargedMicros` exactly, `capChargedCents` rounded up to a whole cent, which is the figure `maxTotalCents` is compared against. The same object `/route` returns as `payment.fee`. Present when `paymentRequired` is true.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RouterFeeDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "paymentRequired",
+          "upstreamStatus"
         ]
       },
       "SettleResponseDto": {

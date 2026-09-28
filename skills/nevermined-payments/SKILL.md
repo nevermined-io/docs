@@ -1,14 +1,14 @@
 ---
 name: nevermined-payments
-version: "0.5.1"
-lastUpdated: "2026-06-18"
+version: "0.5.2"
+lastUpdated: "2026-09-25"
 description: >
   Use when an AI agent must operate on Nevermined autonomously — purchase a payment
   plan via the x402 protocol (crypto or card), enroll a card and create a spending
   delegation, obtain a Nevermined API key, register a payment plan or AI agent, or
   check its credits (as a buyer) or revenue (as a seller) — and when adding x402
   payment protection to a TypeScript or Python agent (Express, FastAPI, MCP, Google
-  A2A, Strands). Covers the @nevermined-io/payments and payments-py SDKs and the
+  A2A, Strands, LangChain / LangGraph). Covers the @nevermined-io/payments and payments-py SDKs and the
   Nevermined REST API.
 metadata:
   openclaw:
@@ -27,11 +27,11 @@ metadata:
 
 # Nevermined Payments Integration
 
-> **Skill version**: 0.5.1 | **Last updated**: 2026-06-18 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments
+> **Skill version**: 0.5.2 | **Last updated**: 2026-09-25 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-payments
 >
-> **⚠️ Use the latest version.** This skill changes often. If you have an installed or cached copy, check its **Last updated** date against the canonical source above and **refresh it if older** — an out-of-date copy may be missing whole flows (e.g. the card-enrollment / `embed/session` steps were added after Feb 2026). Unless a specific version is requested, always work from the latest.
+> **Use the latest version.** This skill changes often. If you have an installed or cached copy, compare its **Last updated** date with the canonical source above and refresh it if older — an out-of-date copy can be missing whole flows. Unless a specific version is requested, work from the latest.
 >
-> Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK method names are stable from `@nevermined-io/payments@1.4.1` through the current `1.9.0`, and `payments-py@1.15.1`.
+> Verified against the live sandbox API (`https://api.sandbox.nevermined.app/api/v1/rest/docs-json`); the cited SDK calls were checked against `@nevermined-io/payments@1.13.0` and `payments-py@1.18.0` — install the latest release of each.
 
 ## Overview
 
@@ -333,7 +333,7 @@ All SDK, REST, and CLI calls require an `NVM_API_KEY` (see **A1** for how to obt
 export NVM_API_KEY="sandbox:your-api-key"
 ```
 
-> **IMPORTANT for AI agents**: If you are generating code that requires `NVM_API_KEY` and the developer has not provided one, tell them to create one first (see **A1**). Never generate placeholder keys that look real — always use `sandbox:your-api-key` as the placeholder value.
+If the developer has no `NVM_API_KEY` yet, point them to **A1** before generating code that needs it. Use `sandbox:your-api-key` as the placeholder in generated code — a realistic-looking fake key gets mistaken for a real one.
 
 ## Environment Setup
 
@@ -342,7 +342,7 @@ export NVM_API_KEY="sandbox:your-api-key"
 | `NVM_API_KEY` | Yes | Your Nevermined API key — see [Get Your API Key](https://nevermined.ai/docs/agents-guide/get-api-key) |
 | `NVM_ENVIRONMENT` | Yes | `sandbox` for testing, `live` for production |
 | `NVM_PLAN_ID` | Yes | The plan ID from registration |
-| `NVM_AGENT_ID` | Sometimes | Required for MCP servers and plans with multiple agents |
+| `NVM_AGENT_ID` | Sometimes | Required for plans with multiple agents; optional (informational) for MCP servers |
 | `BUILDER_ADDRESS` | For registration | Wallet address to receive payments |
 
 ### `.env` Template
@@ -353,7 +353,7 @@ NVM_API_KEY=sandbox:your-api-key
 NVM_ENVIRONMENT=sandbox
 NVM_PLAN_ID=your-plan-id-here
 
-# Required for MCP servers or multi-agent plans
+# Required for multi-agent plans (optional for MCP servers)
 NVM_AGENT_ID=your-agent-id-here
 
 # Required for registration
@@ -362,8 +362,8 @@ BUILDER_ADDRESS=0xYourWalletAddress
 
 ### Prerequisites
 
-- **TypeScript/Express.js**: Node.js 18+. Your `package.json` must include `"type": "module"` for the `@nevermined-io/payments/express` subpath import to work.
-- **Python/FastAPI**: Python 3.9+. Install with `pip install payments-py[fastapi]` — the `[fastapi]` extra is required for the middleware.
+- **TypeScript/Express.js**: Node.js 20+. Your `package.json` must include `"type": "module"` for the `@nevermined-io/payments/express` subpath import to work.
+- **Python/FastAPI**: Python 3.10+. Install with `pip install payments-py[fastapi]` — the `[fastapi]` extra is required for the middleware.
 
 ### TypeScript
 
@@ -417,8 +417,9 @@ Choose the integration that matches your stack:
 | **Express.js** | TypeScript/JS | `references/express-integration.md` | `paymentMiddleware` from `@nevermined-io/payments/express` |
 | **FastAPI** | Python | `references/fastapi-integration.md` | `PaymentMiddleware` from `payments_py.x402.fastapi` |
 | **Strands Agent** | Python | `references/strands-integration.md` | `@requires_payment` from `payments_py.x402.strands` |
-| **MCP Server** | TypeScript | `references/mcp-paywall.md` | `payments.mcp.start()` / `payments.mcp.registerTool()` |
-| **Google A2A** | TS / Python | `references/a2a-integration.md` | `payments.a2a.start()` / `payments.a2a.buildPaymentAgentCard()` |
+| **LangChain / LangGraph** | TS / Python | `references/langchain-integration.md` | `@requires_payment` from `payments_py.x402.langchain` / `requiresPayment` from `@nevermined-io/payments/langchain` |
+| **MCP Server** | TS / Python | `references/mcp-paywall.md` (TypeScript examples; Python has `payments.mcp.register_tool()` / `start()`) | `payments.mcp.start()` / `payments.mcp.registerTool()` |
+| **Google A2A** | TS / Python | `references/a2a-integration.md` | `payments.a2a.start()` / `Payments.a2a.buildPaymentAgentCard()` (static) |
 | **Any HTTP** | Any | `references/x402-protocol.md` | Manual verify/settle via facilitator API |
 | **Client-side** | TS / Python | `references/client-integration.md` | `payments.x402.getX402AccessToken()` with `delegationConfig` |
 
@@ -474,19 +475,21 @@ import { paymentMiddleware, X402_HEADERS } from '@nevermined-io/payments/express
 
 // MCP server
 payments.mcp.registerTool(name, config, handler, { credits: 5n })
-const { info, stop } = await payments.mcp.start({ port, agentId, serverName })
+const { info, stop } = await payments.mcp.start({ port, planId, serverName })  // planId required; agentId optional
 
 // A2A server
-const agentCard = payments.a2a.buildPaymentAgentCard(baseCard, { paymentType, credits, planId, agentId })
+const agentCard = Payments.a2a.buildPaymentAgentCard(baseCard, { paymentType, credits, planId, agentId })  // static, on the class
 const server = await payments.a2a.start({ port, basePath: '/a2a/', agentCard, executor })
 // A2A client
-const client = payments.a2a.getClient({ agentBaseUrl, agentId, planId })
-await client.sendMessage("Hello", accessToken)
+const client = await payments.a2a.getClient({ agentBaseUrl, agentId, planId, delegationConfig: { delegationId } })
+// sendA2AMessage mints the x402 token from delegationConfig and carries it in band
+await client.sendA2AMessage({ message: { kind: 'message', role: 'user', messageId: crypto.randomUUID(), parts: [{ kind: 'text', text: 'Hello' }] } })
 ```
 
 ### Python (`payments-py`)
 
 ```python
+import asyncio
 from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
 
 # Initialize
@@ -540,12 +543,17 @@ from payments_py.a2a.server import PaymentsA2AServer
 agent_card = build_payment_agent_card(base_card, { ... })
 server = PaymentsA2AServer.start(agent_card=agent_card, executor=executor, payments_service=payments, port=3005)
 # A2A client
-client = payments.a2a.get_client(agent_base_url=url, agent_id=agent_id, plan_id=plan_id)
+# payments.a2a is a dict of helpers; the client mints the token from delegation_config
+client = payments.a2a["get_client"](
+    agent_base_url=url, agent_id=agent_id, plan_id=plan_id,
+    delegation_config=DelegationConfig(delegation_id=delegation_id),
+)
+result = asyncio.run(client.send_message({"message": {"kind": "message", "role": "user", "messageId": "1", "parts": [{"kind": "text", "text": "Hello"}]}}))  # or `await` inside async code
 ```
 
 ## x402 Payment Headers
 
-All x402 v2 integrations use these three HTTP headers:
+HTTP integrations (Express, FastAPI, generic HTTP) use these three headers. MCP and A2A carry the same payloads in band instead — MCP in the request/result `_meta` (`x402/payment`, `x402/payment-response`), A2A in the message metadata — see their reference files.
 
 | Header | Direction | Description |
 |---|---|---|
@@ -589,7 +597,7 @@ Nevermined supports several plan types:
 
 Each plan can be priced in **crypto** (`getERC20PriceConfig`, `getEURCPriceConfig`, `getNativeTokenPriceConfig`) or **fiat** (`getFiatPriceConfig` — Stripe / Braintree / Visa Trusted Agent). The selected price helper determines the x402 scheme used at runtime.
 
-For fiat plans, the active provider is selected per plan via the `fiatPaymentProvider` metadata field (`'stripe'`, `'braintree'`, or `'visa'`). Sellers using Braintree must connect a Braintree merchant account with at least one child merchant account in the plan's currency. Sellers offering Visa Trusted Agent plans must complete Stripe Connect onboarding (Visa delegations settle through Stripe Connect) — see [`braintree-onboarding`](/products/payments/braintree-onboarding) for the Braintree seller setup and [`card-enrollment`](/products/payments/card-enrollment) for the buyer-side flow.
+For fiat plans, the active provider is selected per plan via the `fiatPaymentProvider` metadata field (`'stripe'`, `'braintree'`, or `'visa'`). Sellers using Braintree must connect a Braintree merchant account with at least one child merchant account in the plan's currency. Sellers offering Visa Trusted Agent plans must complete Stripe Connect onboarding (Visa delegations settle through Stripe Connect) — see [Braintree onboarding](https://nevermined.ai/docs/products/payments/braintree-onboarding) for the Braintree seller setup and [card enrollment](https://nevermined.ai/docs/products/payments/card-enrollment) for the buyer-side flow.
 
 **Visa caveat for SDK builders.** Visa delegation creation is browser-only — it requires `consumerPrompt` + `assuranceData` produced by an in-browser WebAuthn ceremony embedded by Visa VTS. The SDK can **consume** an existing Visa delegation by passing its `delegationId` to `DelegationConfig`, but calling `createDelegation` / `create_delegation` with `provider: 'visa'` is rejected by the backend (`BCK.VISA.0014`). For any SDK code path that needs a Visa delegation, instruct the user to create it in the Nevermined webapp and pass the resulting ID back to the agent.
 
@@ -597,232 +605,26 @@ See `references/payment-plans.md` for plan registration code.
 
 ## Common Patterns
 
-### Express.js — Fixed credits per route
-
-```typescript
-import { paymentMiddleware } from '@nevermined-io/payments/express'
-
-app.use(paymentMiddleware(payments, {
-  'POST /ask': { planId: PLAN_ID, credits: 1 },
-  'POST /generate': { planId: PLAN_ID, credits: 5 }
-}))
-```
-
-### FastAPI — Fixed credits per route
-
-```python
-from payments_py.x402.fastapi import PaymentMiddleware
-
-app.add_middleware(
-    PaymentMiddleware,
-    payments=payments,
-    routes={
-        "POST /ask": {"plan_id": PLAN_ID, "credits": 1},
-        "POST /generate": {"plan_id": PLAN_ID, "credits": 5}
-    }
-)
-```
-
-### Express.js — Dynamic credits based on response
-
-```typescript
-paymentMiddleware(payments, {
-  'POST /generate': {
-    planId: PLAN_ID,
-    credits: (req, res) => {
-      const tokens = res.locals.tokenCount || 100
-      return Math.ceil(tokens / 100)
-    }
-  }
-})
-```
-
-### FastAPI — Dynamic credits based on request
-
-```python
-async def calculate_credits(request: Request) -> int:
-    body = await request.json()
-    max_tokens = body.get("max_tokens", 100)
-    return max(1, max_tokens // 100)
-
-app.add_middleware(
-    PaymentMiddleware,
-    payments=payments,
-    routes={"POST /generate": {"plan_id": PLAN_ID, "credits": calculate_credits}}
-)
-```
-
-### MCP Server — Register tool with paywall
-
-```typescript
-payments.mcp.registerTool(
-  "weather.today",
-  { title: "Today's Weather", inputSchema: z.object({ city: z.string() }) },
-  async (args, extra, context) => ({
-    content: [{ type: "text", text: `Weather in ${args.city}: Sunny, 25C` }]
-  }),
-  { credits: 5n }
-)
-
-const { info, stop } = await payments.mcp.start({
-  port: 3000,
-  agentId: process.env.NVM_AGENT_ID!,
-  serverName: "my-server"
-})
-```
-
-### Strands Agent — Decorator-based payment
-
-```python
-from strands import Agent, tool
-from payments_py.x402.strands import requires_payment
-
-@tool(context=True)
-@requires_payment(payments=payments, plan_id=PLAN_ID, credits=1)
-def analyze_data(query: str, tool_context=None) -> dict:
-    return {"status": "success", "content": [{"text": f"Analysis: {query}"}]}
-
-agent = Agent(tools=[analyze_data])
-```
-
-### Google A2A — Agent server with payment extension
-
-#### TypeScript
-
-```typescript
-const agentCard = payments.a2a.buildPaymentAgentCard(baseAgentCard, {
-  paymentType: "dynamic",
-  credits: 1,
-  planId: process.env.NVM_PLAN_ID!,
-  agentId: process.env.NVM_AGENT_ID!,
-})
-
-const server = await payments.a2a.start({
-  port: 3005,
-  basePath: '/a2a/',
-  agentCard,
-  executor: new MyExecutor(),
-})
-```
-
-#### Python
-
-```python
-from payments_py.a2a.agent_card import build_payment_agent_card
-from payments_py.a2a.server import PaymentsA2AServer
-
-agent_card = build_payment_agent_card(base_agent_card, {
-    "paymentType": "dynamic",
-    "credits": 1,
-    "planId": os.environ["NVM_PLAN_ID"],
-    "agentId": os.environ["NVM_AGENT_ID"],
-})
-
-server = PaymentsA2AServer.start(
-    agent_card=agent_card,
-    executor=MyExecutor(),
-    payments_service=payments,
-    port=3005,
-    base_path="/a2a/",
-)
-```
-
-### Google A2A — Client sending a paid task
-
-```typescript
-const client = payments.a2a.getClient({
-  agentBaseUrl: 'http://localhost:3005/a2a/',
-  agentId: AGENT_ID,
-  planId: PLAN_ID,
-})
-
-// Create the delegation first (provider + currency required), then request the token by delegationId.
-const delegation = await payments.delegation.createDelegation({
-  provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
-})
-const { accessToken } = await payments.x402.getX402AccessToken(PLAN_ID, AGENT_ID, {
-  delegationConfig: { delegationId: delegation.delegationId }
-})
-const response = await client.sendMessage("Analyze this data", accessToken)
-```
+Per-framework snippets — fixed and dynamic credits per route, paywalled MCP tools, the Strands decorator, A2A server and client — live in each framework's reference file (see the **Framework Decision Tree** above).
 
 ## Gathering Developer Information Upfront
 
-When a developer asks you to integrate Nevermined payments, gather ALL required information in a single question before generating code. This avoids multiple back-and-forth interactions.
+An integration needs the following. Read the project first (framework, routes, `.env`) and ask the developer, in one message, only for what you can't determine there:
 
-**Ask the developer once for:**
+1. **Framework**: Express.js, FastAPI, MCP server, Strands agent, LangChain / LangGraph, Google A2A, or generic HTTP
+2. **Routes to protect** and the credits each costs (e.g. `POST /chat = 1 credit, POST /generate = 5 credits`)
+3. **Pricing model**: fixed credits per request, or dynamic based on request/response parameters
+4. **Nevermined API key**: whether `NVM_API_KEY` exists; if not, direct them to **A1**
+5. **Plan ID**: whether `NVM_PLAN_ID` exists; if not, whether they also want a registration script
+6. **Environment**: `sandbox` (testing) or `live` (production)
 
-1. **Framework**: Express.js, FastAPI, MCP server, Strands agent, Google A2A, or generic HTTP?
-2. **Routes to protect**: Which endpoints need payment protection and how many credits each? (e.g., `POST /chat = 1 credit, POST /generate = 5 credits`)
-3. **Pricing model**: Fixed credits per request, or dynamic pricing based on request/response parameters?
-4. **Nevermined API Key**: Do they already have an `NVM_API_KEY`? If not, direct them to **A1**
-5. **Plan ID**: Do they already have a `NVM_PLAN_ID`? If not, do they need a registration script too?
-6. **Environment**: `sandbox` (testing) or `live` (production)?
-
-**If they need plan registration, also ask:**
-
-7. **Plan name and description**: e.g., "Starter Plan — 100 API requests"
-8. **Pricing**: How much in USDC? (e.g., 10 USDC for 100 credits)
-9. **Credits per plan**: Total credits included (e.g., 100)
-10. **Builder wallet address** (`BUILDER_ADDRESS`): The wallet that receives payments
-
-**Example combined prompt to offer the developer:**
-
-> I need to set up Nevermined payments. Here's my info:
-> - Framework: Express.js
-> - Routes: POST /chat (1 credit), POST /summarize (3 credits)
-> - I need a registration script too
-> - Plan: "Starter Plan", 100 credits for 10 USDC
-> - Environment: sandbox
-> - My API key is in the NVM_API_KEY env var
-> - My wallet: 0x1234...
-
-With this information, generate both the registration script and the payment-protected server in a single response.
+For plan registration, also: plan name and description, price (e.g. 10 USDC for 100 credits), credits per plan, and the builder wallet address (`BUILDER_ADDRESS`) that receives payments.
 
 ## Agent and Plan Registration
 
-### Using the SDK (Recommended)
+**SDK (recommended):** `registerAgentAndPlan` / `register_agent_and_plan` as shown in **A6**; full TypeScript and Python code in `references/payment-plans.md`.
 
-Register your agent and plan programmatically — see `references/payment-plans.md` for complete code.
-
-```typescript
-// TypeScript
-const { agentId, planId } = await payments.agents.registerAgentAndPlan(
-  { name: 'My Agent', description: 'AI service', tags: ['ai'], dateCreated: new Date() },
-  // endpoints + agentDefinitionUrl are both optional in AgentAPIAttributes.
-  // Provide endpoints only when you want the Nevermined platform to enforce
-  // route-level Additional Security on top of your library middleware.
-  { endpoints: [{ POST: 'https://your-api.com/query' }] },
-  { name: 'Starter Plan', description: '100 requests for $10', dateCreated: new Date() },
-  payments.plans.getERC20PriceConfig(10_000_000n, USDC_ADDRESS, process.env.BUILDER_ADDRESS!),
-  payments.plans.getFixedCreditsConfig(100n, 1n)
-)
-```
-
-```python
-# Python
-from payments_py.plans import get_erc20_price_config, get_fixed_credits_config
-# (or use the methods on payments.plans.* — both are equivalent)
-
-result = payments.agents.register_agent_and_plan(
-    agent_metadata={'name': 'My Agent', 'description': 'AI service', 'tags': ['ai']},
-    # agent_api is required, but its `endpoints` and `agent_definition_url`
-    # fields are both optional. Omit them for an open agent (no platform-side
-    # route enforcement); include `endpoints` for Additional Security.
-    agent_api={'endpoints': [{'POST': 'https://your-api.com/query'}]},
-    plan_metadata={'name': 'Starter Plan', 'description': '100 requests for $10'},
-    price_config=get_erc20_price_config(10_000_000, USDC_ADDRESS, os.environ['BUILDER_ADDRESS']),
-    credits_config=get_fixed_credits_config(100, 1)
-)
-```
-
-### Using the Nevermined App (No-Code)
-
-1. Go to [nevermined.app](https://nevermined.app) and sign in
-2. Click "My agents" → register a new agent with metadata and endpoints
-3. Create a payment plan: set pricing, credits, and duration
-4. Link the plan to your agent and publish
-5. Copy the `agentId` and `planId` for your `.env` file
+**No-code:** sign in at [nevermined.app](https://nevermined.app) → **My agents**, register the agent, create and link a plan, publish, and copy the `agentId` and `planId` into your `.env`.
 
 ### Using the CLI
 
@@ -881,7 +683,7 @@ curl -X POST http://localhost:3000/chat \
 | `403` on analytics — `BCK.ORGANIZATIONS.0022` (not Premium) or `BCK.AUTH.0004` (not an admin of that org) | Wrong tier, not your org, or a malformed `orgId` (which instead returns a **silent 200-of-zeros**) | Discover the real `orgId` from `.orgId` on your plan/agent records; use the any-tier building blocks in **A7**, or upgrade the org |
 | `BCK.VISA.0014` creating a delegation | `provider:"visa"` sent without the browser-produced `consumerPrompt` + `assuranceData` | An agent can't produce `assuranceData` — create the Visa delegation in the webapp; reuse the `delegationId` |
 | `BCK.X402.0002` Plan not found | Wrong `planId` or wrong environment | Verify the plan ID and that you are calling the matching `sandbox`/`live` base URL |
-| MCP error `-32003` | Payment Required — no token, invalid token, or insufficient credits | Check subscriber has purchased plan and has credits remaining |
+| MCP tool result with `isError: true` and a `PaymentRequired` object in `structuredContent` (resources/prompts: a JSON-RPC error) | Payment Required — no token, invalid token, insufficient credits, or settlement failed after the call | Check subscriber has purchased plan and has credits remaining |
 | MCP error `-32002` | Server misconfiguration | Verify `NVM_API_KEY`, `NVM_PLAN_ID`, and `NVM_AGENT_ID` are set correctly |
 | `verification.isValid` is false | Token expired/invalid, wrong plan, **plan not linked to the agent**, or insufficient credits | Regenerate the token; if it persists, verify the plan is associated with the agent and that credits remain (don't just loop on token regeneration) |
 | Credits not deducting | Settlement not called after request | Ensure you call `settlePermissions` after processing (middleware does this automatically) |

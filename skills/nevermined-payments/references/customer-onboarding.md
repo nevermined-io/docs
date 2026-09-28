@@ -1,6 +1,6 @@
 # White-label Customer Onboarding
 
-How an **organization** provisions Nevermined accounts for *its own customers* — under its brand, without the customer ever creating a Nevermined login. Companion to **Track A · A8** in `SKILL.md`. Reflects the shipped contract (backend nvm-monorepo#2421; SDKs `payments`#413 / `payments-py`#253).
+How an **organization** provisions Nevermined accounts for *its own customers* — under its brand, without the customer ever creating a Nevermined login. Companion to **Track A · A8** in `SKILL.md`.
 
 > **Admin-only.** Authenticate with your **organization admin** API key. One endpoint does both member and customer provisioning — the outcome is the `as` field, not a second route.
 
