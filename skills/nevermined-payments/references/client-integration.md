@@ -275,6 +275,7 @@ if __name__ == "__main__":
 ```typescript
 import { Client } from "@modelcontextprotocol/sdk/client"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp"
+import { decodeAccessToken } from "@nevermined-io/payments"
 
 const delegation = await payments.delegation.createDelegation({
   provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
@@ -283,11 +284,14 @@ const { accessToken } = await payments.x402.getX402AccessToken(planId, agentId, 
   delegationConfig: { delegationId: delegation.delegationId }
 })
 
+// Nevermined MCP servers do not read the `payment-signature` header. The `/mcp`
+// endpoint requires `Authorization: Bearer <accessToken>`; the paywall prefers the
+// in-band `_meta["x402/payment"]` payload (below) when present.
 const transport = new StreamableHTTPClientTransport(
   new URL("http://localhost:3000/mcp"),
   {
     requestInit: {
-      headers: { 'payment-signature': accessToken }
+      headers: { Authorization: `Bearer ${accessToken}` }
     }
   }
 )
@@ -297,7 +301,8 @@ await client.connect(transport)
 
 const result = await client.callTool({
   name: "weather.today",
-  arguments: { city: "Madrid" }
+  arguments: { city: "Madrid" },
+  _meta: { "x402/payment": decodeAccessToken(accessToken) },
 })
 ```
 
