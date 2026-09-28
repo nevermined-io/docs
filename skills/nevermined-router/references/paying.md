@@ -104,7 +104,9 @@ status/result endpoint (Tavily research is one). Poll that endpoint through the 
 The poll comes back `paid: false` with the merchant's body, and nothing is charged. It is
 relayed only when all of these hold:
 
-- **you** have a `Settled` payment for that slug within the deployment's follow-up window;
+- **you** have a `Settled` payment for that slug made within the follow-up window — one hour on
+  production, counted from the payment. A card (SPT) payment stays `Issued`, so it never unlocks a
+  follow-up;
 - the path is one the service declares as a follow-up, i.e. its job status/result path;
 - the merchant answers `2xx`.
 
