@@ -47,8 +47,10 @@ parameters and no pagination — `services` is the whole Catalog.
 
 The feed deliberately omits health status, long descriptions and the merchant's own URL. For health,
 read the ARD host document (each entry's `nvm:catalog.healthStatus` and `uptime30d` — see
-[below](#the-ard-host-document)); for a request body, use the endpoint's `requestExample` when
-present — the Catalog holds no body schema otherwise.
+[below](#the-ard-host-document)); for a request body, use the service's detail (`GET /api/v1/catalog/services/<slug>`):
+endpoints may carry a merchant-declared `requestSchema` (`properties.query` → `search`,
+`properties.body` → `body`; sanitised, not verified) and a `requestExample` graded by
+`exampleEvidence` — prefer `paid-run`, then `challenge`; a `docs` example is unverified.
 
 ### Filter recipes
 
