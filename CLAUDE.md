@@ -49,9 +49,12 @@ They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, C
 ⚠️ **Windsurf's 6,000-character cap is a hard truncation, and `nevermined-router.md` is at its
 ceiling.** Windsurf silently drops everything past 6,000 characters — it does not error, and what it
 drops is the **end** of the file, which is where the guardrails and accounting sections live. As of
-2026-09-26 (docs#476) `.windsurf/rules/nevermined-router.md` is **5,996 of 6,000** characters (its
-payments sibling is 4,045; the 12,000 all-files cap is not the binding one). **Four characters of
-headroom: no new code, endpoint or remedy fits without a displacement decision.** It overflowed to
+2026-09-28 (docs#460) `.windsurf/rules/nevermined-router.md` is **exactly 6,000 of 6,000** characters
+(its payments sibling is 4,045; the 12,000 all-files cap is not the binding one). **Zero headroom: no
+new code, endpoint or remedy fits without a displacement decision.** docs#460's `202` = paid line was
+paid for with a restated rationale ("The cap is the user's decision"), a redundant "Others need a
+decision" after the retryable list, the word "external" and four bold pairs — the easy trims are now
+gone, so the next addition has to displace a real example or list. It overflowed to
 6,535 once (docs#463) without anything failing here — only the nvm-monorepo drift check caught it.
 
 The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser and is

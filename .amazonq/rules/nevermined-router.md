@@ -118,6 +118,10 @@ wallet. An OAuth `commerce` key quotes on `POST /router/commerce/quote` (no `del
 purchase, reused across retries of it: the same id returns the original payment, a fresh id buys
 again. Derive it from the work being done.
 
+**From API 1.48, `202 { paymentId, resultUrl, status: "Pending" }` means PAID and still running** (the
+service took over 45 s). Poll `GET $NVM_API_URL{resultUrl}` until `state` is `Ready` or `Failed`; never
+re-buy it with a fresh `requestId` — a same-id retry returns that `202`, then the retained result.
+
 ### Money arithmetic
 
 Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs **$10.00, not $1.00**.
