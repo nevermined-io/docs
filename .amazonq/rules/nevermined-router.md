@@ -35,8 +35,9 @@ All four fields are required — no defaults. `erc4337` is the crypto-funded Del
 stablecoin rails need. Two guards refuse this call outright, neither retryable:
 
 - `403 BCK.OAUTH.0030` — the key was OAuth-minted. It may not create Delegations or use
-  `/router/{payments,route,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant,
-  spend through `POST /router/commerce/route`, which derives the Delegation from the grant.
+  `/router/{payments,route,quote,select,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant,
+  spend through `POST /router/commerce/route` and price through `/router/commerce/quote`, which
+  derive the Delegation from the grant.
 - `412 {"error":"consent_required","outdated":[…]}` — the account's legal consent lapsed; a human
   must accept. ⚠️ Its only `code` is the generic `BCK.HTTP.412`, so branch on `body.error`.
 
@@ -56,23 +57,26 @@ live → `base`.** A merchant on the other chain is unpayable from where you are
 ## 3. Discover (public, no API key)
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/catalog/services?protocol=x402&search=web+search"
+curl -s https://nevermined.app/catalog/ai-catalog.json \
+  | jq '[.services[] | select(.protocol == "x402" and .category == "Search & Research") | {slug, title, priceLabel}]'
 ```
 
+- One JSON feed of every listed service — filter it locally. `/api/v1/catalog/services` and
+  `/api/v1/catalog/categories` are **not a public API**: they return `403` by design. For server-side
+  search, use the Catalog MCP (`search_services`, `get_service`, `list_categories`) at
+  `https://mcp.live.nevermined.app/mcp` — free, no key.
 - **Only `protocol` of `x402` or `mpp` is routable.** Filter for them.
-- **`targetUrl` is the default endpoint's COMPLETE URL, not a base** — it may already contain the
-  path (`https://host/search` while `endpoints[0].path` is also `/search`), so concatenating yields
-  `/search/search`. Resolve instead:
+- **Pay a listed service by its `slug`, never by URL** — the feed has no merchant URL, and a raw-URL
+  payment to a cataloged host is refused (`409 BCK.ROUTER.0014`). The subpath to send is the
+  endpoint's `invokePath` when present — even `""`, which means "append nothing" — else its `path`:
 
 ```ts
-const url = endpoint ? new URL(endpoint.path, service.targetUrl).toString() : service.targetUrl
+const subpath = endpoint.invokePath ?? endpoint.path // NOT || — '' must stay '' or the path double-stacks
 ```
 
-- `offset` is the page **size**, not a skip count, and default ordering is shuffled within each
-  tier — never assume `services[0]` is stable.
 - `category` is a **closed 13-value enum** (`"Search & Research"`, not `"Search"`), with a free-text
-  `subCategory` under it. Take both from `GET /api/v1/catalog/categories`, which returns
-  `{ category, count, subCategories[] }` — never guess the string.
+  `subCategory` under it. A misspelt one filters to an empty list, not an error — read the values in
+  use from the feed (`group_by(.category)`), never guess the string.
 
 ## 4. Pay
 
@@ -99,6 +103,15 @@ merchant's own; `paid: false` with no `payment` means it was free — handle tha
 `ALL /api/v1/router/proxy` with `X-Router-Target-Url`, `X-Router-Delegation-Id` and
 `X-Router-Request-Id` headers.
 
+**Price it first (optional): `POST /api/v1/router/quote`** (API 1.48+) — the same body minus
+`requestId`, `maxTotalCents` and `protocol`, which are stripped, not refused (`delegationId` optional). Nothing is signed, minted, recorded or reserved, but the Router **does**
+send the unpaid request to the service (a service that does not charge for it performs it), and a
+quote spends the same per-key and per-service rate budgets as a payment — quote once per decision,
+don't poll. Pay with `maxTotalCents` set to its `fee.capChargedCents` (whole cents rounded **up**
+from `fee.capChargedMicros`), so a price that rose in between is refused (`402 BCK.ROUTER.0018`)
+instead of paid; any price up to that whole cent is still paid. It checks neither your cap nor your
+wallet. An OAuth `commerce` key quotes on `POST /router/commerce/quote` (no `delegationId`; first API release after 1.49, `404` until then).
+
 ### `requestId` is an idempotency key, not a request counter
 
 **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.** Use one stable id per logical
@@ -109,8 +122,9 @@ again. Derive it from the work being done.
 
 Budget is debited in **whole cents, rounded up** — 1000 calls at $0.001 costs **$10.00, not $1.00**.
 `settlement.approxCents` is only the **merchant** leg; Nevermined's routing fee rides on top in the
-always-present `payment.fee` (`{ bps, amount, cents, capChargedCents }`). **`fee.capChargedCents` is
-what the call reserved against your cap** — sum that, not `approxCents`, or your accounting
+always-present `payment.fee` (`{ bps, amount, cents, capChargedCents, capChargedMicros }`). **`fee.capChargedCents` is
+what the call reserved against your cap**, rounded up to a whole cent (from API 1.48 the exact reserve is
+`capChargedMicros`, in 1/10,000 of a cent) — sum that, not `approxCents`, or your accounting
 under-reports by exactly the fee. ⚠️ It is the reserve **at mint**: a mode-B hop that does not return
 `2xx` releases the fee half back, so a running total over-reports on those calls. For spend to date
 read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
@@ -122,8 +136,9 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0002` (409) — `requestId` already used; the original `paymentId` is in the response.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; `details` names it.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
-- Only `BCK.ROUTER.0006` (500), `0007` (429, too many concurrent) and `0020` (5xx/429) are **retryable**. Everything
-  else is a decision — retrying unchanged gives the same answer.
+- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429, too many concurrent), `0020` (5xx/429), `0022` (500,
+  selection not wired) and `0028` (503, quote) are **retryable** — on the paying path, `0007` and `0020`. Everything else is a decision — retrying
+  unchanged gives the same answer.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry it:** a credential was already minted and
   no record was written, so `requestId` will not suppress the retry. Report it.
 - `BCK.ROUTER.0011` (402) — card rail: needs cardholder 3-D Secure, which an agent can't complete.
@@ -138,7 +153,9 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0014` (409) — the target is a cataloged Nevermined service, whose upstream URL is
   deliberately hidden; the Router will not pay it by raw URL (mode A or a raw mode-B target puts
   the merchant's host on your wire). A retry with the same raw URL fails identically — invoke it
-  through the broker: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>`.
+  through the broker: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>`
+  (a `commerce` grant: `POST /router/commerce/route`). A refused **quote** is re-quoted by slug on
+  `/router/quote` or `/router/commerce/quote`, never paid.
   The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected.
 
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` is below the fee-inclusive, rounded reserve.
@@ -147,6 +164,11 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0019` (4xx) — (streaming `/proxy`·`/svc` only) a cataloged service rejected the request (a 4xx, or a rare 3xx the Router does not follow; not a 402/429). The upstream body is withheld as a host oracle; the typed error preserves the real status. Fix the request from the service's Catalog detail — not retryable.
 - `BCK.ROUTER.0020` (5xx / 429) — (streaming `/proxy`·`/svc` only) a cataloged service errored or rate-limited (upstream/transient). Body and headers are withheld; the real status is preserved. The Router charges no routing fee for an undelivered call; retry with backoff — reuse the same `requestId` only if no `X-Router-Payment-Id` came back, else use a NEW id and reconcile via `GET /router/payments`.
 - `BCK.ROUTER.0021` (400) — the payment credential would overwrite a header you asked the Router to forward: the MPP rails carry it in `Authorization`, which is also where your own merchant auth goes. Nothing was minted and no money moved. Name the header the service documents for its credential — `credentialHeader` in the `/route` body, or `X-Router-Credential-Header` on `/proxy`·`/svc` (a separate `Payment` header is the common one) — and your `Authorization` is left untouched. Do not retry unchanged.
+- `BCK.ROUTER.0024` (413) — the request body exceeds the Router's size limit (about 5 MB). Do not retry unchanged; reduce the request body.
+- `BCK.ROUTER.0025` (502) — reply too large after a paid request; payment may have gone through. The reply has no `X-Router-Payment-Id`; JSON-string `params` may carry `paymentId`. If absent, call `GET /api/v1/router/payments` with `delegationId` and `from` just before the call, then match `requestId` in the returned rows (newest 1000 maximum; there is no `requestId` filter). The row reads `status: Failed` because delivery failed, not because the merchant was uncharged. A non-null `merchantSettlementObservedAt` confirms x402 settlement; null does not prove no charge, including on MPP rails. Do not retry: the same `requestId` returns 409 `BCK.ROUTER.0002` with the original `paymentId` and cannot re-deliver the reply; a fresh id risks another charge.
+- `BCK.ROUTER.0026` (415) — the Router cannot forward this request body. The streaming surfaces (`/router/svc/:slug`, `/router/proxy`) forward only JSON or URL-encoded bodies; any other type (`multipart/form-data`, `text/plain`, `application/octet-stream`, a vendor `+json`) or any body on GET/HEAD is refused. No payment was minted and no money moved. Resend as JSON or a URL-encoded form; retrying unchanged fails identically.
+- `BCK.ROUTER.0027` (413) — the request body is larger than the catalog endpoint accepts (`maxRequestBytes` on the service detail / MCP `get_service`; Locus gateways take 8,000 bytes). Refused before the service is contacted: no payment was minted and no money moved. `params` carries `bodyBytes` and `maxRequestBytes`. Shrink the body or pick a service that takes it; do not retry unchanged.
+- `BCK.ROUTER.0028` (503) — `POST /router/quote` could not price the call because a dependent read failed (e.g. settlement-token details). Nothing is signed or charged on the quote path; retry with backoff. The same condition would also fail a payment, so do not route the call meanwhile.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one

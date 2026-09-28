@@ -6,8 +6,8 @@ Integrate Nevermined payments with [Google A2A (Agent-to-Agent)](https://a2a-pro
 
 ## Features
 
-- **Agent Card with payment extension**: publish at `/.well-known/agent.json`
-- **Bearer Token Authentication**: tokens extracted from HTTP headers (`payment-signature`)
+- **Agent Card with payment extension**: served at `/.well-known/agent-card.json` (legacy alias `/.well-known/agent.json`)
+- **In-band payment (x402 v2 A2A transport)**: the client carries the x402 payload in the JSON-RPC message metadata; the `payment-signature` HTTP header is still accepted as a deprecated fallback
 - **Credits Validation**: verify sufficient credits before executing a task
 - **Credits Burning/Redemption**: burn credits specified in `metadata.creditsUsed` after execution
 - **Streaming**: supports `message/stream` and `tasks/resubscribe`
@@ -59,7 +59,8 @@ const baseAgentCard = {
   version: '1.0.0',
 }
 
-const agentCard = payments.a2a.buildPaymentAgentCard(baseAgentCard, {
+// buildPaymentAgentCard is static on the Payments class (not on the `payments` instance)
+const agentCard = Payments.a2a.buildPaymentAgentCard(baseAgentCard, {
   paymentType: "dynamic",
   credits: 1,
   planId: process.env.NVM_PLAN_ID!,
@@ -157,20 +158,35 @@ const serverResult = await payments.a2a.start({
 #### Python
 
 ```python
+from uuid import uuid4
+from a2a.server.agent_execution.agent_executor import AgentExecutor
+from a2a.types import Message, Role, TaskState, TaskStatus, TaskStatusUpdateEvent
 from payments_py.a2a.server import PaymentsA2AServer
 
-class MyExecutor:
-    async def execute(self, ctx, event_queue):
+class MyExecutor(AgentExecutor):
+    async def execute(self, context, event_queue):
         # Your business logic here
-        event_queue.publish({
-            "kind": "status-update",
-            "taskId": ctx.taskId,
-            "contextId": ctx.userMessage.get("contextId"),
-            "status": {"state": "completed"},
-            "metadata": {"creditsUsed": 1},
-            "final": True,
-        })
-        event_queue.finished()
+        await event_queue.enqueue_event(
+            TaskStatusUpdateEvent(
+                task_id=context.task_id,
+                context_id=context.context_id,
+                status=TaskStatus(
+                    state=TaskState.completed,
+                    message=Message(
+                        message_id=str(uuid4()),
+                        role=Role.agent,
+                        parts=[{"kind": "text", "text": "Done"}],
+                        task_id=context.task_id,
+                        context_id=context.context_id,
+                    ),
+                ),
+                final=True,
+                metadata={"creditsUsed": 1},  # credits to burn
+            )
+        )
+
+    async def cancel(self, context, event_queue):
+        raise NotImplementedError
 
 server = PaymentsA2AServer.start(
     agent_card=agent_card,
@@ -187,6 +203,8 @@ The final streaming event must include `metadata.creditsUsed` with the consumed 
 
 ### Initialize the Client
 
+The client mints the x402 access token itself from the delegation you pass in, so create the delegation first.
+
 #### TypeScript
 
 ```typescript
@@ -195,24 +213,41 @@ const paymentsSubscriber = Payments.getInstance({
   environment: 'sandbox',
 })
 
-const client = paymentsSubscriber.a2a.getClient({
+// Create the delegation first (provider + currency required)
+const delegation = await paymentsSubscriber.delegation.createDelegation({
+  provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
+})
+
+// getClient is async
+const client = await paymentsSubscriber.a2a.getClient({
   agentBaseUrl: 'http://localhost:3005/a2a/',
   agentId: process.env.NVM_AGENT_ID!,
   planId: process.env.NVM_PLAN_ID!,
+  delegationConfig: { delegationId: delegation.delegationId },
 })
 ```
 
 #### Python
 
 ```python
+from payments_py.x402 import CreateDelegationPayload, DelegationConfig
+
 payments_subscriber = Payments.get_instance(
     PaymentOptions(nvm_api_key=os.environ["NVM_API_KEY"], environment="sandbox")
 )
 
-client = payments_subscriber.a2a.get_client(
+delegation = payments_subscriber.delegation.create_delegation(
+    CreateDelegationPayload(
+        provider="erc4337", spending_limit_cents=100, duration_secs=3600, currency="usdc"
+    )
+)
+
+# payments.a2a is a dict of helpers
+client = payments_subscriber.a2a["get_client"](
     agent_base_url="https://your-agent.example.com/a2a/",
     agent_id=os.environ["NVM_AGENT_ID"],
     plan_id=os.environ["NVM_PLAN_ID"],
+    delegation_config=DelegationConfig(delegation_id=delegation.delegation_id),
 )
 ```
 
@@ -224,16 +259,15 @@ client = payments_subscriber.a2a.get_client(
 // Purchase the plan
 await paymentsSubscriber.plans.orderPlan(planId)
 
-// Create the delegation first (provider + currency required), then get the token by delegationId
-const delegation = await paymentsSubscriber.delegation.createDelegation({
-  provider: 'erc4337', spendingLimitCents: 100, durationSecs: 3600, currency: 'usdc'
+// sendA2AMessage mints the x402 token from delegationConfig and carries it in band
+const response = await client.sendA2AMessage({
+  message: {
+    kind: 'message',
+    role: 'user',
+    messageId: crypto.randomUUID(),
+    parts: [{ kind: 'text', text: 'Hello, analyze this data!' }],
+  },
 })
-const { accessToken } = await paymentsSubscriber.x402.getX402AccessToken(planId, agentId, {
-  delegationConfig: { delegationId: delegation.delegationId }
-})
-
-// Send an A2A message
-const response = await client.sendMessage("Hello, analyze this data!", accessToken)
 const taskId = response?.result?.id
 ```
 
