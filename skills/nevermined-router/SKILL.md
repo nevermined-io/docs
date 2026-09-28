@@ -205,7 +205,7 @@ A cataloged service is addressed by `slug` + `path` (the endpoint's `invokePath 
 }
 ```
 
-`status` and `body` are the merchant's own, unchanged. `paid: false` with no `payment` block means nothing was charged. For a catalog `slug`, the body of a free answer is withheld (`null`), except when you poll the result of an async job you already paid for through the same slug: see [Async services](references/paying.md#async-services-pay-then-poll).
+`status` and `body` are the merchant's own, unchanged. `paid: false` with no `payment` block means nothing was charged. For a catalog `slug`, the body of a free answer is withheld (`null`), except when you poll the result of an async job you already paid for through the same slug: see "Async services" in `references/paying.md`.
 
 <a id="fee"></a>
 **`settlement.approxCents` is the merchant leg, not your bill.** Nevermined charges a routing fee on top, disclosed in the **always-present `fee` object** (zeroed when no fee applied, so never branch on its absence): `fee.capChargedCents` is what this call **reserved** against your Delegation cap — `settlement.approxCents + fee.cents`. Sum `capChargedCents`, not `approxCents`, or your accounting drifts by exactly the fee.
