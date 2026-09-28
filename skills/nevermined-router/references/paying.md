@@ -10,6 +10,8 @@ Three ways to pay. **Default to mode B.** Reach for the others only when its sha
 
 All three need `Authorization: Bearer $NVM_API_KEY` and an `erc4337` `delegationId`.
 
+To learn what a mode-B call will cost before paying for it, [quote it](#quote) first.
+
 ---
 
 ## Mode B — `POST /api/v1/router/route`
@@ -20,7 +22,8 @@ You describe the request; the Router probes the merchant, **auto-detects** the p
 ```json
 {
   "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
-  "url": "https://superhighway.walls.sh/search",
+  "slug": "superhighway",
+  "path": "/search",
   "method": "POST",
   "headers": { "X-Merchant-Api-Key": "…" },
   "body": { "query": "nevermined router" },
@@ -60,7 +63,7 @@ failure. You can omit it entirely and send the same call for both rails.
     "paymentId": "b1f9c2e4-…",
     "settlement": {
       "recipient": "0x209693Bc…", "amount": "1000", "asset": "USDC",
-      "network": "base", "approxCents": "1", "scheme": "exact"
+      "network": "base", "approxCents": "1"
     },
     "fee": { "bps": 0, "amount": "0", "cents": "0", "capChargedCents": "1" },
     "txHash": "0xfc8af37b…",
@@ -92,6 +95,7 @@ never branch on its absence.
 | `amount` | The fee in the settlement asset's **smallest unit** — same unit as `settlement.amount`. Reported in that unit rather than cents because cents are ceiling-rounded and cannot express a sub-cent fee |
 | `cents` | Cents the fee added to the cap reserve, i.e. `capChargedCents - settlement.approxCents` |
 | `capChargedCents` | **Total debited from the Delegation cap** for this payment — merchant leg + routing fee |
+| `capChargedMicros` | The same total, exact, in micros (1/10,000 of a cent). `capChargedCents` is this figure rounded **up** to a whole cent, and is what `maxTotalCents` is compared against |
 
 ```
 capChargedCents  =  settlement.approxCents  +  fee.cents
@@ -136,10 +140,90 @@ you actually wanted.
 
 - Same id on retry → `409 BCK.ROUTER.0002` with the original `paymentId`, **not the resource**. Safe — and never escape that 409 with a fresh id.
 - Fresh id on retry → buys again. Also safe, *if that is what you meant*.
+- From API version 1.48 (a key pinned at or above it), a same-id retry of a `/route` call within
+  24 h returns the retained paid result instead of the 409, and a merchant slower than 45 s is
+  answered `202 { paymentId, resultUrl, status: "Pending" }` — read it later from
+  `GET /api/v1/router/payments/{id}/result` (`404 BCK.ROUTER.0030` once expired). The 409 still
+  answers a retry on `/proxy` · `/svc`, of a call that `Failed`, or of an id reused for a different
+  target. Keep the same id.
 
 Derive it from the work (`"search-nevermined-router-v1"`, a hash of the query, a task id). **A fresh
 `uuid4()` per HTTP attempt is how an agent double-spends** — it is the default reflex and it is
 wrong here.
+
+<a id="quote"></a>
+### Price it first — `POST /api/v1/router/quote`
+
+The unpaid half of mode B, on deployments running API 1.48 or later. Send the same body as `/route`
+**minus `requestId`, `maxTotalCents` and `protocol`** (they are stripped, not refused — a ceiling sent
+here does nothing); `delegationId` is optional. The Router makes the same unpaid request to the service that a payment would, reads the
+402, selects the payment option exactly as a payment would (MPP first, then x402), prices it with the
+routing fee — and stops. **Nothing is signed, no credential is minted, no payment is recorded and no
+budget is reserved.**
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/quote" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "delegationId": "'"$NVM_DELEGATION_ID"'",
+    "slug": "superhighway",
+    "path": "/search",
+    "method": "POST",
+    "body": { "query": "nevermined router" }
+  }'
+```
+
+```json
+{
+  "paymentRequired": true,
+  "upstreamStatus": 402,
+  "optionSet": "delegation",
+  "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
+  "protocol": "x402",
+  "x402Version": 2,
+  "settlement": {
+    "recipient": "0x209693Bc…", "amount": "50000", "asset": "USDC",
+    "network": "base", "approxCents": "5"
+  },
+  "fee": { "bps": 200, "amount": "1000", "cents": "1", "capChargedCents": "6", "capChargedMicros": "51000" }
+}
+```
+
+A $0.05 call with a 2% routing fee: the exact cap debit is `51000` micros (5.1¢), and
+`capChargedCents` rounds that **up** to `6`. Then pay with `maxTotalCents: 6` on `/route`, so a price
+that rose in between is refused with `402 BCK.ROUTER.0018` instead of paid. The ceiling has whole-cent
+resolution, so any price up to 6.00¢ is still paid — here a rise of up to 0.9¢. (`settlement` carries
+no `scheme` on the x402 rail; it defaults to `exact`. Read `protocol` for the rail.)
+
+| Field | Meaning |
+| --- | --- |
+| `paymentRequired` | `false`: the service did not ask for payment for this request. Every priced field below is then absent |
+| `upstreamStatus` | The service's answer to the unpaid request — `402` when `paymentRequired` is true. Its body and headers are never returned |
+| `optionSet` | `delegation`: the `delegationId` you sent was priced — a card Delegation pays over MPP-stripe, an organization-wallet Delegation pays only in its own currency, a recipient allowlist is enforced. `deployment`: you sent none, so this is what a personal crypto Delegation would select |
+| `delegationId` | The Delegation priced, or `null` for `deployment` |
+| `protocol` · `x402Version` | The rail the payment would use, detected as on `/route` |
+| `settlement` · `fee` | The same objects `/route` returns under `payment` — see [the fee object](#the-fee-object) |
+
+**A quote is free of charge, not free of consequence:**
+
+- **It contacts the service.** The unpaid request is real, so a service that does not charge for it
+  performs it — take care quoting a method with side effects.
+- **It spends rate budget.** A quote counts against the same per-key and per-service rate limits as a
+  payment. Quote once per decision; do not poll it.
+- **It checks neither your remaining cap nor your wallet balance** — the payment still does
+  (`BCK.ROUTER.0003`, `BCK.ROUTER.0009`).
+
+It refuses what `/route` would refuse before paying (`400 BCK.ROUTER.0001`, `409 BCK.ROUTER.0014` for
+a raw URL on a cataloged host, `404 BCK.CATALOG.0001` for an unknown slug), and a read the price
+depends on can fail with `503 BCK.ROUTER.0028`, which is retryable with backoff.
+
+**OAuth `commerce` credential:** an OAuth-minted key is refused here (`403 BCK.OAUTH.0030`). A key
+from a `commerce` grant quotes on **`POST /api/v1/router/commerce/quote`** — same body, same answer;
+it ships in the first API release after 1.49 and answers `404` until your deployment has it —
+which prices the Delegation the grant is pinned to and so refuses a `delegationId`
+(`400 BCK.OAUTH.0034`). Pay the result on `POST /api/v1/router/commerce/route`. A plain key on the
+commerce route gets `403 BCK.OAUTH.0033`.
 
 ---
 
@@ -284,7 +368,7 @@ Had you passed a v2 `target` (the default), the same call would return `"x402Ver
 that is a deployment with no rate configured**, not because mode A is free. ⚠️ **Mode A charges the
 routing fee on every call**, whether or not you pass a `requestId`.
 
-`requestId` no longer changes *whether* you are charged — it changes whether a **retry** is charged
+`requestId` does not change *whether* you are charged — it changes whether a **retry** is charged
 again. Reuse one stable id across every retry of the same purchase and the retry returns
 `409 BCK.ROUTER.0002` with the original `paymentId` instead of minting: one purchase, one fee. Omit it,
 or generate a fresh id per HTTP attempt, and the retry is a new purchase — a second credential and a
@@ -292,10 +376,6 @@ second real fee transfer for one thing you meant to buy once.
 
 So derive the id from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per
 attempt. Mode B requires one already and is unaffected.
-
-> **Changed:** mode A used to collect *only* when a `requestId` was present, refusing the fee outright
-> without one. That is no longer true — omitting the key now costs you money on a retry rather than
-> saving you the fee.
 
 ### 3 · Attach it and re-send
 
@@ -313,7 +393,8 @@ Read the name off the response rather than hardcoding it — that is why the fie
 ### 4 · Close the record
 
 The merchant returns a settlement reference: `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE` (x402) or
-`Payment-Receipt` (MPP). Report it:
+`Payment-Receipt` (MPP). Report the on-chain transaction hash it carries — `txHash` must be a
+`0x`-prefixed 32-byte hex hash, and card-rail records cannot be closed this way:
 
 ```bash
 curl -sX POST "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/settled" \

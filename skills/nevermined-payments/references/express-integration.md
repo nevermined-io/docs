@@ -189,4 +189,4 @@ PORT=3000
 
 ## Tutorial
 
-Complete working example: [github.com/nevermined-io/tutorials/tree/main/http-simple-agent](https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent)
+Complete working example: [github.com/nevermined-io/tutorials/tree/main/http-simple-agent-ts](https://github.com/nevermined-io/tutorials/tree/main/http-simple-agent-ts)

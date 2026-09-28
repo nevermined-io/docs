@@ -189,13 +189,14 @@ curl -s -H "Content-Type: application/json" \
 | `get_service` | `slug` — returns the service plus its `requestShape` (each endpoint's `payServiceArgs`) |
 | `list_categories` | none — each category with a `count` and its `subCategories[]` |
 
-- **`search_services` is moving to ARD hybrid ranking** (semantic + lexical) in the next MCP
-  release. `query` becomes **required**, `page` / `offset` are removed (a `pageSize` replaces them,
-  with no next-page input yet), and the result changes from `{ total, page, offset, services }` to
-  `{ results, pageToken }` — ARD records keyed by an `identifier` URN, whose last segment is the slug
-  (`urn:air:api.live.nevermined.app:service:superhighway` → `superhighway`). So: always send `query`,
-  parse `content[0].text` without assuming `services[]`, and **do not build a pager on it** — after the release an unknown `page` is silently
-  dropped and you would get the first page forever. To walk everything, use the feed.
+- **`search_services` result shape depends on the MCP server version.** From v1.48 it ranks by ARD
+  hybrid relevance (semantic + lexical): `query` is **required**, `page` / `offset` are gone (a
+  `pageSize` replaces them, with no next-page input), and the result is `{ results, pageToken }` —
+  ARD records keyed by an `identifier` URN, whose last segment is the slug
+  (`urn:air:api.live.nevermined.app:service:superhighway` → `superhighway`). Earlier servers return
+  `{ total, page, offset, services }`. So: always send `query`, parse `content[0].text` without
+  assuming `services[]`, and **do not build a pager on it** — an unknown `page` is silently dropped
+  and you would get the first page forever. To walk everything, use the feed.
 - **Errors come back as a tool result with `isError: true`** and a plain-text message, not a
   JSON-RPC error: an unknown slug in `get_service` reads `… returned 404`; a bad `protocol` fails the
   input schema with `MCP error -32602: Input validation error …`. Check `isError` before parsing
