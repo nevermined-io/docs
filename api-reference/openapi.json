@@ -2112,7 +2112,7 @@
             }
           },
           "400": {
-            "description": "Invalid request, no fundable option, or an upstream/402 error (BCK.ROUTER.0001).",
+            "description": "Invalid request, no fundable option, or an upstream/402 error (BCK.ROUTER.0001); or every option advertised an EIP-712 domain its own settlement token does not sign under (BCK.ROUTER.0012); or the payment credential would overwrite a header you asked the Router to forward, with no `credentialHeader` naming where the service wants it instead (BCK.ROUTER.0021 — refused before minting, so no money moved). A request-body validation failure arrives as BCK.HTTP.400 instead.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2209,7 +2209,7 @@
             }
           },
           "400": {
-            "description": "Malformed request, a `delegationId` was supplied (BCK.OAUTH.0034 — it is derived from your grant), or both `url` and `slug` were given (BCK.ROUTER.0001).",
+            "description": "Malformed request, a `delegationId` was supplied (BCK.OAUTH.0034 — it is derived from your grant), both `url` and `slug` were given (BCK.ROUTER.0001), or the payment credential would overwrite a header you asked the Router to forward and no `credentialHeader` named where the service wants it instead (BCK.ROUTER.0021 — refused before minting).",
             "content": {
               "application/json": {
                 "schema": {
@@ -2355,7 +2355,7 @@
             }
           },
           "400": {
-            "description": "Invalid request, no fundable option, a pay-to outside the delegation’s allowed recipients, or an upstream/402 error (BCK.ROUTER.0001); or every option advertised an EIP-712 domain its own settlement token does not sign under (BCK.ROUTER.0012) — the same refusals `/route` raises before paying. A request-body validation failure arrives as BCK.HTTP.400 instead.",
+            "description": "Invalid request, no fundable option, a pay-to outside the delegation’s allowed recipients, or an upstream/402 error (BCK.ROUTER.0001); or every option advertised an EIP-712 domain its own settlement token does not sign under (BCK.ROUTER.0012); or the payment credential would overwrite a header you asked the Router to forward and no `credentialHeader` named where the service wants it instead (BCK.ROUTER.0021) — the same refusals `/route` raises before paying. A request-body validation failure arrives as BCK.HTTP.400 instead.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2491,7 +2491,7 @@
             }
           },
           "400": {
-            "description": "A `delegationId` was supplied (BCK.OAUTH.0034 — it is derived from your grant); or the refusals `/quote` makes: invalid request, no fundable option, a pay-to outside the delegation’s allowed recipients, or an upstream/402 error (BCK.ROUTER.0001), or an EIP-712 domain its settlement token does not sign under (BCK.ROUTER.0012). A request-body validation failure arrives as BCK.HTTP.400 instead.",
+            "description": "A `delegationId` was supplied (BCK.OAUTH.0034 — it is derived from your grant); or the refusals `/quote` makes: invalid request, no fundable option, a pay-to outside the delegation’s allowed recipients, or an upstream/402 error (BCK.ROUTER.0001), or an EIP-712 domain its settlement token does not sign under (BCK.ROUTER.0012), or a payment credential that would overwrite a header you asked the Router to forward (BCK.ROUTER.0021). A request-body validation failure arrives as BCK.HTTP.400 instead.",
             "content": {
               "application/json": {
                 "schema": {
