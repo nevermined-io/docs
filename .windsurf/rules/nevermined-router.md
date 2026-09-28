@@ -1,6 +1,6 @@
 # Nevermined Router — paying services
 
-Pay external x402 / MPP services through the Router (to receive: `nevermined-payments`).
+Pay x402 / MPP services through the Router (to receive: `nevermined-payments`).
 
 Full skill: https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 
@@ -41,7 +41,7 @@ server-side search: Catalog MCP `search_services` (`mcp.live.nevermined.app/mcp`
 - **Only `protocol` `x402` / `mpp` is routable.**
 - **Pay a listed service by `slug`, never by URL** (`409 BCK.ROUTER.0014`). Send
   `endpoint.invokePath ?? endpoint.path` — not `||`: `""` means "append nothing".
-- `category` is a **closed 13-value enum**; a typo silently filters to empty.
+- `category` is a closed 13-value enum; a typo silently filters to empty.
 
 ## 4. Pay
 
@@ -53,6 +53,7 @@ with `X-Router-{Target-Url,Delegation-Id,Request-Id}`.
 
 **`requestId` is an idempotency key:** one stable id per purchase, reused across its retries (same id →
 original payment; fresh id buys again). **A fresh `uuid4()` per attempt is how an agent double-spends.**
+`202` (API ≥1.48) = **paid**, still running: poll `GET resultUrl`, never re-buy.
 
 **Money.** Budget is debited in **whole cents, rounded up**. `settlement.approxCents` is only the
 **merchant** leg; the routing fee rides on top in the always-present `payment.fee`.
@@ -82,12 +83,11 @@ its rate budget: once per decision. Pay with `maxTotalCents` = `fee.capChargedCe
   Raise only if intended; reuse `requestId`.
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected it; body withheld, status kept. Fix from Catalog detail; no retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
-- `BCK.ROUTER.0024` (413) — body over ~5 MB. **No retry as-is**; shrink it.
-- `BCK.ROUTER.0025` (502) — reply too large; charge unknown. **No retry**: same id → 409 `0002` + original `paymentId`, no reply; fresh id may charge again. `paymentId`: JSON-string `params` (no `X-Router-Payment-Id`), else `/api/v1/router/payments` with `delegationId` + `from` just pre-call; match `requestId` in the newest 1000 rows (no filter). `status: Failed` is delivery, not charge; non-null `merchantSettlementObservedAt` = x402 settled; null proves nothing (MPP too).
-- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, selection) and `0028` (503, quote) are **retryable**, with backoff; paying path: `0007`/`0020`. Others need a decision.
+- `BCK.ROUTER.0024` (413) — body over ~5 MB. No retry as-is; shrink it.
+- `BCK.ROUTER.0025` (502) — reply too large; charge unknown. No retry: same id → 409 `0002` + original `paymentId`, no reply; fresh id may charge again. `paymentId`: JSON-string `params` (no `X-Router-Payment-Id`), else `/api/v1/router/payments` with `delegationId` + `from` just pre-call; match `requestId` in the newest 1000 rows (no filter). `status: Failed` is delivery, not charge; non-null `merchantSettlementObservedAt` = x402 settled; null proves nothing (MPP too).
+- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, selection) and `0028` (503, quote) are **retryable**, with backoff; paying path: `0007`/`0020`.
 
-**Never widen a Delegation, or create a second one, to get past a refusal.** The cap is the user's
-decision.
+**Never widen a Delegation, or create a second one, to get past a refusal.**
 
 ## Accounting
 

@@ -140,12 +140,12 @@ you actually wanted.
 
 - Same id on retry → `409 BCK.ROUTER.0002` with the original `paymentId`, **not the resource**. Safe — and never escape that 409 with a fresh id.
 - Fresh id on retry → buys again. Also safe, *if that is what you meant*.
-- From API version 1.48 (a key pinned at or above it), a same-id retry of a `/route` call within
-  24 h returns the retained paid result instead of the 409, and a merchant slower than 45 s is
-  answered `202 { paymentId, resultUrl, status: "Pending" }` — read it later from
+- From API version 1.48 (a key pinned at or above it), a same-id retry within 24 h returns the
+  retained paid result (or its `202` while it runs) instead of the 409, and a merchant slower than
+  45 s is answered `202 { paymentId, resultUrl, status: "Pending" }` — read it later from
   `GET /api/v1/router/payments/{id}/result` (`404 BCK.ROUTER.0030` once expired). The 409 still
-  answers a retry on `/proxy` · `/svc`, of a call that `Failed`, or of an id reused for a different
-  target. Keep the same id.
+  answers when nothing was kept (a `/proxy` · `/svc` response that already streamed to you), a
+  call that `Failed`, or an id reused for a different target. Keep the same id.
 
 Derive it from the work (`"search-nevermined-router-v1"`, a hash of the query, a task id). **A fresh
 `uuid4()` per HTTP attempt is how an agent double-spends** — it is the default reflex and it is
