@@ -182,6 +182,10 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0026` (415) — the Router cannot forward this request body. The streaming surfaces (`/router/svc/:slug`, `/router/proxy`) forward only JSON or URL-encoded bodies; any other type (`multipart/form-data`, `text/plain`, `application/octet-stream`, a vendor `+json`) or any body on GET/HEAD is refused. No payment was minted and no money moved. Resend as JSON or a URL-encoded form; retrying unchanged fails identically.
 - `BCK.ROUTER.0027` (413) — the request body is larger than the catalog endpoint accepts (`maxRequestBytes` on the service detail / MCP `get_service`; Locus gateways take 8,000 bytes). Refused before the service is contacted: no payment was minted and no money moved. `params` carries `bodyBytes` and `maxRequestBytes`. Shrink the body or pick a service that takes it; do not retry unchanged.
 - `BCK.ROUTER.0028` (503) — `POST /router/quote` could not price the call because a dependent read failed (e.g. settlement-token details). Nothing is signed or charged on the quote path; retry with backoff. The same condition would also fail a payment, so do not route the call meanwhile.
+- `BCK.ROUTER.0029` (404) — invalid or wrong-account `quoteId`; nothing signed, reserved or charged. Request a new quote and use its id; do not retry the invalid id.
+- `BCK.ROUTER.0031` (409) — the exact slug in `filters.require` cannot be selected. Inspect `params.reason`; correct the slug/request, or deliberately remove `require` to allow fallback. Do not retry unchanged.
+- `BCK.ROUTER.0032` (410) — the quote expired before payment; nothing signed, reserved or charged. Quote again and decide against the new total; do not retry the expired id.
+- `BCK.ROUTER.0033` (409) — the payment differs from the quote's target, method, headers, body, credential header, delegation, rail, or exact total. Send the quoted call unchanged or request a new quote; do not retry unchanged.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
