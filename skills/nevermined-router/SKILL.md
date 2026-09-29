@@ -170,6 +170,12 @@ Two rules that will otherwise cost you a wasted payment:
 
 More filter recipes, categories, the Catalog MCP, and the ARD host document: `references/discovery.md`.
 
+**From API 1.55**, server-side selection (`POST /api/v1/router/select` and MCP `route_by_intent`)
+accepts exact opaque catalog slugs in `filters.require`, `filters.prefer` and `filters.exclude`.
+`require` is the strict control: the Router selects that slug or fails closed with
+`409 BCK.ROUTER.0031`; it never silently substitutes another service. `prefer` falls back to normal
+ranking when its slug is not payable, while `exclude` removes its slug from consideration.
+
 ## ⑤ Make the paid call
 
 Hand the Router the request you want made. It probes the service, **auto-detects** the protocol from the 402, pays, and relays the answer — one call, and you never see the 402.
@@ -220,6 +226,15 @@ A cataloged service is addressed by `slug` + `path` (the endpoint's `invokePath 
 
 <a id="quote"></a>
 **Price it first: `POST /api/v1/router/quote`** (deployments on API 1.48 or later). Send the same body as `/route` minus `requestId`, `maxTotalCents` and `protocol`, which are stripped rather than refused (`delegationId` stays optional). The Router makes the same unpaid request to the service that a payment would, selects the option a payment would select, prices it with the routing fee — and stops. **Nothing is signed, minted, recorded or reserved.** It answers `200` with `paymentRequired`, `optionSet`, `protocol` and the same `settlement` and `fee` objects `/route` returns. Then route with `maxTotalCents` set to the quote's `fee.capChargedCents`, so a price that rose in between is refused (`402 BCK.ROUTER.0018`) instead of paid.
+
+**From API 1.55**, a payment-required quote also returns a short-lived opaque `quoteId` and
+`expiresAt` **60 seconds** later. Pass that `quoteId` to `/route` with the exact quoted target,
+method, headers, body, credential header and Delegation. It pays the sealed merchant challenge at
+the exact fee-inclusive amount without accepting a changed call; keep `maxTotalCents` too as an
+independent ceiling. An invalid/wrong-account id is `0029`, an expired id is `0032`, and any request,
+Delegation, rail or amount mismatch is `0033` — all before a charge. Re-quote when the call changes
+or the id expires. Clients pinned below 1.55 receive no `quoteId`/`expiresAt` and retain the legacy
+re-probe-plus-ceiling flow.
 
 - **It is not free of side effects.** The request really reaches the service, so a service that does not charge for it performs it — take care quoting a method with side effects. And a quote spends the same per-key and per-service rate budgets as a payment: **quote once per decision, don't poll.**
 - `fee.capChargedCents` is whole cents rounded **up** from `fee.capChargedMicros` (exact, in 1/10,000 of a cent), and it is the figure `maxTotalCents` is compared against. The ceiling has whole-cent resolution, so any price up to that whole cent is still paid: a 2.04¢ quote paid with `maxTotalCents: 3` accepts up to 3.00¢.
@@ -283,7 +298,11 @@ The Router signs payments from your wallet in response to instructions written b
 | `BCK.ROUTER.0026` | 415 | The Router cannot forward this request body. The streaming surfaces (`/router/svc/:slug`, `/router/proxy`) forward only JSON (`application/json`) or URL-encoded (`application/x-www-form-urlencoded`) bodies; any other type — `multipart/form-data` above all, but also `text/plain`, `application/octet-stream` or a vendor `+json` — and any body on GET/HEAD is refused. No payment was minted and no money moved. JSON-string `params` names the refused `contentType` (null when none was sent). | No — resend the body as JSON or a URL-encoded form the service accepts; a service that only takes a file upload cannot be paid through the Router yet, and retrying unchanged fails identically |
 | `BCK.ROUTER.0027` | 413 | The request body is larger than the catalog endpoint accepts. The catalog records a `maxRequestBytes` per endpoint (on the service detail and in MCP `get_service`) — the Locus gateways (`*.mpp.paywithlocus.com`) take 8,000 bytes — and a slug-routed call (`/router/route`, `/router/quote`, `/router/svc/:slug`, `/router/proxy` with a slug) whose body is larger is refused before the service is contacted. No payment was minted and no money moved. JSON-string `params` carries `bodyBytes` and `maxRequestBytes`. | No — shrink the body below the limit or split the work, or pick a service that takes larger requests (`POST /router/select` with the same `body` skips endpoints whose limit is below it); retrying unchanged fails identically |
 | `BCK.ROUTER.0028` | 503 | `POST /router/quote` could not price the call because a read it depends on failed (for example the settlement-token details on the payment network). Nothing is signed, minted or charged on the quote path. | **Yes**, with backoff — a quote never charges, so nothing needs unwinding. The same condition would also fail a payment, so do not route the call meanwhile; if it persists, quote `correlationId` |
+| `BCK.ROUTER.0029` | 404 | The `quoteId` is invalid or belongs to another account. Nothing was signed, reserved or charged. | No — request a new quote and use its `quoteId`; do not retry the same invalid id |
 | `BCK.ROUTER.0030` | 404 | No retained paid result for that paymentId under your account. A paid Router result is retained for 24h after the call ends, for the paying user only; it is not retained for a response that had already started streaming when the call completed, or for a payment never routed through `/router/route`, `/router/proxy` or `/router/svc`. The payment record itself is unaffected. | No — the result is gone (or was never retained); read the payment with `GET /api/v1/router/payments` |
+| `BCK.ROUTER.0031` | 409 | The exact catalog slug in `filters.require` is unavailable, unhealthy, unpayable, excluded by this request, or cannot accept the body. The Router fails closed instead of substituting another service. | No — inspect `params.reason`; correct the slug or request, or deliberately remove `require` to allow fallback |
+| `BCK.ROUTER.0032` | 410 | The `quoteId` expired before payment began. Nothing was signed, reserved or charged. | No — quote the same call again and decide against the new fee-inclusive total; do not retry the expired id |
+| `BCK.ROUTER.0033` | 409 | The payment differs from the quote in its target, method, headers, body, credential header, delegation, rail, or exact fee-inclusive amount. Nothing was reserved or charged. | No — send the quoted call unchanged, or request a new quote for the changed call |
 | `BCK.OAUTH.0030` | 403 | This API key was OAuth-minted and may not create Delegations or use `/router/{payments,route,quote,select,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant, `POST /router/commerce/route` to pay and `POST /router/commerce/quote` to price. | No |
 | `BCK.OAUTH.0033` | 403 | A commerce route (`/commerce/route`, `/commerce/route/with-controls`, `/commerce/select`, `/commerce/quote`) needs a credential minted from a `commerce` grant pinned to a usable Delegation. A plain key uses the twin that names its own Delegation: `POST /router/route` to pay, `/router/select` to pick, `/router/quote` to price. A commerce credential that still sees it: re-run the authorization. | No |
 | `BCK.OAUTH.0034` | 400 | `delegationId` sent on a commerce route; there it is derived from the grant. Remove it, or use the plain-key twins (`/router/route`, `/router/select`, `/router/quote`) to choose one. | No |

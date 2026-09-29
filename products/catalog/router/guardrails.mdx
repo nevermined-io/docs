@@ -62,6 +62,21 @@ Use **one stable id per logical purchase**, not per HTTP attempt:
 - Retrying a timed-out call with the **same** id → `409 BCK.ROUTER.0002` with the original `paymentId`, **not the resource**. Safe — but don't escape that 409 by minting a fresh id.
 - Retrying with a **fresh** id → buys again. Also safe, but only if that's what you meant.
 
+## Bound quotes and required services — API 1.55+
+
+A payment-required `POST /api/v1/router/quote` response carries an opaque `quoteId` and an
+`expiresAt` **60 seconds** later. Pass the id to `/route` with the exact quoted target, method,
+headers, body, credential header and Delegation. The Router pays the sealed merchant challenge at
+the exact fee-inclusive amount; `maxTotalCents` remains an independent ceiling. Invalid or
+wrong-account ids (`0029`), expired ids (`0032`), and any request, Delegation, rail or exact-total
+mismatch (`0033`) are refused before a charge. Re-quote whenever the call changes or the id expires.
+Clients pinned below API 1.55 receive no `quoteId`/`expiresAt` and retain the legacy re-probe flow.
+
+The same API version adds exact opaque-slug controls to `POST /router/select` and MCP
+`route_by_intent`: `filters.require`, `filters.prefer` and `filters.exclude`. `require` selects that
+slug or fails closed with `0031`; it never substitutes another service. `prefer` permits normal
+fallback, while `exclude` removes its slug from consideration.
+
 ## What the Router won't fetch
 
 The Router makes server-side HTTP requests to URLs you supply, so it will not let you point it at infrastructure you shouldn't reach. Targets resolving to loopback, private (RFC 1918), link-local, or cloud-metadata addresses are blocked — both literal IPs and public hostnames that *resolve* to internal addresses, so DNS rebinding doesn't get around it. The connection is then pinned to the address that was validated, so it can't be swapped underneath.
@@ -101,7 +116,7 @@ When you call a service by `slug`, the Router checks your body against that limi
 
 ## Every error code
 
-Every code below also appears in the canonical [API error catalogue](/development-guide/api-errors/codes#bck-router), which carries the `category` and `retryable` fields your client can branch on without parsing a message. [Error handling](/development-guide/api-errors/overview) describes the envelope they arrive in.
+Every code below also appears in the canonical [API error catalogue](/development-guide/api-errors/codes#bck-router), which carries the `category` and `retryable` fields your client can branch on without parsing a message. [Error handling](/development-guide/api-errors/overview) describes the envelope they arrive in. Codes `0029` and `0031`–`0033` require API 1.55+.
 
 | Code | Status | Meaning | Retry? |
 | --- | --- | --- | --- |
@@ -130,7 +145,11 @@ Every code below also appears in the canonical [API error catalogue](/developmen
 | `BCK.ROUTER.0026` | 415 | The Router cannot forward this request body. The streaming surfaces (`/router/svc/:slug`, `/router/proxy`) forward only JSON (`application/json`) or URL-encoded (`application/x-www-form-urlencoded`) bodies; any other type — `multipart/form-data` above all, but also `text/plain`, `application/octet-stream` or a vendor `+json` — and any body on GET/HEAD is refused. No payment was minted and no money moved. JSON-string `params` names the refused `contentType` (null when none was sent). | No — resend the body as JSON or a URL-encoded form the service accepts; a service that only takes a file upload cannot be paid through the Router yet, and retrying unchanged fails identically |
 | `BCK.ROUTER.0027` | 413 | The request body is larger than the catalog endpoint accepts. The catalog records a `maxRequestBytes` per endpoint (on the service detail and in MCP `get_service`) — the Locus gateways (`*.mpp.paywithlocus.com`) take 8,000 bytes — and a slug-routed call (`/router/route`, `/router/quote`, `/router/svc/:slug`, `/router/proxy` with a slug) whose body is larger is refused before the service is contacted. No payment was minted and no money moved. JSON-string `params` carries `bodyBytes` and `maxRequestBytes`. | No — shrink the body below the limit or split the work, or pick a service that takes larger requests (`POST /router/select` with the same `body` skips endpoints whose limit is below it); retrying unchanged fails identically |
 | `BCK.ROUTER.0028` | 503 | `POST /router/quote` could not price the call because a read it depends on failed (for example the settlement-token details on the payment network). Nothing is signed, minted or charged on the quote path. | **Yes**, with backoff — a quote never charges, so nothing needs unwinding. The same condition would also fail a payment, so do not route the call meanwhile; if it persists, quote `correlationId` |
+| `BCK.ROUTER.0029` | 404 | The `quoteId` is invalid or belongs to another account. Nothing was signed, reserved or charged. | No — request a new quote and use its `quoteId`; do not retry the same invalid id |
 | `BCK.ROUTER.0030` | 404 | No retained paid result for that paymentId under your account. A paid Router result is retained for 24h after the call ends, for the paying user only; it is not retained for a response that had already started streaming when the call completed, or for a payment never routed through `/router/route`, `/router/proxy` or `/router/svc`. The payment record itself is unaffected. | No — the result is gone (or was never retained); read the payment with `GET /api/v1/router/payments` |
+| `BCK.ROUTER.0031` | 409 | The exact catalog slug in `filters.require` is unavailable, unhealthy, unpayable, excluded by this request, or cannot accept the body. The Router fails closed instead of substituting another service. | No — inspect `params.reason`; correct the slug or request, or deliberately remove `require` to allow fallback |
+| `BCK.ROUTER.0032` | 410 | The `quoteId` expired before payment began. Nothing was signed, reserved or charged. | No — quote the same call again and decide against the new fee-inclusive total; do not retry the expired id |
+| `BCK.ROUTER.0033` | 409 | The payment differs from the quote in its target, method, headers, body, credential header, delegation, rail, or exact fee-inclusive amount. Nothing was reserved or charged. | No — send the quoted call unchanged, or request a new quote for the changed call |
 
 Across the whole Router surface, only `0006`, `0007`, `0020` and quote-only `0028` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer. On the *paying* path the set is narrower still — see below.
 
