@@ -170,6 +170,12 @@ Two rules that will otherwise cost you a wasted payment:
 
 More filter recipes, categories, the Catalog MCP, and the ARD host document: `references/discovery.md`.
 
+**From API 1.55**, server-side selection (`POST /api/v1/router/select` and MCP `route_by_intent`)
+accepts exact opaque catalog slugs in `filters.require`, `filters.prefer` and `filters.exclude`.
+`require` is the strict control: the Router selects that slug or fails closed with
+`409 BCK.ROUTER.0031`; it never silently substitutes another service. `prefer` falls back to normal
+ranking when its slug is not payable, while `exclude` removes its slug from consideration.
+
 ## ⑤ Make the paid call
 
 Hand the Router the request you want made. It probes the service, **auto-detects** the protocol from the 402, pays, and relays the answer — one call, and you never see the 402.
@@ -220,6 +226,15 @@ A cataloged service is addressed by `slug` + `path` (the endpoint's `invokePath 
 
 <a id="quote"></a>
 **Price it first: `POST /api/v1/router/quote`** (deployments on API 1.48 or later). Send the same body as `/route` minus `requestId`, `maxTotalCents` and `protocol`, which are stripped rather than refused (`delegationId` stays optional). The Router makes the same unpaid request to the service that a payment would, selects the option a payment would select, prices it with the routing fee — and stops. **Nothing is signed, minted, recorded or reserved.** It answers `200` with `paymentRequired`, `optionSet`, `protocol` and the same `settlement` and `fee` objects `/route` returns. Then route with `maxTotalCents` set to the quote's `fee.capChargedCents`, so a price that rose in between is refused (`402 BCK.ROUTER.0018`) instead of paid.
+
+**From API 1.55**, a payment-required quote also returns a short-lived opaque `quoteId` and
+`expiresAt` **60 seconds** later. Pass that `quoteId` to `/route` with the exact quoted target,
+method, headers, body, credential header and Delegation. It pays the sealed merchant challenge at
+the exact fee-inclusive amount without accepting a changed call; keep `maxTotalCents` too as an
+independent ceiling. An invalid/wrong-account id is `0029`, an expired id is `0032`, and any request,
+Delegation, rail or amount mismatch is `0033` — all before a charge. Re-quote when the call changes
+or the id expires. Clients pinned below 1.55 receive no `quoteId`/`expiresAt` and retain the legacy
+re-probe-plus-ceiling flow.
 
 - **It is not free of side effects.** The request really reaches the service, so a service that does not charge for it performs it — take care quoting a method with side effects. And a quote spends the same per-key and per-service rate budgets as a payment: **quote once per decision, don't poll.**
 - `fee.capChargedCents` is whole cents rounded **up** from `fee.capChargedMicros` (exact, in 1/10,000 of a cent), and it is the figure `maxTotalCents` is compared against. The ceiling has whole-cent resolution, so any price up to that whole cent is still paid: a 2.04¢ quote paid with `maxTotalCents: 3` accepts up to 3.00¢.

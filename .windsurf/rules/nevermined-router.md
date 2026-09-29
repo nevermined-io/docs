@@ -23,7 +23,8 @@ Env: `NVM_API_URL` (`https://api.{sandbox,live}.nevermined.app`), `NVM_API_KEY`
 ## 2. Fund the wallet
 
 Both rails **pull** from your wallet; Delegation ≠ funds. Read `GET /api/v1/delegation/{id}` →
-`providerPaymentMethodId` each time: stale addresses cause `402 BCK.ROUTER.0009`.
+`providerPaymentMethodId` each time: stale addresses cause `402 BCK.ROUTER.0009`, which does not
+echo the checked address.
 
 **Each deployment funds one x402 network: sandbox → `base-sepolia`, live → `base`.** A merchant
 on the other chain fails `400 BCK.ROUTER.0001 … no fundable option`.
@@ -40,9 +41,10 @@ not public (`403`); server search: MCP `search_services` at `mcp.live.nevermined
 
 ## 4. Pay
 
-`POST /api/v1/router/route`, JSON body `{ delegationId*, url|slug*, method, body, requestId* }` (`*` required).
+`POST /api/v1/router/route`, body `{ delegationId*, url|slug*, method, body, requestId* }`.
 
-The Router detects the 402 rail, pays and relays. `paid: false` + no `payment` = free.
+The Router detects the 402 rail, pays and relays; `status`/`body` are the merchant's.
+`paid: false` + no `payment` = free.
 Streaming: `ALL /router/proxy` with `X-Router-{Target-Url,Delegation-Id,Request-Id}`.
 
 **`requestId` is idempotency:** one stable id per purchase/retries; fresh id buys again. A fresh
@@ -50,13 +52,20 @@ Streaming: `ALL /router/proxy` with `X-Router-{Target-Url,Delegation-Id,Request-
 `202` (API ≥1.48) = **paid**, still running: poll `GET resultUrl`, never re-buy.
 
 **Money.** Budget uses **whole cents, rounded up**. `settlement.approxCents` is merchant-only;
-the always-present `payment.fee.capChargedCents` is reserved, not final (non-`2xx` releases the fee). Spend authority:
+the always-present `payment.fee.capChargedCents` is reserved, not final (mode-B non-`2xx` releases
+the fee). Spend authority:
 the Delegation's `amountSpentCents`.
 
 **Quote first:** `POST /api/v1/router/quote` (`commerce` grant, after 1.49: `/router/commerce/quote`),
 minus `requestId`/`maxTotalCents`. Charges nothing, but **does** call the service unpaid and spends
 its rate budget: once per decision. Pay with `maxTotalCents` = `fee.capChargedCents`.
 `503 BCK.ROUTER.0028`: retry w/ backoff.
+
+API 1.55+: 402 quotes add `quoteId`/`expiresAt` (60 s). Send id with unchanged `/route`, binding
+request/Delegation/rail/exact total. `BCK.ROUTER.0029` bad id → new quote;
+`BCK.ROUTER.0032` expired → re-quote; `BCK.ROUTER.0033` mismatch → unchanged call or requote. `/router/select`
+and MCP `route_by_intent` accept exact slugs in `filters.require|prefer|exclude`; `BCK.ROUTER.0031`
+means required slug unavailable — inspect `params.reason`, fix it/request, or remove `require` for fallback. All pre-charge.
 
 ## Guardrails
 
@@ -78,10 +87,6 @@ its rate budget: once per decision. Pay with `maxTotalCents` = `fee.capChargedCe
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0024` (413) — body over ~5 MB. No retry as-is; shrink it.
 - `BCK.ROUTER.0025` (502) — oversized reply; charge unknown. Don't retry: same id cannot redeliver; fresh may charge again. Find `paymentId` in JSON `params`, else query `/router/payments` from just before the call and match `requestId` (newest 1000; no filter). `Failed` means delivery failed, not uncharged; non-null `merchantSettlementObservedAt` confirms x402 settlement, but null proves nothing (including MPP).
-- `BCK.ROUTER.0029` (404) — invalid/wrong-account `quoteId`; nothing signed/reserved/charged. Get a new quote/id.
-- `BCK.ROUTER.0031` (409) — exact `filters.require` slug unavailable. Inspect `params.reason`; fix the slug/request or deliberately remove `require` for fallback.
-- `BCK.ROUTER.0032` (410) — quote expired; nothing signed/reserved/charged. Re-quote and decide on the new total.
-- `BCK.ROUTER.0033` (409) — payment differs from the quote (target/request/delegation/rail/exact total). Nothing reserved/charged; send it unchanged or get a new quote.
 - Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, selection) and `0028` (503, quote) are **retryable**, with backoff; paying path: `0007`/`0020`.
 
 **Never widen a Delegation, or create a second one, to get past a refusal.**

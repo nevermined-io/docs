@@ -172,6 +172,10 @@ services right now simply does not appear. Treat an absent category as "nothing 
 
 ## Server-side search: the Catalog MCP
 
+From API 1.55, server-side selection accepts `filters.require` to pin one exact opaque catalog slug.
+The Router either selects that service or fails closed with `409 BCK.ROUTER.0031`; it never silently
+substitutes another service. Remove `require` only when fallback to the normal ranking is deliberate.
+
 When you would rather not filter locally, the Catalog MCP server searches for you. Its read tools are
 free and need no key; each call is one stateless JSON-RPC POST:
 

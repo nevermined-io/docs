@@ -62,6 +62,21 @@ Use **one stable id per logical purchase**, not per HTTP attempt:
 - Retrying a timed-out call with the **same** id → `409 BCK.ROUTER.0002` with the original `paymentId`, **not the resource**. Safe — but don't escape that 409 by minting a fresh id.
 - Retrying with a **fresh** id → buys again. Also safe, but only if that's what you meant.
 
+## Bound quotes and required services — API 1.55+
+
+A payment-required `POST /api/v1/router/quote` response carries an opaque `quoteId` and an
+`expiresAt` **60 seconds** later. Pass the id to `/route` with the exact quoted target, method,
+headers, body, credential header and Delegation. The Router pays the sealed merchant challenge at
+the exact fee-inclusive amount; `maxTotalCents` remains an independent ceiling. Invalid or
+wrong-account ids (`0029`), expired ids (`0032`), and any request, Delegation, rail or exact-total
+mismatch (`0033`) are refused before a charge. Re-quote whenever the call changes or the id expires.
+Clients pinned below API 1.55 receive no `quoteId`/`expiresAt` and retain the legacy re-probe flow.
+
+The same API version adds exact opaque-slug controls to `POST /router/select` and MCP
+`route_by_intent`: `filters.require`, `filters.prefer` and `filters.exclude`. `require` selects that
+slug or fails closed with `0031`; it never substitutes another service. `prefer` permits normal
+fallback, while `exclude` removes its slug from consideration.
+
 ## What the Router won't fetch
 
 The Router makes server-side HTTP requests to URLs you supply, so it will not let you point it at infrastructure you shouldn't reach. Targets resolving to loopback, private (RFC 1918), link-local, or cloud-metadata addresses are blocked — both literal IPs and public hostnames that *resolve* to internal addresses, so DNS rebinding doesn't get around it. The connection is then pinned to the address that was validated, so it can't be swapped underneath.
@@ -101,7 +116,7 @@ When you call a service by `slug`, the Router checks your body against that limi
 
 ## Every error code
 
-Every code below also appears in the canonical [API error catalogue](/development-guide/api-errors/codes#bck-router), which carries the `category` and `retryable` fields your client can branch on without parsing a message. [Error handling](/development-guide/api-errors/overview) describes the envelope they arrive in.
+Every code below also appears in the canonical [API error catalogue](/development-guide/api-errors/codes#bck-router), which carries the `category` and `retryable` fields your client can branch on without parsing a message. [Error handling](/development-guide/api-errors/overview) describes the envelope they arrive in. Codes `0029` and `0031`–`0033` require API 1.55+.
 
 | Code | Status | Meaning | Retry? |
 | --- | --- | --- | --- |

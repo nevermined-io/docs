@@ -9,6 +9,9 @@ obstacles is exactly the failure mode this design exists to prevent.
 
 ## Every Router code
 
+Codes `0029` and `0031`–`0033` are exposed from API 1.55 onward; older API pins retain the legacy
+unbound quote and service-selection request shapes.
+
 | Code | Status | Meaning | Retry? |
 | --- | --- | --- | --- |
 | `BCK.ROUTER.0001` | 400 | Bad input: unsupported protocol, malformed/empty challenge, no fundable option, recipient outside the Delegation's scope, non-allowlisted asset, wrong-provider Delegation, missing `delegationId`. **`details` names the specific problem — read it** | No |

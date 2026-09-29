@@ -121,6 +121,11 @@ from `fee.capChargedMicros`), so a price that rose in between is refused (`402 B
 instead of paid; any price up to that whole cent is still paid. It checks neither your cap nor your
 wallet. An OAuth `commerce` key quotes on `POST /router/commerce/quote` (no `delegationId`; first API release after 1.49, `404` until then).
 
+API 1.55+: a payment-required quote returns `quoteId` + `expiresAt` (60 s). Pass the id with the exact unchanged
+`/route` call; it binds the target, request, Delegation, rail and exact total. Re-quote if it expires
+or the call changes. `/router/select` and MCP `route_by_intent` also accept exact slugs in
+`filters.require|prefer|exclude`; `require` selects that slug or fails closed, without fallback.
+
 ### `requestId` is an idempotency key, not a request counter
 
 **A fresh `uuid4()` per HTTP attempt is how an agent double-spends.** Use one stable id per logical

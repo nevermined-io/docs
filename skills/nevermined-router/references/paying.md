@@ -44,6 +44,7 @@ You describe the request; the Router probes the merchant, **auto-detects** the p
 | `protocol` | no | `x402`/`mpp`. **Advisory only** — see below |
 | `requestId` | **yes** | Idempotency key. Non-empty, ≤ 256 chars |
 | `maxTotalCents` | no | Non-negative safe integer. Per-call ceiling on the fee-inclusive, whole-cent cap reserve; a larger quote returns `402 BCK.ROUTER.0018` before a charge or budget reserve. The Delegation cap remains the overall limit |
+| `quoteId` | no | API 1.55+: opaque 60-second binding returned by `/quote`. Send it with the quoted request unchanged to pay the sealed challenge and exact quoted total; `maxTotalCents` remains an independent ceiling |
 
 ### `protocol` is advisory here, and the detected one wins
 
@@ -209,6 +210,8 @@ curl -sX POST "$NVM_API_URL/api/v1/router/quote" \
 
 ```json
 {
+  "quoteId": "q1.opaque-authenticated-quote-token",
+  "expiresAt": "2026-09-29T12:01:00.000Z",
   "paymentRequired": true,
   "upstreamStatus": 402,
   "optionSet": "delegation",
@@ -224,13 +227,22 @@ curl -sX POST "$NVM_API_URL/api/v1/router/quote" \
 ```
 
 A $0.05 call with a 2% routing fee: the exact cap debit is `51000` micros (5.1¢), and
-`capChargedCents` rounds that **up** to `6`. Then pay with `maxTotalCents: 6` on `/route`, so a price
-that rose in between is refused with `402 BCK.ROUTER.0018` instead of paid. The ceiling has whole-cent
-resolution, so any price up to 6.00¢ is still paid — here a rise of up to 0.9¢. (`settlement` carries
-no `scheme` on the x402 rail; it defaults to `exact`. Read `protocol` for the rail.)
+`capChargedCents` rounds that **up** to `6`. On API 1.55+, the payment-required quote's opaque
+`quoteId` binds the exact request, Delegation, selected rail, merchant challenge and fee-inclusive
+amount for **60 seconds**, until `expiresAt`. Pay by sending that `quoteId` on `/route` with the
+quoted call unchanged and `maxTotalCents: 6`. The quote binding fixes the exact 5.1¢ total;
+`maxTotalCents` remains an independent whole-cent ceiling. An invalid/wrong-account id is
+`BCK.ROUTER.0029`, expiry is `0032`, and any request, Delegation, rail or amount mismatch is `0033` —
+nothing is reserved or charged. Re-quote if the call changes or the id expires.
+
+Clients pinned below API 1.55 receive neither `quoteId` nor `expiresAt`: `/route` probes again, and
+only `maxTotalCents` guards the new price. Its whole-cent resolution means the 5.1¢ quote paid with a
+ceiling of `6` accepts up to 6.00¢. (`settlement` carries no `scheme` on the x402 rail; it defaults to
+`exact`. Read `protocol` for the rail.)
 
 | Field | Meaning |
 | --- | --- |
+| `quoteId` · `expiresAt` | API 1.55+, on a payment-required quote: an opaque sealed binding and its ISO-8601 expiry, 60 seconds after issue |
 | `paymentRequired` | `false`: the service did not ask for payment for this request. Every priced field below is then absent |
 | `upstreamStatus` | The service's answer to the unpaid request — `402` when `paymentRequired` is true. Its body and headers are never returned |
 | `optionSet` | `delegation`: the `delegationId` you sent was priced — a card Delegation pays over MPP-stripe, an organization-wallet Delegation pays only in its own currency, a recipient allowlist is enforced. `deployment`: you sent none, so this is what a personal crypto Delegation would select |
