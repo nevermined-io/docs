@@ -1,0 +1,87 @@
+---
+title: "Installation"
+description: "Install and configure the @nevermined-io/payments TypeScript SDK for monetizing AI agents"
+icon: "download"
+---
+
+# Installation
+
+The Nevermined Payments Library is a TypeScript SDK that enables AI builders and subscribers to monetize and access AI agents through the Nevermined protocol. The library supports flexible payment plans (credits and time-based), multiple payment methods (crypto and fiat), and seamless integration with AI agent frameworks.
+
+## Overview
+
+The Payments Library provides:
+- Registration and discovery of AI agents with payment plans
+- Flexible pricing options (fixed per request or dynamic usage-based)
+- Credit-based access control with on-chain settlement
+- Support for browser and Node.js environments
+- Integration with MCP (Model Context Protocol) and A2A (Agent-to-Agent) protocols
+
+## Prerequisites
+
+Before installing the Nevermined Payments Library, ensure you have:
+
+- **Node.js**: Version 18.x or higher
+- **TypeScript**: Version 5.x or higher (recommended)
+- **Nevermined API Key**: Get your free API key from [nevermined.app](https://nevermined.app)
+- **Package Manager**: npm (included with Node.js) or pnpm
+
+## Installation
+
+Install the library using npm or pnpm. Pin the major version (or use a lockfile-tracked exact version) so SDK upgrades are explicit and reviewable:
+
+```bash
+# Using npm
+npm install @nevermined-io/payments@^1.1
+
+# Using pnpm
+pnpm add @nevermined-io/payments@^1.1
+```
+
+> 🔐 **Security:** always commit your `package-lock.json` / `pnpm-lock.yaml` and review SDK version bumps before deploying. Running unpinned installs in production lets transitive dependencies change between deploys.
+
+### Peer Dependencies
+
+The library has optional peer dependencies for specific integrations:
+
+```bash
+# For MCP (Model Context Protocol) integration
+npm install @modelcontextprotocol/sdk
+
+# For Express-based HTTP agents
+npm install express @types/express
+```
+
+These dependencies are only required if you're using the respective integration features.
+
+## Verify Installation
+
+After installation, verify the library is correctly installed by importing it:
+
+```typescript
+import { Payments } from '@nevermined-io/payments'
+
+console.log('Nevermined Payments Library installed successfully!')
+```
+
+You can also check the installed version:
+
+```bash
+npm list @nevermined-io/payments
+```
+
+## Next Steps
+
+After successful installation:
+
+1. Get your Nevermined API key from [nevermined.app](https://nevermined.app)
+2. Choose your environment (sandbox for testing, live for production)
+3. Initialize the Payments instance in your application
+
+Continue to [Initializing the Library](./initializing-the-library) to get started.
+
+---
+
+**Source References**:
+- `package.json`
+- `README.md`
