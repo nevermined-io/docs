@@ -2607,6 +2607,309 @@
         ]
       }
     },
+    "/router/subscription/quote": {
+      "post": {
+        "description": "Units one call to a catalog endpoint costs with your Nevermined Subscription: the endpoint's published tariff, whatever the merchant charges at the moment of the call.\n\nAnswers from the tariff alone — the merchant is not contacted, nothing is reserved and nothing is charged. It refuses exactly what `POST /router/subscription/route` would refuse before paying (an ineligible or untariffed endpoint, no spendable subscription), but it does NOT check your units balance or the treasury spending limits; the route checks those when the call is made. A `url` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`).\n\nThe subscription routes are dark-launched behind a kill switch and a per-account allowlist: a caller they are not available to gets 404 `BCK.SUBSCRIPTION_ACCESS.0001`, the same answer whether the feature is switched off or the account is not admitted. API keys only: an OAuth-minted credential is refused (`BCK.OAUTH.0030`).",
+        "operationId": "quoteSubscriptionCall",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionQuoteRequestDto"
+              },
+              "examples": {
+                "price-an-endpoint": {
+                  "summary": "Price one call to a catalog endpoint",
+                  "value": {
+                    "slug": "webscrape-pro",
+                    "path": "scrape",
+                    "method": "POST"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The units one call to this endpoint costs, and the tariff version that sets it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionQuoteResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, or a field a subscription call does not accept (BCK.SUBSCRIPTION_ROUTER.0005, `params.field`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "No subscription that can spend right now — none bought, ended, past due, or suspended by an open refund or dispute (BCK.SUBSCRIPTION_ROUTER.0002).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This endpoint cannot be paid with subscription units (BCK.SUBSCRIPTION_ROUTER.0001; `params.reason` names the failed check); or an OAuth-minted credential (BCK.OAUTH.0030).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not available to the caller (BCK.SUBSCRIPTION_ACCESS.0001), or no listed catalog service has that `slug` (BCK.CATALOG.0001).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-slug throttle.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Nevermined-side data error: the subscription does not resolve to its units (BCK.SUBSCRIPTION_ROUTER.0011) or the endpoint's tariff is unusable (BCK.SUBSCRIPTION_ROUTER.0013). Nothing was charged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The subscription could not be looked up (BCK.SUBSCRIPTION_ROUTER.0012, retryable), or this deployment cannot run subscription calls (BCK.SUBSCRIPTION_ROUTER.0010).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Quote a call in subscription units",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
+    "/router/subscription/route": {
+      "post": {
+        "description": "Call a catalog service and pay it with your Nevermined Subscription units (mode B). Like `POST /router/route`, but Nevermined pays the merchant from its treasury and your subscription is charged the endpoint's published tariff in units. There is no Delegation, no wallet to fund and no routing fee.\n\n- **A slug, never a URL.** Address the service by `slug` (+ `path`, `search`, `method`, `headers`, `body`). A `url` or a `delegationId` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`), not ignored.\n- **`requestId` is required** (idempotency): a retry with the same id is never paid twice.\n- **Only a merchant `2xx` keeps the units.** They are reserved before the merchant is called and kept (`Committed`) only on a `2xx`; anything else marks them for refund and they are returned (`Refunded`). Every refusal below happens before anything is reserved, signed or charged.\n- **Rails:** x402 `exact` and MPP `tempo` merchants only.\n\nFor large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}` with an `X-Router-Request-Id` header; it answers with `X-Router-Units-Charged` and `X-Router-Units-Status` beside the `X-Router-Payment-*` headers, and refuses `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id`.\n\nThe subscription routes are dark-launched behind a kill switch and a per-account allowlist: a caller they are not available to gets 404 `BCK.SUBSCRIPTION_ACCESS.0001`, the same answer whether the feature is switched off or the account is not admitted. API keys only: an OAuth-minted credential is refused (`BCK.OAUTH.0030`).",
+        "operationId": "routeSubscriptionCall",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionRouteRequestDto"
+              },
+              "examples": {
+                "pay-with-units": {
+                  "summary": "Call a catalog endpoint, paid with units",
+                  "value": {
+                    "slug": "webscrape-pro",
+                    "path": "scrape",
+                    "method": "POST",
+                    "body": {
+                      "url": "https://example.com"
+                    },
+                    "requestId": "scrape-example-com-1"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The merchant's response (`status`, and `body` only when it delivered) plus the `payment` Nevermined made and the units it cost.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionRouteResultDto"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The paid call outlived the synchronous wait. Poll `GET /api/v1/router/payments/{id}/result` (also the `Location` header); the units stay `Reserved` until the call ends.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePendingDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request; a field a subscription call does not accept (BCK.SUBSCRIPTION_ROUTER.0005, `params.field`); or the merchant asked for a rail units do not pay (BCK.SUBSCRIPTION_ROUTER.0003, `params.rail`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "No subscription that can spend right now (BCK.SUBSCRIPTION_ROUTER.0002), or not enough units for this call (BCK.SUBSCRIPTION_ROUTER.0009, `params.units`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This endpoint cannot be paid with subscription units (BCK.SUBSCRIPTION_ROUTER.0001, `params.reason`); the treasury cannot pay this merchant (BCK.SUBSCRIPTION_TREASURY.0008); or an OAuth-minted credential (BCK.OAUTH.0030).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not available to the caller (BCK.SUBSCRIPTION_ACCESS.0001), or no listed catalog service has that `slug` (BCK.CATALOG.0001).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The merchant's live price is outside the tariff's bound, or in another asset or network (BCK.SUBSCRIPTION_ROUTER.0004, `params.reason`); or the `requestId` was already used (BCK.ROUTER.0002).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "A spending limit: this listing's limit for the period (BCK.SUBSCRIPTION_TREASURY.0005), the daily unit limit (BCK.SUBSCRIPTION_TREASURY.0006) or a new subscription's pace limit (BCK.SUBSCRIPTION_TREASURY.0007); or the per-slug throttle or per-user concurrency limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Nevermined-side error, nothing charged: the payment could not be prepared consistently (BCK.SUBSCRIPTION_ROUTER.0006, retryable with a new requestId), the subscription does not resolve to its units (0011), or the tariff is unusable (0013).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Temporarily unable to pay, nothing charged: the reservation timed out (BCK.SUBSCRIPTION_ROUTER.0014, retry with the same requestId), the subscription lookup failed (0012), the deployment cannot run subscription calls (0010), or the treasury refused (a `BCK.SUBSCRIPTION_TREASURY.*` code, e.g. 0004 daily outflow limit). `retryable` says whether retrying can help.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Call a catalog service, paid with subscription units",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
+    "/router/subscription/balance": {
+      "get": {
+        "description": "Your Nevermined Subscription units left, when they reset, and your plan. Reads the subscription the caller would spend: the organization they act in (`X-Current-Org-Id`, else the API key's organization) when admitted through it, otherwise their own. Charges nothing. `subscribed: false` carries no other field; every other field is present exactly when `subscribed` is true.\n\nThe subscription routes are dark-launched behind a kill switch and a per-account allowlist: a caller they are not available to gets 404 `BCK.SUBSCRIPTION_ACCESS.0001`, the same answer whether the feature is switched off or the account is not admitted. API keys only: an OAuth-minted credential is refused (`BCK.OAUTH.0030`).",
+        "operationId": "getSubscriptionBalance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The caller's units, reset date and plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionBalanceDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "An OAuth-minted credential (BCK.OAUTH.0030).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not available to the caller (BCK.SUBSCRIPTION_ACCESS.0001).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The balance could not be read (BCK.SUBSCRIPTION_MCP.0001) — never answered as zero. Retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Read your subscription units",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
     "/router/payments/{id}/settled": {
       "post": {
         "description": "After you attached a mode-A credential and the agent settled on-chain, report the settlement\n`txHash` (from the agent’s `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE` header) so the payment\nrecord moves `Issued → Settled`. Idempotent: re-reporting the same txHash is a no-op; a\ndifferent txHash, or a record not in `Issued`, is rejected. NOT needed for mode B\n(`/route` and `/proxy` self-complete the record from the upstream settlement header).",
@@ -5545,7 +5848,11 @@
             "example": "0xfc8af37b..."
           },
           "delegationId": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The delegation this payment was reserved against. Null on a payment funded by a Nevermined Subscription, which spends subscription units and no delegation.",
             "example": "5e7481c3-..."
           },
           "deliveryStatus": {
@@ -5593,6 +5900,37 @@
             "type": "string",
             "description": "Relative URL of the retained paid result. It may answer Pending while the call is running, or 404 after retention expires, for a mode-A payment, for an unknown payment, or for a payment owned by another caller. A 404 is not delivery evidence; use `deliveryStatus`.",
             "example": "/api/v1/router/payments/b1f9c2e4-8a3d-4f27-9c6b-5d2e17a04f8b/result"
+          },
+          "fundingSource": {
+            "type": "string",
+            "enum": [
+              "delegation",
+              "subscription"
+            ],
+            "description": "What paid for this payment: `delegation` (your delegation cap) or `subscription` (your Nevermined Subscription units; Nevermined paid the merchant, so `delegationId` is null).",
+            "example": "delegation"
+          },
+          "unitsCharged": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Units a subscription-funded payment cost (its tariff). Null on a delegation payment.",
+            "example": null
+          },
+          "unitsStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Reserved",
+              "Committed",
+              "Refunded",
+              null
+            ],
+            "description": "Where a subscription-funded payment’s units stand: `Committed` (delivered), `Reserved` (undelivered and marked for refund, or still being decided) or `Refunded`. Null on a delegation payment.",
+            "example": null
           },
           "requestId": {
             "type": [
@@ -5685,7 +6023,10 @@
           "merchantSettlementObservedAt",
           "paymentId",
           "chargedMicros",
-          "resultUrl"
+          "resultUrl",
+          "fundingSource",
+          "unitsCharged",
+          "unitsStatus"
         ]
       },
       "PaymentsSummaryPointDto": {
@@ -5726,6 +6067,317 @@
         "required": [
           "total",
           "series"
+        ]
+      },
+      "SubscriptionQuoteRequestDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "Catalog slug of the service to call. Subscription units pay catalog services only, addressed by slug; the Router resolves it to the merchant server-side.",
+            "example": "webscrape-pro",
+            "pattern": "^[A-Za-z0-9._~-]+$"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Subpath of the endpoint to price, as on the route (path segments only).",
+            "example": "scrape"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "default": "GET",
+            "description": "HTTP method of the call to price."
+          }
+        },
+        "required": [
+          "slug"
+        ]
+      },
+      "SubscriptionQuoteResultDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "The catalog slug priced.",
+            "example": "webscrape-pro"
+          },
+          "units": {
+            "type": "number",
+            "description": "Units one call to this endpoint costs: the published tariff, whatever the merchant charges at the moment of the call.",
+            "example": 3
+          },
+          "tariffVersion": {
+            "type": "number",
+            "description": "The tariff version that sets `units`.",
+            "example": 2
+          }
+        },
+        "required": [
+          "slug",
+          "units",
+          "tariffVersion"
+        ]
+      },
+      "SubscriptionRouteRequestDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "Catalog slug of the service to call. Subscription units pay catalog services only, addressed by slug; the Router resolves it to the merchant server-side.",
+            "example": "webscrape-pro",
+            "pattern": "^[A-Za-z0-9._~-]+$"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Subpath of the endpoint, appended to the resolved merchant URL (path segments only — `//`, `..`, a backslash or an embedded absolute URL is refused).",
+            "example": "scrape"
+          },
+          "search": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Query string without the leading `?`, attached to the resolved merchant URL.",
+            "example": "q=nevermined&limit=1"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "default": "GET",
+            "description": "HTTP method to use for the upstream request."
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Headers to forward to the merchant (e.g. its own auth). Optional."
+          },
+          "body": {
+            "description": "Request body to forward (JSON). Optional."
+          },
+          "credentialHeader": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Header the payment credential rides in on the paid hop, when the merchant needs its own `Authorization` too (a separate `Payment` header is the common one). Do not set it by default.",
+            "example": "Payment"
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "default": "x402",
+            "description": "Advisory: the Router detects the protocol from the merchant's 402."
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Idempotency key — REQUIRED. At most one payment per (caller, requestId): a retry is never paid twice.",
+            "example": "scrape-example-com-1"
+          }
+        },
+        "required": [
+          "slug",
+          "requestId"
+        ]
+      },
+      "SubscriptionRoutePaymentDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "description": "The Router payment id."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Issued",
+              "Settled",
+              "Failed"
+            ],
+            "description": "The merchant leg, which Nevermined paid on your behalf."
+          },
+          "txHash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "On-chain settlement reference of the merchant leg, when the merchant returned one."
+          },
+          "unitsCharged": {
+            "type": "number",
+            "description": "Units this call cost (the tariff). Absent only when the ledger could not be read at answer time; `GET /router/payments` has it.",
+            "example": 3
+          },
+          "unitsStatus": {
+            "type": "string",
+            "enum": [
+              "Reserved",
+              "Committed",
+              "Refunded"
+            ],
+            "description": "`Committed` — the merchant delivered (2xx) and the units stay spent. `Reserved` — the call did not deliver and its units are marked for refund, or its outcome is still being decided. `Refunded` — returned. Absent only when the ledger could not be read at answer time."
+          },
+          "failureReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the call did not complete cleanly, when it did not."
+          },
+          "correlationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The request correlation id."
+          },
+          "resultUrl": {
+            "type": "string",
+            "description": "Where this result stays readable for 24 h."
+          }
+        },
+        "required": [
+          "paymentId",
+          "status",
+          "txHash",
+          "failureReason",
+          "correlationId"
+        ]
+      },
+      "SubscriptionRouteResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "number",
+            "description": "The merchant's HTTP status."
+          },
+          "body": {
+            "description": "The merchant's response body — `null` unless it delivered (2xx), so a failed call reveals nothing about the merchant."
+          },
+          "bodyEncoding": {
+            "type": "string",
+            "enum": [
+              "json",
+              "text",
+              "base64"
+            ],
+            "description": "How `body` is represented. Absent when `body` is withheld."
+          },
+          "contentType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The merchant's response media type, when `body` is relayed.",
+            "example": "application/json"
+          },
+          "paid": {
+            "type": "boolean",
+            "description": "Whether a payment was made (false when the service answered free)."
+          },
+          "payment": {
+            "$ref": "#/components/schemas/SubscriptionRoutePaymentDto"
+          }
+        },
+        "required": [
+          "status",
+          "body",
+          "paid"
+        ]
+      },
+      "SubscriptionBalancePlanDto": {
+        "type": "object",
+        "properties": {
+          "catalogId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The subscription price subscribed to."
+          },
+          "planKey": {
+            "type": "string",
+            "description": "The plan bought.",
+            "example": "standard"
+          },
+          "unitsPerCycle": {
+            "type": "string",
+            "description": "Units each paid monthly invoice grants, as a whole-number digit string.",
+            "example": "2000"
+          }
+        },
+        "required": [
+          "catalogId",
+          "planKey",
+          "unitsPerCycle"
+        ]
+      },
+      "SubscriptionBalanceDto": {
+        "type": "object",
+        "properties": {
+          "subscribed": {
+            "type": "boolean",
+            "description": "Whether the caller has a current Nevermined Subscription."
+          },
+          "unitsLeft": {
+            "type": "string",
+            "description": "Units left: the unexpired remainder, as a whole-number digit string. What the Router debits.",
+            "example": "1240"
+          },
+          "spendable": {
+            "type": "boolean",
+            "description": "Whether these units can pay a call right now: the subscription is active or trialing and no refund or dispute holds it."
+          },
+          "resetsAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When this period's units expire and — unless `cancelAtPeriodEnd` — the next period's are granted, on payment of its invoice (ISO 8601). `null` until the billing period is recorded.",
+            "example": "2026-10-30T00:00:00.000Z"
+          },
+          "cancelAtPeriodEnd": {
+            "type": "boolean",
+            "description": "The subscription ends at `resetsAt` instead of renewing."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "incomplete",
+              "incomplete_expired",
+              "trialing",
+              "active",
+              "past_due",
+              "canceled",
+              "unpaid",
+              "paused"
+            ],
+            "description": "The subscription status. A `past_due` subscription keeps its units but cannot spend them until its invoice is paid.",
+            "example": "active"
+          },
+          "suspended": {
+            "type": "boolean",
+            "description": "True while a refund or dispute is open: the units cannot be spent until it closes."
+          },
+          "plan": {
+            "$ref": "#/components/schemas/SubscriptionBalancePlanDto"
+          }
+        },
+        "required": [
+          "subscribed"
         ]
       },
       "RouterErrorResponseDto": {
