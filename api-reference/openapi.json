@@ -5548,6 +5548,52 @@
             "type": "string",
             "example": "5e7481c3-..."
           },
+          "deliveryStatus": {
+            "type": "string",
+            "enum": [
+              "delivered",
+              "charged_not_delivered",
+              "charged_unconfirmed",
+              "not_charged",
+              "pending"
+            ],
+            "description": "Buyer-visible outcome: delivered when the request settled; charged_not_delivered when it failed and the merchant charge was observed; charged_unconfirmed when the charge was observed but delivery is unconfirmed; not_charged when reconciliation proved the merchant did not charge; pending when the charge outcome is unknown. On SPT and card rails, pending is not proof of no charge.",
+            "example": "delivered"
+          },
+          "feeFailureReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the routing fee did not collect, or — on a `feeStatus: None` row — `fee-not-quoted: <why>` when a fee rate is configured but none was quoted for this payment. Diagnostic text for a human, NOT a stable contract: branch on `feeStatus`, never on this string. Whitespace is collapsed and any embedded `scheme://…` URL is replaced with `[url]` before publication. `null` when no fee rate is configured, and while a quoted fee is still on its happy path; a non-null value does not on its own mean the fee went uncollected — `feeStatus` says what happened.",
+            "example": "HTTP 400: {\"errorReason\":\"amount_too_low\",\"network\":\"eip155:84532\",\"success\":false}"
+          },
+          "merchantSettlementObservedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When on-chain reconciliation OBSERVED that the merchant redeemed this payment’s authorization — the money really left your wallet. `null` on the ordinary path (a cleanly settled payment is anchored by `txHash`), and always on the MPP rails, which carry no EIP-3009 authorization. Read it together with `status`: `status` is what you GOT, this is what you PAID — `status: Failed`/`Issued` with this set means the merchant took the money and delivered nothing. A non-null `txHash` on such a row does not mean the payment succeeded.",
+            "example": "2026-09-08T10:12:00.000Z"
+          },
+          "paymentId": {
+            "type": "string",
+            "description": "Alias of `id`, named explicitly for requestId reconciliation clients.",
+            "example": "b1f9c2e4-8a3d-4f27-9c6b-5d2e17a04f8b"
+          },
+          "chargedMicros": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Exact amount this payment still contributes to the delegation cap, in micros (1/10,000 of a cent). A merchant or fee share that was proven uncollected and released is excluded. `null` on legacy rows that predate exact micro-reserve columns.",
+            "example": "1020000"
+          },
+          "resultUrl": {
+            "type": "string",
+            "description": "Relative URL of the retained paid result. It may answer Pending while the call is running, or 404 after retention expires, for a mode-A payment, for an unknown payment, or for a payment owned by another caller. A 404 is not delivery evidence; use `deliveryStatus`.",
+            "example": "/api/v1/router/payments/b1f9c2e4-8a3d-4f27-9c6b-5d2e17a04f8b/result"
+          },
           "requestId": {
             "type": [
               "string",
@@ -5633,7 +5679,13 @@
           "amount",
           "merchantAddress",
           "delegationId",
-          "buyer"
+          "buyer",
+          "deliveryStatus",
+          "feeFailureReason",
+          "merchantSettlementObservedAt",
+          "paymentId",
+          "chargedMicros",
+          "resultUrl"
         ]
       },
       "PaymentsSummaryPointDto": {
