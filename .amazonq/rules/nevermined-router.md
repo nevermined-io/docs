@@ -6,6 +6,7 @@ Nevermined plan, use the `nevermined-payments` rules instead.
 
 Full skill: https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
 Docs: https://nevermined.ai/docs/products/catalog/router/overview
+Nevermined Subscription (pay catalog services with units instead of a Delegation): https://nevermined.ai/docs/products/catalog/router/subscription
 
 ## When the Router does NOT apply
 

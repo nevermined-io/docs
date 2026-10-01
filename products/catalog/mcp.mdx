@@ -526,11 +526,11 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 
 ## Pay with subscription units
 
-With a [Nevermined Subscription](/products/catalog/router/subscription), `pay_service` and `quote_service` can pay with **units** instead of your Delegation: Nevermined pays the merchant and the call costs the endpoint's published tariff, returned if the service doesn't answer successfully. Both tools take an optional **`funding`** argument:
+With a [Nevermined Subscription](/products/catalog/router/subscription), `pay_service` and `quote_service` can pay with **units** instead of your Delegation: Nevermined pays the merchant and the call costs the endpoint's rate from Nevermined's rate card, returned if the service doesn't answer successfully. Both tools take an optional **`funding`** argument:
 
 | `funding` | What pays |
 | --- | --- |
-| omitted | Your subscription when you hold an active one **and** the endpoint has a subscription tariff; otherwise your Delegation, exactly as before. |
+| omitted | Your subscription when you hold an active one **and** the endpoint has a subscription rate; otherwise your Delegation, exactly as before. |
 | `"subscription"` | Your subscription units — refused, never switched to the Delegation, if they can't pay this call. |
 | `"delegation"` | Your Delegation. |
 
@@ -553,7 +553,7 @@ A units call answers with `funding: "subscription"`, the units it cost and where
 
 `unitsStatus` is `Committed` (spent), `Reserved` (still running, or marked for refund) or `Refunded` (returned). A `pending` answer works as for any paid call: poll `get_payment_result`; the units stay reserved until the service answers.
 
-`quote_service` with a subscription answers from the tariff alone — the service isn't contacted:
+`quote_service` with a subscription answers from the rate card alone — the service isn't contacted:
 
 ```json
 { "funding": "subscription", "slug": "webscrape-pro", "units": 3, "tariffVersion": 2, "nextTool": "pay_service" }
@@ -573,7 +573,7 @@ These charge nothing and reserve no units. Each carries the API's `code` and `me
 | `subscription_not_eligible` | This endpoint can't be paid with units — see `reason`. |
 | `insufficient_units` | Not enough units left for this call (`units` is its cost). |
 | `subscription_cap_reached` | A daily, per-service or new-subscription spending limit was reached. Retry later. |
-| `subscription_ceiling_exceeded` | The merchant's live price is outside the tariff's bound right now. |
+| `subscription_ceiling_exceeded` | The merchant's live price is outside the rate's bound right now. |
 | `subscription_rail_unsupported` | The merchant asked for a rail units don't pay (`rail`). |
 | `subscription_payment_refused` | Nevermined's treasury couldn't make this payment; see `code` and `retryable`. |
 | `subscription_unavailable` | Units can't be spent from this connection or deployment — for example an OAuth connection, which spends its commerce grant. |
