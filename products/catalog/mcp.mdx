@@ -524,6 +524,65 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 | `{ "status": "pending", "paymentId": "…", "nextTool": "get_payment_result" }` | Not a refusal: the payment was made and the service is still working (it took longer than 45 seconds). Call **`get_payment_result`** with the `paymentId` until it reports `Ready` or `Failed`. Don't call `pay_service` again for it — the same call returns the same `pending`, and a new `requestId` would buy it twice. |
 | `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No Delegation on the account yet. Call `setup_delegation` and open the URL it returns — see [step 4](#getting-a-delegation-from-inside-the-chat). |
 
+## Pay with subscription units
+
+With a [Nevermined Subscription](/products/catalog/router/subscription), `pay_service` and `quote_service` can pay with **units** instead of your Delegation: Nevermined pays the merchant and the call costs the endpoint's rate from Nevermined's rate card, returned if the service doesn't answer successfully. Both tools take an optional **`funding`** argument:
+
+| `funding` | What pays |
+| --- | --- |
+| omitted | Your subscription when you hold an active one **and** the endpoint has a subscription rate; otherwise your Delegation, exactly as before. |
+| `"subscription"` | Your subscription units — refused, never switched to the Delegation, if they can't pay this call. |
+| `"delegation"` | Your Delegation. |
+
+`delegationId`, `quoteId` and `maxTotalCents` only mean something to a Delegation: passing one selects the Delegation, and passing one with `funding: "subscription"` is refused (`invalid_arguments`).
+
+A units call answers with `funding: "subscription"`, the units it cost and where they stand — no `budget`, since no Delegation was charged:
+
+```json
+{
+  "funding": "subscription",
+  "paid": true,
+  "upstreamStatus": 200,
+  "unitsCharged": 3,
+  "unitsStatus": "Committed",
+  "payment": { "paymentId": "b1f9c2e4-…", "status": "Settled", "unitsCharged": 3, "unitsStatus": "Committed" },
+  "request": { "method": "POST", "path": "/scrape", "methodSource": "catalog" },
+  "response": { "…": "the vendor's body, unchanged" }
+}
+```
+
+`unitsStatus` is `Committed` (spent), `Reserved` (still running, or marked for refund) or `Refunded` (returned). A `pending` answer works as for any paid call: poll `get_payment_result`; the units stay reserved until the service answers.
+
+`quote_service` with a subscription answers from the rate card alone — the service isn't contacted:
+
+```json
+{ "funding": "subscription", "slug": "webscrape-pro", "units": 3, "tariffVersion": 2, "nextTool": "pay_service" }
+```
+
+There's no `quoteId` or cent total. Your units balance and the spending limits are checked only when `pay_service` makes the call.
+
+`get_budget` and `wallet_balance` add a `subscription` block — `unitsLeft`, `resetsAt`, `status`, `suspended` and `plan` — and `get_budget` a `subscriptionMessage` to relay as it stands. Don't count units yourself.
+
+### When units can't pay
+
+These charge nothing and reserve no units. Each carries the API's `code` and `message`; the ones where your Delegation could pay instead say so in `alternative`.
+
+| `error` | What happened |
+| --- | --- |
+| `no_active_subscription` | No subscription that can spend right now (none, ended, past due, or suspended). |
+| `subscription_not_eligible` | This endpoint can't be paid with units — see `reason`. |
+| `insufficient_units` | Not enough units left for this call (`units` is its cost). |
+| `subscription_cap_reached` | A daily, per-service or new-subscription spending limit was reached. Retry later. |
+| `subscription_ceiling_exceeded` | The merchant's live price is outside the rate's bound right now. |
+| `subscription_rail_unsupported` | The merchant asked for a rail units don't pay (`rail`). |
+| `subscription_payment_refused` | Nevermined's treasury couldn't make this payment; see `code` and `retryable`. |
+| `subscription_unavailable` | Units can't be spent from this connection or deployment — for example an OAuth connection, which spends its commerce grant. |
+| `funding_undetermined` | The funding couldn't be decided. Nothing was charged; retry. |
+
+<Note>
+A units call refused for your balance or a spending limit is **not** moved to your Delegation on its own — starting to spend money when your allowance runs out is your decision. Retry with `funding: "delegation"` if you want the Delegation to pay.
+</Note>
+
 ## Price a call before paying
 
 `quote_service` answers *"what will this one call cost?"* without paying for it. It takes the `slug`, `path`, `method`, `search`, `headers`, `body` and `delegationId` you'd pass to `pay_service` (not `maxTotalCents`, `requestId` or `fresh`) and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`).

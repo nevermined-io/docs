@@ -349,6 +349,26 @@ and the connection held open in the meantime counts against your concurrency lim
 
 ---
 
+## Paying with subscription units — `POST /api/v1/router/subscription/route`
+
+A buyer with a **Nevermined Subscription** can pay catalog services in **units** instead of from a Delegation. Nevermined's treasury pays the merchant; the call costs the endpoint's **rate** in units, from Nevermined's live rate card (rates change without notice; the rate at call time applies). No Delegation, no wallet funding, no routing fee.
+
+```bash
+curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"slug":"webscrape-pro","path":"scrape","method":"POST","body":{"url":"https://example.com"},"requestId":"scrape-1"}'
+# → { "status": 200, "body": {…}, "paid": true,
+#     "payment": { "paymentId": "…", "status": "Settled", "unitsCharged": 3, "unitsStatus": "Committed", … } }
+```
+
+- **Slug only.** `url` or `delegationId` → `400 BCK.SUBSCRIPTION_ROUTER.0005` (refused, not ignored). `requestId` is required, as on every mode-B call.
+- **Price first, free:** `POST /api/v1/router/subscription/quote` `{slug, path, method}` → `{ units, tariffVersion }`. It does not check the balance or the spending limits.
+- **Balance:** `GET /api/v1/router/subscription/balance` → `unitsLeft` (digit string), `spendable`, `resetsAt`. Never count units yourself.
+- **Only a merchant 2xx keeps the units.** Anything else → units `Reserved` then `Refunded`, and `body` is `null`. Read the final state from `GET /api/v1/router/payments?requestId=…` (`fundingSource: "subscription"`, `unitsCharged`, `unitsStatus`).
+- **Rails:** x402 `exact` and MPP `tempo` only — not MPP-stripe/SPT. API keys only; OAuth-minted credentials are refused (`BCK.OAUTH.0030`).
+- **Refusals charge nothing and reserve nothing.** `402 …0002` no spendable subscription (subscribe or settle the invoice) · `402 …0009` not enough units · `403 …0001` endpoint not payable with units (`params.reason`) · `409 …0004` merchant price outside the rate's bound · `429 BCK.SUBSCRIPTION_TREASURY.0005–0007` a spending limit (retry later). After any of these, paying from a Delegation is a **new decision** — don't switch funding automatically.
+- Streaming: `ALL /api/v1/router/subscription/svc/{slug}/{path}` with `X-Router-Request-Id`; response headers `X-Router-Units-Charged`, `X-Router-Units-Status`.
+
 ## Mode A — `POST /api/v1/router/payments`
 
 The Router mints a signed credential; **you** call the merchant. Use it when the Router cannot be in
