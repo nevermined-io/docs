@@ -87,6 +87,8 @@ When an agent must act on its own behalf at runtime (buy a plan, enroll a card, 
 
 Use the Router when the agent must **pay** a service it has no account with — any x402 agent or MPP merchant. Everything above is the other half: *receiving* payments and buying Nevermined plans. Plain HTTP, no SDK: `Authorization: Bearer $NVM_API_KEY` against `$NVM_API_URL` (`https://api.sandbox.nevermined.app` sandbox, `https://api.live.nevermined.app` live). **Never send `NVM_API_KEY` to the merchant** — it authenticates you to Nevermined only; the merchant's own auth goes in `headers`. The Router pays a price quoted **on the wire**, so a service answering `401`/`403` rather than `402` wants authentication, not payment — say so, don't route it.
 
+With a **Nevermined Subscription**, catalog services can be paid with units instead of a Delegation: [docs](https://nevermined.ai/docs/products/catalog/router/subscription).
+
 ### 1. Create a Delegation (the budget)
 
 ```bash

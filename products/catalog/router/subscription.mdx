@@ -1,6 +1,6 @@
 ---
 title: "Pay with a Nevermined Subscription"
-description: "Subscribe once, then pay catalog services with units: Nevermined pays the merchant, your call costs a published tariff, and a call that doesn't deliver costs nothing."
+description: "Subscribe once, then pay catalog services with units: Nevermined pays the merchant, your call costs a rate Nevermined shows before you call, and a call that doesn't deliver costs nothing."
 icon: "repeat"
 ---
 
@@ -9,7 +9,7 @@ The Router normally pays a merchant from **your** money: a Delegation caps the s
 That changes three things for an agent:
 
 - **No wallet, no Delegation, no funding.** There is nothing to top up and nothing on-chain for your agent to sign.
-- **A price you know in advance.** Each endpoint has a published **tariff** — units per call — that does not move with the merchant's live price.
+- **A price you see before you call.** Each endpoint has a **rate** on Nevermined's rate card — units per call — and the rate shown when you call is what the call costs, whatever the merchant charges at that moment.
 - **You only pay for what's delivered.** Units are kept only when the merchant answers with a `2xx`. Anything else and the units come back.
 
 <Note>
@@ -24,8 +24,8 @@ Subscriptions are bought in the Nevermined App, on its own Stripe-hosted checkou
   <Step title="Open the subscription page">
     In [nevermined.app](https://nevermined.app), open **Subscription** in the sidebar for a personal subscription, or your organization's **Subscription** page to buy one for an organization (organization admins only).
   </Step>
-  <Step title="Pick a plan and a currency">
-    Each plan shows its monthly price and how many units it grants each month. Prices marked **Tax included** already contain VAT where it applies; tax is computed at checkout from your billing address, and a business can add its tax id there.
+  <Step title="Review the plan">
+    The Nevermined Subscription is **USD 20 per month plus applicable taxes**, and grants **20,000 units** each month. VAT or sales tax is calculated at checkout from your billing address and added on top; Stripe Checkout shows the total before you pay, and a business can add its tax id there.
   </Step>
   <Step title="Give the consents and pay">
     Tick the consents the page shows — the subscription renews automatically every month until you cancel, and a personal subscription also asks you to confirm that your units are made available immediately. Then **Continue to payment** takes you to Stripe Checkout.
@@ -39,7 +39,7 @@ From the same page you can **Manage billing** (change plan, update the payment m
 
 ## Units
 
-- **One allowance per billing period.** Each paid monthly invoice grants that plan's units.
+- **One allowance per billing period.** Each paid monthly invoice grants 20,000 units. Changes to the price or the monthly allowance are announced in advance, and you can cancel before they apply.
 - **They expire at the end of the period.** Unused units don't roll over; the next period's arrive when its invoice is paid.
 - **They are not money.** Units have no cash value, can't be cashed out, and can't be transferred to another account.
 - **An organization's units are shared.** Members spend them while acting in that organization; admins manage the subscription.
@@ -66,9 +66,9 @@ curl -s "$NVM_API_URL/api/v1/router/subscription/balance" \
 
 `unitsLeft` is what the Router debits — read it rather than adding up your calls. `spendable: false` means the units can't pay a call right now even though some are left: a `past_due` subscription keeps its units but can't spend them until the invoice is paid, and a subscription with an open refund or dispute is `suspended`. `subscribed: false` carries no other field.
 
-## Tariffs: what a call costs
+## The rate card: what a call costs
 
-Every endpoint that units can pay has a **tariff**: the number of units one call costs. Nevermined sets it from the merchant's observed price and publishes it before you call; the merchant's price at the moment of your call doesn't change it.
+Every endpoint that units can pay has a **rate**: the number of units one call costs. Nevermined sets it from the merchant's observed price, and the rate shown when you make the call is what that call costs — the merchant's price at that moment doesn't change it. (The API calls a rate's version `tariffVersion`.)
 
 - **In the MCP**, `get_service` called with your API key shows `subscription.unitsPerCall` (and the `tariffVersion`) on each endpoint that has one.
 - **Over REST**, quote the exact call. Nothing is reserved or charged, and the merchant isn't contacted:
@@ -85,7 +85,7 @@ curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/quote" \
 
 A quote refuses exactly what the call would refuse before paying (see [When a call is refused](#when-a-call-is-refused)), but it doesn't check your units balance or the spending limits — those are checked when the call is made.
 
-**Tariffs can change.** A decrease applies immediately. Before an increase applies, every subscriber is told by email, with the date it takes effect; calls made before that date keep the current price, and you can cancel before it applies.
+**The rate card is live.** It covers hundreds of services whose own prices move all the time, so rates change — up or down — as soon as Nevermined updates them, without notice. Quote before you call when the cost matters; the rate in force at the time of the call is what you pay.
 
 ## Pay a call with units
 
@@ -127,7 +127,7 @@ What's different from the Delegation route:
 - **A slug, never a URL.** Units pay listed catalog services only, so the request names a `slug` (plus `path`, `method`, `search`, `headers`, `body`). A `url` or a `delegationId` is **refused** (`400 BCK.SUBSCRIPTION_ROUTER.0005`), not ignored, so a request that meant something else is never paid with units.
 - **`requestId` is required**, as on every mode-B call: a retry with the same id is never paid twice — see [Paying twice](/products/catalog/router/guardrails#paying-twice).
 - **Nothing to sign or fund.** Nevermined pays the merchant and never hands you a payment credential — there is no subscription equivalent of [minting a credential](/api-reference/router/mint-payment-credential).
-- **No routing fee.** A subscription call costs its tariff and nothing else.
+- **No routing fee.** A subscription call costs its rate and nothing else.
 - **Long calls** behave as on the Delegation route: past the synchronous wait you get `202` with a `resultUrl` to poll, and the units stay `Reserved` until the call ends.
 
 For large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}`. Point your HTTP client at it with your API key and an `X-Router-Request-Id` header; the method, body and headers pass through and the response streams back with `X-Router-Units-Charged` and `X-Router-Units-Status` alongside the usual `X-Router-Payment-*` headers. `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id` are refused on this route.
@@ -144,7 +144,9 @@ Your units are **reserved** before the merchant is called and **kept only if it 
 | `Reserved` | The call hasn't finished, or it didn't deliver and its units are being returned. |
 | `Refunded` | The units are back in your balance. |
 
-A failed call's response body is `null`: you see the merchant's status, never its error body. Read the final state of any call from the [payment ledger](#in-the-ledger). In the rare case where the Router can't tell whether a call was delivered, the call is reviewed and either confirmed or refunded — its units stay `Reserved` until then.
+A failed call's response body is `null`: you see the merchant's status, never its error body.
+
+If a service answered successfully but its result was defective, the units are not returned automatically — contact support, and Nevermined may credit units to your balance at its discretion (credited units expire at the end of the current billing period). Nevermined doesn't promise the availability or uptime of third-party services. Read the final state of any call from the [payment ledger](#in-the-ledger). In the rare case where the Router can't tell whether a call was delivered, the call is reviewed and either confirmed or refunded — its units stay `Reserved` until then.
 
 <Note>
 **Units never move on a refused call.** Every refusal below happens before the merchant is paid and before any unit is reserved, so there is nothing to refund.
@@ -152,7 +154,7 @@ A failed call's response body is `null`: you see the merchant's status, never it
 
 ## What units can pay
 
-A subscription pays **listed, live catalog endpoints that carry a tariff**, on these rails:
+A subscription pays **listed, live catalog endpoints that carry a rate**, on these rails:
 
 - **x402** merchants using the `exact` scheme,
 - **MPP** merchants on the `tempo` method.
@@ -171,10 +173,10 @@ Branch on `code`. None of these charged anything or reserved any unit.
 
 | Code | Status | What it means | What to do |
 | --- | --- | --- | --- |
-| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with units — `params.reason` says why (`no_active_tariff`, `unlisted`, `price_variable`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with units — `params.reason` says why (`no_active_tariff` — no rate yet, `unlisted`, `price_variable`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0002` | 402 | No subscription that can spend right now: none bought, ended, past due, or suspended by an open refund or dispute. | Subscribe, or settle the open invoice. |
 | `BCK.SUBSCRIPTION_ROUTER.0003` | 400 | The merchant asked for a rail units don't pay (`params.rail`). | Pay from a Delegation. |
-| `BCK.SUBSCRIPTION_ROUTER.0004` | 409 | The merchant's live price is outside the tariff's bound, or in another asset or network (`params.reason`). | Retry later, or pay from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0004` | 409 | The merchant's live price is outside the rate's bound, or in another asset or network (`params.reason`). | Retry later, or pay from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0005` | 400 | A field that only makes sense elsewhere (`url`, `delegationId`, a target header) — `params.field`. | Address the service by `slug` only. |
 | `BCK.SUBSCRIPTION_ROUTER.0007` | 400 | Mode A (`POST /router/payments`) can't be funded by a subscription. | Use the subscription route. |
 | `BCK.SUBSCRIPTION_ROUTER.0009` | 402 | Not enough units left for this call (`params.units` is its cost). | Wait for the next period, pick a cheaper endpoint, or pay from a Delegation. |
@@ -190,7 +192,7 @@ Subscription calls land on the same [payment ledger](/products/catalog/router/le
 | Field | On a subscription call | On a Delegation call |
 | --- | --- | --- |
 | `fundingSource` | `subscription` | `delegation` |
-| `unitsCharged` | The tariff, in units | `null` |
+| `unitsCharged` | The call's rate, in units | `null` |
 | `unitsStatus` | `Committed`, `Reserved` or `Refunded` | `null` |
 
 `delegationId` is `null` on a subscription call, and `feeBps` is `0`: there is no routing fee. To read one call's final state, look it up by the `requestId` you sent:
@@ -206,10 +208,10 @@ With a subscription, the [Commerce MCP](/products/catalog/mcp#pay-with-subscript
 
 ## Refunds and disputes of the subscription itself
 
-These are about the monthly **charge**, not a single call:
+These are about the monthly **fee**, not a single call. Subscription fees are **non-refundable**, except where the law requires a refund or for billing errors.
 
 - If a subscription payment is **refunded in full**, the unused units it granted are removed.
-- If you **dispute** a payment with your card issuer, its unused units are removed and the subscription can't spend while the dispute is open. If the dispute is resolved in Nevermined's favour, those units are restored with their original expiry.
+- If you **dispute** a payment with your card issuer, its unused units are removed and the subscription can't spend while the dispute is open — or if it's decided against you. If the dispute is resolved in Nevermined's favour, those units are restored with their original expiry.
 
 ## Related
 
