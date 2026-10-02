@@ -122,6 +122,12 @@ Major documentation reorganization completed:
 #### Overview
 - ✅ Introduction (`docs/api-reference/introduction.mdx`)
 
+#### Catalog MCP (tool reference)
+- ✅ Overview — transport, auth, tool surface (`api-reference/catalog-mcp/overview.mdx`)
+- ✅ Discovery tools (`api-reference/catalog-mcp/discovery.mdx`)
+- ✅ Payment tools (`api-reference/catalog-mcp/payments.mdx`)
+- ✅ Ledger & wallet tools (`api-reference/catalog-mcp/ledger.mdx`)
+
 #### TypeScript SDK
 - ✅ Installation (`docs/api-reference/typescript/installation.mdx`)
 - ✅ Payments Class (`docs/api-reference/typescript/payments-class.mdx`)

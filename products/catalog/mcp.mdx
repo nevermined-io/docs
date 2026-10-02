@@ -12,6 +12,10 @@ It's the third way to reach the Catalog + Router capability, alongside the publi
 This is the **buyer** side, packaged as MCP tools. If you instead want to put a paywall on *your own* MCP server so its tools get paid, that's the seller side — see [MCP Integration](/integrations/mcp). See [Not this MCP](#not-this-mcp) below to be sure you're on the right page.
 </Note>
 
+<Info>
+This page is the **guided introduction** — how it fits, how to connect your assistant, and a walkthrough quickstart. For the **complete tool reference** — every argument, return field and refusal for all twelve tools, written for an agent to call against — see [API › Catalog MCP](/api-reference/catalog-mcp/overview).
+</Info>
+
 ## How it fits: discover, then pay
 
 The Catalog MCP is the same two-step motion the rest of the Catalog documents, exposed as tools:
@@ -31,7 +35,7 @@ If your agent would rather not choose among listings at all, `route_by_intent` d
 
 ## The tool surface
 
-Discovery is **free** — no credential needed. Pricing, picking or paying for a service, reading your ledger and reading your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you.
+Discovery is **free** — no credential needed. Pricing, picking or paying for a service, reading your ledger, your budget and your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you. (Of those, only `pay_service` and `route_by_intent` with `autoPay` move money; the rest read or price and charge nothing.) The table below is the index; the [full tool reference](/api-reference/catalog-mcp/overview) carries every argument, return field and refusal.
 
 | Tool | Auth | What it does |
 | --- | --- | --- |
@@ -44,7 +48,8 @@ Discovery is **free** — no credential needed. Pricing, picking or paying for a
 | `setup_delegation` | paid | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
 | `get_payment_result` | paid | Read a paid call's result by `paymentId` — for a `pay_service` that answered `pending`, or a response you lost. Charges nothing; results are kept for 24 hours, then it answers `{ "status": "not_available" }` (the payment itself stays in `list_payments`). |
 | `list_payments` | paid | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
-| `payment_summary` | paid | Total spend plus a time series. Filters: `from`, `to`. |
+| `payment_summary` | paid | Count of payments plus a daily time series. Filters: `from`, `to`. |
+| `get_budget` | paid | The spending budget `pay_service` draws on — cap, spent, remaining, payments made and expiry. Reads the default budget with no arguments; pass a `delegationId` to read a specific one. Charges nothing. |
 | `wallet_balance` | paid | What your funding wallet holds, on every network the Catalog settles on. Filter: `network`. |
 
 Every tool declares this split in its listing (`securitySchemes`: `noauth` on the free tools, `oauth2` with the `commerce` scope on the paid ones), so a host that reads tool metadata — ChatGPT does — knows which tools need linking before it calls one.
@@ -526,11 +531,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 
 ## Price a call before paying
 
-`quote_service` answers *"what will this one call cost?"* without paying for it. It takes the `slug`, `path`, `method`, `search`, `headers`, `body` and `delegationId` you'd pass to `pay_service` (not `maxTotalCents`, `requestId` or `fresh`) and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`).
-
-<Note>
-**Rolling out.** `quote_service` reaches each environment with the next Catalog MCP release. If it isn't in your host's tool list yet, bound a call's price with `pay_service`'s `maxTotalCents` instead.
-</Note>
+`quote_service` answers *"what will this one call cost?"* without paying for it. It takes the `slug`, `path`, `method`, `search`, `headers`, `body` and `delegationId` you'd pass to `pay_service` (not `maxTotalCents`, `requestId` or `fresh`) and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`). Pin the quote by passing the `quoteId` it returns to `pay_service`. See the [`quote_service` reference](/api-reference/catalog-mcp/payments#quote_service) for every field.
 
 <Steps>
   <Step title="Quote the call">
@@ -603,9 +604,7 @@ Every one of these charges nothing:
 
 `route_by_intent` turns a plain-language need into the **single best payable service** in the Catalog, plus the ranked shortlist it was chosen from — so your agent doesn't search, compare listings and pick one itself. The ranking is deterministic — no randomness, and no model doing the picking — but it's recomputed on every call from the live Catalog, so the pick can change as listings, health and payability change. It uses Nevermined's own relevance and quality signals, behind a payability gate (listed, not flagged unpayable, healthy, not held by moderation, on x402 or MPP). No model reads the merchant listings, and when nothing passes the gate you get an explicit refusal, never a weak match.
 
-<Note>
-**Rolling out.** `route_by_intent` and the semantic `search_services` ranking reach each environment with the next Catalog MCP release. If `route_by_intent` isn't in your host's tool list yet, that environment hasn't received it: until then `search_services` keeps its previous substring matching and its `page` / `offset` filters, and `search_services` → `get_service` → `pay_service` does the same job in three calls.
-</Note>
+See the [`route_by_intent` reference](/api-reference/catalog-mcp/payments#route_by_intent) for every argument (including the `filters.require` / `prefer` / `exclude` slugs) and the full result shape.
 
 ### Which tool to reach for
 

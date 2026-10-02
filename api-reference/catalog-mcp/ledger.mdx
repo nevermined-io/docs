@@ -1,0 +1,159 @@
+---
+title: "Catalog MCP: Ledger & Wallet Tools"
+description: "Reference for the Catalog MCP ledger and wallet tools — list_payments, payment_summary, get_budget, and wallet_balance — for reconciling spend and diagnosing funding."
+icon: "receipt"
+---
+
+These tools read your account: the payment ledger, spend totals, the budget `pay_service` draws on, and your funding wallet. All need a credential (API key or OAuth `commerce` grant); **none charges anything**. They answer four different questions — keep them straight:
+
+| Question | Tool |
+| --- | --- |
+| What did each call cost, and what's the status of this payment? | [`list_payments`](#list_payments) |
+| How many payments did I make over a period? | [`payment_summary`](#payment_summary) |
+| How much of my budget is left? | [`get_budget`](#get_budget) |
+| Does my wallet actually hold the funds, and on which chain? | [`wallet_balance`](#wallet_balance) |
+
+They read the same unified ledger the [Router ledger page](/products/catalog/router/ledger) documents, so a payment made through the MCP reconciles with everything else your agents spend.
+
+## list_payments
+
+List your Router payments: the unified ledger across every service and delegation, newest first, at most **1000** records. Reading charges nothing.
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `delegationId` | no | string | Only payments charged to this delegation. |
+| `from` | no | string | ISO-8601 lower bound on `createdAt`, inclusive. An unparseable value is an error. |
+| `to` | no | string | ISO-8601 upper bound on `createdAt`, inclusive. An unparseable value is an error. |
+
+**Returns** an array of records. `amount` is in the asset's **smallest unit** (see `assetDecimals`), not cents:
+
+```json
+[
+  {
+    "id": "b1f9c2e4-…",
+    "createdAt": "2026-10-02T13:10:04.000Z",
+    "status": "Settled",
+    "deliveryStatus": "delivered",
+    "protocol": "x402",
+    "network": "base",
+    "requestId": "…",
+    "delegationId": "121b880a-…",
+    "amount": "20000",
+    "assetDecimals": 6
+  }
+]
+```
+
+- `id` is the `paymentId` [`get_payment_result`](/api-reference/catalog-mcp/payments#get_payment_result) takes.
+- **`deliveryStatus`** is one of: `delivered` (request settled), `charged_not_delivered` (request failed and the merchant charge was observed), `charged_unconfirmed` (charge observed, delivery unconfirmed), `not_charged` (reconciliation proved no merchant charge), or `pending` (charge outcome unknown).
+
+<Warning>
+On MPP and card rails, `deliveryStatus: "pending"` is **not** proof of no charge. Flag `charged_not_delivered` to the user.
+</Warning>
+
+This tool finds a `paymentId` and reconciles an uncertain payment. It does **not** return service responses (use `get_payment_result`) or the remaining budget (use `get_budget`).
+
+## payment_summary
+
+Count your Router payment **requests** over a period. This reports numbers of payments, not money.
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `from` | no | string | ISO-8601 lower bound on `createdAt`, inclusive. |
+| `to` | no | string | ISO-8601 upper bound on `createdAt`, inclusive. |
+
+**Returns** a total, a daily series (oldest first), and a charged-not-delivered count:
+
+```json
+{
+  "total": 42,
+  "series": [
+    { "date": "2026-10-01", "value": 18 },
+    { "date": "2026-10-02", "value": 24 }
+  ],
+  "chargedNotDelivered": 0
+}
+```
+
+- `total` is uncapped (unlike `list_payments`'s 1000-record cap).
+- `chargedNotDelivered` is the count of failed payments in the period whose merchant charge was observed — **flag a non-zero count to the user**.
+
+For *amounts* use `list_payments`; for what's spent or left use `get_budget`.
+
+## get_budget
+
+Read the spending budget `pay_service` draws on: its cap, what's been spent, what remains, how many payments were made (and the limit, if any), and when it expires. Reading charges nothing. Use it whenever the human asks how much is left, or before a run of paid calls.
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `delegationId` | no | string | A specific delegation to read (every paid `pay_service` result carries one). Omit to read the budget `pay_service` spends by default. |
+
+**Returns** the budget figures. Money is in **cents**: `capCents` is whole cents; `spentCents` and `remainingCents` can carry up to four decimals (the budget is charged per call at 1/10,000 of a cent, e.g. `"1.632"` = 1.632¢):
+
+```json
+{
+  "delegationId": "121b880a-…",
+  "capCents": "500",
+  "spentCents": "8.04",
+  "remainingCents": "491.96",
+  "currency": "usdc",
+  "payments": 3,
+  "paymentLimit": null,
+  "expiresAt": "2026-10-02T13:29:31.691Z"
+}
+```
+
+- `spentCents + remainingCents = capCents` while the budget is within its cap. The figures include routing fees and rounding, so **never substitute a figure of your own** — relay them as reported.
+- With no `delegationId` this reads the budget `pay_service` would use, which only includes budgets that can still pay. So `{ "status": "no_active_delegation" }` also covers a budget that ran out or expired — pass the `delegationId` from an earlier `pay_service` result to read that one anyway.
+
+## wallet_balance
+
+Read the balances of your **own personal wallet** — the funding source the crypto rails **pull from** when `pay_service` charges a personal delegation. It answers *how much do I have, and on which chain*. Reading charges nothing.
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `network` | no | integer | Chain id to read. **Omit it** to see every network this deployment settles on — which is what you want unless the merchant already told you which chain it settles on. |
+
+**Returns** the wallet address and, per network, its token balances:
+
+```json
+{
+  "address": "0x1234…abcd",
+  "networks": [
+    {
+      "network": 8453,
+      "balances": [
+        { "symbol": "USDC", "decimals": 6, "atomic": "1500000", "formatted": "1.5" },
+        { "symbol": "EURC", "decimals": 6, "atomic": "0", "formatted": "0" }
+      ]
+    },
+    { "network": 4217, "error": "…" }
+  ]
+}
+```
+
+<Warning>
+**Read the network the merchant quoted, not the one with money in it.** Live settles on two chains with two tokens — most services accept only one. A healthy balance on one chain says nothing about a purchase on the other; that's why every chain is reported by default.
+</Warning>
+
+- A token whose `atomic`/`formatted` is **`null`** was **not read** (the on-chain read failed) — that is **not** a zero balance. A chain that couldn't be read at all comes back as an entry with `error` instead of `balances`.
+- Pass a chain id this deployment does **not** serve and you get the deployment's **primary** network back (its own chain id, not the one you asked for) with a `warning` — so those balances say nothing about the chain you asked about.
+
+**What it doesn't cover, so you don't mis-diagnose:**
+
+- A delegation backed by an [organization wallet](/solutions/organizations/wallets) is paid from *that* wallet, not this one.
+- A **card** delegation has no wallet at all — there `BCK.ROUTER.0009` is the card **issuer** declining, with nothing to top up, so this tool doesn't apply and the fix is a different card.
+- On **MPP** the wallet is checked before anything is signed, and `BCK.ROUTER.0009` names the wallet and chain but never **how much** is there — which is what this tool supplies. On **x402** there's no balance pre-check, so read the balance **before** you pay.
+
+This tool diagnoses, it doesn't fix: there's no on-ramp and an agent can't top up its own wallet, so a genuine shortfall is a **stop condition** — report the network and amount to the human and don't retry.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Payment tools" icon="route" href="/api-reference/catalog-mcp/payments">
+    Quote, pay, route-by-intent, set up a delegation.
+  </Card>
+  <Card title="Router ledger" icon="receipt" href="/products/catalog/router/ledger">
+    The unified ledger and its fields, in full.
+  </Card>
+</CardGroup>

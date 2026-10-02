@@ -1,0 +1,164 @@
+---
+title: "Catalog MCP: Discovery Tools"
+description: "Reference for the free Catalog MCP discovery tools — list_categories, search_services, and get_service — including arguments, return shapes, and ranking."
+icon: "magnifying-glass"
+---
+
+The discovery tools read the [Nevermined Catalog](/products/catalog/discover). They are **free** — no credential, nothing charged — so an agent can browse before anyone signs in. See the [overview](/api-reference/catalog-mcp/overview) for transport and conventions.
+
+A service is addressed by its **slug**. `search_services` returns ARD records whose `identifier` is a URN — the slug is its last segment (`urn:air:api.live.nevermined.app:service:openweather-mpp` → `openweather-mpp`). `get_service` and the payment tools take that slug.
+
+## list_categories
+
+List the Catalog's categories and sub-categories, each with a count. Discovery only; no payment.
+
+**Arguments:** none.
+
+**Returns** an array of categories, each with its sub-categories:
+
+```json
+[
+  {
+    "category": "AI & Media",
+    "count": 18,
+    "subCategories": [
+      { "subCategory": "Media generation", "count": 5 },
+      { "subCategory": "LLM inference", "count": 1 }
+    ]
+  },
+  {
+    "category": "Crypto & Blockchain",
+    "count": 29,
+    "subCategories": [
+      { "subCategory": "Crypto market data", "count": 8 },
+      { "subCategory": "Blockchain data", "count": 5 }
+    ]
+  }
+]
+```
+
+<Note>
+The category names returned here are **not** stored as tags. Passing one as the `category` filter of `search_services` or `route_by_intent` matches nothing — put a category name in `query` / `intent` instead. The `category` filter matches a listing's `tags`.
+</Note>
+
+## search_services
+
+Search the Catalog for paid services, ranked by **ARD hybrid relevance** — semantic (meaning) matches merged with lexical (keyword) matches, most relevant first — falling back to pure lexical when the embedding provider is unavailable. Discovery only; no payment.
+
+To have the platform **pick** (and optionally pay) the single best service for a need instead of choosing yourself, use [`route_by_intent`](/api-reference/catalog-mcp/payments#route_by_intent).
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `query` | yes | string | What you need, in plain language (`"translate documents to German"`). Ranked semantically **and** lexically. |
+| `category` | no | string | Restrict to services carrying this catalog **tag** (it filters on tags exactly like `tag`). Given together with `tag`, matches a service carrying **either** one. |
+| `protocol` | no | enum | One of `x402`, `mpp`, `rest`, `a2a`, `other`. Only `x402` and `mpp` are payable via the Router. |
+| `tag` | no | string | Restrict to services carrying this catalog tag (a protocol or domain keyword from a listing's `tags`). |
+| `prefer` | no | string | Move this opaque catalog slug to the front **when it matched the returned page**; otherwise keep the normal ranked fallback. |
+| `exclude` | no | string | Never return this opaque catalog slug. |
+| `pageSize` | no | integer | Page size, 1–100. |
+
+<Warning>
+**Only the first page is returned.** The `pageToken` in the result **cannot be passed back** to this tool. To see other matches, narrow the `query` or filters, or raise `pageSize` (up to 100).
+</Warning>
+
+**Returns** `results` (ARD records) and an opaque `pageToken` (informational only). Each result carries catalog metadata under `nvm:catalog` plus its own ranking fields:
+
+```json
+{
+  "results": [
+    {
+      "identifier": "urn:air:api.live.nevermined.app:service:openweather-mpp",
+      "displayName": "OpenWeather",
+      "type": "application/json",
+      "url": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp",
+      "description": "Global weather data — current conditions, 5-day forecasts, air quality, geocoding, One Call 3.0",
+      "tags": ["weather", "forecast", "conditions", "temperature"],
+      "nvm:catalog": {
+        "protocol": "mpp",
+        "invokeUrl": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp",
+        "priceLabel": "$0.005–$0.01",
+        "displayPriceLabel": "$0.008",
+        "displayPriceSource": "settled",
+        "network": "Tempo",
+        "healthStatus": "operational",
+        "uptime30d": 100,
+        "routerPayable": true,
+        "distinctPayers30d": 4
+      },
+      "rankingSource": "semantic",
+      "matchReason": "semantic_similarity",
+      "semanticScore": 46
+    }
+  ],
+  "pageToken": "eyJvZmZzZXQiOjJ9"
+}
+```
+
+Reading the ranking:
+
+- **Read the order, not the numbers.** Results come back in pick order.
+- `rankingSource` is per-item — `semantic` or `lexical`.
+- `matchReason` is a closed value explaining why the item matched.
+- The score field is scale-specific: `semanticScore` for a semantic match, a lexical score for a keyword match. The two scales are not comparable, so do not re-sort across them yourself.
+- `displayPriceSource: "settled"` means the `displayPriceLabel` reflects real multi-payer settlement — the service is genuinely used, not just advertised.
+
+## get_service
+
+Fetch one Catalog service by slug: its metadata and a **`requestShape`** block describing every callable endpoint. Read this **before** `pay_service` or `quote_service`. Discovery only; no payment. An unknown slug returns an error.
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `slug` | yes | string | The service slug (from `search_services`). |
+
+**Returns** a large metadata object; the fields that matter for a call are `protocol`, `priceLabel`, `network`, `healthStatus`, and `requestShape`:
+
+```json
+{
+  "slug": "openweather-mpp",
+  "title": "OpenWeather",
+  "provider": "OpenWeather",
+  "category": "Data & Enrichment",
+  "subCategory": "Weather data",
+  "protocol": "mpp",
+  "priceLabel": "$0.005–$0.01",
+  "network": "Tempo",
+  "healthStatus": "operational",
+  "displayPriceLabel": "$0.008",
+  "displayPriceSource": "settled",
+  "requestShape": {
+    "note": null,
+    "endpoints": [
+      {
+        "path": "/openweather/current-weather",
+        "method": "POST",
+        "priceLabel": "$0.006",
+        "description": "Current Weather",
+        "pathParams": [],
+        "payServiceArgs": { "slug": "openweather-mpp", "path": "/openweather/current-weather", "method": "POST" },
+        "requestSchema": { "type": "object", "properties": { "body": { "type": "object", "properties": { "lat": { "type": "number" }, "lon": { "type": "number" } } } } },
+        "requestSchemaSource": "openapi",
+        "verificationStatus": "unverified"
+      }
+    ]
+  }
+}
+```
+
+Working with `requestShape.endpoints[]`:
+
+- **`payServiceArgs`** is the exact `slug` / `path` / `method` to hand to [`pay_service`](/api-reference/catalog-mcp/payments#pay_service) or [`quote_service`](/api-reference/catalog-mcp/payments#quote_service). Replace every `pathParams` placeholder in `path` with a real value before calling.
+- **`requestSchema`** is the merchant-declared JSON Schema of the request — **sanitised, not verified**. An endpoint may instead carry `noParameters: true`, or neither; build the request from the description or the provider's docs when there is no schema.
+- A **checked invoke contract** may add `invokePath`, `requestExample`, merchant-authored `responseSchema` / `responseExample`, and `exampleEvidence`: `paid-run` (a recorded paid response), `challenge` (proves the request shape only), or `docs` (unverified provider documentation). Only `paid-run` and `challenge` examples are pre-filled into `payServiceArgs`; adopt a `docs` example deliberately.
+- An endpoint may carry a **`quote`** — the last merchant price the Catalog observed, with the routing fee **excluded**. Good for comparing services; for the live, fee-inclusive total of your exact call use [`quote_service`](/api-reference/catalog-mcp/payments#quote_service).
+- `endpointCheck` records a dated unpaid failure, if any.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Payment tools" icon="route" href="/api-reference/catalog-mcp/payments">
+    Quote, pay, route-by-intent, set up a delegation.
+  </Card>
+  <Card title="Catalog: discover" icon="magnifying-glass" href="/products/catalog/discover">
+    What's listed, how filtering works, and what "payable" means.
+  </Card>
+</CardGroup>

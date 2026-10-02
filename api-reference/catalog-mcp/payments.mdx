@@ -1,0 +1,258 @@
+---
+title: "Catalog MCP: Payment Tools"
+description: "Reference for the Catalog MCP payment tools — quote_service, pay_service, route_by_intent, setup_delegation, and get_payment_result — with arguments, returns, and every refusal."
+icon: "route"
+---
+
+These tools **price**, **pay for**, and **select** Catalog services, and set up the budget that funds them. All of them need a credential — your Nevermined API key on `Authorization: Bearer <key>`, or an OAuth `commerce` grant (see the [overview](/api-reference/catalog-mcp/overview#authentication)). Of these, only `pay_service` and `route_by_intent` with `autoPay: true` move money; the rest charge nothing.
+
+Always read [`get_service`](/api-reference/catalog-mcp/discovery#get_service) first: its `requestShape.endpoints[].payServiceArgs` is the exact `slug` / `path` / `method` to pass here.
+
+## quote_service
+
+Price **one** call to a service **without paying it**: it charges nothing, signs nothing, and reserves no budget. Pass exactly what you would pass to `pay_service`; the Router sends that request to the service unpaid, reads the price, and returns a `quoteId` plus the fee-inclusive total.
+
+<Warning>
+**A quote contacts the service.** To read the price, the Router sends your request to the service unpaid — the same request a payment starts with. A service that doesn't charge for it **performs it**, so take care quoting a method with side effects. The service's response is never returned to you. A quote also spends the same per-service rate budget as a payment, so quote **once per decision**; don't poll.
+</Warning>
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `slug` | yes | string | The service slug to quote. |
+| `path` | no | string | The same `path` you'd pass to `pay_service` (from `get_service`), placeholders replaced. Query params go in `search`. |
+| `search` | no | string | Query string without `?`, for a slug-routed `GET` (e.g. `flight_iata=AA217`). |
+| `method` | no | string | HTTP method. Omit to use the catalog method for the endpoint matching `path` (`POST` when none recorded). |
+| `body` | no | any | The request payload you'd send; some services price by it. |
+| `headers` | no | object | Extra headers you'd send to the vendor. |
+| `delegationId` | no | string | The delegation you'd pay with (API key only). A card or org-wallet delegation can select a different rail, and so a different price. An OAuth caller is always quoted for its grant. |
+
+**Returns** the rail, the merchant amount, and the fee-inclusive total. `fee.capChargedCents` is whole cents rounded up; `fee.capChargedMicros` is exact (1/10,000 of a cent):
+
+```json
+{
+  "paymentRequired": true,
+  "upstreamStatus": 402,
+  "optionSet": "delegation",
+  "delegationId": "121b880a-…",
+  "quoteId": "qt_8f2a…",
+  "expiresAt": "2026-10-02T14:05:00.000Z",
+  "protocol": "x402",
+  "x402Version": 2,
+  "settlement": { "recipient": "0x2096…", "amount": "20000", "asset": "USDC", "network": "base", "approxCents": "2" },
+  "fee": { "bps": 200, "amount": "400", "cents": "1", "capChargedCents": "3", "capChargedMicros": "20400" },
+  "request": { "method": "POST", "path": "/quote", "methodSource": "catalog", "catalogEndpoint": "/quote" },
+  "nextTool": "pay_service",
+  "instructions": "Nothing was charged. `fee.capChargedCents` is the fee-inclusive total this call would cost."
+}
+```
+
+- **`optionSet: "delegation"`** — the delegation `pay_service` would charge, named in `delegationId`.
+- **`optionSet: "deployment"`** — you have no delegation yet, so this is what a personal crypto delegation *would* select; `nextTool` is `setup_delegation`. Set one up and **quote again** before paying, because the delegation you create can select a different rail and price.
+- **`paymentRequired: false`** — the service didn't ask for payment for this request; `upstreamStatus` is its answer. A non-2xx usually means the `path`, `method` or `body` is wrong — check `get_service`.
+
+**To pay with the quote pinned,** pass `quoteId` to `pay_service` before `expiresAt` with the exact same call arguments. The quote id fixes the challenge and the exact fee-inclusive total; keep `maxTotalCents` as an independent ceiling.
+
+**Refusals (all charge nothing):**
+
+| Result | Meaning | What to do |
+| --- | --- | --- |
+| `{ "payable": false }` | Not payable via the Router (only x402/MPP are). | Nothing to quote. |
+| `{ "error": "service_not_found" }` | No listed service has that slug. | Check the slug with `search_services`. |
+| `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | A read the quote needs failed. | Transient — retry later. |
+| `{ "error": "quote_unavailable", "code": … }` | No quote can be made here and retrying won't change that. | Bound the price with `pay_service`'s `maxTotalCents` instead. |
+| `{ "error": "quote_failed", "code": …, "retryable": … }` | The Router refused to price, or didn't answer. | Read `code` / `message` / `retryable`; a no-answer is safe to retry. |
+| `{ "error": "credential_refused" }` | Your credential was refused. | Re-authorize. |
+
+## pay_service
+
+Pay for a service from your spend-capped delegation and return the vendor's response. **This charges real funds.**
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `slug` | yes | string | The service slug to pay for. |
+| `path` | no | string | Router suffix appended to the service base (from `get_service`'s `payServiceArgs.path`), placeholders replaced. A checked `invokePath` may be empty even when the display path is not. Query params go in `search`, never here. |
+| `search` | no | string | Query string without `?`, for a slug-routed `GET`. |
+| `method` | no | string | HTTP method. Omit to use the catalog method for the matching endpoint (`POST` when none). Echoed back under `request.methodSource` as `caller`, `catalog`, or `default`. |
+| `body` | no | any | Request payload sent to the vendor. |
+| `maxTotalCents` | no | integer | Maximum whole cents this call may cost, fee included (compared exactly, so rounding alone never exceeds it). The 402 price can differ from the catalog label. |
+| `quoteId` | no | string | An opaque quote id from `quote_service`. Pass only with the exact same call before its `expiresAt`; the Router then uses that cached challenge and exact total. |
+| `headers` | no | object | Extra headers for the vendor call. |
+| `delegationId` | no | string | Delegation to charge (API key only); defaults to your active one. An OAuth caller always spends from its grant. Feeds the derived idempotency key when `requestId` is omitted, so keep it the same across retries. |
+| `fresh` | no | boolean | Set `true` on **every poll** of an async status endpoint, **including the first**, so each poll mints a fresh idempotency key and advances. Trade-off: with `fresh` a retry is **not** de-duplicated and **is** charged again. Ignored when `requestId` is set. |
+| `requestId` | no | string | Idempotency key. Leave unset — a retry of the same call is de-duplicated automatically. Set a **new** value only for a genuinely separate, additional charge. |
+
+<Note>
+**A bare slug reaches the service's base URL.** For a multi-endpoint API that is a 404, not a purchase — pass the endpoint's `path`. Only a single-endpoint service is callable by slug alone.
+</Note>
+
+**Returns** the vendor's response plus the payment record. A paid result also carries `delegationId` and `budget` (the spending budget after this call):
+
+```json
+{
+  "paid": true,
+  "upstreamStatus": 200,
+  "priceLabel": "$0.02",
+  "payment": { "paymentId": "b1f9c2e4-…", "txHash": "0xfc8af37b…" },
+  "request": { "method": "POST", "path": "/quote", "methodSource": "catalog", "catalogEndpoint": "/quote" },
+  "delegationId": "121b880a-…",
+  "budget": { "capCents": "500", "spentCents": "8.04", "remainingCents": "491.96" },
+  "response": { "…": "the vendor's body, unchanged" }
+}
+```
+
+- `paid: true` with a **non-2xx** `upstreamStatus` may still have cost the merchant price.
+- The `request` block rides on every result that resolved the endpoint (`already_paid`, `payment_failed`, …), not only the paid one.
+- `budget: null` means it couldn't be read this time — **not** that it's zero; call [`get_budget`](/api-reference/catalog-mcp/ledger#get_budget).
+- `payable: false` (with `protocol`, `priceLabel`, `network`, `note`; never the upstream URL) means the service isn't on a payable rail — nothing charged.
+
+**Outcomes and refusals:**
+
+| Result | Meaning | What to do |
+| --- | --- | --- |
+| `{ "status": "pending", "paymentId": "…", "nextTool": "get_payment_result" }` | **Paid** — the service took longer than the Router waits. | Call [`get_payment_result`](#get_payment_result) with the `paymentId`. Don't call `pay_service` again — it returns the same `pending`. |
+| `{ "status": "already_paid", "paymentId": "…" }` | This idempotency key already carries a payment; the result isn't replayed here. Nothing new charged — and it doesn't by itself say the original succeeded. | Read the original with `get_payment_result` or `list_payments`. A **new** `requestId` starts a separate charge. |
+| `{ "error": "payment_indeterminate" }` | The charge may or may not have landed (e.g. the connection dropped). | Check `list_payments` first; to retry, reuse the returned `requestId` **verbatim** without `fresh`. |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0003" }` | The spend would exceed your delegation cap, or it expired. | Widening the cap is almost always wrong — see [Guardrails](/products/catalog/router/guardrails). |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0009" }` | The funding source couldn't cover the charge; nothing signed. | On **MPP** the wallet is short (call [`wallet_balance`](/api-reference/catalog-mcp/ledger#wallet_balance) for the amount; a human funds it). On **card** the issuer declined — use another card. **x402** never raises this. |
+| `{ "error": "per_call_max_exceeded" }` | The price exceeds `maxTotalCents`; no charge. | Raise `maxTotalCents` only deliberately, then retry with the **same** `requestId`. |
+| `{ "error": "quote_not_found" }` / `"quote_expired"` / `"quote_mismatch"` | Named no-charge quote refusals. | Quote again rather than paying unpinned. |
+| `{ "error": "service_not_found" }` | Wrong slug; no charge. | Check with `search_services`. |
+| `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | Transient read failure; no charge. | Retry later. |
+| `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No delegation on the account; no charge. | Call [`setup_delegation`](#setup_delegation). |
+| `{ "error": "router_controls_unavailable" }` | The API behind this server is too old to enforce `search`, `quoteId` or `maxTotalCents`. | Tell the human; don't retry without them. |
+| `{ "error": "credential_refused" }` / HTTP `401` | Credential missing or refused. | Re-authorize, or set your API key. |
+
+<Warning>
+**Async services: set `fresh: true` on every poll, including the first.** An async service returns a `taskId`, then you poll a status endpoint with the same id. Without `fresh`, every later poll reuses the first poll's idempotency key and gets the first poll's stored answer (or `already_paid`) back, so the status never advances. `fresh` makes each poll a distinct, separately-billed call (the merchant charges per status call). Leave `fresh` **off** the submit and off any retry of a call whose outcome is unsure.
+</Warning>
+
+## route_by_intent
+
+Given a plain-language need, find — and optionally pay, in the same call — the **single best payable** Catalog service, so your agent doesn't pick among listings itself. The ranking is deterministic (no model reads the listings) and runs behind a fail-closed payability gate (listed, healthy, moderated, on x402/MPP, not flagged unpayable). When nothing passes, you get an explicit refusal, never a weak match.
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `intent` | yes | string | Plain-language description of the service you need (`"translate English to German"`). |
+| `filters` | no | object | Structured narrowing (all optional) — see below. |
+| `limit` | no | integer | Shortlist size, 1–20. Default 5. |
+| `autoPay` | no | boolean | `true` also pays the winner in the same call (same path as `pay_service`). Default `false` → return the pick only, no charge. |
+| `delegationId` | with `autoPay` on API key | string | Delegation to charge. An OAuth caller spends from its grant and can omit this. |
+| `requestId` | with `autoPay` | string | Idempotency key — **required** when `autoPay` is true. |
+| `method`, `path`, `search`, `body`, `headers` | no (`autoPay` only) | — | The paid call's request, applied to whichever service wins. |
+| `credentialHeader` | no (`autoPay` only) | string | Header the minted payment credential rides in, when the winning service **also** needs its own auth (e.g. `"Payment"`). |
+| `maxTotalCents` | no (`autoPay` only) | integer | Refuse a paid quote above this (fee-inclusive), before purchase. |
+
+**`filters` fields:** `require` (exact opaque slug — returned only if payable and healthy, else fails closed with `BCK.ROUTER.0031`, never substituted), `prefer` (exact opaque slug, moved up when a payable match), `exclude` (never chosen), `category` (matches tags, not category names), `protocol` (`x402` or `mpp`), `network`, `maxPriceLabel` (e.g. `"$0.05"`, best-effort).
+
+<Warning>
+**With `autoPay: true` you're shaping a request for a service you haven't seen yet.** A bare call reaches the winner's base URL, which for a multi-endpoint API is a 404, not a purchase. An `autoPay` call also ranks afresh, so it pays whatever wins *this* time. When the exact service or endpoint matters, propose first (`autoPay: false`), read `get_service` on `chosen.slug`, then pay with `pay_service`.
+</Warning>
+
+**Returns** — with `autoPay: false`, a proposal (nothing charged):
+
+```json
+{
+  "chosen": {
+    "slug": "openweather-mpp",
+    "title": "OpenWeather",
+    "priceLabel": "$0.005–$0.01",
+    "network": "Tempo",
+    "protocol": "mpp",
+    "invokeUrl": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp"
+  },
+  "shortlist": [
+    { "slug": "openweather-mpp", "matchReason": "semantic_similarity", "rankingSource": "semantic", "healthy": true, "priceLabel": "$0.005–$0.01" }
+  ],
+  "rankingSource": "semantic",
+  "instructions": "This is a proposal — nothing was charged. `chosen` is the best payable service and `shortlist` is the ranked set."
+}
+```
+
+- **`chosen`** is the winner; its `invokeUrl` is the Router's opaque alias, never the merchant's host. Pay it by `slug`.
+- **`shortlist`** is the payable candidates in pick order. Each carries a closed `matchReason`, `gateReason`, per-item `rankingSource`, and one scale-specific score. **Read the order, not the numbers** — the scores sit on different scales. `healthy` is always `true` here.
+- With **`autoPay: true`**, the same fields plus **`result`** (the upstream call and the payment receipt). Read the outcome from `result.payment.status` — `Settled`, `Issued` (attempted, not confirmed) or `Failed` — not from `paid` alone. `instructions` is always present and names the next step.
+
+**Refusals:**
+
+| Result | Meaning | What to do |
+| --- | --- | --- |
+| `{ "status": "no_fundable_match" }` | No listed, healthy, payable service matched; nothing charged. | Broaden or rephrase `intent`, relax `filters`, call again. |
+| `{ "status": "missing_autopay_fields" }` | `autoPay: true` without `requestId` (or, on an API key, without `delegationId`); nothing charged. | Add the field and call again. |
+| `{ "status": "payment_indeterminate", "requestId": "…" }` | On `autoPay`, the charge outcome couldn't be confirmed. | **Never retry with a fresh `requestId`.** Reconcile with `list_payments`; retry with the **same** `requestId`. |
+| `{ "status": "already_paid", "paymentId": "…" }` | This `requestId` already has a payment; not a new charge, and the vendor response isn't replayed. | Find `paymentId` in `list_payments`. Buying again takes a **new** `requestId`. |
+
+Any other `autoPay` refusal (cap exceeded, wallet short, card declined) comes back as a plain tool error (`isError: true`) carrying the Router's own message — see [pay_service's refusals](#pay_service). If unsure whether it charged, check `list_payments` and retry only with the **same** `requestId`.
+
+## setup_delegation
+
+Start the spending-delegation ceremony and return **one URL** for a human to open. Use it when `pay_service` returns `{ "error": "no_delegation" }`. It sets up a **stablecoin (crypto)** delegation that spends from the human's personal wallet — it does **not** enroll a card. The human sets the currency, cap, duration, and transaction limit in the browser; the agent cannot set them and must not ask the human to pass them back.
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `returnUrl` | no | string | Where the browser lands after authorising. Only a localhost callback (`http://127.0.0.1:<port>/…`) or an origin this deployment allow-lists is accepted; a rejected value is reported, not silently dropped. **Omit it** unless you actually have somewhere to receive the redirect — in a chat host the page just shows a confirmation and the human closes the tab. |
+
+**Returns** — a URL to open, or confirmation a budget already exists:
+
+```json
+{
+  "status": "human_action_required",
+  "url": "https://embed.nevermined.app/cards/delegate?provider=crypto&network=live&sessionToken=…",
+  "expiresAt": "2026-10-02T14:00:00.000Z",
+  "instructions": "Relay the url, wait for the human to confirm, then call pay_service again."
+}
+```
+
+```json
+{
+  "status": "already_active",
+  "delegationId": "121b880a-…",
+  "budget": { "capCents": "500", "spentCents": "8", "remainingCents": "492", "currency": "usdc", "expiresAt": "2026-10-02T13:29:31.691Z" },
+  "source": "oauth_grant",
+  "message": "Your spending budget is in place: cap 5.00 USDC, 0.08 USDC spent, 4.92 USDC remaining.",
+  "instructions": "No human action is needed now. Call pay_service; it spends from this budget by default."
+}
+```
+
+- `already_active` means a usable budget is in place (for an OAuth caller, the grant approved on the consent screen) — relay `message` as it stands, then call `pay_service`.
+- `budget` carries only the figures the API reported, and is omitted when none did. `source` (`oauth_grant` or `account`) is omitted when unknown. `message` and `instructions` are always present.
+
+<Warning>
+The `url` embeds a short-lived session token bound to the human's account. Treat it as a credential — give it only to the account owner, never share it.
+</Warning>
+
+**Other outcomes (no URL):** `delegation_setup_unavailable` (this deployment can't run the ceremony), `delegation_setup_failed` (the session couldn't start), `return_url_not_allowed` (drop or fix `returnUrl`), and a `human_action_required` answer with `delegationCheck: "failed"` (an existing budget couldn't be ruled out — follow its `instructions` and try `pay_service` first).
+
+## get_payment_result
+
+Read the result of a paid call by its `paymentId`. Use it when `pay_service` answered `{ "status": "pending" }`, or to recover a response you lost. Reading charges nothing.
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `paymentId` | yes | string (uuid) | The `paymentId` a `pay_service` result returned. |
+
+**Returns** a `state` and, when ready, the service's response:
+
+```json
+{
+  "state": "Ready",
+  "status": 200,
+  "bodyEncoding": "json",
+  "body": { "…": "the vendor's response" }
+}
+```
+
+- `state: "Pending"` — still running; call again in a few seconds. **Don't** call `pay_service` again — it returns the same `pending`.
+- `state: "Ready"` — `status` is the service's HTTP status, `body` its response. `bodyEncoding` is `json`, `text`, or `base64`.
+- `state: "Failed"` — the call ended without a response; `failureReason` says why.
+- `{ "status": "not_available" }` — nothing to return. Results are kept for **24 hours**, for the account that paid.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Ledger & wallet tools" icon="receipt" href="/api-reference/catalog-mcp/ledger">
+    Reconcile spend, read your budget and wallet balance.
+  </Card>
+  <Card title="Router guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
+    What the Router enforces and refuses, and every error code.
+  </Card>
+</CardGroup>

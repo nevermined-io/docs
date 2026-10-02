@@ -104,6 +104,35 @@ Two paths — pick one:
 
 Either way the shape is the same: name the service (by slug), pass your delegation, get the result back. The Router reads the vendor's payment challenge, pays from your delegation, and returns the response.
 
+### Using the Catalog MCP
+
+If your harness speaks MCP, the server drops discovery and payment in as native tools. Point your client at the server URL and put your Nevermined API key on the `Authorization` header — or, in an assistant that runs OAuth (Claude, ChatGPT, LangSmith Fleet), connect by URL alone and approve a spending cap once:
+
+```json
+{
+  "mcpServers": {
+    "nevermined-catalog": {
+      "url": "https://mcp.live.nevermined.app/mcp",
+      "headers": { "Authorization": "Bearer ${NVM_API_KEY}" }
+    }
+  }
+}
+```
+
+Use `https://mcp.sandbox.nevermined.app/mcp` to rehearse. The tools your agent then has — discovery is **free**, the rest need the credential, and only `pay_service` / `route_by_intent` (with `autoPay`) move money:
+
+| Tool | Free? | What it does |
+| --- | --- | --- |
+| `list_categories` · `search_services` · `get_service` | free | Browse the Catalog, search it (hybrid ranking), and read one service's callable endpoints. |
+| `route_by_intent` | paid | Describe a need; get the single best payable service back, and optionally pay it. |
+| `quote_service` | paid | Price one call before paying — live, fee-inclusive total. |
+| `pay_service` | paid | Pay a service and return its response. |
+| `setup_delegation` | paid | Get a URL for a human to approve a spending cap, when none exists yet. |
+| `get_payment_result` | paid | Read a paid call's result by `paymentId` (for a `pending` call, or a lost response). |
+| `list_payments` · `payment_summary` · `get_budget` · `wallet_balance` | paid | Reconcile spend, count payments, read the budget, and check wallet funding. |
+
+Every argument, return field and refusal is in the [Catalog MCP API reference](/api-reference/catalog-mcp/overview); the [product page](/products/catalog/mcp) has the per-assistant setup walkthroughs.
+
 ## The calling convention (one canonical shape)
 
 If you drive the Router API directly, there is **one convention in three forms** — all settle identically; they differ only in how you pass the target and where the result comes back. Pick the one that fits your client. Full copy-paste curl lives in the **[Router quickstart](/products/catalog/router/quickstart)**; this is the map.
