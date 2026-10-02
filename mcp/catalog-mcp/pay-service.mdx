@@ -4,7 +4,7 @@ sidebarTitle: "Pay Service"
 description: "Catalog MCP tool: pay for a catalog service from your spend-capped delegation and return the vendor's response. Charges real funds."
 ---
 
-Pay for a service from your spend-capped delegation and return the vendor's response. **This charges real funds.** Needs a credential (API key or OAuth `commerce` grant). Always read [`get_service`](/mcp/catalog-mcp/get-service) first and **pass its `requestShape.endpoints[].payServiceArgs` through as-is** — it carries `slug` / `path` / `method`, and for a verified endpoint a pre-filled `body` (and sometimes `search` / `headers`); don't drop those and rebuild your own.
+Pay for a service from your spend-capped delegation and return the vendor's response. **This charges real funds.** Needs a credential (API key or OAuth `commerce` grant). Always read [`get_service`](/mcp/catalog-mcp/get-service) first and **pass its `requestShape.endpoints[].payServiceArgs` through as-is** — it carries `slug` / `path` / `method`, and for a verified endpoint a pre-filled `body` (and sometimes `search` / `headers`); don't drop those and rebuild your own. Where an example filled a path parameter, `path` already holds **that example's** entity (not a `{placeholder}`) — swap in the entity you want rather than looking for a placeholder to replace.
 
 **Auth:** key / grant · **Charges:** real funds
 
@@ -13,7 +13,7 @@ Pay for a service from your spend-capped delegation and return the vendor's resp
 | Argument | Required | Type | Description |
 | --- | --- | --- | --- |
 | `slug` | yes | string | The service slug to pay for. |
-| `path` | no | string | Router suffix appended to the service base (from `get_service`'s `payServiceArgs.path`), placeholders replaced. A checked `invokePath` may be empty even when the display path is not. Query params go in `search`, never here. |
+| `path` | no | string | Router suffix appended to the service base (from `get_service`'s `payServiceArgs.path`). Where an example filled `pathParams`, it already holds that example's entity — swap in the one you want. A checked `invokePath` may be empty even when the display path is not. Query params go in `search`, never here. |
 | `search` | no | string | Query string without `?`, for a slug-routed `GET`. |
 | `method` | no | string | HTTP method. Omit to use the catalog method for the matching endpoint (`POST` when none). Echoed back under `request.methodSource` as `caller`, `catalog`, or `default`. |
 | `body` | no | any | Request payload sent to the vendor. |
@@ -60,6 +60,7 @@ The vendor's response plus the payment record. A paid result also carries `deleg
 | `{ "error": "payment_failed", "code": "BCK.ROUTER.0003" }` | The spend would exceed your delegation cap, or it expired. | Widening the cap is almost always wrong — see [Guardrails](/products/catalog/router/guardrails). |
 | `{ "error": "payment_failed", "code": "BCK.ROUTER.0009" }` | The funding source couldn't cover the charge; nothing signed. | On **MPP** the wallet is short (call [`wallet_balance`](/mcp/catalog-mcp/wallet-balance); a human funds it). On **card** the issuer declined — use another card. **x402** never raises this. |
 | `{ "error": "per_call_max_exceeded" }` | The price exceeds `maxTotalCents`; no charge. | Raise `maxTotalCents` only deliberately, then retry with the **same** `requestId`. |
+| `BCK.ROUTER.0027` — request exceeds `maxRequestBytes` | The request body is larger than the endpoint's `maxRequestBytes` cap. Raised **before** the unpaid probe, so nothing is minted and **no charge**. | Shrink the request below the cap that [`get_service`](/mcp/catalog-mcp/get-service) reports for the endpoint. |
 | `{ "error": "quote_not_found" }` / `"quote_expired"` / `"quote_mismatch"` | Named no-charge quote refusals. | Quote again rather than paying unpinned. |
 | `{ "error": "service_not_found" }` | Wrong slug; no charge. | Check with `search_services`. |
 | `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | Transient read failure; no charge. | Retry later. |
