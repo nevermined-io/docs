@@ -62,3 +62,19 @@ The rail, the merchant amount, and the fee-inclusive total. `fee.capChargedCents
 | `{ "error": "quote_unavailable", "code": … }` | No quote can be made here and retrying won't change that. | Bound the price with `pay_service`'s `maxTotalCents` instead. |
 | `{ "error": "quote_failed", "code": …, "retryable": … }` | The Router refused to price, or didn't answer. | Read `code` / `message` / `retryable`; a no-answer is safe to retry. |
 | `{ "error": "credential_refused" }` | Your credential was refused. | Re-authorize. |
+
+## Try it
+
+**Ask your assistant:**
+
+> Quote a current-weather call to `openweather-mpp` for Lisbon before paying.
+
+**Call it directly** (charges nothing, but reaches the service — see the warning above):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"quote_service","arguments":{"slug":"openweather-mpp","path":"/openweather/current-weather","body":{"lat":38.72,"lon":-9.14}}}}'
+```

@@ -67,3 +67,18 @@ Reading the ranking:
 - `displayPriceSource: "settled"` means the `displayPriceLabel` reflects real multi-payer settlement — the service is genuinely used, not just advertised.
 
 Then read one service in full with [`get_service`](/mcp/catalog-mcp/get-service).
+
+## Try it
+
+**Ask your assistant:**
+
+> Search the Nevermined catalog for weather services.
+
+**Call it directly** (discovery is free — no credential needed):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_services","arguments":{"query":"weather","pageSize":5}}}'
+```

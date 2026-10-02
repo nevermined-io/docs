@@ -23,3 +23,18 @@ To read a page in full after searching, use [`query_docs_filesystem_nevermined_d
 <Tip>
 Use this tool for **broad or conceptual** queries. For exact keyword/regex matching, structural exploration, or reading a full page by path, reach for [`query_docs_filesystem_nevermined_documentation`](/mcp/docs-mcp/query-docs-filesystem).
 </Tip>
+
+## Try it
+
+**Ask your assistant:**
+
+> Search the Nevermined docs for how to add payments to a FastAPI agent.
+
+**Call it directly** (the docs server replies over SSE — `event: message` / `data: …`):
+
+```bash
+curl -X POST https://nevermined.ai/docs/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_nevermined_documentation","arguments":{"query":"add payments to a FastAPI agent"}}}'
+```

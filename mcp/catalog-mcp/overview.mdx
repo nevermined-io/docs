@@ -23,25 +23,67 @@ This is the **buyer** side. To put a paywall on *your own* MCP server so its too
 | **Live (challenge-on-connect)** | `https://mcp.api.live.nevermined.app/mcp` | For hosts that only run OAuth when challenged on connect (e.g. LangSmith Fleet). |
 | **Sandbox (challenge-on-connect)** | `https://mcp.api.sandbox.nevermined.app/mcp` | As above, on sandbox. |
 
-### Harness or local environment (API key)
+### Instant Setup Commands
 
-Any host that can send headers — a coding agent with a config file, a script, a local MCP client — points at the server URL and puts your Nevermined API key on the `Authorization` header:
+Any host that can send headers takes the server URL plus your Nevermined API key on the `Authorization` header. Discovery works with no key; paying needs a Nevermined **API key** and a funded, spend-capped **Delegation** — get a key from the [Nevermined app](https://nevermined.app) (see [Get an API key](/products/catalog/mcp#2-get-an-api-key)). Choose your tool:
 
-```json
-{
-  "mcpServers": {
-    "nevermined-catalog": {
-      "url": "https://mcp.live.nevermined.app/mcp",
-      "headers": { "Authorization": "Bearer ${NVM_API_KEY}" }
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http nevermined-catalog https://mcp.live.nevermined.app/mcp \
+      --header "Authorization: Bearer ${NVM_API_KEY}"
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    ```bash
+    mkdir -p ~/.cursor && echo '{
+      "mcpServers": {
+        "nevermined-catalog": {
+          "url": "https://mcp.live.nevermined.app/mcp",
+          "type": "http",
+          "headers": { "Authorization": "Bearer YOUR_NEVERMINED_API_KEY" }
+        }
+      }
+    }' > ~/.cursor/mcp.json
+    ```
+  </Tab>
+  <Tab title="Continue">
+    ```json
+    // Add to ~/.continue/config.json
+    {
+      "mcpServers": [
+        {
+          "name": "nevermined-catalog",
+          "url": "https://mcp.live.nevermined.app/mcp",
+          "transport": "http",
+          "requestOptions": {
+            "headers": { "Authorization": "Bearer YOUR_NEVERMINED_API_KEY" }
+          }
+        }
+      ]
     }
-  }
-}
-```
+    ```
+  </Tab>
+  <Tab title="Claude Desktop">
+    ```json
+    // Add to ~/Library/Application Support/Claude/claude_desktop_config.json
+    {
+      "mcpServers": {
+        "nevermined-catalog": {
+          "url": "https://mcp.live.nevermined.app/mcp",
+          "type": "http",
+          "headers": { "Authorization": "Bearer YOUR_NEVERMINED_API_KEY" }
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
 
-Discovery works with no key; paying needs a Nevermined **API key** and a funded, spend-capped **Delegation**. Get a key from the [Nevermined app](https://nevermined.app); see [Get an API key](/products/catalog/mcp#2-get-an-api-key). A **stdio-only** host can bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
+Then restart your IDE to activate the connection. Rehearse on `https://mcp.sandbox.nevermined.app/mcp` first. A **stdio-only** host can bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
 
 <Warning>
-The config above points at **live**, where `pay_service` moves real funds. Rehearse on sandbox first, then switch to live with a small Delegation cap and the cheapest sub-cent service.
+These point at **live**, where `pay_service` moves real funds. Rehearse on sandbox, then switch to live with a small Delegation cap and the cheapest sub-cent service.
 </Warning>
 
 ### Claude, ChatGPT, LangSmith Fleet (OAuth, no key)

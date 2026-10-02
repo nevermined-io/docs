@@ -46,3 +46,19 @@ The `url` embeds a short-lived session token bound to the human's account. Treat
 </Warning>
 
 **Other outcomes (no URL):** `delegation_setup_unavailable` (this deployment can't run the ceremony), `delegation_setup_failed` (the session couldn't start), `return_url_not_allowed` (drop or fix `returnUrl`), and a `human_action_required` answer with `delegationCheck: "failed"` (an existing budget couldn't be ruled out — follow its `instructions` and try `pay_service` first).
+
+## Try it
+
+**Ask your assistant:**
+
+> Set up a spending budget so I can pay for Nevermined services.
+
+**Call it directly** (charges nothing — returns a URL for a human to approve a cap):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"setup_delegation","arguments":{}}}'
+```

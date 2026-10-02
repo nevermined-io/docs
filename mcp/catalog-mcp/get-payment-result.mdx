@@ -31,3 +31,19 @@ A `state` and, when ready, the service's response:
 - `state: "Ready"` — `status` is the service's HTTP status, `body` its response. `bodyEncoding` is `json`, `text`, or `base64`.
 - `state: "Failed"` — the call ended without a response; `failureReason` says why.
 - `{ "status": "not_available" }` — nothing to return. Results are kept for **24 hours**, for the account that paid.
+
+## Try it
+
+**Ask your assistant:**
+
+> Get the result of payment `b1f9c2e4-…` (use a `paymentId` from a `pay_service` result).
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_payment_result","arguments":{"paymentId":"b1f9c2e4-0000-0000-0000-000000000000"}}}'
+```

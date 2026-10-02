@@ -34,3 +34,19 @@ A total, a daily series (oldest first), and a charged-not-delivered count:
 - `chargedNotDelivered` is the count of failed payments in the period whose merchant charge was observed — **flag a non-zero count to the user**.
 
 For *amounts* use [`list_payments`](/mcp/catalog-mcp/list-payments); for what's spent or left use [`get_budget`](/mcp/catalog-mcp/get-budget).
+
+## Try it
+
+**Ask your assistant:**
+
+> How many payments have I made this week?
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"payment_summary","arguments":{}}}'
+```

@@ -29,3 +29,18 @@ Run a **read-only, shell-like** query against a virtualized, in-memory filesyste
 ## Returns
 
 The command's stdout, truncated to 30 KB. When referencing pages back to the user, convert filesystem paths to URL paths by removing the `.mdx` extension (`/some/page.mdx` → `/some/page`).
+
+## Try it
+
+**Ask your assistant:**
+
+> Show the top-level structure of the Nevermined documentation.
+
+**Call it directly** (the docs server replies over SSE — `event: message` / `data: …`):
+
+```bash
+curl -X POST https://nevermined.ai/docs/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_docs_filesystem_nevermined_documentation","arguments":{"command":"tree / -L 2"}}}'
+```

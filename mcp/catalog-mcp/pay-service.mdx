@@ -70,3 +70,19 @@ The vendor's response plus the payment record. A paid result also carries `deleg
 <Warning>
 **Async services: set `fresh: true` on every poll, including the first.** An async service returns a `taskId`, then you poll a status endpoint with the same id. Without `fresh`, every later poll reuses the first poll's idempotency key and gets the first poll's stored answer (or `already_paid`) back, so the status never advances. `fresh` makes each poll a distinct, separately-billed call. Leave `fresh` **off** the submit and off any retry of a call whose outcome is unsure.
 </Warning>
+
+## Try it
+
+**Ask your assistant:**
+
+> Pay `openweather-mpp` for the current weather in Lisbon and show me the response.
+
+**Call it directly** (⚠️ **charges real funds** — rehearse on `https://mcp.sandbox.nevermined.app/mcp` first):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pay_service","arguments":{"slug":"openweather-mpp","path":"/openweather/current-weather","body":{"lat":38.72,"lon":-9.14}}}}'
+```

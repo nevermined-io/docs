@@ -40,3 +40,18 @@ An array of categories, each with its sub-categories:
 <Note>
 The category names returned here are **not** stored as tags. Passing one as the `category` filter of [`search_services`](/mcp/catalog-mcp/search-services) or [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) matches nothing — put a category name in `query` / `intent` instead. The `category` filter matches a listing's `tags`.
 </Note>
+
+## Try it
+
+**Ask your assistant:**
+
+> Using the Nevermined connector, list the catalog categories.
+
+**Call it directly** (discovery is free — no credential needed):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_categories","arguments":{}}}'
+```

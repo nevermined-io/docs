@@ -48,3 +48,19 @@ The wallet address and, per network, its token balances:
 - On **MPP** the wallet is checked before anything is signed, and `BCK.ROUTER.0009` names the wallet and chain but never **how much** is there — which is what this tool supplies. On **x402** there's no balance pre-check, so read the balance **before** you pay.
 
 This tool diagnoses, it doesn't fix: there's no on-ramp and an agent can't top up its own wallet, so a genuine shortfall is a **stop condition** — report the network and amount to the human and don't retry.
+
+## Try it
+
+**Ask your assistant:**
+
+> What is my wallet balance on each network?
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"wallet_balance","arguments":{}}}'
+```

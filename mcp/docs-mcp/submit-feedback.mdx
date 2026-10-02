@@ -18,3 +18,18 @@ Report a problem with the documentation site so the docs team can fix it. Use it
 ## Returns
 
 A confirmation that the feedback was recorded for the docs team.
+
+## Try it
+
+**Ask your assistant:**
+
+> Report that the `pay_service` page example is missing the required path for multi-endpoint services.
+
+**Call it directly** (the docs server replies over SSE — `event: message` / `data: …`):
+
+```bash
+curl -X POST https://nevermined.ai/docs/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"submit_feedback","arguments":{"path":"/mcp/catalog-mcp/pay-service","feedback":"The pay_service example is missing the required path for multi-endpoint services."}}}'
+```

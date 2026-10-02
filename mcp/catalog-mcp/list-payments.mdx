@@ -45,3 +45,19 @@ On MPP and card rails, `deliveryStatus: "pending"` is **not** proof of no charge
 </Warning>
 
 This tool finds a `paymentId` and reconciles an uncertain payment. It does **not** return service responses (use [`get_payment_result`](/mcp/catalog-mcp/get-payment-result)) or the remaining budget (use [`get_budget`](/mcp/catalog-mcp/get-budget)).
+
+## Try it
+
+**Ask your assistant:**
+
+> List my recent Nevermined Router payments.
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_payments","arguments":{}}}'
+```

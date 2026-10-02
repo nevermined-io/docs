@@ -64,3 +64,19 @@ With `autoPay: false`, a proposal (nothing charged):
 | `{ "status": "already_paid", "paymentId": "…" }` | This `requestId` already has a payment; not a new charge, and the vendor response isn't replayed. | Find `paymentId` in `list_payments`. Buying again takes a **new** `requestId`. |
 
 Any other `autoPay` refusal (cap exceeded, wallet short, card declined) comes back as a plain tool error (`isError: true`) carrying the Router's own message — see [`pay_service`'s refusals](/mcp/catalog-mcp/pay-service#outcomes-and-refusals). If unsure whether it charged, check `list_payments` and retry only with the **same** `requestId`.
+
+## Try it
+
+**Ask your assistant:**
+
+> Find the best Nevermined service for the current weather in Lisbon.
+
+**Call it directly** (`autoPay` defaults to `false`, so this proposes and charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"route_by_intent","arguments":{"intent":"current weather for Lisbon"}}}'
+```

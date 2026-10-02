@@ -33,3 +33,19 @@ The budget figures. Money is in **cents**: `capCents` is whole cents; `spentCent
 
 - `spentCents + remainingCents = capCents` while the budget is within its cap. The figures include routing fees and rounding, so **never substitute a figure of your own** — relay them as reported.
 - With no `delegationId` this reads the budget `pay_service` would use, which only includes budgets that can still pay. So `{ "status": "no_active_delegation" }` also covers a budget that ran out or expired — pass the `delegationId` from an earlier `pay_service` result to read that one anyway.
+
+## Try it
+
+**Ask your assistant:**
+
+> How much of my spending budget is left?
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_budget","arguments":{}}}'
+```
