@@ -1,0 +1,57 @@
+---
+title: "list_categories"
+sidebarTitle: "List Categories"
+description: "Catalog MCP tool: list the categories and sub-categories of paid services in the Nevermined Agent Services Catalog, with a count each."
+---
+
+List the Catalog's categories and sub-categories, each with a count. **Discovery only — free, no credential, nothing charged.** See the [overview](/mcp/catalog-mcp/overview) for transport and conventions.
+
+**Auth:** free · **Charges:** nothing
+
+## Arguments
+
+None.
+
+## Returns
+
+An array of categories, each with its sub-categories:
+
+```json
+[
+  {
+    "category": "AI & Media",
+    "count": 18,
+    "subCategories": [
+      { "subCategory": "Media generation", "count": 5 },
+      { "subCategory": "LLM inference", "count": 1 }
+    ]
+  },
+  {
+    "category": "Crypto & Blockchain",
+    "count": 29,
+    "subCategories": [
+      { "subCategory": "Crypto market data", "count": 8 },
+      { "subCategory": "Blockchain data", "count": 5 }
+    ]
+  }
+]
+```
+
+<Note>
+The category names returned here are **not** stored as tags. Passing one as the `category` filter of [`search_services`](/mcp/catalog-mcp/search-services) or [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) matches nothing — put a category name in `query` / `intent` instead. The `category` filter matches a listing's `tags`.
+</Note>
+
+## Try it
+
+**Ask your assistant:**
+
+> Using the Nevermined connector, list the catalog categories.
+
+**Call it directly** (discovery is free — no credential needed):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_categories","arguments":{}}}'
+```

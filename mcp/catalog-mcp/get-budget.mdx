@@ -1,0 +1,56 @@
+---
+title: "get_budget"
+sidebarTitle: "Get Budget"
+description: "Catalog MCP tool: read the spending budget pay_service draws on — its cap, spent, remaining, payments made, and expiry."
+---
+
+Read the spending budget [`pay_service`](/mcp/catalog-mcp/pay-service) draws on: its cap, what's been spent, what remains, how many payments were made (and the limit, if any), and when it expires. Reading charges nothing. Use it whenever the human asks how much is left, or before a run of paid calls. Needs a credential.
+
+**Auth:** key / grant · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `delegationId` | no | string | A specific delegation to read (every paid `pay_service` result carries one). Omit to read the budget `pay_service` spends by default. |
+
+## Returns
+
+The figures are nested under `budget`; `delegationId`, `message`, and `instructions` sit alongside it. Money is in **cents**: `capCents` is whole cents; `spentCents` and `remainingCents` can carry up to four decimals (charged per call at 1/10,000 of a cent, e.g. `"1.632"` = 1.632¢):
+
+```json
+{
+  "delegationId": "121b880a-…",
+  "budget": {
+    "capCents": "500",
+    "spentCents": "8.04",
+    "remainingCents": "491.96",
+    "currency": "usdc",
+    "transactionCount": 3,
+    "maxTransactions": null,
+    "expiresAt": "2026-10-02T13:29:31.691Z"
+  },
+  "message": "Your budget: cap 5.00 USDC, 0.08 USDC spent, 4.92 USDC remaining, valid until 2026-10-02.",
+  "instructions": "Relay message as it stands; call pay_service to spend from this budget."
+}
+```
+
+- **Relay `message` as it stands** — it is written to be read to the human, and because the figures include routing fees and rounding, **never substitute a figure of your own**.
+- Inside `budget`: `spentCents + remainingCents = capCents` while within cap; `transactionCount` is how many payments were made and `maxTransactions` the limit (`null` when there is none).
+- With no `delegationId` this reads the budget `pay_service` would use, which only includes budgets that can still pay. So `{ "status": "no_active_delegation" }` also covers a budget that ran out or expired — pass the `delegationId` from an earlier `pay_service` result to read that one anyway.
+
+## Try it
+
+**Ask your assistant:**
+
+> How much of my spending budget is left?
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_budget","arguments":{}}}'
+```

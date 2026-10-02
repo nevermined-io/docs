@@ -1,0 +1,66 @@
+---
+title: "wallet_balance"
+sidebarTitle: "Wallet Balance"
+description: "Catalog MCP tool: read the balances of your own personal wallet — the funding source the crypto rails pull from, per network."
+---
+
+Read the balances of your **own personal wallet** — the funding source the crypto rails **pull from** when [`pay_service`](/mcp/catalog-mcp/pay-service) charges a personal delegation. It answers *how much do I have, and on which chain*. Reading charges nothing. Needs a credential.
+
+**Auth:** key / grant · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `network` | no | integer | Chain id to read. **Omit it** to see every network this deployment settles on — which is what you want unless the merchant already told you which chain it settles on. |
+
+## Returns
+
+The wallet address and, per network, its token balances:
+
+```json
+{
+  "address": "0x1234…abcd",
+  "networks": [
+    {
+      "network": 8453,
+      "balances": [
+        { "symbol": "USDC", "decimals": 6, "atomic": "1500000", "formatted": "1.5" },
+        { "symbol": "EURC", "decimals": 6, "atomic": "0", "formatted": "0" }
+      ]
+    },
+    { "network": 4217, "error": "…" }
+  ]
+}
+```
+
+<Warning>
+**Read the network the merchant quoted, not the one with money in it.** Live settles on two chains with two tokens — most services accept only one. A healthy balance on one chain says nothing about a purchase on the other; that's why every chain is reported by default.
+</Warning>
+
+- A token whose `atomic`/`formatted` is **`null`** was **not read** (the on-chain read failed) — that is **not** a zero balance. A chain that couldn't be read at all comes back as an entry with `error` instead of `balances`.
+- Pass a chain id this deployment does **not** serve and you get the deployment's **primary** network back (its own chain id, not the one you asked for) with a `warning` — so those balances say nothing about the chain you asked about.
+
+## What it doesn't cover
+
+- A delegation backed by an [organization wallet](/solutions/organizations/wallets) is paid from *that* wallet, not this one.
+- A **card** delegation has no wallet at all — there `BCK.ROUTER.0009` is the card **issuer** declining, with nothing to top up, so this tool doesn't apply and the fix is a different card.
+- On **MPP** the wallet is checked before anything is signed, and `BCK.ROUTER.0009` names the wallet and chain but never **how much** is there — which is what this tool supplies. On **x402** there's no balance pre-check and `BCK.ROUTER.0009` is never raised: the credential is minted, **budget is reserved**, and a short wallet only surfaces when the merchant's on-chain transfer fails — by which point the budget is already committed, and the reserve comes back only once the reconciler sees the authorization expire unconsumed. So read the balance **before** you pay, and don't read a just-committed reserve as money lost.
+
+This tool diagnoses, it doesn't fix: there's no on-ramp and an agent can't top up its own wallet, so a genuine shortfall is a **stop condition** — report the network and amount to the human and don't retry.
+
+## Try it
+
+**Ask your assistant:**
+
+> What is my wallet balance on each network?
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"wallet_balance","arguments":{}}}'
+```

@@ -1,0 +1,82 @@
+---
+title: "route_by_intent"
+sidebarTitle: "Route by Intent"
+description: "Catalog MCP tool: from a plain-language need, find — and optionally pay — the single best payable catalog service, plus a ranked shortlist."
+---
+
+Given a plain-language need, find — and optionally pay, in the same call — the **single best payable** Catalog service, so your agent doesn't pick among listings itself. The ranking is deterministic (no model reads the listings) and runs behind a fail-closed payability gate (listed, healthy, moderated, on x402/MPP, not flagged unpayable). When nothing passes, you get an explicit refusal, never a weak match. Needs a credential; **charges real funds only with `autoPay: true`.**
+
+**Auth:** key / grant · **Charges:** real funds if `autoPay`
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `intent` | yes | string | Plain-language description of the service you need (`"translate English to German"`). |
+| `filters` | no | object | Structured narrowing (all optional) — see below. |
+| `limit` | no | integer | Shortlist size, 1–20. Default 5. |
+| `autoPay` | no | boolean | `true` also pays the winner in the same call (same path as `pay_service`). Default `false` → return the pick only, no charge. |
+| `delegationId` | with `autoPay` on API key | string | Delegation to charge. An OAuth caller spends from its grant and can omit this. |
+| `requestId` | with `autoPay` | string | Idempotency key — **required** when `autoPay` is true. |
+| `method`, `path`, `search`, `body`, `headers` | no (`autoPay` only) | — | The paid call's request, applied to whichever service wins. |
+| `credentialHeader` | no (`autoPay` only) | string | Header the minted payment credential rides in, when the winning service **also** needs its own auth (e.g. `"Payment"`). |
+| `maxTotalCents` | no (`autoPay` only) | integer | Refuse a paid quote above this (fee-inclusive), before purchase. |
+
+**`filters` fields:** `require` (exact opaque slug — returned only if payable and healthy, else fails closed with `BCK.ROUTER.0031`, never substituted), `prefer` (exact opaque slug, moved up when a payable match), `exclude` (never chosen), `category` (matches tags, not category names), `protocol` (`x402` or `mpp`), `network`, `maxPriceLabel` (e.g. `"$0.05"`, best-effort).
+
+<Warning>
+**With `autoPay: true` you're shaping a request for a service you haven't seen yet.** A bare call reaches the winner's base URL, which for a multi-endpoint API is a 404, not a purchase. An `autoPay` call also ranks afresh, so it pays whatever wins *this* time. When the exact service or endpoint matters, propose first (`autoPay: false`), read [`get_service`](/mcp/catalog-mcp/get-service) on `chosen.slug`, then pay with [`pay_service`](/mcp/catalog-mcp/pay-service).
+</Warning>
+
+## Returns
+
+With `autoPay: false`, a proposal (nothing charged):
+
+```json
+{
+  "chosen": {
+    "slug": "openweather-mpp",
+    "title": "OpenWeather",
+    "priceLabel": "$0.005–$0.01",
+    "network": "Tempo",
+    "protocol": "mpp",
+    "invokeUrl": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp"
+  },
+  "shortlist": [
+    { "slug": "openweather-mpp", "matchReason": "semantic_similarity", "rankingSource": "semantic", "healthy": true, "priceLabel": "$0.005–$0.01" }
+  ],
+  "rankingSource": "semantic",
+  "instructions": "This is a proposal — nothing was charged. `chosen` is the best payable service and `shortlist` is the ranked set."
+}
+```
+
+- **`chosen`** is the winner; its `invokeUrl` is the Router's opaque alias, never the merchant's host. Pay it by `slug`.
+- **`shortlist`** is the payable candidates in pick order. Each carries a closed `matchReason`, `gateReason`, per-item `rankingSource`, and one scale-specific score. **Read the order, not the numbers** — the scores sit on different scales. `healthy` is always `true` here.
+- With **`autoPay: true`**, the same fields plus **`result`** (the upstream call and the payment receipt). Read the outcome from `result.payment.status` — `Settled`, `Issued` (attempted, not confirmed) or `Failed` — not from `paid` alone. `instructions` is always present and names the next step.
+
+## Refusals
+
+| Result | Meaning | What to do |
+| --- | --- | --- |
+| `{ "status": "no_fundable_match" }` | No listed, healthy, payable service matched; nothing charged. | Broaden or rephrase `intent`, relax `filters`, call again. |
+| `{ "status": "missing_autopay_fields" }` | `autoPay: true` without `requestId` (or, on an API key, without `delegationId`); nothing charged. | Add the field and call again. |
+| `{ "status": "payment_indeterminate", "requestId": "…" }` | On `autoPay`, the charge outcome couldn't be confirmed. | **Never retry with a fresh `requestId`.** Reconcile with `list_payments`; retry with the **same** `requestId`. |
+| `{ "status": "already_paid", "paymentId": "…" }` | This `requestId` already has a payment; not a new charge, and the vendor response isn't replayed. | Find `paymentId` in `list_payments`. Buying again takes a **new** `requestId`. |
+
+Any other `autoPay` refusal (cap exceeded, wallet short, card declined) comes back as a plain tool error (`isError: true`) carrying the Router's own message — see [`pay_service`'s refusals](/mcp/catalog-mcp/pay-service#outcomes-and-refusals). If unsure whether it charged, check `list_payments` and retry only with the **same** `requestId`.
+
+## Try it
+
+**Ask your assistant:**
+
+> Find the best Nevermined service for the current weather in Lisbon.
+
+**Call it directly** (`autoPay` defaults to `false`, so this proposes and charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"route_by_intent","arguments":{"intent":"current weather for Lisbon"}}}'
+```

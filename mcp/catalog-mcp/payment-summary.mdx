@@ -1,0 +1,52 @@
+---
+title: "payment_summary"
+sidebarTitle: "Payment Summary"
+description: "Catalog MCP tool: count your Router payment requests over a period, plus a daily time series."
+---
+
+Count your Router payment **requests** over a period. This reports numbers of payments, **not money**. Reading charges nothing. Needs a credential.
+
+**Auth:** key / grant · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `from` | no | string | ISO-8601 lower bound on `createdAt`, inclusive. |
+| `to` | no | string | ISO-8601 upper bound on `createdAt`, inclusive. |
+
+## Returns
+
+A total, a daily series (oldest first), and a charged-not-delivered count:
+
+```json
+{
+  "total": 42,
+  "series": [
+    { "date": "2026-10-01", "value": 18 },
+    { "date": "2026-10-02", "value": 24 }
+  ],
+  "chargedNotDelivered": 0
+}
+```
+
+- `total` is uncapped (unlike [`list_payments`](/mcp/catalog-mcp/list-payments)'s 1000-record cap).
+- `chargedNotDelivered` is the count of failed payments in the period whose merchant charge was observed — **flag a non-zero count to the user**.
+
+For *amounts* use [`list_payments`](/mcp/catalog-mcp/list-payments); for what's spent or left use [`get_budget`](/mcp/catalog-mcp/get-budget).
+
+## Try it
+
+**Ask your assistant:**
+
+> How many payments have I made this week?
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"payment_summary","arguments":{}}}'
+```

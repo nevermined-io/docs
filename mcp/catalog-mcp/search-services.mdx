@@ -1,0 +1,84 @@
+---
+title: "search_services"
+sidebarTitle: "Search Services"
+description: "Catalog MCP tool: search the Nevermined Agent Services Catalog for paid services, ranked by hybrid semantic + keyword relevance."
+---
+
+Search the Catalog for paid services, ranked by **ARD hybrid relevance** — semantic (meaning) matches merged with lexical (keyword) matches, most relevant first — falling back to pure lexical when the embedding provider is unavailable. **Discovery only — free, no credential, nothing charged.**
+
+To have the platform **pick** (and optionally pay) the single best service for a need instead of choosing yourself, use [`route_by_intent`](/mcp/catalog-mcp/route-by-intent).
+
+**Auth:** free · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `query` | yes | string | What you need, in plain language (`"translate documents to German"`). Ranked semantically **and** lexically. |
+| `category` | no | string | Restrict to services carrying this catalog **tag** (filters on tags exactly like `tag`). Given together with `tag`, matches a service carrying **either** one. |
+| `protocol` | no | enum | One of `x402`, `mpp`, `rest`, `a2a`, `other`. Only `x402` and `mpp` are payable via the Router. |
+| `tag` | no | string | Restrict to services carrying this catalog tag (a protocol or domain keyword from a listing's `tags`). |
+| `prefer` | no | string | Move this opaque catalog slug to the front **when it matched the returned page**; otherwise keep the normal ranked fallback. |
+| `exclude` | no | string | Never return this opaque catalog slug. |
+| `pageSize` | no | integer | Page size, 1–100. |
+
+<Warning>
+**Only the first page is returned.** The `pageToken` in the result **cannot be passed back** to this tool. To see other matches, narrow the `query` or filters, or raise `pageSize` (up to 100).
+</Warning>
+
+## Returns
+
+`results` (ARD records) and an opaque `pageToken` (informational only). Each result carries catalog metadata under `nvm:catalog` plus its own ranking fields. A record's `identifier` is a URN — the slug is its last segment (`urn:air:api.live.nevermined.app:service:openweather-mpp` → `openweather-mpp`):
+
+```json
+{
+  "results": [
+    {
+      "identifier": "urn:air:api.live.nevermined.app:service:openweather-mpp",
+      "displayName": "OpenWeather",
+      "type": "application/json",
+      "url": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp",
+      "description": "Global weather data — current conditions, forecasts, air quality, geocoding",
+      "tags": ["weather", "forecast", "conditions", "temperature"],
+      "nvm:catalog": {
+        "protocol": "mpp",
+        "invokeUrl": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp",
+        "priceLabel": "$0.005–$0.01",
+        "displayPriceLabel": "$0.008",
+        "displayPriceSource": "settled",
+        "network": "Tempo",
+        "healthStatus": "operational",
+        "routerPayable": true
+      },
+      "rankingSource": "semantic",
+      "matchReason": "semantic_similarity",
+      "semanticScore": 46
+    }
+  ],
+  "pageToken": "eyJvZmZzZXQiOjJ9"
+}
+```
+
+Reading the ranking:
+
+- **Read the order, not the numbers.** Results come back in pick order.
+- `rankingSource` is per-item — `semantic` or `lexical`. `matchReason` is a closed value explaining the match.
+- The score field is scale-specific (`semanticScore` for a semantic match, a lexical score otherwise). The two scales are not comparable — don't re-sort across them.
+- `displayPriceSource: "settled"` means the `displayPriceLabel` reflects real multi-payer settlement — the service is genuinely used, not just advertised.
+
+Then read one service in full with [`get_service`](/mcp/catalog-mcp/get-service).
+
+## Try it
+
+**Ask your assistant:**
+
+> Search the Nevermined catalog for weather services.
+
+**Call it directly** (discovery is free — no credential needed):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_services","arguments":{"query":"weather","pageSize":5}}}'
+```

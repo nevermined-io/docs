@@ -49,7 +49,7 @@ The agent never holds card numbers or wallet keys and never calls Stripe or a ch
 ## Step 0 — One-time setup (a human is needed once)
 
 <Warning>
-**The Catalog is Live-only for payment.** Discovery works on either host, but listed services settle on mainnet and the sandbox Router funds testnets only — so paying one from sandbox fails (`400 BCK.ROUTER.0001`). The only things a sandbox key can buy are the two free testnet test merchants kept there for rehearsal (see [the Commerce MCP page](/products/catalog/mcp#1-connect-your-host)). Every step here uses the Live network and real (if tiny) money; keep caps small and rehearse with a sub-cent service.
+**The Catalog is Live-only for payment.** Discovery works on either host, but listed services settle on mainnet and the sandbox Router funds testnets only — so paying one from sandbox fails (`400 BCK.ROUTER.0001`). The only things a sandbox key can buy are the two free testnet test merchants kept there for rehearsal (see [the Commerce MCP page](/mcp/catalog-mcp/overview#1-connect-your-host)). Every step here uses the Live network and real (if tiny) money; keep caps small and rehearse with a sub-cent service.
 </Warning>
 
 - App (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
@@ -61,7 +61,7 @@ The agent never holds card numbers or wallet keys and never calls Stripe or a ch
 **The agent-facing version of this step is [`auth.md`](https://nevermined.app/auth.md)** — the machine-readable manifest kept in lockstep with the API: the discovery documents, the bearer contract and key format, every ceremony that ends in a key (SDK, device flow, and the OAuth **commerce consent**), and what needs a human. Hand it to your harness alongside this page; where the two differ, `auth.md` is the one that names endpoints that exist today.
 </Tip>
 
-**Or let your assistant get it for you.** If your harness is an AI assistant that runs OAuth on your behalf — Claude (the claude.ai connector), ChatGPT, Claude Code, LangSmith Fleet, or another MCP host whose client Nevermined's operator has listed (following the MCP authorization spec buys a host its identity, not this authority — an unlisted host is refused at the consent screen) — you skip the key, and Step 1's delegation: add the [Catalog MCP](/products/catalog/mcp#auth-&-transport) with no key, and the assistant sends you to Nevermined to approve a **spending cap** once — when you add the server on the strict host, on the first paid call on the public one. That approval is the delegation of Step 1 *and* the credential of this step, in one screen; the assistant renews the credential silently. The cap bounds what it can *spend* — not what the grant can see or do on your account (it reads your Router payment history and wallet balance, lists and can revoke your delegations, and can start a new delegation ceremony for you to approve); `auth.md` §6 has the full list. Which host and client each assistant uses (two of the four above need the strict `mcp.api.<tier>` host), and the mechanics the host follows, are `auth.md` §6. **Funding is not skipped:** a commerce grant spends stablecoin from your own wallet, so the next bullet still applies.
+**Or let your assistant get it for you.** If your harness is an AI assistant that runs OAuth on your behalf — Claude (the claude.ai connector), ChatGPT, Claude Code, LangSmith Fleet, or another MCP host whose client Nevermined's operator has listed (following the MCP authorization spec buys a host its identity, not this authority — an unlisted host is refused at the consent screen) — you skip the key, and Step 1's delegation: add the [Catalog MCP](/mcp/catalog-mcp/overview#auth-&-transport) with no key, and the assistant sends you to Nevermined to approve a **spending cap** once — when you add the server on the strict host, on the first paid call on the public one. That approval is the delegation of Step 1 *and* the credential of this step, in one screen; the assistant renews the credential silently. The cap bounds what it can *spend* — not what the grant can see or do on your account (it reads your Router payment history and wallet balance, lists and can revoke your delegations, and can start a new delegation ceremony for you to approve); `auth.md` §6 has the full list. Which host and client each assistant uses (two of the four above need the strict `mcp.api.<tier>` host), and the mechanics the host follows, are `auth.md` §6. **Funding is not skipped:** a commerce grant spends stablecoin from your own wallet, so the next bullet still applies.
 
 **Fund a way to pay.** A **stablecoin** method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. To pay by **card** instead, [enroll one once](/agents-guide/enroll-card) (a one-time in-browser step) — card enrolment funds the card rails only; a `commerce` grant from an assistant always spends stablecoin from your own wallet.
 
@@ -88,7 +88,7 @@ Listings are returned in a **recommended order** — Nevermined's own quality ra
 </Tip>
 
 <Tip>
-**Don't know which service to pay?** Let the Router pick instead of scoring listings yourself: `POST /api/v1/router/select` with a plain-language `intent` (and optional `filters` — `category`, `protocol`, `network`, `maxPriceLabel`) returns the single best **payable** service plus a ranked `shortlist`, chosen deterministically on Nevermined's own relevance and quality signals behind a payability gate. **Take the returned order as authoritative — read the order, not the numbers**: the `relevance` scores can sit on different scales (semantic vs keyword), so re-sorting by them yourself can pick worse. Add `autoPay: true` (with `requestId` + `delegationId`) to select **and** pay in one call. This uses your API key — see the [Router quickstart](/products/catalog/router/quickstart), and [Let the platform pick a service](/products/catalog/mcp#let-the-platform-pick-a-service) for the full shortlist shape.
+**Don't know which service to pay?** Let the Router pick instead of scoring listings yourself: `POST /api/v1/router/select` with a plain-language `intent` (and optional `filters` — `category`, `protocol`, `network`, `maxPriceLabel`) returns the single best **payable** service plus a ranked `shortlist`, chosen deterministically on Nevermined's own relevance and quality signals behind a payability gate. **Take the returned order as authoritative — read the order, not the numbers**: the `relevance` scores can sit on different scales (semantic vs keyword), so re-sorting by them yourself can pick worse. Add `autoPay: true` (with `requestId` + `delegationId`) to select **and** pay in one call. This uses your API key — see the [Router quickstart](/products/catalog/router/quickstart), and [Let the platform pick a service](/mcp/catalog-mcp/overview#let-the-platform-pick-a-service) for the full shortlist shape.
 </Tip>
 
 ## Step 3 — Connect the harness to the Catalog
@@ -103,6 +103,35 @@ Two paths — pick one:
 | Docs | [Catalog MCP](/products/catalog/mcp) | [Router quickstart](/products/catalog/router/quickstart) · [OpenAPI](https://api.live.nevermined.app/api/v1/rest/docs-json) |
 
 Either way the shape is the same: name the service (by slug), pass your delegation, get the result back. The Router reads the vendor's payment challenge, pays from your delegation, and returns the response.
+
+### Using the Catalog MCP
+
+If your harness speaks MCP, the server drops discovery and payment in as native tools. Point your client at the server URL and put your Nevermined API key on the `Authorization` header — or, in an assistant that runs OAuth (Claude, ChatGPT, LangSmith Fleet), connect by URL alone and approve a spending cap once:
+
+```json
+{
+  "mcpServers": {
+    "nevermined-catalog": {
+      "url": "https://mcp.live.nevermined.app/mcp",
+      "headers": { "Authorization": "Bearer ${NVM_API_KEY}" }
+    }
+  }
+}
+```
+
+Use `https://mcp.sandbox.nevermined.app/mcp` to rehearse. The tools your agent then has — discovery is **free**, the rest need the credential, and only `pay_service` / `route_by_intent` (with `autoPay`) move money:
+
+| Tool | Free? | What it does |
+| --- | --- | --- |
+| `list_categories` · `search_services` · `get_service` | free | Browse the Catalog, search it (hybrid ranking), and read one service's callable endpoints. |
+| `route_by_intent` | paid | Describe a need; get the single best payable service back, and optionally pay it. |
+| `quote_service` | paid | Price one call before paying — live, fee-inclusive total. |
+| `pay_service` | paid | Pay a service and return its response. |
+| `setup_delegation` | paid | Get a URL for a human to approve a spending cap, when none exists yet. |
+| `get_payment_result` | paid | Read a paid call's result by `paymentId` (for a `pending` call, or a lost response). |
+| `list_payments` · `payment_summary` · `get_budget` · `wallet_balance` | paid | Reconcile spend, count payments, read the budget, and check wallet funding. |
+
+Every argument, return field and refusal is in the [Catalog MCP reference](/mcp/catalog-mcp/overview); the [product page](/products/catalog/mcp) has the per-assistant setup walkthroughs.
 
 ## The calling convention (one canonical shape)
 

@@ -1,0 +1,76 @@
+---
+title: "get_service"
+sidebarTitle: "Get Service"
+description: "Catalog MCP tool: fetch one catalog service by slug — its metadata and a requestShape describing every callable endpoint and its pay_service arguments."
+---
+
+Fetch one Catalog service by slug: its metadata and a **`requestShape`** block describing every callable endpoint. Read this **before** [`pay_service`](/mcp/catalog-mcp/pay-service) or [`quote_service`](/mcp/catalog-mcp/quote-service). **Discovery only — free, no credential, nothing charged.** An unknown slug returns an error.
+
+**Auth:** free · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `slug` | yes | string | The service slug (from [`search_services`](/mcp/catalog-mcp/search-services)). |
+
+## Returns
+
+A large metadata object; the fields that matter for a call are `protocol`, `priceLabel`, `network`, `healthStatus`, and `requestShape`:
+
+```json
+{
+  "slug": "openweather-mpp",
+  "title": "OpenWeather",
+  "provider": "OpenWeather",
+  "category": "Data & Enrichment",
+  "subCategory": "Weather data",
+  "protocol": "mpp",
+  "priceLabel": "$0.005–$0.01",
+  "network": "Tempo",
+  "healthStatus": "operational",
+  "displayPriceLabel": "$0.008",
+  "displayPriceSource": "settled",
+  "requestShape": {
+    "note": "An endpoint with `requestSchema` carries the JSON Schema of its request as the merchant declares it (`requestSchemaSource` says where from); …",
+    "endpoints": [
+      {
+        "path": "/openweather/current-weather",
+        "method": "POST",
+        "priceLabel": "$0.006",
+        "description": "Current Weather",
+        "pathParams": [],
+        "maxRequestBytes": 8000,
+        "payServiceArgs": { "slug": "openweather-mpp", "path": "/openweather/current-weather", "method": "POST" },
+        "requestSchema": { "type": "object", "properties": { "body": { "type": "object", "properties": { "lat": { "type": "number" }, "lon": { "type": "number" } } } } },
+        "requestSchemaSource": "openapi",
+        "verificationStatus": "unverified"
+      }
+    ]
+  }
+}
+```
+
+Working with `requestShape.endpoints[]`:
+
+- **`payServiceArgs`** is what to hand to [`pay_service`](/mcp/catalog-mcp/pay-service) or [`quote_service`](/mcp/catalog-mcp/quote-service) — **send it as given; its `path` is already the one to use.** It always carries `slug` / `path` / `method`, and for an endpoint with a verified (`paid-run` or `challenge`) example it also carries a pre-filled `body` (and may carry `search` / `headers`); don't drop those and rebuild your own. When `pathParams` is non-empty and an example filled them, `path` already holds **the example's** entity — not a `{placeholder}`, so there is nothing to "replace"; swap in the entity you actually want instead of paying for the example's.
+- **`requestSchema`** is the merchant-declared JSON Schema of the request — **sanitised, not verified** (`requestSchemaSource` names its origin, e.g. `openapi` or `merchant`). In it, `properties.query` lists what goes in the **`search`** argument and `properties.body` what goes in **`body`** — so a `query` block belongs in `search`, not inside `body`. `verificationStatus` is separate: it reports whether Nevermined has confirmed the endpoint actually works (`unverified` until a check passes), so it speaks to the endpoint while the schema stays sanitised-not-verified. An endpoint may instead carry `noParameters: true`, or neither; build the request from the description or the provider's docs when there's no schema.
+- **`maxRequestBytes`** is a per-endpoint request-size cap (e.g. `8000`). A request larger than it is refused with [`BCK.ROUTER.0027`](/products/catalog/router/guardrails#every-error-code) **before** the unpaid probe — nothing is minted and **no charge**; shrink the request below the cap.
+- A **checked invoke contract** may add `invokePath`, `requestExample`, merchant-authored `responseSchema` / `responseExample`, and `exampleEvidence`: `paid-run` (a recorded paid response), `challenge` (proves the request shape only), or `docs` (unverified provider docs). Only `paid-run` and `challenge` examples are pre-filled into `payServiceArgs`; adopt a `docs` example deliberately.
+- An endpoint may carry a **`quote`** — the last merchant price the Catalog observed, with the routing fee **excluded**. Good for comparing services; for the live, fee-inclusive total of your exact call use [`quote_service`](/mcp/catalog-mcp/quote-service).
+- `endpointCheck` records a dated unpaid failure, if any.
+
+## Try it
+
+**Ask your assistant:**
+
+> Show the endpoints and price of the `openweather-mpp` service.
+
+**Call it directly** (discovery is free — no credential needed):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_service","arguments":{"slug":"openweather-mpp"}}}'
+```

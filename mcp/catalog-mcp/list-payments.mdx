@@ -1,0 +1,63 @@
+---
+title: "list_payments"
+sidebarTitle: "List Payments"
+description: "Catalog MCP tool: list your Router payments — the unified ledger across every service and delegation, newest first."
+---
+
+List your Router payments: the unified ledger across every service and delegation, newest first, at most **1000** records. Reading charges nothing. Needs a credential. This reads the same ledger the [Router ledger page](/products/catalog/router/ledger) documents.
+
+**Auth:** key / grant · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `delegationId` | no | string | Only payments charged to this delegation. |
+| `from` | no | string | ISO-8601 lower bound on `createdAt`, inclusive. An unparseable value is an error. |
+| `to` | no | string | ISO-8601 upper bound on `createdAt`, inclusive. An unparseable value is an error. |
+
+## Returns
+
+An array of records. `amount` is in the asset's **smallest unit** (see `assetDecimals`), not cents:
+
+```json
+[
+  {
+    "id": "b1f9c2e4-…",
+    "createdAt": "2026-10-02T13:10:04.000Z",
+    "status": "Settled",
+    "deliveryStatus": "delivered",
+    "protocol": "x402",
+    "network": "base",
+    "requestId": "…",
+    "delegationId": "121b880a-…",
+    "amount": "20000",
+    "assetDecimals": 6
+  }
+]
+```
+
+- `id` is the `paymentId` [`get_payment_result`](/mcp/catalog-mcp/get-payment-result) takes.
+- **`deliveryStatus`** is one of: `delivered` (request settled), `charged_not_delivered` (request failed and the merchant charge was observed), `charged_unconfirmed` (charge observed, delivery unconfirmed), `not_charged` (reconciliation proved no merchant charge), or `pending` (charge outcome unknown).
+
+<Warning>
+On the **card rail (SPT / MPP-stripe)**, `deliveryStatus: "pending"` is **not** proof of no charge. Flag `charged_not_delivered` to the user.
+</Warning>
+
+This tool finds a `paymentId` and reconciles an uncertain payment. It does **not** return service responses (use [`get_payment_result`](/mcp/catalog-mcp/get-payment-result)) or the remaining budget (use [`get_budget`](/mcp/catalog-mcp/get-budget)).
+
+## Try it
+
+**Ask your assistant:**
+
+> List my recent Nevermined Router payments.
+
+**Call it directly** (charges nothing):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_payments","arguments":{}}}'
+```

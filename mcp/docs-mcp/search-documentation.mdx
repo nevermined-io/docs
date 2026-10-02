@@ -1,0 +1,40 @@
+---
+title: "search_nevermined_documentation"
+sidebarTitle: "Search Documentation"
+description: "Docs MCP tool: semantic search across the Nevermined documentation knowledge base, returning titles, snippets, and page links."
+---
+
+Search across the Nevermined documentation knowledge base to find relevant information, code examples, API references, and guides. Use it to answer questions about Nevermined, find specific pages, understand how features work, or locate implementation details. The search returns contextual content with titles and direct links to the documentation pages. See the [Docs MCP overview](/mcp/docs-mcp/overview) for how to connect.
+
+**Charges:** nothing — this server reads public documentation only.
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `query` | yes | string | The search query — plain language works best (`"how to authenticate"`, `"rate limiting"`). |
+
+## Returns
+
+Ranked results, each with a title, a contextual snippet, and a link to the page. Results are the best entry point for a broad or conceptual question.
+
+To read a page in full after searching, use [`query_docs_filesystem_nevermined_documentation`](/mcp/docs-mcp/query-docs-filesystem): append `.mdx` to the path a result returns and `head` or `cat` it — a result at `/some/page` is read with `head -200 /some/page.mdx`.
+
+<Tip>
+Use this tool for **broad or conceptual** queries. For exact keyword/regex matching, structural exploration, or reading a full page by path, reach for [`query_docs_filesystem_nevermined_documentation`](/mcp/docs-mcp/query-docs-filesystem).
+</Tip>
+
+## Try it
+
+**Ask your assistant:**
+
+> Search the Nevermined docs for how to add payments to a FastAPI agent.
+
+**Call it directly** (the docs server replies over SSE — `event: message` / `data: …`):
+
+```bash
+curl -X POST https://nevermined.ai/docs/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_nevermined_documentation","arguments":{"query":"add payments to a FastAPI agent"}}}'
+```
