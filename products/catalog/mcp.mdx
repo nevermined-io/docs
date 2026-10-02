@@ -458,7 +458,7 @@ If the service isn't on a payable rail (only x402 / MPP listings are), nothing i
 ### 6. Check your spend and your balance
 
 - **`list_payments`** — your Router payments, newest first, across every protocol. Filter by `delegationId`, `from`, `to`.
-- **`payment_summary`** — total spend plus a time series over an optional `from` / `to` window.
+- **`payment_summary`** — a count of payments plus a daily time series over an optional `from` / `to` window. (For what you've *spent*, use `get_budget`; for per-payment amounts, `list_payments`.)
 
 Both read the same unified ledger the [Router ledger page](/products/catalog/router/ledger) documents, so a payment made here is reconcilable with everything else your agents spend.
 
