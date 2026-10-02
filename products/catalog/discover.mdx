@@ -29,7 +29,7 @@ jq '.total' ai-catalog.json
 **`/api/v1/catalog/services` and `/api/v1/catalog/categories` aren't a public integration.** They return `403` to outside callers, by design. Read the feed instead, or use the [Catalog MCP](#search-server-side-with-the-catalog-mcp) when you want the search done for you.
 </Note>
 
-The feed lists the **live** Catalog, and its services are live-only for payment: they settle on mainnet and a sandbox deployment funds testnets only, so paying one from sandbox fails with `400 BCK.ROUTER.0001` (see [an agent buying on its own](/products/catalog/router/agent-autonomy)). The one exception is the pair of free testnet test merchants the sandbox Catalog carries for rehearsal — see [the Commerce MCP page](/products/catalog/mcp#1-connect-your-host).
+The feed lists the **live** Catalog, and its services are live-only for payment: they settle on mainnet and a sandbox deployment funds testnets only, so paying one from sandbox fails with `400 BCK.ROUTER.0001` (see [an agent buying on its own](/products/catalog/router/agent-autonomy)). The one exception is the pair of free testnet test merchants the sandbox Catalog carries for rehearsal — see [the Commerce MCP page](/mcp/catalog-mcp/overview#1-connect-your-host).
 
 ### Filter it
 
@@ -95,7 +95,7 @@ curl -s -H "Content-Type: application/json" \
   | jq -r '.result.content[0].text' | jq .
 ```
 
-Always send a `query`, and read the result as plain JSON rather than a fixed shape — search is moving to semantic ranking with a new result format (see [Run a discovery call](/products/catalog/mcp#3-run-a-discovery-call)). Don't page through it: to see the whole Catalog, use the feed. More worked calls, including `get_service`'s `requestShape`, are in [Build Outcomes](/products/catalog/build-outcomes#see-what-the-catalog-proposes).
+Always send a `query`, and read the result as plain JSON rather than a fixed shape — search is moving to semantic ranking with a new result format (see [Run a discovery call](/mcp/catalog-mcp/overview#3-run-a-discovery-call)). Don't page through it: to see the whole Catalog, use the feed. More worked calls, including `get_service`'s `requestShape`, are in [Build Outcomes](/products/catalog/build-outcomes#see-what-the-catalog-proposes).
 
 ## For crawlers and registries
 

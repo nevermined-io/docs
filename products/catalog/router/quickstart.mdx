@@ -16,7 +16,7 @@ Everything here is plain HTTP. The Nevermined SDKs don't expose the Router yet, 
 Driving this from an agent harness? [Using the Catalog from a harness](/products/catalog/from-a-harness) is the code-free companion to this page — the same flow, plus the safety habits (idempotency across retries, soft stops below your cap, funding for merchant + fee) an autonomous buyer should follow.
 </Note>
 
-Set your environment once. The Catalog is **Live-only for payment** — every listed service settles on mainnet, and the sandbox Router funds testnets only (apart from two free testnet test merchants kept there for rehearsal, see [the Commerce MCP page](/products/catalog/mcp#1-connect-your-host)) — so point at the live host:
+Set your environment once. The Catalog is **Live-only for payment** — every listed service settles on mainnet, and the sandbox Router funds testnets only (apart from two free testnet test merchants kept there for rehearsal, see [the Commerce MCP page](/mcp/catalog-mcp/overview#1-connect-your-host)) — so point at the live host:
 
 ```bash
 export NVM_API_URL="https://api.live.nevermined.app"
@@ -101,7 +101,7 @@ The address is the same on every EVM chain — it's one key-derived wallet, so t
 </Note>
 
 <Warning>
-Always read this address back from the live Delegation rather than reusing one you saved. A stale address is the single most common cause of a confusing `402 BCK.ROUTER.0009`. On MPP-tempo the error does name the wallet and the chain it checked — so compare it against the one you funded — but it never echoes the **balance**, and on x402 there is no pre-check and no `0009` at all. [`wallet_balance`](/products/catalog/mcp#6-check-your-spend-and-your-balance) in the Catalog MCP reads the amount back.
+Always read this address back from the live Delegation rather than reusing one you saved. A stale address is the single most common cause of a confusing `402 BCK.ROUTER.0009`. On MPP-tempo the error does name the wallet and the chain it checked — so compare it against the one you funded — but it never echoes the **balance**, and on x402 there is no pre-check and no `0009` at all. [`wallet_balance`](/mcp/catalog-mcp/overview#6-check-your-spend-and-your-balance) in the Catalog MCP reads the amount back.
 </Warning>
 
 ## 4. Make a paid call

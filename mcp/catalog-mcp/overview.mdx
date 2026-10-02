@@ -1,16 +1,68 @@
 ---
 title: "Catalog MCP: Overview"
-description: "Connect the Nevermined Catalog MCP to any harness, local environment, Claude, or ChatGPT — transport, authentication, and the full 12-tool surface for discovering and paying for services."
+description: "The complete guide to the Nevermined Catalog MCP — import it into any harness, Claude, or ChatGPT; authenticate; and discover and pay for services. Links every tool."
 icon: "plug"
 ---
 
-The **Catalog MCP** (also called the Commerce MCP) is a hosted [MCP](https://modelcontextprotocol.io) server that lets an agent in any MCP host **discover** paid services in the [Nevermined Catalog](/products/catalog/overview) and **pay** for them through the [Router](/products/catalog/router/overview) — funded by the caller's own spend-capped budget. The server holds no funds and stores no state: every payment draws on the caller's own Delegation, using the caller's own credential, forwarded per request and never stored.
+The **Catalog MCP** (also called the Commerce MCP) is a hosted [MCP](https://modelcontextprotocol.io) server that drops the Nevermined Catalog and Router straight into the tools an AI assistant already has. Point any MCP host — Claude, ChatGPT, Cursor, a generic MCP client — at it, and your agent can **discover** paid services in the [Nevermined Catalog](/products/catalog/overview) and **pay** for them through the [Router](/products/catalog/router/overview), all from a budget you cap.
 
-This section is the **tool-by-tool reference** — one page per tool. For the narrative walkthrough (per-assistant click-paths, the consent screen, a first paid call), see the [Catalog MCP product page](/products/catalog/mcp).
+It's the third way to reach the Catalog + Router capability, alongside the public REST API and the webapp — and the one that needs no code. The server holds no funds and stores no state: every payment draws on the **caller's own** spend-capped Delegation, using the caller's own credential, forwarded per request and never stored.
 
 <Note>
-This is the **buyer** side. To put a paywall on *your own* MCP server so its tools get paid, that's the seller side — see [MCP Integration](/integrations/mcp). The [Docs MCP](/mcp/docs-mcp/overview) is a third, unrelated server that streams this documentation into your IDE.
+This is the **buyer** side, packaged as MCP tools. If you instead want to put a paywall on *your own* MCP server so its tools get paid, that's the seller side — see [MCP Integration](/integrations/mcp). The [Docs MCP](/mcp/docs-mcp/overview) is a third, unrelated server that streams this documentation into your IDE. See [Not this MCP](#not-this-mcp) below to be sure you're on the right page.
 </Note>
+
+This page is the complete reference: how it fits, the full tool surface (each tool has its own page), how to import and authenticate, a walkthrough quickstart, and the result/error conventions. Jump to a tool: [discovery](#the-tool-surface), [payments](#the-tool-surface), [ledger & wallet](#the-tool-surface).
+
+## How it fits: discover, then pay
+
+The Catalog MCP is the same two-step motion the rest of the Catalog documents, exposed as tools:
+
+<CardGroup cols={2}>
+  <Card title="Discover" icon="magnifying-glass">
+    [`list_categories`](/mcp/catalog-mcp/list-categories), [`search_services`](/mcp/catalog-mcp/search-services), and [`get_service`](/mcp/catalog-mcp/get-service) read the [Catalog](/products/catalog/discover) — public, no key. Your agent finds a service and reads its protocol, endpoint, and price.
+  </Card>
+  <Card title="Pay" icon="route">
+    [`pay_service`](/mcp/catalog-mcp/pay-service) hands the call to the [Router](/products/catalog/router/overview), which reads the merchant's `402`, pays it from your Delegation, enforces the cap, and relays the vendor's response.
+  </Card>
+</CardGroup>
+
+Your agent never holds a private key, never learns a payment protocol, and never needs an account with the service it just paid. The Router, not the agent, speaks each rail — see [How the Router works](/products/catalog/router/how-it-works).
+
+If your agent would rather not choose among listings at all, [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) does both steps in one call: describe the need, get back the best payable service, and optionally pay it — see [Let the platform pick a service](#let-the-platform-pick-a-service).
+
+## The tool surface
+
+Discovery is **free** — no credential needed. Pricing, picking or paying for a service, reading your ledger, your budget and your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you. Of those, only `pay_service` and `route_by_intent` with `autoPay` move money; the rest read or price and charge nothing. **Each tool has its own reference page** — every argument, return field and refusal:
+
+<CardGroup cols={3}>
+  <Card title="Discovery (free)" icon="magnifying-glass">
+    [`list_categories`](/mcp/catalog-mcp/list-categories) · [`search_services`](/mcp/catalog-mcp/search-services) · [`get_service`](/mcp/catalog-mcp/get-service)
+  </Card>
+  <Card title="Payments" icon="route">
+    [`quote_service`](/mcp/catalog-mcp/quote-service) · [`pay_service`](/mcp/catalog-mcp/pay-service) · [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) · [`setup_delegation`](/mcp/catalog-mcp/setup-delegation) · [`get_payment_result`](/mcp/catalog-mcp/get-payment-result)
+  </Card>
+  <Card title="Ledger & wallet" icon="receipt">
+    [`list_payments`](/mcp/catalog-mcp/list-payments) · [`payment_summary`](/mcp/catalog-mcp/payment-summary) · [`get_budget`](/mcp/catalog-mcp/get-budget) · [`wallet_balance`](/mcp/catalog-mcp/wallet-balance)
+  </Card>
+</CardGroup>
+
+| Tool | Auth | Charges | What it does |
+| --- | --- | --- | --- |
+| [`list_categories`](/mcp/catalog-mcp/list-categories) | free | — | Catalog categories and sub-categories, with a count each. |
+| [`search_services`](/mcp/catalog-mcp/search-services) | free | — | Search listings, most relevant first (hybrid semantic + keyword ranking). `query` required; filters: `category`, `protocol`, `tag`, `prefer`, `exclude`, `pageSize`. |
+| [`get_service`](/mcp/catalog-mcp/get-service) | free | — | One service by `slug` — protocol, price label, and a `requestShape` naming each callable endpoint and its `pay_service` arguments. |
+| [`quote_service`](/mcp/catalog-mcp/quote-service) | key / grant | nothing | Price one call before paying it — live, fee-inclusive total, rail and network. Reaches the service unpaid. |
+| [`pay_service`](/mcp/catalog-mcp/pay-service) | key / grant | **real funds** | Pay for a service and return the vendor's response. |
+| [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) | key / grant | **real funds if `autoPay`** | Describe a need; get the single best payable service plus a ranked shortlist, and optionally pay it. |
+| [`setup_delegation`](/mcp/catalog-mcp/setup-delegation) | key / grant | nothing | Start the delegation ceremony — returns one URL a human opens to authorise a spending cap. |
+| [`get_payment_result`](/mcp/catalog-mcp/get-payment-result) | key / grant | nothing | Read a paid call's result by `paymentId` — for a `pending` call, or a response you lost. |
+| [`list_payments`](/mcp/catalog-mcp/list-payments) | key / grant | nothing | Your Router payments (unified ledger, newest first). Filters: `delegationId`, `from`, `to`. |
+| [`payment_summary`](/mcp/catalog-mcp/payment-summary) | key / grant | nothing | Count of payments plus a daily time series. Filters: `from`, `to`. |
+| [`get_budget`](/mcp/catalog-mcp/get-budget) | key / grant | nothing | The spending budget `pay_service` draws on — cap, spent, remaining, expiry. |
+| [`wallet_balance`](/mcp/catalog-mcp/wallet-balance) | key / grant | nothing | What your funding wallet holds, on every network the Catalog settles on. Filter: `network`. |
+
+Every tool declares this split in its listing (`securitySchemes`: `noauth` on the free tools, `oauth2` with the `commerce` scope on the paid ones), so a host that reads tool metadata — ChatGPT does — knows which tools need linking before it calls one.
 
 ## Import the MCP
 
@@ -25,7 +77,7 @@ This is the **buyer** side. To put a paywall on *your own* MCP server so its too
 
 ### Instant Setup Commands
 
-Any host that can send headers takes the server URL plus your Nevermined API key on the `Authorization` header. Discovery works with no key; paying needs a Nevermined **API key** and a funded, spend-capped **Delegation** — get a key from the [Nevermined app](https://nevermined.app) (see [Get an API key](/products/catalog/mcp#2-get-an-api-key)). Choose your tool:
+Any host that can send headers takes the server URL plus your Nevermined API key on the `Authorization` header. Discovery works with no key; paying needs a Nevermined **API key** and a funded, spend-capped **Delegation** — get a key from the [Nevermined app](https://nevermined.app) (see [Get an API key](#2-get-an-api-key)). Choose your tool:
 
 <Tabs>
   <Tab title="Claude Code">
@@ -82,63 +134,485 @@ Any host that can send headers takes the server URL plus your Nevermined API key
 
 Then restart your IDE to activate the connection. Rehearse on `https://mcp.sandbox.nevermined.app/mcp` first. A **stdio-only** host can bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
 
+If your assistant runs OAuth for you (Claude, ChatGPT, LangSmith Fleet), you don't need a key at all — connect by URL and approve a spending cap once. That path is [Connect from your assistant](#connect-from-your-assistant) below; the API-key path is the [Quickstart](#quickstart).
+
 <Warning>
 These point at **live**, where `pay_service` moves real funds. Rehearse on sandbox, then switch to live with a small Delegation cap and the cheapest sub-cent service.
 </Warning>
 
-### Claude, ChatGPT, LangSmith Fleet (OAuth, no key)
+## Auth & transport
 
-If your assistant runs OAuth for you, connect by **URL alone** — no API key — and approve a spending cap once. Point the assistant at the server URL, leave the client ID and secret empty, and it discovers the rest. The per-assistant click-paths (and LangSmith Fleet's manual setup) are on the [product page](/products/catalog/mcp#connect-from-your-assistant).
+- **Transport:** Streamable HTTP at `POST /mcp` (stateless — each call is a self-contained JSON-RPC request; no session id). Liveness at `GET /health`; readiness — which checks the Nevermined API is reachable — at `GET /ready`. `initialize` reports the server as `nevermined-commerce`.
+- **Two ways to authenticate, one server.**
+  - **API key** (any host that can send headers): put your Nevermined key on `Authorization: Bearer <key>`. Every tool is served exactly as before; this is the path the [quickstart](#quickstart) below uses.
+  - **OAuth** (hosts that can't be handed a key — Claude connectors, and hosts that follow the MCP authorization spec): connect with **no** header at all. The server is an OAuth 2.0 protected resource — when it needs a credential it answers `401` with a `WWW-Authenticate` challenge that points your host at the discovery document (`/.well-known/oauth-protected-resource/mcp`) and asks for the **`commerce`** scope. Your host follows it to Nevermined, you approve a spending cap once, and the host retries the call with the credential it was granted. The credential is a `commerce` grant: it spends only from the Delegation you approved, through the Router, and nothing else.
+- **Which hosts can be granted `commerce`.** A host that follows the MCP spec identifies itself with a URL (its Client ID Metadata Document), so it never needs registering — but a `commerce` grant is account-level authority, and Nevermined grants it only to hosts its operator has listed by that URL. **ChatGPT, Claude (the claude.ai connector) and Claude Code are listed out of the box**, and a statically registered connector (LangSmith Fleet, with a registered redirect allow-list instead of a URL) is enabled the same way; a host that is neither is refused when you press Approve (`BCK.OAUTH.0018`), never silently granted. For a self-registering host the consent screen shows its domain (`chatgpt.com`) beside the name it calls itself, so you can check who is asking; a statically registered one shows its registered name only. How an operator lists another assistant: [self-registering clients](/integrate/authentication/oauth-authorization-code#self-registering-clients-identity-from-the-document-trust-from-the-operator).
+- The credential — key or grant — is forwarded to the Nevermined API **per request**, never stored, never logged. Never send it to the merchant you're paying; it authenticates you to Nevermined, nothing else.
 
-## Transport
+### What happens without a credential
 
-Streamable HTTP, **stateless** — each call is a self-contained JSON-RPC request; no session id is required.
+The server runs on two hostnames per environment. They serve the same tools and differ only in **when** a request without a credential gets the challenge:
 
-| Path | Method | Purpose |
-| --- | --- | --- |
-| `/mcp` | `POST` | The MCP endpoint — `initialize`, `tools/list`, `tools/call`. |
-| `/health` | `GET` | Liveness. |
-| `/ready` | `GET` | Readiness — also checks the Nevermined API is reachable. |
-
-Send `Content-Type: application/json` and `Accept: application/json, text/event-stream`. `initialize` reports the server as `nevermined-commerce`.
-
-## Authentication
-
-Two ways, one server. The credential — key or grant — is forwarded to the Nevermined API **per request**, never stored, never logged, never sent to the merchant.
-
-- **API key** — your Nevermined key on `Authorization: Bearer <key>`. Works on any header-capable host.
-- **OAuth** (`commerce` scope) — connect with **no** header. When the server needs a credential it answers `401` with a `WWW-Authenticate` challenge pointing at `/.well-known/oauth-protected-resource/mcp`; your host runs the flow, you approve a spending cap once, and it retries with the grant. The grant spends only from the Delegation you approved, through the Router. See [Auth & transport](/products/catalog/mcp#auth-&-transport) for which hosts can be granted `commerce`.
-
-**Free vs paid.** Discovery is free — no credential. Everything else needs a credential; of those, only `pay_service` and `route_by_intent` (with `autoPay: true`) move money — the rest read your account or price a call and charge nothing.
-
-## The tool surface
-
-<CardGroup cols={3}>
-  <Card title="Discovery (free)" icon="magnifying-glass">
-    [`list_categories`](/mcp/catalog-mcp/list-categories) · [`search_services`](/mcp/catalog-mcp/search-services) · [`get_service`](/mcp/catalog-mcp/get-service)
-  </Card>
-  <Card title="Payments" icon="route">
-    [`quote_service`](/mcp/catalog-mcp/quote-service) · [`pay_service`](/mcp/catalog-mcp/pay-service) · [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) · [`setup_delegation`](/mcp/catalog-mcp/setup-delegation) · [`get_payment_result`](/mcp/catalog-mcp/get-payment-result)
-  </Card>
-  <Card title="Ledger & wallet" icon="receipt">
-    [`list_payments`](/mcp/catalog-mcp/list-payments) · [`payment_summary`](/mcp/catalog-mcp/payment-summary) · [`get_budget`](/mcp/catalog-mcp/get-budget) · [`wallet_balance`](/mcp/catalog-mcp/wallet-balance)
-  </Card>
-</CardGroup>
-
-| Tool | Auth | Charges | What it does |
+| Host | `initialize`, `tools/list`, free tools | A paid tool call | With a credential |
 | --- | --- | --- | --- |
-| [`list_categories`](/mcp/catalog-mcp/list-categories) | free | — | Catalog categories and sub-categories, with a count each. |
-| [`search_services`](/mcp/catalog-mcp/search-services) | free | — | Search listings, hybrid (semantic + keyword) ranking, most relevant first. |
-| [`get_service`](/mcp/catalog-mcp/get-service) | free | — | One service by `slug` — metadata and a `requestShape` naming each callable endpoint. |
-| [`quote_service`](/mcp/catalog-mcp/quote-service) | key / grant | nothing | Price one call before paying it — live, fee-inclusive total. |
-| [`pay_service`](/mcp/catalog-mcp/pay-service) | key / grant | **real funds** | Pay for a service and return the vendor's response. |
-| [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) | key / grant | **real funds if `autoPay`** | Describe a need; get the best payable service, and optionally pay it. |
-| [`setup_delegation`](/mcp/catalog-mcp/setup-delegation) | key / grant | nothing | Start the delegation ceremony — returns one URL a human opens to authorise a cap. |
-| [`get_payment_result`](/mcp/catalog-mcp/get-payment-result) | key / grant | nothing | Read a paid call's result by `paymentId`. |
-| [`list_payments`](/mcp/catalog-mcp/list-payments) | key / grant | nothing | Your Router payments (unified ledger, newest first). |
-| [`payment_summary`](/mcp/catalog-mcp/payment-summary) | key / grant | nothing | Count of payments over a period, plus a daily time series. |
-| [`get_budget`](/mcp/catalog-mcp/get-budget) | key / grant | nothing | The spending budget `pay_service` draws on — cap, spent, remaining, expiry. |
-| [`wallet_balance`](/mcp/catalog-mcp/wallet-balance) | key / grant | nothing | What your funding wallet holds, per network. |
+| `mcp.<env>.nevermined.app` — the URL in the quickstart | Served, no credential needed | `401` + challenge — your host prompts you to connect, then retries | Served |
+| `mcp.api.<env>.nevermined.app` | `401` + challenge on the very first request | `401` + challenge | Served |
+
+Use the first host. It lets an assistant browse the Catalog before anyone signs in, and starts the consent only when the agent actually tries to pay — Claude shows an inline **Connect** card at that moment and retries the same call once you've approved. The second host is for clients that only look for auth when they first connect; it challenges immediately instead.
+
+An expired or revoked credential on a paid call also comes back as a `401` (`error="invalid_token"`), so a host can refresh or re-authorize on its own rather than surfacing an error to you. A host that links accounts per tool rather than per connection (ChatGPT's documented mechanism) gets the same information in-band: the paid tools carry `securitySchemes`, and a refused call returns an error result carrying the challenge under `_meta["mcp/www_authenticate"]`.
+
+<Note>
+Environments are `sandbox` and `live` — `mcp.sandbox.nevermined.app` and `mcp.live.nevermined.app`. The OAuth ceremony lands you on the same consent screen for both; on **live** the cap you approve is real money.
+</Note>
+
+## See it in action
+
+<Frame caption="Claude, ChatGPT and a LangSmith Fleet agent each buy real services from a $5 budget approved once — recorded on live, with real money.">
+  <iframe
+    src="https://www.youtube.com/embed/EJk5ZHmd4u0"
+    title="Your AI assistant can now pay for things"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+    style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: "0.5rem", border: 0, display: "block" }}
+  ></iframe>
+</Frame>
+
+One-assistant walkthroughs, each showing that product's configuration in full:
+[Claude](https://youtu.be/ioDqtiHtOGg) · [ChatGPT](https://youtu.be/e_-bQlLdRdg) · [LangSmith Fleet](https://youtu.be/wbwrg8v0uys).
+
+## Connect from your assistant
+
+If your assistant can run OAuth for you — Claude, ChatGPT, LangSmith Fleet — you never handle a key. The shape is the same in all three:
+
+<Steps>
+  <Step title="Point your assistant at the server">
+    For **Claude** and **ChatGPT** that is the entire configuration: paste the server URL, leave the client ID and secret empty, and the assistant discovers everything else from the server. No API key either way.
+
+    **LangSmith Fleet is the exception** — it does not discover, so you enter the endpoints yourself, once: an OAuth provider (ID `nevermined`, client ID `langsmith-fleet`, a placeholder secret, the authorization and token URLs, PKCE/S256) and then the MCP server pointed at it. Its tab below has the values.
+  </Step>
+  <Step title="Browse the Catalog for free">
+    Discovery answers with no sign-in at all. Ask for the categories, search for a service, read its price.
+  </Step>
+  <Step title="Approve a spending cap, once">
+    Nevermined's consent page opens: check the **Sandbox / Live** badge, set the **cap** and how long it is **valid for**, press **Grant access**. *When* this fires is the one thing each host does differently — Claude asks at the first paid call, ChatGPT at creation, Fleet when it connects.
+  </Step>
+  <Step title="That approval is the credential">
+    It is a **commerce grant**: it spends only from the Delegation you just approved, only through the Router, and you can revoke it at any time. Your assistant retries the call it was blocked on.
+  </Step>
+</Steps>
+
+<Tip>
+**Ask in a way that makes the agent reach for the Catalog.** All three assistants will happily answer from their own knowledge and charge nothing — which looks like a broken connector and isn't. Three things help:
+
+- **Name the connector in the prompt** — *"using the Nevermined connector, …"*.
+- **Ask for something only live data can answer.** Anything the model can answer from training, it will — for free, and usually correctly.
+- **Describe the need, or name the service** — *"translate documents to German"*, `OpenWeather`. Catalog search ranks by meaning as well as by keyword, so a plain-language need finds services that never use your exact words. Narrow with the `category`, `tag` and `protocol` filters rather than by stacking words.
+</Tip>
+
+### Pick an environment
+
+| Where you point it | Server URL | What a payment costs |
+| --- | --- | --- |
+| **Live** | `https://mcp.live.nevermined.app/mcp` | Real merchants, real money — bounded by the cap you approve |
+| **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` | Sandbox test merchants, testnet funds |
+| **LangSmith Fleet**, on either tier | `https://mcp.api.live.nevermined.app/mcp` · `https://mcp.api.sandbox.nevermined.app/mcp` | As the matching row above — Fleet needs the `mcp.api.` host to be challenged on connect; see its tab |
+
+The click paths below are what each product shows today; the mechanics underneath are the same for any host that follows the MCP authorization spec.
+
+<Tabs>
+  <Tab title="Claude (claude.ai)">
+    <Steps>
+      <Step title="Add the connector">
+        **Settings → Connectors → Add custom connector.** Give it a name and paste the server URL. Leave the OAuth client ID and secret **empty**.
+      </Step>
+      <Step title="Ask for something free">
+        In a chat, enable the connector from the tools menu and ask *"list the Nevermined catalog categories"*. It answers with no sign-in.
+      </Step>
+      <Step title="Ask it to buy">
+        *"Buy the service with slug `<slug>` through the Nevermined connector and show me the merchant's response."* The paid tool answers `401`, and Claude shows an inline **Connect** card.
+      </Step>
+      <Step title="Approve the cap">
+        **Connect** → Nevermined's consent page opens in a popup. Check the **Sandbox / Live** badge, set the **cap** and **validity**, then **Grant access**.
+      </Step>
+      <Step title="Claude retries">
+        It reports *Authentication complete* and **retries the same call** with the grant. The result carries the price, the fee and the merchant's response.
+      </Step>
+    </Steps>
+
+    <Note>
+    There is nothing to register because Claude identifies itself to Nevermined with its own client metadata document — which is also why the client ID and secret fields stay empty.
+    </Note>
+  </Tab>
+  <Tab title="ChatGPT">
+    <Steps>
+      <Step title="Turn on Developer mode">
+        **Settings → Security and login → Developer mode.** It needs a paid plan (Plus or above). *Plugins* then appears in the sidebar.
+      </Step>
+      <Step title="Create an MCP app">
+        **Plugins → ＋ → Create app → Create MCP app.**
+
+        The ＋ menu also offers *Create plugin*, which opens an assistant that **builds** a plugin from scratch — not what you want here.
+      </Step>
+      <Step title="Fill in the New Plugin dialog">
+        - **Name** — read the warning below first; you only get one shot at it.
+        - **Connection** — leave the toggle on **Server URL** and paste the URL. (*Tunnel* is for a server running on your own machine.)
+        - **Authentication** — **OAuth**. No client ID or secret.
+        - **Advanced OAuth settings** — leave it closed. It reads *"Enter a valid MCP Server URL to review discovered OAuth settings"*: ChatGPT discovers them from the server itself.
+        - **Icon** and **Description** are optional (PNG 256×256, 10 KB max).
+        - Tick **I understand and want to continue** under the red *"Custom MCP servers introduce risk"* notice.
+      </Step>
+      <Step title="Create — and approve the cap">
+        The OAuth ceremony fires **immediately at creation**, before any tool call: ChatGPT shows *Add Nevermined … to ChatGPT?* and opens the consent page. Check the **Sandbox / Live** badge, set the **cap** and **validity**, **Grant access**. The plugin shows as connected.
+      </Step>
+      <Step title="Use it">
+        In a new chat the plugin is available automatically — there is nothing to add from the composer. Ask for the categories, then to buy a slug. Each paid call first asks *Allow ChatGPT to use Nevermined …?* — **Allow** (once, or always).
+      </Step>
+    </Steps>
+
+    <Warning>
+    **Choose the name carefully — a plugin cannot be deleted.** Its ⋯ menu offers only *Download plugin ZIP* and *Upload new version*. Names are unique per account, so a name you have used is taken for good, and uninstalling does not free it.
+    </Warning>
+
+    <Note>
+    ChatGPT presents its **stable** identity (`https://chatgpt.com/oauth/client.json`) to Nevermined, so the grant survives reconnecting the same plugin.
+    </Note>
+  </Tab>
+  <Tab title="LangSmith Fleet">
+    Fleet authenticates MCP servers through a LangSmith **OAuth provider**, so there are two objects to create.
+
+    <Steps>
+      <Step title="Create the OAuth provider">
+        **Settings → OAuth providers → New.**
+
+        | Field | Live | Sandbox |
+        | --- | --- | --- |
+        | Provider ID | `nevermined` | `nevermined` |
+        | Client ID | `langsmith-fleet` | `langsmith-fleet` |
+        | Client secret | `unused` — any placeholder | `unused` |
+        | Authorization URL | `https://nevermined.app/oauth/authorize?network=live&consent_type=commerce` | `https://nevermined.app/oauth/authorize?network=sandbox&consent_type=commerce` |
+        | Token URL | `https://api.live.nevermined.app/oauth/token` | `https://api.sandbox.nevermined.app/oauth/token` |
+        | PKCE | enabled, method **S256** | enabled, method **S256** |
+      </Step>
+      <Step title="Add the MCP server">
+        **Settings → Integrations → Add custom MCP.** Name it and paste **`https://mcp.api.live.nevermined.app/mcp`** — or `https://mcp.api.sandbox.nevermined.app/mcp` when the provider points at sandbox. Choose **OAuth 2.1 (Manual)** and select the provider from step 1. Save.
+      </Step>
+      <Step title="Connect and approve the cap">
+        Fleet asks *Connect now?* → the consent page opens. Check the **Sandbox / Live** badge, set the **cap** and **validity**, **Grant access**. Fleet reports *Authentication complete*.
+      </Step>
+      <Step title="Use it">
+        In a new thread ask for the categories, then to buy a slug. Fleet resolves the tools through its *Find Tools* step, calls `get_service` and `pay_service`, and shows the merchant's response.
+      </Step>
+    </Steps>
+
+    <AccordionGroup>
+      <Accordion title="Why the provider ID must be exactly `nevermined`">
+        The provider ID becomes the path of the callback LangSmith uses, and `nevermined` is the one Nevermined redirects to. A provider named anything else is refused when you press **Approve** (`BCK.OAUTH.0017`, redirect not registered). There is exactly **one** provider, and it points at one environment at a time.
+      </Accordion>
+      <Accordion title="Why a client secret at all, when Nevermined ignores it">
+        LangSmith makes the field mandatory; Nevermined does not use it. The authorization server advertises `token_endpoint_auth_methods_supported: ["none"]`, and `/oauth/token` answers identically whether or not a secret is sent — both requests get past client authentication. Any placeholder will do.
+
+        What *is* load-bearing is **PKCE with method S256**. With client authentication set to `none`, PKCE is the only proof of the client the server has — and `code_challenge_methods_supported` lists `S256` alone, so enable it and pick that method.
+      </Accordion>
+      <Accordion title="Why `network=` is not optional">
+        `network` is what selects the tier. Without it the consent screen opens on whichever tier your browser last used (Live by default), which either dead-ends the code against the other tier's token endpoint or has you approve a real-money cap when you meant to rehearse.
+      </Accordion>
+      <Accordion title="Why the `mcp.api.` host, on both tiers">
+        Fleet only starts the OAuth ceremony when the server challenges it **on connect**, and that is what this host does. The `mcp.<tier>` hosts answer discovery with no challenge, so Fleet would connect happily and never ask you to authenticate.
+      </Accordion>
+      <Accordion title="Switching tiers means editing three values together">
+        The provider's authorization URL (`network=`), its token URL, and the MCP integration's server URL. Change one and the flow breaks in a way that reads like a Nevermined error.
+      </Accordion>
+    </AccordionGroup>
+
+    <Warning>
+    If the workspace already has a Nevermined MCP server configured with static headers, remove or disable it first: both servers expose the same tool names and the agent may dispatch the paid call to either one.
+    </Warning>
+  </Tab>
+  <Tab title="Any other MCP host">
+    A host that follows the [MCP authorization spec](https://modelcontextprotocol.io/specification/latest/basic/authorization) needs only the URL: the server's `401` challenge points it at `/.well-known/oauth-protected-resource/mcp`, which names the Nevermined authorization server, and Nevermined accepts clients that identify with a **client metadata document** (an `https` URL as `client_id`) as well as pre-registered ones.
+
+    Discovery-driven hosts that prompt for auth only when they first connect should use the `mcp.api.<env>` host. A host that cannot run OAuth at all uses an API key instead — that is the [quickstart](#quickstart) below.
+  </Tab>
+</Tabs>
+
+<Note>
+**Which clients can obtain a commerce grant is a per-environment allow-list**, not a self-serve setting. ChatGPT, Claude, Claude Code and LangSmith Fleet (any workspace, through the `nevermined` provider ID) are enabled today. An unknown client is refused when you press **Approve**, never silently granted. Building your own host? [Contact us](https://nevermined.ai) with its client identity — a metadata-document URL, or the client ID and redirect URIs you need registered — before you try; [how listing works](/integrate/authentication/oauth-authorization-code#self-registering-clients-identity-from-the-document-trust-from-the-operator).
+</Note>
+
+### What the consent page asks
+
+One screen. **What you set:**
+
+- The **spending cap**, in USDC or EURC.
+- How long the grant is **valid for**.
+- Nothing else — the **environment** badge (Sandbox or Live) and **who is asking** are shown, not chosen. The assistant's name appears with its origin beside it (`chatgpt.com`, `claude.ai`) for a self-registering client; a statically registered client such as LangSmith Fleet shows its name only.
+
+**What to read before you grant:**
+
+- On **Live**, the cap is real money.
+- The assistant may pay **any service it can reach, not a fixed list**.
+- **Nevermined's routing fee comes out of the same cap** — the cap is the total debited, not what merchants receive.
+- Beyond spending, the grant lets the assistant read your Router payment history, your spend totals, and the funding wallet's address and balance. **The cap bounds what it can spend, not what it can see.**
+
+Granting creates a Delegation confined to that cap and window, funded from your own wallet, and hands the assistant a credential that spends only through it. It grants no other authority on your account; in particular, it never authorizes a card mandate.
+
+### When the grant runs out
+
+- **The credential itself is short-lived** (about an hour) and the assistant renews it silently with a refresh token for as long as the Delegation is usable **and the assistant keeps using it**: a grant left idle for 30 days can no longer be renewed silently (the renewal answers HTTP 400, `BCK.OAUTH.0011`) and has to be re-linked, even on a 90-day cap — the Delegation itself is untouched. You see nothing otherwise.
+- **When you disconnect**, the credential is refused on its next use — a `401` on the paid call. What the assistant then *shows* you differs by product, verified on live 2026-09-24: **Claude** renders an inline **Connect** card and, once you grant, retries the blocked call by itself; **ChatGPT** shows a **Reconnect Nevermined** card with a button (its wording says the connection "expired" even when you revoked it); **LangSmith Fleet** reports *"Authorization required"* in the thread and names Integrations, but offers no button — and needs the extra step in the troubleshooting section below. On all three the connector itself stays configured; you never remove and re-add it. **When the cap is spent or the validity window ends**, the credential itself is still valid: the paid call fails with an error naming the exhausted or expired Delegation (an in-band tool error, not a re-link prompt), and the next renewal is refused with an HTTP 400 carrying `BCK.OAUTH.0013` (budget exhausted) or `BCK.OAUTH.0012` (delegation expired). Discovery keeps working in every case. Re-run the connect step to approve a **new** cap — a Delegation is never widened or extended in place.
+- **To revoke early**, open **Connections** in the [Nevermined app](https://nevermined.app/connections) and disconnect the assistant. The credential stops working on its next call.
+
+### When connecting goes wrong
+
+<AccordionGroup>
+  <Accordion title="Connect completed instantly and no consent screen ever appeared">
+    On **LangSmith Fleet**, a grant is stored as an **account** under the integration — not on the OAuth provider or the MCP server. Deleting both of those leaves the accounts untouched, so recreating the provider with the same ID hands the old credential straight back from the account list.
+
+    The symptom is quiet. Connect completes with no consent screen, the integration keeps showing its tools, and then paid calls fail with an authorization error while the agent falls back to its own tooling and charges nothing. If the Nevermined grant was revoked in the meantime, nothing in Fleet says so: the integration still reads **Connected** because it still holds the stored account.
+
+    **The control is on the integration, not on the MCP servers row** — that row offers only *Refresh tools* and *Delete*. Go to **Settings → Integrations → Nevermined** and work on its **Accounts** list: remove the stale account, or use **+ Connect new account** and then **set the new one as Primary**. Read the next entry before you do — a new consent *adds* an account and does not take the **☆ Primary** star, which is the difference between this working and appearing to.
+
+    Waiting about an hour for the access token to expire also makes the next connect prompt for consent, and a different LangSmith **organization** has its own account list (organizations are a paid-plan feature) — but neither removes the stale account, so both land you in the Primary trap below. Clearing browser storage or signing out does **not** help: the accounts are not in your browser.
+  </Accordion>
+  <Accordion title="Fleet still says Authorization required after you reconnect it">
+    On **LangSmith Fleet** a grant is stored as an **account** under the integration, and a new consent **adds** one rather than replacing the old. The dead account stays in the list, keeps the **☆ Primary** star, and Primary is what the agent uses — so re-authorizing appears to succeed, the integration still shows **Connected**, a working credential is sitting right there, and every paid call keeps failing.
+
+    Open **Settings → Integrations → Nevermined**, use **+ Connect new account** to grant again, then **set the new account as Primary**. Nothing in the error message, the dialog or the Connected badge points at that step. Verified on live 2026-09-24: with a fresh grant present but Primary still on the revoked account, the agent reported "Authorization required"; promoting the new account made the same call succeed immediately.
+
+    Old accounts accumulate. They are safe to leave, but only the Primary one is used, so prune them if you cannot tell which is current — Fleet names them itself and the label says nothing about which grant it holds.
+  </Accordion>
+  <Accordion title="`BCK.OAUTH.0017` when you press Approve">
+    The redirect is not registered. On Fleet that means the OAuth provider's ID is not exactly `nevermined` — the provider ID is what forms the callback path. Recreate the provider with the right ID, and expect the stale-account behaviour above on the next connect.
+  </Accordion>
+  <Accordion title="The agent says the budget is spent, or the grant expired">
+    That is the Delegation, not the connection — see [When the grant runs out](#when-the-grant-runs-out). A Delegation is never widened or extended in place, so you approve a **new** cap rather than raising the old one.
+
+    On **Claude** and **ChatGPT**, re-running the connect step opens the consent screen again. On **LangSmith Fleet** it usually will not: the server-side token is still cached and still authenticates, so Fleet reconnects silently and the paid call keeps failing against the spent Delegation. Wait for the access token to expire (about an hour) and connect again, or use a different LangSmith organization — the same two remedies as the silent-connect case above.
+  </Accordion>
+  <Accordion title="It answers the question without paying anything">
+    Usually the prompt, not the connector. The assistant answered from its own knowledge, or Catalog search returned nothing and it fell back to its own tooling — see the phrasing tips at the top of this section. Confirm the connection separately by asking for the Catalog categories, which is a free tool call and either works or doesn't.
+  </Accordion>
+</AccordionGroup>
+
+## Quickstart
+
+The **API-key** route, for hosts that can send headers but cannot run OAuth (a coding agent with a config file, a script, a stdio bridge). Connect a host, run a discovery call, then a paid call — end to end. Discovery works with no credentials; paying needs a Nevermined **API key** and a **funded, spend-capped Delegation**. Using Claude, ChatGPT or Fleet? You want [Connect from your assistant](#connect-from-your-assistant) instead — no key involved.
+
+### 1. Connect your host
+
+Point an MCP client at the server URL and set the `Authorization` header to your Nevermined API key — the [Instant Setup Commands](#instant-setup-commands) above have the per-host form; the generic shape is:
+
+```json
+{
+  "mcpServers": {
+    "nevermined-catalog": {
+      "url": "https://mcp.live.nevermined.app/mcp",
+      "headers": { "Authorization": "Bearer ${NVM_API_KEY}" }
+    }
+  }
+}
+```
+
+| Environment | Server URL | Purpose |
+| --- | --- | --- |
+| **Live** | `https://mcp.live.nevermined.app/mcp` | Discovery and real payments |
+| **Sandbox** | `https://mcp.sandbox.nevermined.app/mcp` | Discovery, plus free test purchases from two testnet merchants |
+
+<Warning>
+**The config above points at live**, where `pay_service` moves real funds to a real merchant. Rehearse on sandbox first (below), then switch to live with the cheapest sub-cent service and keep your first Delegation cap small.
+</Warning>
+
+<Tip>
+**Sandbox has something to buy.** The sandbox Router funds testnets only, so the mainnet listings the sandbox Catalog also carries — the same content seeds populate both databases; nothing propagates between tiers afterwards — can't be paid there. Two free **testnet test merchants** can, so you can run the whole loop (discover, pay, read the ledger) without spending anything — you still need a Delegation whose wallet holds the testnet asset for the rail you pick (see [step 4](#4-prepare-to-pay)): `mpp-dev-paid-ping` (MPP on Tempo Moderato, `GET`, $0.10 in testnet pathUSD) and `x402-org-protected` (x402 on Base Sepolia, `GET`, $0.01 in testnet USDC). Both are tagged `testnet` and listed last, and `pay_service` with just the `slug` settles against either. They don't exist on live.
+</Tip>
+
+<Note>
+**Stdio-only host?** Some hosts speak MCP over stdio, not HTTP. Bridge them with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote), which forwards the same URL and header to a local stdio endpoint.
+</Note>
+
+### 2. Get an API key
+
+Create a **Nevermined API key** from the [Nevermined app](https://nevermined.app). Discovery tools don't need it, but `pay_service` and the ledger tools do. Older keys are rejected by the Router — see [the Router quickstart](/products/catalog/router/quickstart#1-get-an-api-key) for how to tell which you have.
+
+The key is sent as a request header, forwarded to the Nevermined API per call, and never stored or logged by the MCP server. Never put it in a tool argument or send it to a merchant.
+
+### 3. Run a discovery call
+
+Discovery is public — call these before you've set any key. Ask your host to run:
+
+- **[`list_categories`](/mcp/catalog-mcp/list-categories)** — the Catalog's categories, each with a count.
+- **[`search_services`](/mcp/catalog-mcp/search-services)** with `{ "query": "weather", "protocol": "x402" }` — weather listings on the x402 rail, most relevant first. `query` is required; also filter by `category` and `tag` (both narrow the same tag set, so passing both matches a listing tagged with either), and set `pageSize` (1–100). You get the first page only: the `pageToken` in the result can't be passed back yet, so narrow the query rather than paging. Each result is an ARD record carrying an `identifier` URN, not a `slug` — the slug is its last segment (`urn:air:api.live.nevermined.app:service:openweather-mpp` → `openweather-mpp`).
+- **[`get_service`](/mcp/catalog-mcp/get-service)** with `{ "slug": "<a-slug-from-the-search>" }` — one service's protocol, price label, and its **`requestShape`**: every callable endpoint with its `path`, HTTP `method`, price and `pathParams`, each carrying the exact `payServiceArgs` to hand to `pay_service`. An endpoint may also carry the JSON Schema of its request (`requestSchema`, as the merchant declares it — sanitised by Nevermined, not verified) or `noParameters: true`; for one with neither, build the request from its description or the provider's docs. An endpoint with a `quote` has a live price: the merchant's price for one call, on the rail and network the Router pays it on, with the routing fee excluded — see [Price a call before paying](#price-a-call-before-paying).
+
+In natural language that's just: *"List the Nevermined categories, then find x402 services for weather."* The host picks the tools.
+
+### 4. Prepare to pay
+
+`pay_service` moves money — real on live, testnet funds on sandbox — so it needs a funded budget on your account: a Delegation whose wallet holds the asset the rail settles in (on sandbox, testnet pathUSD on Tempo Moderato for MPP, testnet USDC on Base Sepolia for x402).
+
+<Steps>
+  <Step title="Create a Delegation">
+    A hard cap and an expiry. Created once and reused. See [Create a Delegation](/products/catalog/router/quickstart#2-create-a-delegation).
+
+    **Or let the agent ask for one.** Calling [`setup_delegation`](/mcp/catalog-mcp/setup-delegation) returns a single URL for you to open; you set the currency, cap, duration and transaction limit in the browser, and the agent carries on. The agent cannot choose those numbers — that is the point of a mandate. See [Getting a Delegation from inside the chat](#getting-a-delegation-from-inside-the-chat).
+  </Step>
+  <Step title="Fund its wallet">
+    The **crypto** rails **pull** from your own wallet, so it must hold the payment asset on the network you'll pay on. See [Fund your wallet](/products/catalog/router/quickstart#3-fund-your-wallet). (A card-funded Delegation has no wallet to fund — it charges the card instead.)
+
+    Once funded, **[`wallet_balance`](/mcp/catalog-mcp/wallet-balance)** reads it back from inside the chat — including after a payment fails for lack of funds. See [step 6](#6-check-your-spend-and-your-balance).
+  </Step>
+</Steps>
+
+`pay_service` uses the accessible Delegation (Active, unexpired, funded) automatically. Pass an explicit `delegationId` only to override that choice.
+
+#### Getting a Delegation from inside the chat
+
+If your agent reaches a paid call with no Delegation, `pay_service` returns `{ "error": "no_delegation", "nextTool": "setup_delegation" }` instead of stopping. Calling **[`setup_delegation`](/mcp/catalog-mcp/setup-delegation)** answers with one URL:
+
+```json
+{
+  "status": "human_action_required",
+  "url": "https://embed.nevermined.app/cards/delegate?provider=crypto&network=live&sessionToken=…",
+  "expiresAt": "2026-09-03T12:00:00.000Z",
+  "instructions": "…"
+}
+```
+
+Open it, set your limits, and tell the agent to try again — `pay_service` picks the new Delegation up on its next call. Nothing needs to redirect back to the agent, and in a chat host nothing can: the page simply confirms and you close the tab.
+
+<Warning>
+  The url carries a short-lived session token bound to **your** account. Treat it like a credential — it is for you, not for sharing.
+</Warning>
+
+If your host *can* receive a redirect — a CLI listening on `http://127.0.0.1:<port>/…` — pass it as `returnUrl` and your browser returns there with the `delegationId`. Any other origin has to be allow-listed on the deployment first; one that isn't comes back as `{ "error": "return_url_not_allowed" }` before you open a browser, rather than failing after you've filled in the form.
+
+If a usable Delegation already exists — including the one an OAuth commerce grant just created — nobody is interrupted; the tool answers with the budget so the assistant can state it without a second call:
+
+```json
+{
+  "status": "already_active",
+  "delegationId": "121b880a-…",
+  "budget": { "capCents": "500", "spentCents": "8", "remainingCents": "492", "currency": "usdc", "expiresAt": "2026-09-23T13:29:31.691Z" },
+  "source": "oauth_grant",
+  "message": "Your spending budget is in place: delegation 121b880a… — cap 5.00 USDC, 0.08 USDC spent, 4.92 USDC remaining, valid until 2026-09-23T13:29:31.691Z. …",
+  "instructions": "No human action is needed now. Call pay_service; it spends from this budget by default."
+}
+```
+
+`budget` carries only the figures the API reported and is omitted entirely when none did; `source` (`oauth_grant` or `account`) is omitted when the origin is unknown; `message` is the human-relayable half and `instructions` the agent-facing next step — both are always present.
+
+### 5. Make a paid call
+
+Read `get_service` first, then call **[`pay_service`](/mcp/catalog-mcp/pay-service)** with the `payServiceArgs` of the endpoint you want — pass them through as-is (they carry the `slug`, `path`, `method`, and for a verified endpoint a pre-filled `body`). For a slug-routed GET, put the query string without `?` in `search`, separate from `path`. Optional `maxTotalCents` is a non-negative safe integer that caps this call's fee-inclusive, whole-cent budget reserve; the Delegation cap still limits total spend. To learn that figure before paying, [quote the call](#price-a-call-before-paying).
+
+For example:
+
+```json
+{
+  "slug": "dexter-x402",
+  "path": "/quote",
+  "body": { "pair": "ETH/USDC" }
+}
+```
+
+A bare `slug` reaches the service's base URL, which for a multi-endpoint API is a 404, not a purchase — `fal-ai-mpp`, for instance, needs `"path": "/fal-ai/flux/schnell"`. Only a single-endpoint service (the sandbox test merchants, say) is called by slug alone. `method` is optional: the server takes it from the Catalog endpoint matching your `path`, and falls back to `POST` when the Catalog records no method, when no Catalog endpoint matches your `path`, or when the matching ones disagree on the method.
+
+The server resolves the slug, confirms it's payable, pays the vendor's `402` from your Delegation, and relays the vendor's own response — with a `request` block showing exactly what was sent and where the `method` came from (`caller`, `catalog`, or `default`):
+
+```json
+{
+  "paid": true,
+  "upstreamStatus": 200,
+  "priceLabel": "$0.02",
+  "payment": { "paymentId": "b1f9c2e4-…", "txHash": "0xfc8af37b…" },
+  "request": { "method": "POST", "path": "/quote", "methodSource": "catalog", "catalogEndpoint": "/quote" },
+  "response": { "…": "the vendor's body, unchanged" }
+}
+```
+
+See the [`pay_service` reference](/mcp/catalog-mcp/pay-service) for every argument, the `payable: false` shape, and all outcomes.
+
+### 6. Check your spend and your balance
+
+- **[`list_payments`](/mcp/catalog-mcp/list-payments)** — your Router payments, newest first, across every protocol. Filter by `delegationId`, `from`, `to`.
+- **[`payment_summary`](/mcp/catalog-mcp/payment-summary)** — a count of payments plus a daily time series. (For what you've *spent*, use [`get_budget`](/mcp/catalog-mcp/get-budget); for per-payment amounts, `list_payments`.)
+- **[`get_budget`](/mcp/catalog-mcp/get-budget)** — the spending budget `pay_service` draws on: cap, spent, remaining, and expiry. Relay its `message` verbatim.
+- **[`wallet_balance`](/mcp/catalog-mcp/wallet-balance)** — what your **personal** wallet actually *holds*. Different question: the ledger says what you've spent, the budget says what you're *allowed* to spend, but [the crypto rails pull from your wallet](/products/catalog/router/how-it-works) and only this says whether the money is there. Read the network the merchant quoted, not the one with money in it — live settles on two chains (USDC on Base `8453`, USDC.e on Tempo `4217`) and most services accept only one.
+
+The ledger tools read the same unified ledger the [Router ledger page](/products/catalog/router/ledger) documents, so a payment made here is reconcilable with everything else your agents spend.
+
+### When a payment is refused
+
+Refusals come back as legible results, not exceptions. The full set is on each tool's page ([`pay_service`](/mcp/catalog-mcp/pay-service#outcomes-and-refusals)); the ones to recognize:
+
+| Result | What happened |
+| --- | --- |
+| HTTP `401` with a `WWW-Authenticate` challenge | A paid tool was called with no credential, or with one Nevermined refused. An OAuth-capable host handles this itself; a headers-only host must set its API key (step 2). |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0003", … }` | The spend would exceed your Delegation cap, or it expired. Widening the cap is almost always the wrong move — see [Guardrails](/products/catalog/router/guardrails). |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0009", … }` | The funding source couldn't cover the charge; nothing signed. On **MPP** the wallet is short (call [`wallet_balance`](/mcp/catalog-mcp/wallet-balance)); on **card** the issuer declined; **x402** never raises this. |
+| `{ "status": "already_paid", "paymentId": "…" }` | A retry was deduped — not charged twice. The original may itself have `Failed`: check [`list_payments`](/mcp/catalog-mcp/list-payments). |
+| `{ "error": "payment_indeterminate", … }` | The connection dropped mid-payment. Check `list_payments` before retrying. |
+| `{ "status": "pending", "paymentId": "…", "nextTool": "get_payment_result" }` | Not a refusal: the payment was made and the service is still working. Call [`get_payment_result`](/mcp/catalog-mcp/get-payment-result) until it reports `Ready` or `Failed`. |
+| `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No Delegation yet. Call [`setup_delegation`](/mcp/catalog-mcp/setup-delegation) and open the URL — see [step 4](#getting-a-delegation-from-inside-the-chat). |
+
+## Price a call before paying
+
+[`quote_service`](/mcp/catalog-mcp/quote-service) answers *"what will this one call cost?"* without paying for it. It takes the `slug`, `path`, `method`, `search`, `headers`, `body` and `delegationId` you'd pass to `pay_service` and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`). Pin the quote by passing the `quoteId` it returns to `pay_service`.
+
+<Steps>
+  <Step title="Quote the call">
+    Call `quote_service` with the arguments you'd pay with — here, the ones from [step 5](#5-make-a-paid-call):
+
+    ```json
+    { "slug": "dexter-x402", "path": "/quote", "body": { "pair": "ETH/USDC" } }
+    ```
+
+    ```json
+    {
+      "paymentRequired": true,
+      "upstreamStatus": 402,
+      "optionSet": "delegation",
+      "delegationId": "121b880a-…",
+      "quoteId": "qt_8f2a…",
+      "expiresAt": "2026-10-02T14:05:00.000Z",
+      "protocol": "x402",
+      "settlement": { "recipient": "0x2096…", "amount": "20000", "asset": "USDC", "network": "base", "approxCents": "2" },
+      "fee": { "bps": 200, "capChargedCents": "3", "capChargedMicros": "20400" },
+      "nextTool": "pay_service",
+      "instructions": "Nothing was charged. `fee.capChargedCents` is the fee-inclusive total this call would cost."
+    }
+    ```
+  </Step>
+  <Step title="Decide">
+    `fee.capChargedCents` is the call's fee-inclusive price in whole cents, rounded **up** from `fee.capChargedMicros` (exact, in 1/10,000 of a cent). Here a $0.02 call plus a 2% routing fee is 2.04¢, so the figure is `3`.
+  </Step>
+  <Step title="Pay with a ceiling">
+    Call `pay_service` with the same arguments, the quoted `quoteId` and `delegationId`, and `maxTotalCents` set to that figure **as a number**:
+
+    ```json
+    { "slug": "dexter-x402", "path": "/quote", "body": { "pair": "ETH/USDC" }, "delegationId": "121b880a-…", "quoteId": "qt_8f2a…", "maxTotalCents": 3 }
+    ```
+
+    If the price rises between the quote and the call, the payment is refused instead of paid.
+  </Step>
+</Steps>
+
+A quote **charges nothing** but **does contact the service** (to read the price, the Router sends your request unpaid — so take care quoting a method with side effects) and spends the same per-service **rate limit** as a payment. See the [`quote_service` reference](/mcp/catalog-mcp/quote-service) for `optionSet`, every field, and the no-charge refusals.
+
+## Let the platform pick a service
+
+[`route_by_intent`](/mcp/catalog-mcp/route-by-intent) turns a plain-language need into the **single best payable service** in the Catalog, plus the ranked shortlist it was chosen from — so your agent doesn't search, compare listings and pick one itself. The ranking is deterministic — no randomness, and no model doing the picking — but it's recomputed on every call from the live Catalog, so the pick can change as listings, health and payability change. It uses Nevermined's own relevance and quality signals, behind a payability gate (listed, not flagged unpayable, healthy, not held by moderation, on x402 or MPP). When nothing passes the gate you get an explicit refusal, never a weak match.
+
+### Which tool to reach for
+
+| You want to… | Use |
+| --- | --- |
+| Get the right service for a task in one call — and optionally pay it | [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) |
+| Browse, compare, or show a person the options | [`search_services`](/mcp/catalog-mcp/search-services), then [`get_service`](/mcp/catalog-mcp/get-service) |
+| Pay a service you've already picked | [`pay_service`](/mcp/catalog-mcp/pay-service) |
+
+With `autoPay: false` (the default) it returns the pick and charges nothing; with `autoPay: true` it also pays the winner (requires `requestId`, plus `delegationId` on an API key). Because an `autoPay` call ranks afresh and reaches the winner's base URL, when the exact service or endpoint matters you should propose first, read `get_service` on `chosen.slug`, then pay with `pay_service`. See the [`route_by_intent` reference](/mcp/catalog-mcp/route-by-intent) for every argument (including `filters.require` / `prefer` / `exclude`), the full result shape, and the refusals.
 
 ## Result and error conventions
 
@@ -149,3 +623,30 @@ These hold across every tool; each tool page notes only what it adds.
 - **Missing or rejected credential → `401`** with a `WWW-Authenticate` challenge (`error="invalid_token"` when refused). A host that links per tool gets the challenge in-band under `_meta["mcp/www_authenticate"]`.
 - **Money is in cents.** `capCents` is whole cents; `spentCents` / `remainingCents` carry up to four decimals (charged per call at 1/10,000 of a cent). The routing fee is included — never re-derive a figure by summing your own calls. Payment *amounts* in [`list_payments`](/mcp/catalog-mcp/list-payments) are in the asset's smallest unit (`assetDecimals`), not cents.
 - **Error codes.** Router refusals carry `BCK.ROUTER.*` ([Router guardrails](/products/catalog/router/guardrails#every-error-code)); OAuth refusals carry `BCK.OAUTH.*`. Full catalogue: [API error reference](/development-guide/api-errors/overview).
+
+## Not this MCP
+
+Nevermined ships three MCP servers. Make sure you want this one:
+
+| MCP | Side | What it's for |
+| --- | --- | --- |
+| **Catalog MCP** (this page) | Buyer | Your agent discovers & pays for Catalog services. You provide just an API key and a funded budget. |
+| [MCP Integration](/integrations/mcp) | Seller | Put a paywall on *your own* MCP server with the Payments Library (`withPaywall`), so your tools get paid. |
+| [Docs MCP](/mcp/docs-mcp/overview) | — | Streams the Nevermined **documentation** into your IDE so an assistant can vibe-code an integration. It sells nothing. |
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Catalog MCP (intro & video)" icon="plug" href="/products/catalog/mcp">
+    The short introduction and the "see it in action" video.
+  </Card>
+  <Card title="Using the Catalog from a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The code-free playbook for driving discovery and payment from your agent.
+  </Card>
+  <Card title="Catalog: discover" icon="magnifying-glass" href="/products/catalog/discover">
+    What's listed, how filtering works, and what "payable" means.
+  </Card>
+  <Card title="Router: pay" icon="route" href="/products/catalog/router/overview">
+    Delegations, the spending cap, the rails, and every refusal code.
+  </Card>
+</CardGroup>
