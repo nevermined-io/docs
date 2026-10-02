@@ -45,7 +45,7 @@ The wallet address and, per network, its token balances:
 
 - A delegation backed by an [organization wallet](/solutions/organizations/wallets) is paid from *that* wallet, not this one.
 - A **card** delegation has no wallet at all — there `BCK.ROUTER.0009` is the card **issuer** declining, with nothing to top up, so this tool doesn't apply and the fix is a different card.
-- On **MPP** the wallet is checked before anything is signed, and `BCK.ROUTER.0009` names the wallet and chain but never **how much** is there — which is what this tool supplies. On **x402** there's no balance pre-check, so read the balance **before** you pay.
+- On **MPP** the wallet is checked before anything is signed, and `BCK.ROUTER.0009` names the wallet and chain but never **how much** is there — which is what this tool supplies. On **x402** there's no balance pre-check and `BCK.ROUTER.0009` is never raised: the credential is minted, **budget is reserved**, and a short wallet only surfaces when the merchant's on-chain transfer fails — by which point the budget is already committed, and the reserve comes back only once the reconciler sees the authorization expire unconsumed. So read the balance **before** you pay, and don't read a just-committed reserve as money lost.
 
 This tool diagnoses, it doesn't fix: there's no on-ramp and an agent can't top up its own wallet, so a genuine shortfall is a **stop condition** — report the network and amount to the human and don't retry.
 

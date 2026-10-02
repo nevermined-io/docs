@@ -4,7 +4,7 @@ sidebarTitle: "Pay Service"
 description: "Catalog MCP tool: pay for a catalog service from your spend-capped delegation and return the vendor's response. Charges real funds."
 ---
 
-Pay for a service from your spend-capped delegation and return the vendor's response. **This charges real funds.** Needs a credential (API key or OAuth `commerce` grant). Always read [`get_service`](/mcp/catalog-mcp/get-service) first — its `requestShape.endpoints[].payServiceArgs` is the exact `slug` / `path` / `method` to pass here.
+Pay for a service from your spend-capped delegation and return the vendor's response. **This charges real funds.** Needs a credential (API key or OAuth `commerce` grant). Always read [`get_service`](/mcp/catalog-mcp/get-service) first and **pass its `requestShape.endpoints[].payServiceArgs` through as-is** — it carries `slug` / `path` / `method`, and for a verified endpoint a pre-filled `body` (and sometimes `search` / `headers`); don't drop those and rebuild your own.
 
 **Auth:** key / grant · **Charges:** real funds
 

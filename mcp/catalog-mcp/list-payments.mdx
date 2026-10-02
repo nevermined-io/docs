@@ -41,7 +41,7 @@ An array of records. `amount` is in the asset's **smallest unit** (see `assetDec
 - **`deliveryStatus`** is one of: `delivered` (request settled), `charged_not_delivered` (request failed and the merchant charge was observed), `charged_unconfirmed` (charge observed, delivery unconfirmed), `not_charged` (reconciliation proved no merchant charge), or `pending` (charge outcome unknown).
 
 <Warning>
-On MPP and card rails, `deliveryStatus: "pending"` is **not** proof of no charge. Flag `charged_not_delivered` to the user.
+On the **card rail (SPT / MPP-stripe)**, `deliveryStatus: "pending"` is **not** proof of no charge. Flag `charged_not_delivered` to the user.
 </Warning>
 
 This tool finds a `paymentId` and reconciles an uncertain payment. It does **not** return service responses (use [`get_payment_result`](/mcp/catalog-mcp/get-payment-result)) or the remaining budget (use [`get_budget`](/mcp/catalog-mcp/get-budget)).
