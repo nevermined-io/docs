@@ -1,0 +1,34 @@
+---
+title: "get_budget"
+description: "Catalog MCP tool: read the spending budget pay_service draws on — its cap, spent, remaining, payments made, and expiry."
+---
+
+Read the spending budget [`pay_service`](/mcp/catalog-mcp/pay-service) draws on: its cap, what's been spent, what remains, how many payments were made (and the limit, if any), and when it expires. Reading charges nothing. Use it whenever the human asks how much is left, or before a run of paid calls. Needs a credential.
+
+**Auth:** key / grant · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `delegationId` | no | string | A specific delegation to read (every paid `pay_service` result carries one). Omit to read the budget `pay_service` spends by default. |
+
+## Returns
+
+The budget figures. Money is in **cents**: `capCents` is whole cents; `spentCents` and `remainingCents` can carry up to four decimals (charged per call at 1/10,000 of a cent, e.g. `"1.632"` = 1.632¢):
+
+```json
+{
+  "delegationId": "121b880a-…",
+  "capCents": "500",
+  "spentCents": "8.04",
+  "remainingCents": "491.96",
+  "currency": "usdc",
+  "payments": 3,
+  "paymentLimit": null,
+  "expiresAt": "2026-10-02T13:29:31.691Z"
+}
+```
+
+- `spentCents + remainingCents = capCents` while the budget is within its cap. The figures include routing fees and rounding, so **never substitute a figure of your own** — relay them as reported.
+- With no `delegationId` this reads the budget `pay_service` would use, which only includes budgets that can still pay. So `{ "status": "no_active_delegation" }` also covers a budget that ran out or expired — pass the `delegationId` from an earlier `pay_service` result to read that one anyway.

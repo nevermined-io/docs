@@ -1,0 +1,30 @@
+---
+title: "query_docs_filesystem_nevermined_documentation"
+description: "Docs MCP tool: run a read-only shell (rg, cat, tree, jq, …) over a virtual filesystem of the Nevermined docs pages and OpenAPI specs."
+---
+
+Run a **read-only, shell-like** query against a virtualized, in-memory filesystem rooted at `/` that contains **only** the Nevermined documentation pages and OpenAPI specs. This is not a shell on any real machine — nothing runs on your computer, the server host, or any network; the filesystem is a sandbox backed by documentation chunks. This is how you read a page in full: there is no separate "get page" tool. See the [Docs MCP overview](/mcp/docs-mcp/overview) for how to connect.
+
+**Charges:** nothing — public documentation only.
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `command` | yes | string | A shell command to run against the virtual filesystem (e.g. `rg -il "keyword" /`, `tree / -L 2`, `head -80 /path/file.mdx`). |
+
+## How it works
+
+- **Read a page:** a page at URL path `/some/page` lives at `/some/page.mdx`. Read it with `head -200 /some/page.mdx` or `cat /some/page.mdx`.
+- **Discover paths — never guess them:** use `tree / -L 2`, `ls /`, or [`search_nevermined_documentation`](/mcp/docs-mcp/search-documentation). A path that doesn't exist only means the guess was wrong, not that the topic is undocumented — use `rg -il "keyword" /` to find it.
+- **OpenAPI specs** are mounted at `/openapi/api-reference/openapi.json`, `/openapi/api-reference/oauth-openapi.json`, and `/openapi/api-reference/organizations-openapi.json`. Example: `cat /openapi/api-reference/openapi.json | jq '.paths | keys'`.
+
+**Supported commands:** `rg` (ripgrep), `grep`, `find`, `tree`, `ls`, `cat`, `head`, `tail`, `stat`, `wc`, `sort`, `uniq`, `cut`, `sed`, `awk`, `jq`, plus basic text utilities. No writes, no network, no process control. Run `--help` on any command for usage.
+
+<Warning>
+**Each call is stateless.** The working directory always resets to `/` and no variables, aliases, or history carry over between calls. To operate in a subdirectory, chain commands in one call with `&&` or pass absolute paths (e.g. `cd /some-dir && ls`, or `ls /some-dir`). Output is truncated to **30 KB** per call — prefer targeted `rg -C 3 "pattern" /path/file.mdx` or `head -N` over a broad `cat` on large files, and batch multiple file reads into one `head`/`cat`.
+</Warning>
+
+## Returns
+
+The command's stdout, truncated to 30 KB. When referencing pages back to the user, convert filesystem paths to URL paths by removing the `.mdx` extension (`/some/page.mdx` → `/some/page`).

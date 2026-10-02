@@ -1,0 +1,71 @@
+---
+title: "pay_service"
+description: "Catalog MCP tool: pay for a catalog service from your spend-capped delegation and return the vendor's response. Charges real funds."
+---
+
+Pay for a service from your spend-capped delegation and return the vendor's response. **This charges real funds.** Needs a credential (API key or OAuth `commerce` grant). Always read [`get_service`](/mcp/catalog-mcp/get-service) first — its `requestShape.endpoints[].payServiceArgs` is the exact `slug` / `path` / `method` to pass here.
+
+**Auth:** key / grant · **Charges:** real funds
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `slug` | yes | string | The service slug to pay for. |
+| `path` | no | string | Router suffix appended to the service base (from `get_service`'s `payServiceArgs.path`), placeholders replaced. A checked `invokePath` may be empty even when the display path is not. Query params go in `search`, never here. |
+| `search` | no | string | Query string without `?`, for a slug-routed `GET`. |
+| `method` | no | string | HTTP method. Omit to use the catalog method for the matching endpoint (`POST` when none). Echoed back under `request.methodSource` as `caller`, `catalog`, or `default`. |
+| `body` | no | any | Request payload sent to the vendor. |
+| `maxTotalCents` | no | integer | Maximum whole cents this call may cost, fee included (compared exactly, so rounding alone never exceeds it). The 402 price can differ from the catalog label. |
+| `quoteId` | no | string | An opaque quote id from [`quote_service`](/mcp/catalog-mcp/quote-service). Pass only with the exact same call before its `expiresAt`; the Router then uses that cached challenge and exact total. |
+| `headers` | no | object | Extra headers for the vendor call. |
+| `delegationId` | no | string | Delegation to charge (API key only); defaults to your active one. An OAuth caller always spends from its grant. Feeds the derived idempotency key when `requestId` is omitted, so keep it the same across retries. |
+| `fresh` | no | boolean | Set `true` on **every poll** of an async status endpoint, **including the first**, so each poll mints a fresh idempotency key and advances. With `fresh` a retry is **not** de-duplicated and **is** charged again. Ignored when `requestId` is set. |
+| `requestId` | no | string | Idempotency key. Leave unset — a retry of the same call is de-duplicated automatically. Set a **new** value only for a genuinely separate, additional charge. |
+
+<Note>
+**A bare slug reaches the service's base URL.** For a multi-endpoint API that is a 404, not a purchase — pass the endpoint's `path`. Only a single-endpoint service is callable by slug alone.
+</Note>
+
+## Returns
+
+The vendor's response plus the payment record. A paid result also carries `delegationId` and `budget` (the spending budget after this call):
+
+```json
+{
+  "paid": true,
+  "upstreamStatus": 200,
+  "priceLabel": "$0.02",
+  "payment": { "paymentId": "b1f9c2e4-…", "txHash": "0xfc8af37b…" },
+  "request": { "method": "POST", "path": "/quote", "methodSource": "catalog", "catalogEndpoint": "/quote" },
+  "delegationId": "121b880a-…",
+  "budget": { "capCents": "500", "spentCents": "8.04", "remainingCents": "491.96" },
+  "response": { "…": "the vendor's body, unchanged" }
+}
+```
+
+- `paid: true` with a **non-2xx** `upstreamStatus` may still have cost the merchant price.
+- The `request` block rides on every result that resolved the endpoint (`already_paid`, `payment_failed`, …), not only the paid one.
+- `budget: null` means it couldn't be read this time — **not** that it's zero; call [`get_budget`](/mcp/catalog-mcp/get-budget).
+- `payable: false` (with `protocol`, `priceLabel`, `network`, `note`; never the upstream URL) means the service isn't on a payable rail — nothing charged.
+
+## Outcomes and refusals
+
+| Result | Meaning | What to do |
+| --- | --- | --- |
+| `{ "status": "pending", "paymentId": "…", "nextTool": "get_payment_result" }` | **Paid** — the service took longer than the Router waits. | Call [`get_payment_result`](/mcp/catalog-mcp/get-payment-result) with the `paymentId`. Don't call `pay_service` again — it returns the same `pending`. |
+| `{ "status": "already_paid", "paymentId": "…" }` | This idempotency key already carries a payment; the result isn't replayed here. Nothing new charged — and it doesn't by itself say the original succeeded. | Read the original with `get_payment_result` or `list_payments`. A **new** `requestId` starts a separate charge. |
+| `{ "error": "payment_indeterminate" }` | The charge may or may not have landed (e.g. the connection dropped). | Check `list_payments` first; to retry, reuse the returned `requestId` **verbatim** without `fresh`. |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0003" }` | The spend would exceed your delegation cap, or it expired. | Widening the cap is almost always wrong — see [Guardrails](/products/catalog/router/guardrails). |
+| `{ "error": "payment_failed", "code": "BCK.ROUTER.0009" }` | The funding source couldn't cover the charge; nothing signed. | On **MPP** the wallet is short (call [`wallet_balance`](/mcp/catalog-mcp/wallet-balance); a human funds it). On **card** the issuer declined — use another card. **x402** never raises this. |
+| `{ "error": "per_call_max_exceeded" }` | The price exceeds `maxTotalCents`; no charge. | Raise `maxTotalCents` only deliberately, then retry with the **same** `requestId`. |
+| `{ "error": "quote_not_found" }` / `"quote_expired"` / `"quote_mismatch"` | Named no-charge quote refusals. | Quote again rather than paying unpinned. |
+| `{ "error": "service_not_found" }` | Wrong slug; no charge. | Check with `search_services`. |
+| `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | Transient read failure; no charge. | Retry later. |
+| `{ "error": "no_delegation", "nextTool": "setup_delegation" }` | No delegation on the account; no charge. | Call [`setup_delegation`](/mcp/catalog-mcp/setup-delegation). |
+| `{ "error": "router_controls_unavailable" }` | The API behind this server is too old to enforce `search`, `quoteId` or `maxTotalCents`. | Tell the human; don't retry without them. |
+| `{ "error": "credential_refused" }` / HTTP `401` | Credential missing or refused. | Re-authorize, or set your API key. |
+
+<Warning>
+**Async services: set `fresh: true` on every poll, including the first.** An async service returns a `taskId`, then you poll a status endpoint with the same id. Without `fresh`, every later poll reuses the first poll's idempotency key and gets the first poll's stored answer (or `already_paid`) back, so the status never advances. `fresh` makes each poll a distinct, separately-billed call. Leave `fresh` **off** the submit and off any retry of a call whose outcome is unsure.
+</Warning>

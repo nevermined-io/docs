@@ -1,0 +1,32 @@
+---
+title: "get_payment_result"
+description: "Catalog MCP tool: read the result of a paid call by its paymentId — for a pending call, or a response you lost."
+---
+
+Read the result of a paid call by its `paymentId`. Use it when [`pay_service`](/mcp/catalog-mcp/pay-service) answered `{ "status": "pending" }`, or to recover a response you lost. Reading charges nothing. Needs a credential.
+
+**Auth:** key / grant · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `paymentId` | yes | string (uuid) | The `paymentId` a `pay_service` result returned. |
+
+## Returns
+
+A `state` and, when ready, the service's response:
+
+```json
+{
+  "state": "Ready",
+  "status": 200,
+  "bodyEncoding": "json",
+  "body": { "…": "the vendor's response" }
+}
+```
+
+- `state: "Pending"` — still running; call again in a few seconds. **Don't** call `pay_service` again — it returns the same `pending`.
+- `state: "Ready"` — `status` is the service's HTTP status, `body` its response. `bodyEncoding` is `json`, `text`, or `base64`.
+- `state: "Failed"` — the call ended without a response; `failureReason` says why.
+- `{ "status": "not_available" }` — nothing to return. Results are kept for **24 hours**, for the account that paid.

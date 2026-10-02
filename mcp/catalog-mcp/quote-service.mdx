@@ -1,0 +1,63 @@
+---
+title: "quote_service"
+description: "Catalog MCP tool: price one call to a service without paying it — the live, fee-inclusive total, rail, and network."
+---
+
+Price **one** call to a service **without paying it**: it charges nothing, signs nothing, and reserves no budget. Pass exactly what you'd pass to [`pay_service`](/mcp/catalog-mcp/pay-service); the Router sends that request to the service unpaid, reads the price, and returns a `quoteId` plus the fee-inclusive total. Needs a credential (API key or OAuth `commerce` grant).
+
+**Auth:** key / grant · **Charges:** nothing
+
+<Warning>
+**A quote contacts the service.** To read the price, the Router sends your request to the service unpaid — the same request a payment starts with. A service that doesn't charge for it **performs it**, so take care quoting a method with side effects. The service's response is never returned to you. A quote also spends the same per-service rate budget as a payment, so quote **once per decision**; don't poll.
+</Warning>
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `slug` | yes | string | The service slug to quote. |
+| `path` | no | string | The same `path` you'd pass to `pay_service` (from [`get_service`](/mcp/catalog-mcp/get-service)), placeholders replaced. Query params go in `search`. |
+| `search` | no | string | Query string without `?`, for a slug-routed `GET` (e.g. `flight_iata=AA217`). |
+| `method` | no | string | HTTP method. Omit to use the catalog method for the endpoint matching `path` (`POST` when none recorded). |
+| `body` | no | any | The request payload you'd send; some services price by it. |
+| `headers` | no | object | Extra headers you'd send to the vendor. |
+| `delegationId` | no | string | The delegation you'd pay with (API key only). A card or org-wallet delegation can select a different rail, and so a different price. An OAuth caller is always quoted for its grant. |
+
+## Returns
+
+The rail, the merchant amount, and the fee-inclusive total. `fee.capChargedCents` is whole cents rounded up; `fee.capChargedMicros` is exact (1/10,000 of a cent):
+
+```json
+{
+  "paymentRequired": true,
+  "upstreamStatus": 402,
+  "optionSet": "delegation",
+  "delegationId": "121b880a-…",
+  "quoteId": "qt_8f2a…",
+  "expiresAt": "2026-10-02T14:05:00.000Z",
+  "protocol": "x402",
+  "x402Version": 2,
+  "settlement": { "recipient": "0x2096…", "amount": "20000", "asset": "USDC", "network": "base", "approxCents": "2" },
+  "fee": { "bps": 200, "amount": "400", "cents": "1", "capChargedCents": "3", "capChargedMicros": "20400" },
+  "request": { "method": "POST", "path": "/quote", "methodSource": "catalog", "catalogEndpoint": "/quote" },
+  "nextTool": "pay_service",
+  "instructions": "Nothing was charged. `fee.capChargedCents` is the fee-inclusive total this call would cost."
+}
+```
+
+- **`optionSet: "delegation"`** — the delegation `pay_service` would charge, named in `delegationId`.
+- **`optionSet: "deployment"`** — you have no delegation yet, so this is what a personal crypto delegation *would* select; `nextTool` is `setup_delegation`. Set one up and **quote again** before paying — the delegation you create can select a different rail and price.
+- **`paymentRequired: false`** — the service didn't ask for payment for this request; `upstreamStatus` is its answer. A non-2xx usually means the `path`, `method` or `body` is wrong.
+
+**To pay with the quote pinned,** pass `quoteId` to [`pay_service`](/mcp/catalog-mcp/pay-service) before `expiresAt` with the exact same call arguments. The quote id fixes the challenge and the exact fee-inclusive total; keep `maxTotalCents` as an independent ceiling.
+
+## Refusals (all charge nothing)
+
+| Result | Meaning | What to do |
+| --- | --- | --- |
+| `{ "payable": false }` | Not payable via the Router (only x402/MPP are). | Nothing to quote. |
+| `{ "error": "service_not_found" }` | No listed service has that slug. | Check the slug with `search_services`. |
+| `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | A read the quote needs failed. | Transient — retry later. |
+| `{ "error": "quote_unavailable", "code": … }` | No quote can be made here and retrying won't change that. | Bound the price with `pay_service`'s `maxTotalCents` instead. |
+| `{ "error": "quote_failed", "code": …, "retryable": … }` | The Router refused to price, or didn't answer. | Read `code` / `message` / `retryable`; a no-answer is safe to retry. |
+| `{ "error": "credential_refused" }` | Your credential was refused. | Re-authorize. |

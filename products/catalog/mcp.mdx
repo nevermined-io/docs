@@ -13,7 +13,7 @@ This is the **buyer** side, packaged as MCP tools. If you instead want to put a 
 </Note>
 
 <Info>
-This page is the **guided introduction** — how it fits, how to connect your assistant, and a walkthrough quickstart. For the **complete tool reference** — every argument, return field and refusal for all twelve tools, written for an agent to call against — see [API › Catalog MCP](/api-reference/catalog-mcp/overview).
+This page is the **guided introduction** — how it fits, how to connect your assistant, and a walkthrough quickstart. For the **complete tool reference** — every argument, return field and refusal for all twelve tools, written for an agent to call against — see [MCP › Catalog MCP](/mcp/catalog-mcp/overview).
 </Info>
 
 ## How it fits: discover, then pay
@@ -35,7 +35,7 @@ If your agent would rather not choose among listings at all, `route_by_intent` d
 
 ## The tool surface
 
-Discovery is **free** — no credential needed. Pricing, picking or paying for a service, reading your ledger, your budget and your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you. (Of those, only `pay_service` and `route_by_intent` with `autoPay` move money; the rest read or price and charge nothing.) The table below is the index; the [full tool reference](/api-reference/catalog-mcp/overview) carries every argument, return field and refusal.
+Discovery is **free** — no credential needed. Pricing, picking or paying for a service, reading your ledger, your budget and your wallet are **paid** tools: they need a credential, either your API key or an OAuth grant your host obtains for you. (Of those, only `pay_service` and `route_by_intent` with `autoPay` move money; the rest read or price and charge nothing.) The table below is the index; the [full tool reference](/mcp/catalog-mcp/overview) carries every argument, return field and refusal.
 
 | Tool | Auth | What it does |
 | --- | --- | --- |
@@ -531,7 +531,7 @@ Refusals come back as legible results, not exceptions. The ones to recognize:
 
 ## Price a call before paying
 
-`quote_service` answers *"what will this one call cost?"* without paying for it. It takes the `slug`, `path`, `method`, `search`, `headers`, `body` and `delegationId` you'd pass to `pay_service` (not `maxTotalCents`, `requestId` or `fresh`) and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`). Pin the quote by passing the `quoteId` it returns to `pay_service`. See the [`quote_service` reference](/api-reference/catalog-mcp/payments#quote_service) for every field.
+`quote_service` answers *"what will this one call cost?"* without paying for it. It takes the `slug`, `path`, `method`, `search`, `headers`, `body` and `delegationId` you'd pass to `pay_service` (not `maxTotalCents`, `requestId` or `fresh`) and returns the **live, fee-inclusive** price of that exact request: the rail (`protocol`), the network and merchant amount (`settlement`), and what the call would reserve against your budget (`fee`). Pin the quote by passing the `quoteId` it returns to `pay_service`. See the [`quote_service` reference](/mcp/catalog-mcp/quote-service) for every field.
 
 <Steps>
   <Step title="Quote the call">
@@ -604,7 +604,7 @@ Every one of these charges nothing:
 
 `route_by_intent` turns a plain-language need into the **single best payable service** in the Catalog, plus the ranked shortlist it was chosen from — so your agent doesn't search, compare listings and pick one itself. The ranking is deterministic — no randomness, and no model doing the picking — but it's recomputed on every call from the live Catalog, so the pick can change as listings, health and payability change. It uses Nevermined's own relevance and quality signals, behind a payability gate (listed, not flagged unpayable, healthy, not held by moderation, on x402 or MPP). No model reads the merchant listings, and when nothing passes the gate you get an explicit refusal, never a weak match.
 
-See the [`route_by_intent` reference](/api-reference/catalog-mcp/payments#route_by_intent) for every argument (including the `filters.require` / `prefer` / `exclude` slugs) and the full result shape.
+See the [`route_by_intent` reference](/mcp/catalog-mcp/route-by-intent) for every argument (including the `filters.require` / `prefer` / `exclude` slugs) and the full result shape.
 
 ### Which tool to reach for
 
@@ -678,7 +678,7 @@ Nevermined ships three MCP servers. Make sure you want this one:
 | --- | --- | --- |
 | **Catalog MCP** (this page) | Buyer | Your agent discovers & pays for Catalog services. You provide just an API key and a funded budget. |
 | [MCP Integration](/integrations/mcp) | Seller | Put a paywall on *your own* MCP server with the Payments Library (`withPaywall`), so your tools get paid. |
-| [Docs MCP](/development-guide/build-using-nvm-mcp) | — | Streams the Nevermined **documentation** into your IDE so an assistant can vibe-code an integration. It sells nothing. |
+| [Docs MCP](/mcp/docs-mcp/overview) | — | Streams the Nevermined **documentation** into your IDE so an assistant can vibe-code an integration. It sells nothing. |
 
 ## Next
 

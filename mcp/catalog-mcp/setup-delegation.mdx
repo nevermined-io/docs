@@ -1,0 +1,47 @@
+---
+title: "setup_delegation"
+description: "Catalog MCP tool: start the spending-delegation ceremony and return one URL for a human to approve a spending cap."
+---
+
+Start the spending-delegation ceremony and return **one URL** for a human to open. Use it when [`pay_service`](/mcp/catalog-mcp/pay-service) returns `{ "error": "no_delegation" }`. It sets up a **stablecoin (crypto)** delegation that spends from the human's personal wallet — it does **not** enroll a card. The human sets the currency, cap, duration, and transaction limit in the browser; the agent cannot set them and must not ask the human to pass them back. Needs a credential.
+
+**Auth:** key / grant · **Charges:** nothing
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `returnUrl` | no | string | Where the browser lands after authorising. Only a localhost callback (`http://127.0.0.1:<port>/…`) or an origin this deployment allow-lists is accepted; a rejected value is reported, not silently dropped. **Omit it** unless you actually have somewhere to receive the redirect — in a chat host the page just shows a confirmation and the human closes the tab. |
+
+## Returns
+
+A URL to open, or confirmation a budget already exists:
+
+```json
+{
+  "status": "human_action_required",
+  "url": "https://embed.nevermined.app/cards/delegate?provider=crypto&network=live&sessionToken=…",
+  "expiresAt": "2026-10-02T14:00:00.000Z",
+  "instructions": "Relay the url, wait for the human to confirm, then call pay_service again."
+}
+```
+
+```json
+{
+  "status": "already_active",
+  "delegationId": "121b880a-…",
+  "budget": { "capCents": "500", "spentCents": "8", "remainingCents": "492", "currency": "usdc", "expiresAt": "2026-10-02T13:29:31.691Z" },
+  "source": "oauth_grant",
+  "message": "Your spending budget is in place: cap 5.00 USDC, 0.08 USDC spent, 4.92 USDC remaining.",
+  "instructions": "No human action is needed now. Call pay_service; it spends from this budget by default."
+}
+```
+
+- `already_active` means a usable budget is in place (for an OAuth caller, the grant approved on the consent screen) — relay `message` as it stands, then call `pay_service`.
+- `budget` carries only the figures the API reported, and is omitted when none did. `source` (`oauth_grant` or `account`) is omitted when unknown. `message` and `instructions` are always present.
+
+<Warning>
+The `url` embeds a short-lived session token bound to the human's account. Treat it as a credential — give it only to the account owner, never share it.
+</Warning>
+
+**Other outcomes (no URL):** `delegation_setup_unavailable` (this deployment can't run the ceremony), `delegation_setup_failed` (the session couldn't start), `return_url_not_allowed` (drop or fix `returnUrl`), and a `human_action_required` answer with `delegationCheck: "failed"` (an existing budget couldn't be ruled out — follow its `instructions` and try `pay_service` first).
