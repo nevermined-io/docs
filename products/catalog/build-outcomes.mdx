@@ -148,7 +148,7 @@ for q in "web search" scrape screenshot chat; do
        -X POST https://mcp.live.nevermined.app/mcp \
        -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"search_services\",\"arguments\":{\"query\":\"$q\"}}}" \
     | jq -r '.result.content[0].text' \
-    | jq --arg q "$q" '{query:$q, total, top:[.services[0:3][]|{slug,title,protocol,priceLabel}]}'
+    | jq --arg q "$q" '{query:$q, count:(.results|length), top:[.results[0:3][]|{slug:(.identifier|split(":")|last), title:.displayName, protocol:.["nvm:catalog"].protocol, priceLabel:.["nvm:catalog"].priceLabel}]}'
 done
 ```
 
@@ -163,7 +163,7 @@ curl -s -H "Content-Type: application/json" \
 ```
 
 <Tip>
-**Search is a whole-substring match on a service's title or short description, and it is order-sensitive** — so query with single words or a known substring. `web search` finds services and `search web` finds none; `weather` finds four and `weather forecast` finds none. Narrow with the `category` and `tag` filters rather than by stacking words. The results also carry each service's `healthStatus` (`operational` / `unverified`) and recent uptime, so an agent can prefer a service that's actually up.
+**Search ranks by meaning and keyword together (ARD hybrid), most relevant first** — so a plain-language need finds services that never use your exact words, and `weather forecast` works as well as `weather`. Each result is an ARD record: the slug is the last segment of its `identifier` URN (`urn:…:service:orth-seltz` → `orth-seltz`), and `displayName`, `protocol`, `priceLabel`, `healthStatus` and recent uptime live under `nvm:catalog` — the `jq` above pulls those out. Narrow with the `category` and `tag` filters rather than by stacking words, and prefer a service whose `healthStatus` is `operational`.
 </Tip>
 
 ## Turn a proposal into a run
