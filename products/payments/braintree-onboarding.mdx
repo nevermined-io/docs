@@ -77,7 +77,11 @@ Raw card data, customer details, and transaction PII never leave Braintree — N
 
 ### Disconnecting
 
-Click **Disconnect Braintree** on your profile to revoke the connection. Nevermined clears all four fields above (access token, refresh token, merchant ID, and the per-currency map). Existing delegations against your account stop being chargeable on the next request.
+Click **Disconnect Braintree** on your profile to end the connection. Nevermined revokes the access token it held and clears all four fields above (access token, refresh token, merchant ID, and the per-currency map). Existing delegations against your account stop being chargeable on the next request.
+
+Disconnecting does **not** remove Nevermined from your Braintree account. Braintree's API can revoke an access token but not your authorization of the app, so Nevermined stays listed under **OAuth → Connected Apps** in your Braintree Control Panel. Reconnecting reuses that authorization, which is why it skips the consent screen. To remove Nevermined entirely, click **Revoke Access** next to it in the Control Panel.
+
+If Braintree does not confirm the token revoke, the profile page warns you, and the API's `DELETE /api/v1/fiat/braintree/disconnect` response reports `accessTokenRevocation: "failed"`. Nevermined still discards the connection.
 
 ## Per-Currency Merchant Accounts
 
