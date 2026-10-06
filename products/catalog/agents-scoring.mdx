@@ -1,0 +1,329 @@
+---
+title: "Agent Scoring — catalog indicators"
+description: "The authoritative reference for every indicator, cap, and band in the Nevermined Catalog readiness score."
+icon: "gauge-high"
+---
+
+The **readiness score** measures how completely a Catalog service is prepared for an autonomous buyer to discover, evaluate, invoke, and pay for it. It is a builder-facing score from **0 to 100**, calculated with rubric `readiness/1.0.0` from published metadata, endpoint definitions, operational guidance, and observed health.
+
+Readiness is not the service's `qualityScore`, popularity, or traction. It does not judge whether an output is insightful or whether buyers prefer the service. Instead, it identifies gaps that can prevent an otherwise useful service from being found, selected, called correctly, or purchased safely.
+
+The score is **deterministic**: fixed rules award the points described on this page; no LLM decides the result. It is also **advisory** and never gates whether a service can be listed. Individual endpoint-based checks can award partial credit according to the proportion of applicable endpoints that pass.
+
+## How the score is calculated
+
+The rubric adds six dimensions, then applies any readiness cap triggered by a fundamental blocker:
+
+| Dimension | Maximum points | What it measures |
+| --- | ---: | --- |
+| Metadata | 15 | Whether buyers and agents can identify, understand, and place the service. |
+| Endpoints & schemas | 25 | Whether every operation is callable and has an explicit request/response contract. |
+| Pricing clarity | 20 | Whether payable operations disclose an actionable, machine-readable cost model. |
+| Documentation | 15 | Whether human and automated integrators can retrieve a complete integration guide. |
+| Operations & preconditions | 10 | Whether callers can prepare credentials, funds, limits, and recovery behavior. |
+| Health | 15 | Whether live observations show a valid payment challenge, availability, and settlement readiness. |
+
+After the points are summed, the lowest triggered cap becomes the final maximum. A service with no reachable callable endpoint or a known settlement failure cannot score above **39**. A service with no discoverable payment mechanism cannot score above **59**. Caps do not remove points from the underlying dimension results; they constrain the final score until the blocker is fixed.
+
+<Note>
+The Catalog can calculate a **provisional** score before it has live probe evidence. In provisional mode, H1–H3 are marked `not_observed` and award no points, so the highest possible score is **85**. Caps are applied only to a full score, once the required operational evidence has been observed.
+</Note>
+
+## Metadata — 15 points
+
+Metadata determines whether a service can be recognized and matched before an agent examines its API. Each metadata indicator is worth 3 points.
+
+<a id="m1"></a>
+### M1 — Clear title
+
+**What it checks.** The title must contain at least three non-whitespace characters and must not be a placeholder such as `todo`, `tbd`, `n/a`, `test`, `description`, or `lorem ipsum`. A passing title earns 3 points.
+
+**Why it matters.** The title is the first identity signal in search results and comparison views. A specific, stable name lets buyers distinguish the service from alternatives and gives automated agents a reliable label to cite, rank, and remember; a blank or generic title makes even strong metadata difficult to associate with the right offer.
+
+**How to improve.** Use the product or service name buyers will recognize. Keep it specific enough to identify this offering, remove draft labels and environment names, and use the same name in your homepage and documentation so callers can confirm they reached the intended service.
+
+<a id="m2"></a>
+### M2 — Short description
+
+**What it checks.** The short description must usefully summarize the service, must not be a recognized placeholder, and must not simply repeat the title. A passing description earns 3 points; length alone does not make a description useful.
+
+**Why it matters.** This summary is the at-a-glance explanation shown when a buyer or agent is deciding which listings deserve closer inspection. An outcome-focused sentence improves matching and prevents callers from opening a service only to learn that its capability, inputs, or result is unrelated to their task.
+
+**How to improve.** Lead with the result the caller receives, then name the key capability or audience. Write a distinct sentence rather than a slogan or restatement of the title—for example, describe that the service returns normalized company intelligence from a domain, not merely that it is a “company data API.”
+
+<a id="m3"></a>
+### M3 — Detailed description
+
+**What it checks.** The detailed description must usefully explain the service's capability, intended use, and expected result, and must not be a recognized placeholder. A passing description earns 3 points; length alone does not make a description useful.
+
+**Why it matters.** Buyers need enough context to judge fit before integrating or spending money, while autonomous agents need explicit scope to avoid choosing a superficially similar service. A useful description reduces mismatched purchases by explaining the capability, intended use, and expected result rather than leaving those facts to inference.
+
+**How to improve.** Describe what the service does, who or what it is designed for, the main input, and the output a successful caller should expect. Add important scope boundaries—such as geography, data freshness, or supported media—when they materially affect selection, and keep endpoint-specific details in the endpoint documentation.
+
+<a id="m4"></a>
+### M4 — Retrievable logo
+
+**What it checks.** The listing must provide a logo that the Catalog can retrieve successfully. A missing logo is `not_observed`; a configured but unretrievable logo fails. A retrievable logo earns 3 points.
+
+**Why it matters.** A consistent visual identity helps buyers recognize a provider across search, listing, and checkout surfaces. Broken images or URLs that work only in an authenticated browser weaken trust and make the listing appear abandoned even when the endpoint itself is healthy.
+
+**How to improve.** Publish the logo at a stable HTTPS URL that returns the image without cookies, authentication, expiring signatures, or referer restrictions. Use a durable production asset, verify it from outside your own network, and avoid URLs tied to temporary uploads or private object-storage permissions.
+
+<a id="m5"></a>
+### M5 — Category and homepage
+
+**What it checks.** Both a non-empty category and a non-empty homepage URL must be present; the rule awards all 3 points only when both fields pass. The category should be meaningful and the homepage URL valid and usable.
+
+**Why it matters.** Category metadata places the service in relevant discovery results, while the homepage gives buyers a trusted destination for broader product and provider context. Supplying only one leaves either automated matching or human verification incomplete.
+
+**How to improve.** Select the most specific supported Catalog category that describes the service's primary outcome, and add the canonical public homepage for the offering or provider. Confirm the homepage uses HTTPS, loads without private access, and clearly connects the provider identity to the service in the listing.
+
+## Endpoints & schemas — 25 points
+
+These indicators define the callable contract. Endpoint records are deduplicated by normalized HTTP method and path; E2–E5 award proportional credit across the resulting endpoints.
+
+<a id="e1"></a>
+### E1 — At least one endpoint
+
+**What it checks.** The listing must publish at least one service endpoint. This is a binary 5-point check: one or more endpoint records pass, while an empty endpoint set fails.
+
+**Why it matters.** A listing without an endpoint can be discovered but cannot be invoked. Buyers cannot verify what operation they are purchasing, and agents have no destination on which to obtain a payment challenge or submit a correctly formed request.
+
+**How to improve.** Publish the service's primary callable operation first, including the protocol details required to address it. Prefer an endpoint that exercises the core paid outcome, then add the remaining supported operations; after publishing, verify that at least one advertised method and path is reachable from outside your infrastructure.
+
+<a id="e2"></a>
+### E2 — Methods, paths, and descriptions
+
+**What it checks.** Every endpoint must have a non-empty HTTP method, path, and description. The rule is worth 5 points and awards proportional partial credit based on how many published endpoints contain all three values.
+
+**Why it matters.** The method and path tell an agent where and how to invoke an operation; the description tells it why that operation is the right one. Missing any of the three forces callers to guess, which commonly produces wrong routes, unsupported methods, or selection of an operation whose purpose does not match the requested task.
+
+**How to improve.** Audit every published endpoint. Set the actual HTTP verb and exact request path, then write a purpose-focused description that states the operation's result rather than repeating its URL. Remove obsolete endpoint records so incomplete legacy definitions do not continue reducing coverage.
+
+<a id="e3"></a>
+### E3 — Request schemas
+
+**What it checks.** Every endpoint must either publish a request schema or explicitly declare that it takes no parameters. The rule is worth 5 points, awarded in proportion to covered endpoints.
+
+**Why it matters.** A machine-readable request contract lets an autonomous caller validate field names, types, required values, and nesting before making a potentially paid call. Without it, trial-and-error requests increase failure rates, support load, and the risk that a buyer pays for work triggered with unintended inputs.
+
+**How to improve.** Add a schema for path, query, header, and body inputs as applicable, marking required fields and constraints precisely. If an operation genuinely accepts no caller-supplied input, make the bare request—with no body or query—return its payment challenge so the Catalog probe can record the endpoint as parameterless. Start with payable endpoints and fields whose type or required status is easiest to misinterpret.
+
+<a id="e4"></a>
+### E4 — Response schemas
+
+**What it checks.** Every endpoint must define a successful response schema. The rule is worth 5 points, awarded in proportion to the endpoints with a response contract.
+
+**Why it matters.** Buyers should be able to determine whether the result will be usable before they pay, and agents need field names and types to parse it safely afterwards. An undocumented response can turn a successful purchase into unusable data or brittle extraction logic.
+
+**How to improve.** Define the complete successful response shape for each operation, including required fields, types, nested objects, arrays, and nullable values. Make pagination or asynchronous result envelopes explicit, and keep the schema synchronized with production responses when fields are added or changed.
+
+<a id="e5"></a>
+### E5 — Safe request examples
+
+**What it checks.** Every endpoint must include a valid, safe request example. The rule is worth 5 points, awarded in proportion to endpoints with an example.
+
+**Why it matters.** Examples resolve ambiguities that schemas cannot always convey, such as realistic combinations of optional fields, formatting conventions, or a minimum useful request. They also give agents a known-safe template for a first call instead of encouraging experimentation against a paid production operation.
+
+**How to improve.** Add one representative example per endpoint that conforms to its current request schema and exercises a normal, low-risk use case. Replace credentials, personal data, production account identifiers, destructive actions, and chargeable real-world targets with clearly synthetic values; test each example whenever the schema changes.
+
+## Pricing clarity — 20 points
+
+Pricing indicators apply to endpoints identified as payable. Coverage is calculated across those endpoints; P4 applies only to dynamically priced endpoints.
+
+<a id="p1"></a>
+### P1 — Prices or quotes
+
+**What it checks.** Every payable endpoint must expose either a current fixed price or a way to obtain a quote. The rule is worth 6 points and awards proportional credit across payable endpoints; if no payable endpoint is identified, the rule fails rather than assuming pricing is complete.
+
+**Why it matters.** A buyer should not have to attempt a transaction to discover its cost. Price or quote availability lets agents compare alternatives, check a budget, and decide whether to proceed before committing payment.
+
+**How to improve.** Publish a current fixed amount for deterministic charges and a quote path for charges that depend on inputs or usage. Cover every payable operation, not only the most common one, and ensure the disclosed cost corresponds to what the payment challenge will request.
+
+<a id="p2"></a>
+### P2 — Machine-readable prices
+
+**What it checks.** Every payable endpoint's price or quote must be represented as structured data. The rule is worth 6 points and awards proportional credit; an absence of identified payable endpoints does not pass the rule.
+
+**Why it matters.** Agents cannot reliably compare budgets, currencies, or terms by extracting numbers from prose such as “about one cent.” Structured pricing removes locale and unit ambiguity and allows callers to enforce spending policies without a human interpreting the listing.
+
+**How to improve.** Encode amount, currency or asset, unit, and relevant payment terms in stable fields rather than only in descriptive text. Use one unambiguous unit convention, preserve exact precision, and expose quote results in the same structured form across all payable endpoints.
+
+<a id="p3"></a>
+### P3 — Fixed or dynamic pricing
+
+**What it checks.** In v1, the Catalog infers whether each payable endpoint is fixed or dynamic from observed quotes. Consistent quoted amounts indicate fixed pricing; differing observed amounts indicate dynamic pricing. The rule is worth 4 points and awards proportional credit, while no identified payable endpoints produces a failure.
+
+**Why it matters.** A fixed-price classification tells an agent that the observed amount is stable for the operation. A dynamic classification tells it that the charge can change and that it must obtain or refresh a quote; leaving the model unknown invites stale assumptions and budget surprises.
+
+**How to improve.** Return consistent, machine-readable amounts in each payable operation's payment challenge. If the price varies, make sure representative requests produce accurate quotes so the Catalog can observe that variability. A true declared-pricing check will replace this inference after MPP `session` intent and price-driver capture are available.
+
+<a id="p4"></a>
+### P4 — Dynamic price drivers
+
+**What it checks.** For each payable endpoint whose observed quotes indicate dynamic pricing, the Catalog looks for an expected price range, the input or usage factor that changes the price, and the billing unit. The rule is worth 4 points and awards proportional credit. A missing price driver is incomplete rather than a hard failure until price-driver capture is available. If payable endpoints exist but none is dynamic, the rule passes as not applicable; if no payable endpoint is identified, the rule fails rather than treating an empty set as complete.
+
+**Why it matters.** “Dynamic” alone does not let a buyer estimate exposure or let an agent reason about how a request changes the bill. The range establishes likely bounds, the driver explains what varies, and the unit connects consumption to cost.
+
+**How to improve.** Make each dynamic operation return accurate, machine-readable quotes across representative requests so the Catalog can observe its range and variability. The declaration form for a price range, exact driver—such as input tokens, output seconds, records, or compute time—and billing unit arrives with MPP `session` intent and price-driver capture; once available, keep those declarations aligned with the quote implementation.
+
+## Documentation — 15 points
+
+Documentation indicators measure whether detailed integration guidance is both retrievable and complete beyond the compact Catalog record.
+
+<a id="d1"></a>
+### D1 — Reachable documentation
+
+**What it checks.** The service must publish documentation at a location the Catalog can reach. A reachable location earns 4 points, an observed failure earns none, and documentation that has not been observed is marked `not_observed`.
+
+**Why it matters.** The Catalog summary cannot contain every integration detail. A stable public source of truth lets buyers investigate before committing and lets agents retrieve instructions when endpoint metadata alone is insufficient; private pages and broken redirect chains provide neither benefit.
+
+**How to improve.** Publish the documentation at a canonical HTTPS URL that loads without private credentials, interactive login, or expiring access tokens. Test redirects and linked assets from an unauthenticated session, and maintain the URL across documentation platform or domain migrations.
+
+<a id="d2"></a>
+### D2 — Setup and payment walkthrough
+
+**What it checks.** The documentation must include an end-to-end walkthrough covering setup, authentication, payment, and one successful invocation. A complete walkthrough earns 4 points; missing observed content earns none, while unavailable evidence is `not_observed`.
+
+**Why it matters.** Integrators often fail at the transitions between separate reference sections: obtaining prerequisites, attaching credentials, responding to a payment challenge, and finally invoking the service. One coherent first-run path reduces abandonment and gives agents an ordered procedure they can execute and verify.
+
+**How to improve.** Write a minimal working flow from a clean environment to a successful response. List prerequisites, show how merchant authentication differs from payment authorization, demonstrate the payment exchange, and include the exact request and expected success signal. Keep optional production hardening outside the critical path.
+
+<a id="d3"></a>
+### D3 — Per-endpoint documentation
+
+**What it checks.** Every published endpoint must be documented with its request schema, response schema, and representative examples. The rule is worth 4 points and awards proportional credit across endpoints.
+
+**Why it matters.** Complete documentation for one operation cannot safely stand in for another. Agents should not infer the inputs, outputs, side effects, or usage of an undocumented endpoint, especially when each call can incur a separate charge.
+
+**How to improve.** Inventory the endpoint list and create a dedicated operation reference for each method-and-path pair. Include the request and successful response contracts plus representative examples, then add validation to your release process so an endpoint cannot be published or changed without updating its corresponding documentation.
+
+<a id="d4"></a>
+### D4 — Machine-readable discovery
+
+**What it checks.** The service must expose a stable, structured discovery document describing the service and its operations. A discoverable document earns 3 points; an observed absence earns none, while unavailable evidence is `not_observed`.
+
+**Why it matters.** Machine-readable discovery allows agents to inspect capabilities and contracts directly instead of scraping human-oriented prose. That improves matching, makes integrations reproducible, and reduces malformed calls when layouts or wording change.
+
+**How to improve.** Publish a maintained discovery document in an appropriate structured format, at a stable public location, covering the service identity and available operations. Ensure its methods, paths, schemas, and examples agree with the Catalog listing and production API; automate generation or consistency checks where possible.
+
+## Operations & preconditions — 10 points
+
+Operational indicators make requirements and recovery behavior visible before a caller starts a paid workflow.
+
+<a id="o1"></a>
+### O1 — Authentication preconditions
+
+**What it checks.** The service must declare all authentication credentials, headers, permissions, enrollment steps, and other authorization prerequisites. A complete declaration earns 3 points; an observed gap earns none, while unavailable evidence is `not_observed`.
+
+**Why it matters.** Payment authorization and merchant authentication are separate concerns. If a buyer learns about a required API token, account role, or custom header only after selecting the service, otherwise valid calls fail and an agent may incorrectly interpret an authentication refusal as a payment problem.
+
+**How to improve.** List every prerequisite before the invocation steps: credential type, where it is obtained, header or parameter name, required scopes or roles, and any enrollment requirement. State explicitly when no additional merchant authentication is required, and never put live secrets in examples.
+
+<a id="o2"></a>
+### O2 — Network and funding requirements
+
+**What it checks.** The service must state the required payment network, accepted asset or payment rail, and funding prerequisites. A complete declaration earns 3 points; an observed gap earns none, while unavailable evidence is `not_observed`.
+
+**Why it matters.** A buyer can have sufficient value on the wrong chain or in the wrong asset and still be unable to pay. Ambiguous network and rail requirements lead directly to rejected transactions, delays, or attempts to use incompatible funds.
+
+**How to improve.** Name the exact network and environment, supported asset or card rail, and any minimum balance, wallet, allowance, or funding preparation required. Distinguish testnet from mainnet and document each supported alternative separately so callers can confirm compatibility before requesting a quote or challenge.
+
+<a id="o3"></a>
+### O3 — Limits and timeout behavior
+
+**What it checks.** The service must document rate or usage limits, timeout expectations, and whether long-running work completes synchronously or asynchronously. A complete declaration earns 2 points; an observed gap earns none, while unavailable evidence is `not_observed`.
+
+**Why it matters.** Agents need these constraints to plan concurrency, waiting, and retries without duplicating paid work. If a request times out with no documented completion model, a caller cannot know whether the operation stopped, is still running, or will charge again when retried.
+
+**How to improve.** Publish applicable rate and quota limits, expected and maximum response times, and the response pattern for work that outlives an HTTP request. For asynchronous operations, document status polling or callbacks, terminal states, result retention, and how the original request remains correlated and idempotent.
+
+<a id="o4"></a>
+### O4 — Errors and support
+
+**What it checks.** The service must document error responses, retry and idempotency behavior, and a reachable support or escalation channel. A complete declaration earns 2 points; an observed gap earns none, while unavailable evidence is `not_observed`.
+
+**Why it matters.** Clear failure semantics let an agent distinguish a safe retry from a duplicate purchase and help a buyer resolve cases that automated recovery cannot. Without error contracts or support, repeated attempts can increase cost while obscuring the original failure.
+
+**How to improve.** Document status codes and structured error bodies, classify failures as retryable or terminal, and state how idempotency keys behave before and after payment. Provide a monitored support path with the diagnostic identifiers a caller should include, but instruct users never to send secrets or payment credentials.
+
+## Health — 15 points
+
+Health points come from observed behavior rather than the listing's self-description. These checks are withheld in a provisional score.
+
+<a id="h1"></a>
+### H1 — Valid payment challenge
+
+**What it checks.** A live probe must find the endpoint reachable and observe a valid payment challenge. Both conditions are required for 5 points. If reachability or challenge evidence is unavailable, the check is `not_observed`; an observed failure of either condition earns no points.
+
+**Why it matters.** A reachable endpoint that does not issue a standards-compliant challenge still gives an agent no actionable instructions for authorization and payment. Conversely, a theoretically correct payment configuration is useless if callers cannot reach the endpoint that serves it.
+
+**How to improve.** First restore DNS, TLS, routing, deployment, and request handling until the public endpoint responds. Then make an unauthenticated request and verify that the resulting challenge is valid for the advertised protocol and contains complete payment instructions. Repeat the test from outside your infrastructure rather than relying only on local checks.
+
+<a id="h2"></a>
+### H2 — Endpoint liveness
+
+**What it checks.** Recent liveness contributes up to 5 points and can award fractional credit. The rubric prefers observed 7-day uptime, then 30-day uptime; without uptime coverage it derives a baseline from current health (`operational`, `degraded`, `unavailable`, or `unverified`). Reported health confidence can cap the contribution, so uncertain observations cannot claim stronger liveness than their evidence supports.
+
+**Why it matters.** Autonomous workflows depend on a service being available at the moment it is selected, not merely on a correct API description. Intermittent failures waste orchestration time, break downstream steps, and make a paid operation riskier even when discovery and payment metadata are complete.
+
+**How to improve.** Investigate recent probe and uptime failures before polishing lower-impact metadata. Fix recurring capacity, routing, TLS, dependency, or timeout problems; add monitoring for the public callable path; and keep the service stable long enough for current observations to replace historical failures and low-confidence evidence.
+
+<a id="h3"></a>
+### H3 — Settlement readiness
+
+**What it checks.** The observed settleability verdict determines this 5-point check: `settleable` earns 5 points, `unknown` earns 3.33 points and is `partial`, `unpayable` earns none, and no observation is `not_observed` with no points. A known `unpayable` verdict also triggers the 39-point `knownUnpayable` cap.
+
+**Why it matters.** Reachability and a valid challenge do not prove that authorization and settlement complete. A known failure makes the service commercially unavailable and can leave buyers uncertain about whether value moved, while an unknown result provides less assurance than a confirmed settled transaction.
+
+**How to improve.** Exercise the advertised payment path end to end: obtain the challenge, authorize with the supported mechanism, settle, and confirm delivery of the successful result. Trace failures through challenge construction, network and asset configuration, authorization verification, settlement, and post-payment response handling; retain transaction evidence that proves a completed settlement.
+
+## Readiness caps
+
+Caps represent blockers that make a high raw completeness score misleading. All triggered caps are reported, but the lowest cap controls the final score.
+
+<a id="cap-noreachableendpoint"></a>
+### CAP-noReachableEndpoint — No reachable callable endpoint
+
+**What it checks.** This cap triggers when there are no published endpoints or when every published endpoint is marked unreachable or uncallable. After all rule points are summed, the final score is limited to **39**.
+
+**Why it matters.** Documentation and presentation cannot make a service ready when no real operation accepts a call. Buyers cannot verify the offer, and agents cannot obtain a challenge, submit input, or receive a result, so the service is blocked at the first operational step.
+
+**How to improve.** Treat this as the highest-priority blocker. Publish an endpoint if none exists; otherwise repair DNS, TLS, routing, deployment, and request handling until at least one advertised method and path accepts a real external call. Verify the exact public endpoint rather than a private health URL, then allow the Catalog's live evidence to update.
+
+<a id="cap-knownunpayable"></a>
+### CAP-knownUnpayable — Known settlement failure
+
+**What it checks.** This cap triggers when observed payment settleability is `unpayable`. The final score is limited to **39**, regardless of the raw score from metadata, documentation, and other checks.
+
+**Why it matters.** A known settlement failure means the advertised service cannot currently complete the commercial exchange. Agents cannot safely substitute confidence in the docs for a payment that works, and repeated attempts may create uncertainty about authorization or delivery.
+
+**How to improve.** Stop treating the issue as a documentation gap and trace one controlled payment through every stage: challenge, authorization, verification, settlement, and successful result delivery. Correct the failing handler or configuration, test on the exact advertised network and rail, and confirm at least one end-to-end settled transaction before relying on the score to recover.
+
+<a id="cap-nopaymentmechanism"></a>
+### CAP-noPaymentMechanism — No discoverable payment mechanism
+
+**What it checks.** This cap triggers when the evidence says no payment mechanism is discoverable. The final score is limited to **59** even if pricing prose or other integration material is present.
+
+**Why it matters.** A payable operation cannot be purchased autonomously unless a caller can determine which protocol or rail to use. Price alone is insufficient: the agent needs machine-discoverable instructions that connect the payable endpoint to the supported payment flow.
+
+**How to improve.** Publish the supported payment protocol or rail in structured service metadata and associate it with every payable endpoint. Verify that an unauthenticated caller can discover the mechanism before invocation and that the live endpoint issues the corresponding challenge; do not rely on human-only prose as the sole payment signal.
+
+## Bands
+
+The final, cap-adjusted score maps to one of four bands:
+
+| Band | Score | Interpretation |
+| --- | ---: | --- |
+| **Excellent** | 90–100 | Complete discovery and integration details with strong observed readiness. |
+| **Ready** | 75–89 | Usable by autonomous buyers, with a limited set of improvements remaining. |
+| **Almost there** | 60–74 | Meaningful readiness is present, but gaps can still disrupt selection, calling, or payment. |
+| **Getting started** | 0–59 | Foundational information or operational capability is still missing, or a cap is active. |
+
+The band summarizes readiness; use the failed and partial indicators—and any active cap—to decide what to fix. Improvements are prioritized with blockers first, then by recoverable points, affected endpoints, effort, and indicator ID.
+
+## Provisional vs full score
+
+A provisional score uses the 85 points available from Metadata, Endpoints & schemas, Pricing clarity, Documentation, and Operations & preconditions. H1, H2, and H3 remain `not_observed` until live evidence is available, and no cap is applied provisionally. This prevents missing probe data from being presented as an observed failure while making the **85-point ceiling** explicit.
+
+A full score includes all 100 possible points and applies every triggered cap. Compare like with like when tracking changes: moving from provisional to full can change the total because Health evidence has arrived, even when no published metadata changed.
