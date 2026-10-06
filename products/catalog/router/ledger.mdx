@@ -138,15 +138,15 @@ One exception to the flag, and it is the [sub-cent case](#the-routing-fee-on-a-r
 
 ### Subscription-funded records
 
-A call paid with a [Nevermined Subscription](/products/catalog/router/subscription) spends units, not your Delegation, and says so:
+A call paid with a [Nevermined Subscription](/products/catalog/router/subscription) spends credits, not your Delegation, and says so:
 
 | Field | What it is |
 | --- | --- |
 | `fundingSource` | `subscription` or `delegation`. Present on every record. |
-| `unitsCharged` | The call's tariff, in units. `null` on a Delegation record. |
-| `unitsStatus` | `Committed` (delivered, units spent), `Reserved` (still running, or undelivered and being refunded) or `Refunded` (units returned). `null` on a Delegation record. |
+| `creditsCharged` | The call's tariff, in credits. `null` on a Delegation record. |
+| `creditsStatus` | `Committed` (delivered, credits spent), `Reserved` (still running, or undelivered and being refunded) or `Refunded` (credits returned). `null` on a Delegation record. |
 
-On a subscription record `delegationId` is `null` — Nevermined's treasury paid the merchant, so `amount`, `asset` and `txHash` describe **that** payment, not a charge to you — and there is no routing fee (`feeBps` is `0`). What it cost you is `unitsCharged`, kept only when `unitsStatus` is `Committed`.
+On a subscription record `delegationId` is `null` — Nevermined's treasury paid the merchant, so `amount`, `asset` and `txHash` describe **that** payment, not a charge to you — and there is no routing fee (`feeBps` is `0`). What it cost you is `creditsCharged`, kept only when `creditsStatus` is `Committed`.
 
 ### Export
 
@@ -155,7 +155,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?from=2026-07-01T00:00:00Z&to=2026-0
   -H "Authorization: Bearer $NVM_API_KEY" -o router-payments-july.csv
 ```
 
-The CSV carries the same fields as the JSON, and new columns are only ever **appended** to the header row — so a consumer parsing by column index is unaffected by their arrival. `unitsStatus` is currently the last column.
+The CSV carries the same fields as the JSON, and new columns are only ever **appended** to the header row — so a consumer parsing by column index is unaffected by their arrival. `creditsStatus` is currently the last column.
 
 <Note>
 **`feeFailureReason` is normalised before it is published.** Whitespace is collapsed to single spaces — so one payment is always one CSV record, even though some of the underlying errors are multi-line — and any embedded `scheme://…` URL is replaced with `[url]`, because part of this text comes from third parties we do not control. Read it as a human-facing diagnostic, and key your logic on `feeStatus`.

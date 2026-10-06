@@ -102,7 +102,7 @@ Use the Router when the agent must **pay** a service it has no account with — 
 
 The Router pays a price quoted **on the wire**. A service answering `401`/`403` rather than `402` wants authentication, not payment — say so, don't route it.
 
-With a **Nevermined Subscription**, catalog services can be paid with units instead of a Delegation: [docs](https://nevermined.ai/docs/products/catalog/router/subscription).
+With a **Nevermined Subscription**, catalog services can be paid with credits instead of a Delegation: [docs](https://nevermined.ai/docs/products/catalog/router/subscription).
 
 ### 1. Create a Delegation (the budget)
 
