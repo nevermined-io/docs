@@ -45,7 +45,7 @@ Metadata determines whether a service can be recognized and matched before an ag
 <a id="m2"></a>
 ### M2 — Short description
 
-**What it checks.** The short description must contain at least 20 meaningful characters, must not be a recognized placeholder, and must not simply repeat the title. A passing description earns 3 points.
+**What it checks.** The short description must usefully summarize the service, must not be a recognized placeholder, and must not simply repeat the title. A passing description earns 3 points; length alone does not make a description useful.
 
 **Why it matters.** This summary is the at-a-glance explanation shown when a buyer or agent is deciding which listings deserve closer inspection. An outcome-focused sentence improves matching and prevents callers from opening a service only to learn that its capability, inputs, or result is unrelated to their task.
 
@@ -54,7 +54,7 @@ Metadata determines whether a service can be recognized and matched before an ag
 <a id="m3"></a>
 ### M3 — Detailed description
 
-**What it checks.** The detailed description must contain at least 60 meaningful characters and must not be a recognized placeholder. A passing description earns 3 points.
+**What it checks.** The detailed description must usefully explain the service's capability, intended use, and expected result, and must not be a recognized placeholder. A passing description earns 3 points; length alone does not make a description useful.
 
 **Why it matters.** Buyers need enough context to judge fit before integrating or spending money, while autonomous agents need explicit scope to avoid choosing a superficially similar service. A useful description reduces mismatched purchases by explaining the capability, intended use, and expected result rather than leaving those facts to inference.
 
@@ -107,7 +107,7 @@ These indicators define the callable contract. Endpoint records are deduplicated
 
 **Why it matters.** A machine-readable request contract lets an autonomous caller validate field names, types, required values, and nesting before making a potentially paid call. Without it, trial-and-error requests increase failure rates, support load, and the risk that a buyer pays for work triggered with unintended inputs.
 
-**How to improve.** Add a schema for path, query, header, and body inputs as applicable, marking required fields and constraints precisely. If an operation genuinely accepts no caller-supplied input, declare that fact explicitly instead of omitting the schema ambiguously. Start with payable endpoints and fields whose type or required status is easiest to misinterpret.
+**How to improve.** Add a schema for path, query, header, and body inputs as applicable, marking required fields and constraints precisely. If an operation genuinely accepts no caller-supplied input, make the bare request—with no body or query—return its payment challenge so the Catalog probe can record the endpoint as parameterless. Start with payable endpoints and fields whose type or required status is easiest to misinterpret.
 
 <a id="e4"></a>
 ### E4 — Response schemas
@@ -152,20 +152,20 @@ Pricing indicators apply to endpoints identified as payable. Coverage is calcula
 <a id="p3"></a>
 ### P3 — Fixed or dynamic pricing
 
-**What it checks.** Every payable endpoint must explicitly declare its pricing kind as `fixed` or `dynamic`; `unknown` fails. The rule is worth 4 points and awards proportional credit, while no identified payable endpoints produces a failure.
+**What it checks.** In v1, the Catalog infers whether each payable endpoint is fixed or dynamic from observed quotes. Consistent quoted amounts indicate fixed pricing; differing observed amounts indicate dynamic pricing. The rule is worth 4 points and awards proportional credit, while no identified payable endpoints produces a failure.
 
-**Why it matters.** A fixed-price declaration tells an agent that the advertised amount is final for the operation. A dynamic declaration tells it that the charge can change and that it must obtain or refresh a quote; leaving the model unknown invites stale assumptions and budget surprises.
+**Why it matters.** A fixed-price classification tells an agent that the observed amount is stable for the operation. A dynamic classification tells it that the charge can change and that it must obtain or refresh a quote; leaving the model unknown invites stale assumptions and budget surprises.
 
-**How to improve.** Label each payable operation explicitly. Use `fixed` only when the charge does not vary with request inputs or measured usage; otherwise use `dynamic` and provide the additional range, driver, and unit information required by P4.
+**How to improve.** Return consistent, machine-readable amounts in each payable operation's payment challenge. If the price varies, make sure representative requests produce accurate quotes so the Catalog can observe that variability. A true declared-pricing check will replace this inference after MPP `session` intent and price-driver capture are available.
 
 <a id="p4"></a>
 ### P4 — Dynamic price drivers
 
-**What it checks.** Every dynamically priced payable endpoint must declare an expected price range, the input or usage factor that changes the price, and the billing unit. The rule is worth 4 points and awards proportional credit. When there are no dynamic endpoints, it is marked `not_observed` but receives all 4 points because the requirement is not applicable.
+**What it checks.** For each payable endpoint whose observed quotes indicate dynamic pricing, the Catalog looks for an expected price range, the input or usage factor that changes the price, and the billing unit. The rule is worth 4 points and awards proportional credit. A missing price driver is incomplete rather than a hard failure until price-driver capture is available. If payable endpoints exist but none is dynamic, the rule passes as not applicable; if no payable endpoint is identified, the rule fails rather than treating an empty set as complete.
 
 **Why it matters.** “Dynamic” alone does not let a buyer estimate exposure or let an agent reason about how a request changes the bill. The range establishes likely bounds, the driver explains what varies, and the unit connects consumption to cost.
 
-**How to improve.** For each dynamic operation, state a realistic minimum and maximum or other useful expected range, name the exact driver—such as input tokens, output seconds, records, or compute time—and define the unit used to calculate the charge. Keep these declarations aligned with the quote implementation and update them when the pricing formula changes.
+**How to improve.** Make each dynamic operation return accurate, machine-readable quotes across representative requests so the Catalog can observe its range and variability. The declaration form for a price range, exact driver—such as input tokens, output seconds, records, or compute time—and billing unit arrives with MPP `session` intent and price-driver capture; once available, keep those declarations aligned with the quote implementation.
 
 ## Documentation — 15 points
 
