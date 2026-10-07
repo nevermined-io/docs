@@ -327,3 +327,30 @@ The band summarizes readiness; use the failed and partial indicators—and any a
 A provisional score uses the 85 points available from Metadata, Endpoints & schemas, Pricing clarity, Documentation, and Operations & preconditions. H1, H2, and H3 remain `not_observed` until live evidence is available, and no cap is applied provisionally. This prevents missing probe data from being presented as an observed failure while making the **85-point ceiling** explicit.
 
 A full score includes all 100 possible points and applies every triggered cap. Compare like with like when tracking changes: moving from provisional to full can change the total because Health evidence has arrived, even when no published metadata changed.
+
+<a id="rubric-versions"></a>
+## Rubric versions
+
+Every score records the rubric version that produced it, shown as `readiness/MAJOR.MINOR.PATCH` next to the score with its analysis date. A released version never changes, and a past score is never recalculated in place: each analysis creates a new score.
+
+| Change | When it is used | Effect on scores |
+| --- | --- | --- |
+| **MAJOR** | A dimension is added, removed, or renamed, or a cap or band boundary changes | Scores can move significantly |
+| **MINOR** | Weights or checks change within the existing dimensions | Scores can move |
+| **PATCH** | Wording, documentation, or other changes that cannot affect any score | None |
+
+After a MAJOR or MINOR change, every listed service is re-scored automatically with the new version. If your score moved because of the new rubric rather than a change to your service, the readiness tile on your agent page tells you so — _"Scoring criteria updated to readiness/X.Y.Z — this change reflects the rubric, not your service"_ — and links to the entry below.
+
+### Freshness
+
+Scores are re-scored automatically every 7 days. If your score is older than that, your agent page marks it **Stale** and offers a re-analysis. Public Catalog pages always show the score's rubric version and analysis date.
+
+### Changelog
+
+#### readiness/1.0.0
+
+- **Change type:** MAJOR (initial rubric)
+- **Summary:** Introduces the deterministic 0–100 readiness rubric, its six dimensions, caps, bands, and prioritized recommendations.
+- **Dimensions:** Metadata; Endpoints & schemas; Pricing clarity; Documentation; Operations & preconditions; Health.
+- **Why:** Give builders an explainable measure of whether a service is ready to be discovered, bought, and consumed before it has settlement traction.
+- **Expected score movement:** Initial baseline; there is no prior readiness version to compare.
