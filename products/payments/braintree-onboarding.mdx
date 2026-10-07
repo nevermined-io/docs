@@ -46,11 +46,11 @@ Before connecting Braintree to Nevermined, you need:
 
 ## Connecting Your Braintree Account
 
-Connection happens once, from your Nevermined profile page:
+Connection happens once per organization, from its Organization page (you must be an Admin of the organization):
 
 <Steps>
-  <Step title="Open your Nevermined profile">
-    Go to your profile in the [Nevermined App](https://nevermined.app) and find the **Payment Provider** section.
+  <Step title="Open your Organization page">
+    In the [Nevermined App](https://nevermined.app), select the organization, open its **Organization** page and find the **Braintree** card.
   </Step>
   <Step title="Click Connect Braintree">
     You'll be redirected to Braintree's OAuth consent screen, which lists the gateway scopes Nevermined needs (transaction creation, refunds, settlement management, and merchant account discovery). Approve the connection.
@@ -59,7 +59,7 @@ Connection happens once, from your Nevermined profile page:
     Braintree redirects you back to Nevermined. The facilitator stores the OAuth access and refresh tokens server-side, then immediately calls Braintree to enumerate the child merchant accounts on your gateway.
   </Step>
   <Step title="Confirm your supported currencies">
-    Your profile now shows one badge per currency Nevermined can charge on your behalf — for example **USD** and **EUR**. If a currency is missing, add the corresponding child merchant account in your Braintree dashboard, then disconnect and reconnect to re-discover.
+    The Braintree card now shows one badge per currency Nevermined can charge on your behalf — for example **USD** and **EUR**. If a currency is missing, add the corresponding child merchant account in your Braintree dashboard, then disconnect and reconnect to re-discover.
   </Step>
 </Steps>
 
@@ -77,7 +77,11 @@ Raw card data, customer details, and transaction PII never leave Braintree — N
 
 ### Disconnecting
 
-Click **Disconnect Braintree** on your profile to revoke the connection. Nevermined clears all four fields above (access token, refresh token, merchant ID, and the per-currency map). Existing delegations against your account stop being chargeable on the next request.
+Click **Disconnect Braintree** on the Organization page to end the connection. Nevermined revokes the access token it held and clears all four fields above (access token, refresh token, merchant ID, and the per-currency map). Existing delegations against your account stop being chargeable on the next request.
+
+Disconnecting does **not** remove Nevermined from your Braintree account. Braintree's API can revoke an access token but not your authorization of the app, so Nevermined stays listed under **OAuth → Connected Apps** in your Braintree Control Panel. Reconnecting may reuse that authorization, so it may skip the consent screen. To remove Nevermined entirely, click **Revoke Access** next to it in the Control Panel.
+
+If Braintree does not confirm the token revoke, the Organization page warns you, and the API's `DELETE /api/v1/fiat/braintree/disconnect` response reports `accessTokenRevocation: "failed"`. Nevermined still discards the connection.
 
 ## Per-Currency Merchant Accounts
 
@@ -88,8 +92,8 @@ This is a Braintree-side requirement, not a Nevermined one. Adding a merchant ac
 After adding a new currency in Braintree:
 
 1. Disconnect Nevermined's Braintree connection.
-2. Reconnect — re-authorization completes in two clicks because Braintree skips the consent screen for the same `client_id`.
-3. The newly available currency badge appears on your profile.
+2. Reconnect — re-authorization usually completes in two clicks, because Braintree may skip the consent screen for an app you have already authorized.
+3. The newly available currency badge appears on the Organization page.
 
 There is no manual "Refresh" button. Currency changes on your side are rare enough that the disconnect+reconnect path is the simplest way to re-trigger discovery.
 
@@ -100,7 +104,7 @@ When you create a plan with `fiatPaymentProvider: 'braintree'`, Nevermined check
 - **Currency available** → plan creation succeeds. Buyers can purchase the plan and receive credits.
 - **Currency missing** → plan creation is rejected with `BCK.BRAINTREE.0008`. Add the child merchant account in your Braintree dashboard, then disconnect and reconnect Nevermined before retrying.
 
-The plan-creation form in the Nevermined App enforces this client-side too: when you select Braintree as the provider, the currency dropdown only shows the currencies your gateway supports, with a tooltip pointing back to your profile if none are available yet.
+The plan-creation form in the Nevermined App enforces this client-side too: when you select Braintree as the provider, the currency dropdown only shows the currencies your gateway supports, with a tooltip pointing you to the Organization page if none are available yet.
 
 ## Settlement Model
 
@@ -128,7 +132,7 @@ For very small charges where the platform fee would round to zero or negative, N
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| "No currency-specific merchant accounts found" on your profile | Your Braintree gateway has merchant accounts but they weren't discovered (e.g. legacy OAuth scope, or all accounts are inactive) | Disconnect and reconnect; the OAuth flow re-runs discovery with the latest scope. |
+| "No currency-specific merchant accounts found" on the Organization page | Your Braintree gateway has merchant accounts but they weren't discovered (e.g. legacy OAuth scope, or all accounts are inactive) | Disconnect and reconnect; the OAuth flow re-runs discovery with the latest scope. |
 | Plan creation rejected with `BCK.BRAINTREE.0008` | The chosen currency has no child merchant account on your gateway | Add the merchant account in Braintree, then disconnect and reconnect Nevermined. |
 | x402 charge fails with `BCK.BRAINTREE.0007` at settlement time | Your gateway no longer has a merchant account in the plan's currency (e.g. it was deactivated after plan creation) | Re-add the merchant account in Braintree and reconnect. Existing credit balances on buyers' accounts can still be redeemed; only new card charges are blocked. |
 
