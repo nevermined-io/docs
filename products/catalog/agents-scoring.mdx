@@ -4,7 +4,7 @@ description: "The authoritative reference for every indicator, cap, and band in 
 icon: "gauge-high"
 ---
 
-The **readiness score** measures how completely a Catalog service is prepared for an autonomous buyer to discover, evaluate, invoke, and pay for it. It is a builder-facing score from **0 to 100**, calculated with rubric `readiness/1.0.0` from published metadata, endpoint definitions, operational guidance, and observed health.
+The **readiness score** measures how completely a Catalog service is prepared for an autonomous buyer to discover, evaluate, invoke, and pay for it. It is a builder-facing score from **0 to 100**, calculated with rubric `readiness/1.0.0` ([rubric versions](#rubric-versions)) from published metadata, endpoint definitions, operational guidance, and observed health.
 
 Readiness is not the service's `qualityScore`, popularity, or traction. It does not judge whether an output is insightful or whether buyers prefer the service. Instead, it identifies gaps that can prevent an otherwise useful service from being found, selected, called correctly, or purchased safely.
 
@@ -328,29 +328,31 @@ A provisional score uses the 85 points available from Metadata, Endpoints & sche
 
 A full score includes all 100 possible points and applies every triggered cap. Compare like with like when tracking changes: moving from provisional to full can change the total because Health evidence has arrived, even when no published metadata changed.
 
-<a id="rubric-versions"></a>
+## When scores are calculated
+
+A score is calculated when you request an analysis and when you publish or update a Catalog listing. Nevermined can also re-score listed services, for example after a rubric change. Each analysis produces a new score; a score you were shown never changes afterwards.
+
+Your agent’s page in the Nevermined app (the **Catalog** and **Status** tabs) shows the score with the rubric version and date it was calculated, and marks a full score older than 7 days as **Stale** with a **Re-analyze** link. A service’s public Catalog page shows the score, its band, and the same version and date.
+
 ## Rubric versions
 
-Every score records the rubric version that produced it, shown as `readiness/MAJOR.MINOR.PATCH` next to the score with its analysis date. A released version never changes, and a past score is never recalculated in place: each analysis creates a new score.
+Every score records the rubric version that produced it, `readiness/MAJOR.MINOR.PATCH`. A released version never changes. The scoring API reports it as `rubricVersion` (for example in `GET /api/v1/catalog/scoring/public/{slug}`), so you can check which version a score used.
 
-| Change | When it is used | Effect on scores |
+| Version level | What changed | Effect on your score |
 | --- | --- | --- |
-| **MAJOR** | A dimension is added, removed, or renamed; a cap or band boundary changes; or a change can move many services between bands | Scores can move significantly |
-| **MINOR** | Weights or checks change within the existing dimensions, or a recommendation change moves points | Scores can move |
-| **PATCH** | Wording, documentation, or other changes that cannot affect any score | None |
+| **MAJOR** | Anything structural: dimensions or their maximum points, indicators (added, removed, or renumbered), readiness caps (added, removed, or a new value), band boundaries, or whether caps apply to provisional scores | Points and bands can change for many services |
+| **MINOR** | Weights or checks within the existing dimensions, or recommendations that move points | Points can shift; a band change is possible |
+| **PATCH** | Wording, documentation, or other changes that cannot affect any score | None; existing scores keep their version until their next analysis |
 
-A new version applies to every analysis from its release. If your score moved because of a MAJOR or MINOR rubric change rather than a change to your service, the readiness tile on your agent page tells you so — _"Scoring criteria updated to readiness/X.Y.Z — this change reflects the rubric, not your service"_ — and links to the entry below.
-
-### Freshness
-
-Your agent page marks a score older than 7 days as **Stale** and offers a re-analysis. Public Catalog pages always show the score's rubric version and analysis date.
+A new version applies to every analysis from its release, so a score keeps the version it was calculated with until the service is analyzed again. When your score moved because of a MAJOR or MINOR rubric change rather than a change to your service, your agent’s page says “Scoring criteria updated to `readiness/X.Y.Z` — this change reflects the rubric, not your service.” and links to that version’s entry in the [changelog](#changelog).
 
 ### Changelog
 
+<a id="readiness-1-0-0"></a>
 #### readiness/1.0.0
 
-- **Change type:** MAJOR (initial rubric)
+- **Version level:** Initial release
 - **Summary:** Introduces the deterministic 0–100 readiness rubric, its six dimensions, caps, bands, and prioritized recommendations.
 - **Dimensions:** Metadata; Endpoints & schemas; Pricing clarity; Documentation; Operations & preconditions; Health.
-- **Why:** Give builders an explainable measure of whether a service is ready to be discovered, bought, and consumed before it has settlement traction.
-- **Expected score movement:** Initial baseline; there is no prior readiness version to compare.
+- **Why:** Give builders an explainable measure of whether a service is ready for an autonomous buyer to discover, evaluate, invoke, and pay for it, before it has any sales history.
+- **Effect on your score:** Initial baseline; there is no earlier version to compare.
