@@ -559,7 +559,7 @@ A credits call answers with `funding: "subscription"`, the credits it cost and w
 { "funding": "subscription", "slug": "webscrape-pro", "credits": 3, "tariffVersion": 2, "nextTool": "pay_service" }
 ```
 
-There's no `quoteId` or cent total. The credits you have left this month and the spending limits are checked only when `pay_service` makes the call.
+There's no `quoteId` or cent total. The credits you have left this month are checked only when `pay_service` makes the call.
 
 `get_budget` and `wallet_balance` add a `subscription` block — `creditsLeft`, `resetsAt`, `status`, `suspended` and `plan` — and `get_budget` a `subscriptionMessage` to relay as it stands. Don't count credits yourself.
 
@@ -572,7 +572,7 @@ These charge nothing and reserve no credits. Each carries the API's `code` and `
 | `no_active_subscription` | No subscription that can spend right now (none, ended, past due, or suspended). |
 | `subscription_not_eligible` | This endpoint can't be paid with credits — see `reason`. |
 | `insufficient_credits` | Not enough credits left for this call (`credits` is its cost). |
-| `subscription_cap_reached` | A daily, per-service or new-subscription spending limit was reached. Retry later. |
+| `subscription_cap_reached` | A spending limit was reached. The subscription has none beyond your credits, so only an older API deployment returns this. Retry later. |
 | `subscription_ceiling_exceeded` | The merchant's live price is outside the rate's bound right now. |
 | `subscription_rail_unsupported` | The merchant asked for a rail credits don't pay (`rail`). |
 | `subscription_payment_refused` | Nevermined's treasury couldn't make this payment; see `code` and `retryable`. |
@@ -580,7 +580,7 @@ These charge nothing and reserve no credits. Each carries the API's `code` and `
 | `funding_undetermined` | The funding couldn't be decided. Nothing was charged; retry. |
 
 <Note>
-A credits call refused because too few credits are left this month, or by a spending limit, is **not** moved to your Delegation on its own — starting to spend money when your allowance runs out is your decision. Retry with `funding: "delegation"` if you want the Delegation to pay.
+A credits call refused because too few credits are left this month is **not** moved to your Delegation on its own — starting to spend money when your allowance runs out is your decision. Retry with `funding: "delegation"` if you want the Delegation to pay.
 </Note>
 
 ## Price a call before paying

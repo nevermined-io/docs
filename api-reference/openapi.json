@@ -2821,7 +2821,7 @@
             }
           },
           "429": {
-            "description": "A spending limit: this listing's limit for the period (BCK.SUBSCRIPTION_TREASURY.0005), the daily credit limit (BCK.SUBSCRIPTION_TREASURY.0006) or a new subscription's pace limit (BCK.SUBSCRIPTION_TREASURY.0007); or the per-slug throttle or per-user concurrency limit.",
+            "description": "The per-slug throttle or the per-user concurrency limit. A subscription has no spending limit beyond its credits: the BCK.SUBSCRIPTION_TREASURY.0005, 0006 and 0007 limits are retired.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2841,7 +2841,7 @@
             }
           },
           "503": {
-            "description": "Temporarily unable to pay, nothing charged: the reservation timed out (BCK.SUBSCRIPTION_ROUTER.0014, retry with the same requestId), the subscription lookup failed (0012), the deployment cannot run subscription calls (0010), or the treasury refused (a `BCK.SUBSCRIPTION_TREASURY.*` code, e.g. 0004 daily outflow limit). `retryable` says whether retrying can help.",
+            "description": "Temporarily unable to pay, nothing charged: the reservation timed out (BCK.SUBSCRIPTION_ROUTER.0014, retry with the same requestId), the subscription lookup failed (0012), the deployment cannot run subscription calls (0010), or the treasury refused (a `BCK.SUBSCRIPTION_TREASURY.*` code, e.g. 0003 when its float cannot cover the payment). `retryable` says whether retrying can help.",
             "content": {
               "application/json": {
                 "schema": {

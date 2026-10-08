@@ -28,7 +28,7 @@ Subscriptions are bought in the Nevermined App, on its own Stripe-hosted checkou
     The Nevermined Subscription is **USD 20 per month plus applicable taxes**, and grants **20,000 credits** each month. VAT or sales tax is calculated at checkout from your billing address and added on top; Stripe Checkout shows the total before you pay, and a business can add its tax id there.
   </Step>
   <Step title="Give the consents and pay">
-    Tick the consents the page shows — the subscription renews automatically every month until you cancel, and a personal subscription also asks you to confirm that your credits are made available immediately. Then **Continue to payment** takes you to Stripe Checkout.
+    Tick the consents the page shows — the subscription renews automatically every month until you cancel, and a personal subscription also asks you to confirm that your credits are made available immediately. Then **Continue to payment** takes you to Stripe Checkout. Your bank may ask you to confirm this first payment (3-D Secure); renewals are charged without it.
   </Step>
   <Step title="Your credits arrive">
     Back on the page, your credits appear as soon as Stripe confirms the payment.
@@ -83,7 +83,7 @@ curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/quote" \
 { "slug": "webscrape-pro", "credits": 3, "tariffVersion": 2 }
 ```
 
-A quote refuses exactly what the call would refuse before paying (see [When a call is refused](#when-a-call-is-refused)), but it doesn't check how many credits you have left or the spending limits — those are checked when the call is made.
+A quote refuses exactly what the call would refuse before paying (see [When a call is refused](#when-a-call-is-refused)), but it doesn't check how many credits you have left — that is checked when the call is made.
 
 **The rate card is live.** It covers hundreds of services whose own prices move all the time, so rates change — up or down — as soon as Nevermined updates them, without notice. Quote before you call when the cost matters; the rate in force at the time of the call is what you pay.
 
@@ -163,9 +163,9 @@ Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw UR
 
 Credits are spent with a **Nevermined API key**. OAuth connections to an assistant (for example the [Commerce MCP](/products/catalog/mcp) connected from Claude.ai or ChatGPT) pay from their commerce grant, not from credits.
 
-### Spending limits
+### No spending limits beyond your credits
 
-To keep the treasury safe, a subscription also runs under limits Nevermined sets, each refused with `429` before anything is paid: a daily limit on credits per subscriber, a spend limit per service over a rolling period, and a pace limit on a brand-new subscription's first period. They reset on their own; retry later or pay that call from a Delegation.
+A subscription has no daily, per-service or pace limit: your monthly credits are the limit. A call is refused only for the reasons below.
 
 ## When a call is refused
 
@@ -180,10 +180,9 @@ Branch on `code`. None of these charged anything or reserved any credit.
 | `BCK.SUBSCRIPTION_ROUTER.0005` | 400 | A field that only makes sense elsewhere (`url`, `delegationId`, a target header) — `params.field`. | Address the service by `slug` only. |
 | `BCK.SUBSCRIPTION_ROUTER.0007` | 400 | Mode A (`POST /router/payments`) can't be funded by a subscription. | Use the subscription route. |
 | `BCK.SUBSCRIPTION_ROUTER.0009` | 402 | Not enough credits left for this call (`params.credits` is its cost). | Wait for the next period, pick a cheaper endpoint, or pay from a Delegation. |
-| `BCK.SUBSCRIPTION_TREASURY.0005` · `0006` · `0007` | 429 | A [spending limit](#spending-limits) was reached. | Retry later, or pay from a Delegation. |
 | `BCK.SUBSCRIPTION_ACCESS.0001` | 404 | The subscription isn't available to this account. | — |
 
-Errors with a `5xx` status (`BCK.SUBSCRIPTION_ROUTER.0006`, `0010`–`0014`, and the other `BCK.SUBSCRIPTION_TREASURY.*` codes) are on Nevermined's side and also charge nothing; `retryable` says whether retrying can help. The full list is in the [error reference](/development-guide/api-errors/codes).
+Errors with a `5xx` status (`BCK.SUBSCRIPTION_ROUTER.0006`, `0010`–`0014`, and the `BCK.SUBSCRIPTION_TREASURY.*` codes) are on Nevermined's side and also charge nothing; `retryable` says whether retrying can help. The full list is in the [error reference](/development-guide/api-errors/codes). `BCK.SUBSCRIPTION_TREASURY.0004`–`0007` and `0014` are retired: they belonged to spending limits removed before launch, and the API no longer returns them.
 
 ## In the ledger
 
