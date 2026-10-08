@@ -94,3 +94,28 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
 ## Accounting
 
 `GET /api/v1/router/payments` (filterable; `format=csv`) + `/payments/summary`. `amount` is the **merchant leg only** (6dp crypto, 2dp cards); use `assetDecimals` (null ⇒ raw units). `feeStatus` is separate from payment `status`. `Issued` is not an error — the money moved.
+
+## More refusals (none retryable)
+
+- `BCK.ROUTER.0012` (400) — the seller's 402 advertises an EIP-712 domain its own settlement
+  token does not sign under. Nothing signed, charged or reserved. It is the seller's bug and a
+  retry gives the same answer: report it and pay someone else.
+- `BCK.ROUTER.0014` (409) — the target is a cataloged Nevermined service; the Router will not pay
+  it by raw URL. Invoke it by `slug` on `/router/route` or `/router/svc/<slug>` (`commerce` grant:
+  `/router/commerce/route`); re-quote a refused quote by slug, never pay it.
+- `BCK.ROUTER.0021` (400) — the payment credential would overwrite a header you forward (MPP uses
+  `Authorization`). Nothing minted. Name the service's credential header: `credentialHeader` in
+  the `/route` body, or `X-Router-Credential-Header` on `/proxy`·`/svc`.
+- `BCK.ROUTER.0026` (415) — the streaming surfaces forward only JSON or URL-encoded bodies, and
+  none on GET/HEAD. Nothing minted. Resend as JSON or a URL-encoded form.
+- `BCK.ROUTER.0027` (413) — body larger than the endpoint's `maxRequestBytes` (service detail /
+  MCP `get_service`). Refused before the service is contacted; `params` has `bodyBytes` and
+  `maxRequestBytes`. Shrink the body or pick another service.
+- `BCK.ROUTER.0034` (502) — a paid request got no response; the payment may have gone through.
+  Reconcile via `GET /router/payments/{paymentId}` (`params.paymentId`); never retry with a fresh
+  `requestId`.
+- `BCK.ROUTER.0035` (422) — the service's challenge asks for no payment (an auth-only wallet
+  sign-in). Nothing charged; use a paying service or authenticate with it directly.
+- `BCK.ROUTER.0036` (422) — the endpoint is known to outlast the Router's 120 s paid-call limit;
+  refused before payment. `params.source` is `declared` (permanent) or `observed` (lifts at
+  `params.liftsAt`). Pick another endpoint.
