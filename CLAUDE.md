@@ -55,7 +55,6 @@ characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Old
   "only … are retryable" rule and accounting. An old Windsurf that cuts there loses only the remedies
   of the non-retryable codes appended under *More refusals*, never a retry verdict.
 - New codes go **at the end**, in *More refusals*; never grow the first 6,000 characters.
-- Keep `nevermined-router.md` + `nevermined-payments.md` under 12,000 combined too (the old total cap).
 
 The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser** — no
 worked examples (`curl` blocks and the `new URL(...)` snippet become prose), no literal enum members,
