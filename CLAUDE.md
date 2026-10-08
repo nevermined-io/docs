@@ -40,34 +40,27 @@ They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, C
 | Path | Skills present |
 | --- | --- |
 | `.cursor/rules/<skill>.mdc` | payments, router |
-| `.windsurf/rules/<skill>.md` | payments, router (**6,000-char limit per file** — see the warning below) |
+| `.windsurf/rules/<skill>.md` | payments, router (**12,000-char limit per file** — see the warning below) |
 | `.clinerules/<skill>.md` | payments, router |
 | `.amazonq/rules/<skill>.md` | payments, router |
 | `.github/copilot-instructions.md` | payments + a condensed Router section — single file, no per-skill split |
 | `AGENTS.md` | payments + a condensed Router section — single file, no per-skill split |
 
-⚠️ **Windsurf's 6,000-character cap is a hard truncation, and `nevermined-router.md` is at its
-ceiling.** Windsurf silently drops everything past 6,000 characters — it does not error, and what it
-drops is the **end** of the file, which is where the guardrails and accounting sections live. As of
-2026-09-28 (docs#460) `.windsurf/rules/nevermined-router.md` is **exactly 6,000 of 6,000** characters
-(its payments sibling is 4,045; the 12,000 all-files cap is not the binding one). **Zero headroom: no
-new code, endpoint or remedy fits without a displacement decision.** docs#460's `202` = paid line was
-paid for with a restated rationale ("The cap is the user's decision"), a redundant "Others need a
-decision" after the retryable list, the word "external" and four bold pairs — the easy trims are now
-gone, so the next addition has to displace a real example or list. It overflowed to
-6,535 once (docs#463) without anything failing here — only the nvm-monorepo drift check caught it.
+⚠️ **Windsurf truncates a rule file silently, from the END.** Current Windsurf (Devin Desktop) docs
+cap workspace rule files at **12,000 characters each** (*"Workspace rule files are limited to 12,000
+characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Older versions cut at
+**6,000**, and this file was squeezed to that until 2026-10-08, omitting eight `BCK.ROUTER` codes. Now:
 
-The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser and is
-the only one that diverges.** What it trades away is *presentation*, never a rule: it carries every
-gotcha and guardrail the others do, but **not the worked examples** (`curl` blocks and the
-`new URL(...)` snippet become prose), **not literal enum members** (`feeStatus`'s six values), and
-**not spelled-out column lists** (`fee*` / `asset*` instead of naming all eight). For those it relies
-on the full-skill link at the top of the file.
+- **The first 6,000 characters stay self-sufficient**: every gotcha, the guardrails, the blanket
+  "only … are retryable" rule and accounting. An old Windsurf that cuts there loses only the remedies
+  of the non-retryable codes appended under *More refusals*, never a retry verdict.
+- New codes go **at the end**, in *More refusals*; never grow the first 6,000 characters.
 
-Keep that invariant when editing: **a fact may not be the thing that gets cut.** Adding one means
-deciding up front which example or list it displaces — there is no room left to absorb it by
-tightening prose, and the failure mode of ignoring this is not a lint error but the safety content
-silently disappearing. Check the size after editing:
+The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser** — no
+worked examples (`curl` blocks and the `new URL(...)` snippet become prose), no literal enum members,
+no spelled-out column lists — and relies on the full-skill link at the top for those. **A fact may
+not be the thing that gets cut**, and the failure mode of ignoring a cap is not a lint error but the
+safety content silently disappearing. Check the size after editing:
 
 ```bash
 python3 -c "print(len(open('.windsurf/rules/nevermined-router.md',encoding='utf-8').read()))"
