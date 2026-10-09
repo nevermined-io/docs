@@ -2095,6 +2095,17 @@
                     "method": "GET",
                     "requestId": "order-1234"
                   }
+                },
+                "poll-async-result": {
+                  "summary": "Read an async result you already paid for (free, wallet-authenticated)",
+                  "description": "Same slug as the paid call, the catalog template filled with the job id that call returned. The Router answers the service's wallet challenge (MPP zero-amount proof or x402 Sign-In-With-X) with your own wallet and returns `paid: false`.",
+                  "value": {
+                    "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
+                    "slug": "merit-systems-mpp-2",
+                    "path": "/api/jobs/3f6c2a9e-7b41-4d0e-9a52-c18e5f07d6b3",
+                    "method": "GET",
+                    "requestId": "lighthouse-image-v1-poll-1"
+                  }
                 }
               }
             }
@@ -2107,6 +2118,19 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RouteResultDto"
+                },
+                "examples": {
+                  "poll-async-result": {
+                    "summary": "Async result read: relayed free, nothing charged",
+                    "value": {
+                      "status": 200,
+                      "body": {
+                        "status": "complete",
+                        "…": "the delivered result, exactly as the service returned it"
+                      },
+                      "paid": false
+                    }
+                  }
                 }
               }
             }
@@ -4737,8 +4761,18 @@
           },
           "url": {
             "type": "string",
-            "description": "Absolute upstream URL to route to (http/https only).",
+            "description": "Absolute upstream URL to route to (http/https only). Provide EXACTLY ONE of `url` or `slug`.",
             "example": "https://agent.example/api/resource"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Catalog slug to invoke via the opaque Router broker. The Router resolves the slug to the real upstream server-side, so the URL is never exposed. Mutually exclusive with `url`. Required to read the result of an async service (an endpoint the catalog marks `auth: \"siwx\"`): the Router answers its wallet challenge only on a slug call.",
+            "example": "webscrape-pro"
+          },
+          "path": {
+            "type": "string",
+            "description": "Optional subpath appended to the resolved upstream when `slug` is used (e.g. `scrape` → the merchant's `/scrape`). Path segments only — it may not change the host: `//`, `..`, a backslash and an embedded absolute URL are rejected (400). A catalog template placeholder (`{jobId}`, `:id`) must be filled with a real value, or the call is refused (400). Ignored when `url` is used.",
+            "example": "scrape"
           },
           "method": {
             "type": "string",
@@ -4776,7 +4810,6 @@
         },
         "required": [
           "delegationId",
-          "url",
           "requestId"
         ]
       },
