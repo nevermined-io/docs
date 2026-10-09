@@ -116,7 +116,8 @@ Before signing, the Router checks the challenge:
 | Check | Requirement |
 | --- | --- |
 | Method and intent | `tempo` / `charge`, amount `0` |
-| Chain and asset | [Allowlisted](#the-asset-allowlist), exactly as for a paid charge — USDC.e on Tempo mainnet (`4217`) |
+| Chain and asset | [Allowlisted](#the-asset-allowlist) per chain, exactly as for a paid charge — Tempo mainnet or Moderato |
+| Payout terms | No `splits` or other [refused terms](#what-the-router-refuses), as for a paid charge |
 | `id` | Present |
 | `realm` | Exactly the host of the URL being called |
 | `expires` | Present, in the future, and at most **10 minutes** away |

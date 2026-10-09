@@ -4774,6 +4774,12 @@
             "description": "Optional subpath appended to the resolved upstream when `slug` is used (e.g. `scrape` → the merchant's `/scrape`). Path segments only — it may not change the host: `//`, `..`, a backslash and an embedded absolute URL are rejected (400). A catalog template placeholder (`{jobId}`, `:id`) must be filled with a real value, or the call is refused (400). Ignored when `url` is used.",
             "example": "scrape"
           },
+          "search": {
+            "type": "string",
+            "description": "Query string for a slug-routed request, without the leading ?. It is attached to the resolved merchant URL without changing its host. Use this instead of embedding ? in path. With a raw url, include the query in url; sending search with url is refused.",
+            "example": "flight_iata=AA217&limit=1",
+            "maxLength": 2048
+          },
           "method": {
             "type": "string",
             "description": "HTTP method to use for the upstream request.",

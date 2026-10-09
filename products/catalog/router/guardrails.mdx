@@ -90,7 +90,7 @@ Because of this, the **paid** call to a service that has `auth: "siwx"` endpoint
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
-| `ROUTER_FREE_FOLLOWUP_TTL_MS` | unset (off) | How long after a settled payment its follow-ups — free result reads and wallet-challenge answers — are allowed. Unset or `0` turns both off, and paid calls to services with `auth: "siwx"` endpoints are refused. |
+| `ROUTER_FREE_FOLLOWUP_TTL_MS` | unset (off) in code; `3600000` (1 hour) on Nevermined's production deployments | How long after a settled payment its follow-ups — free result reads and wallet-challenge answers — are allowed. Unset or `0` turns both off, and paid calls to services with `auth: "siwx"` endpoints are refused. |
 
 ## What the Router won't fetch
 

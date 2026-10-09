@@ -122,8 +122,8 @@ Before signing, the Router checks every field the service supplied:
 | `domain` | Exactly the host of the URL being called |
 | `uri` | Exactly the URL being called |
 | `version` | `1` |
-| `nonce` | Alphanumeric, at least 8 characters |
-| `issuedAt` | An ISO-8601 UTC time, recent (no more than 10 minutes old) |
+| `nonce` | Alphanumeric, 8–128 characters |
+| `issuedAt` | An ISO-8601 UTC time, no more than 10 minutes old and no more than 60 seconds in the future (tolerated clock skew) |
 | `expirationTime` | Present, in the future, and at most **10 minutes** away |
 
 The Router builds the message from those validated fields only. Anything else the service wrote — `statement`, `resources`, `requestId`, `notBefore` — is dropped, so no merchant-written text is ever signed.

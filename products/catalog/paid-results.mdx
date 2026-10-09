@@ -94,15 +94,18 @@ You see it in the service's endpoints in the [Catalog feed](/products/catalog/di
 - **Fill in the id.** Replace `{jobId}` (or `:id`) with the id the paid call returned. A path that still has the placeholder is refused.
 - **Pay from your own wallet.** Only the wallet that paid can read the result. If the paid call would be funded by an organization wallet, a subscription or a card, it's refused **before you're charged**, because nobody could collect the result. Use a crypto Delegation on your own wallet.
 
-Check back reasonably soon, too: the free check only works for a limited time after you paid.
+Check back in time, too: the free check works for **1 hour** after your payment settles on Nevermined's production deployments (the window is set per deployment). After that, the check is refused.
 
 ## If it doesn't work
 
-| Error | What it means | What to do |
-| --- | --- | --- |
-| `400 BCK.ROUTER.0001` | The path still has `{jobId}` or `:id` in it. | Put the real id in the path. |
-| `400 BCK.ROUTER.0001` | You tried to pay with an organization wallet, a subscription or a card. Nothing was charged. | Pay from a Delegation on your own wallet. |
-| `422 BCK.ROUTER.0035` | The Router couldn't prove you paid: there's no payment from your wallet for this service, or it was too long ago. Nothing was charged. | Pay to start the job first, then check through the same slug. |
+The same code can have several causes, so read the error's `details` to tell them apart.
+
+| Error | `details` says | What it means | What to do |
+| --- | --- | --- | --- |
+| `400 BCK.ROUTER.0001` | `fill the path parameters: {jobId} is a template placeholder, not a value` | The path still has `{jobId}` or `:id` in it. | Put the real id in the path. |
+| `400 BCK.ROUTER.0001` | `this service delivers its results only to the personal wallet that paid; …` | You tried to pay with an organization wallet, a subscription or a card. Nothing was charged. | Pay from a Delegation on your own wallet. |
+| `400 BCK.ROUTER.0001` | `… only through wallet-authenticated follow-ups, which are disabled on this deployment` | The deployment you're calling has result checks turned off, so it won't sell the job. Nothing was charged. | Use a deployment with them on, or ask its operator. |
+| `422 BCK.ROUTER.0035` | — | The Router couldn't prove you paid: there's no settled payment from your wallet for this service, or it was more than the window ago. Nothing was charged. | Pay to start the job first, then check through the same slug. |
 
 ## Under the hood
 
