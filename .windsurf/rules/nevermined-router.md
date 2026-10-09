@@ -115,7 +115,8 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
   Reconcile via `GET /router/payments/{paymentId}` (`params.paymentId`); never retry with a fresh
   `requestId`.
 - `BCK.ROUTER.0035` (422) — the service's challenge asks for no payment (an auth-only wallet
-  sign-in). Nothing charged; use a paying service or authenticate with it directly.
+  sign-in) and the Router could not answer it: it signs only on a slug poll of an `auth: "siwx"`
+  endpoint after your own wallet paid that service. Nothing charged; pay first, then poll the slug.
 - `BCK.ROUTER.0036` (422) — the endpoint is known to outlast the Router's 120 s paid-call limit;
   refused before payment. `params.source` is `declared` (permanent) or `observed` (lifts at
   `params.liftsAt`). Pick another endpoint.

@@ -70,7 +70,7 @@ Content-Type: application/json
 }
 ```
 
-`status` and `body` are the merchant's, relayed unchanged. `paid: false` means the resource was free — the Router relayed it and there is no `payment` block.
+`status` and `body` are the merchant's, relayed unchanged. `paid: false` means the resource was free — the Router relayed it and there is no `payment` block. That includes the result of an [async service](/products/catalog/paid-results) you already paid for.
 
 <Note>
 **`requestId` is required in mode B.** Because the Router pays automatically, a retry after a dropped connection must not buy the same thing twice. At most one payment is minted per `(caller, requestId)`. From API version 1.48 a duplicate returns the first purchase's [retained result](#slow-services-and-retained-results) (or its `202` while it is still running). Otherwise — on older versions, when nothing was kept (a `/proxy` · `/svc` response that already streamed to you), after a call that `Failed`, or when the id was reused for a different target — it returns **409** carrying the original `paymentId`. Either way nothing is paid again. Use one stable id per logical purchase, not per HTTP attempt.
@@ -136,6 +136,10 @@ curl -s "$NVM_API_URL/api/v1/router/payments/$PAYMENT_ID/result" \
 Retrying with the same `requestId` returns the same `202`, then the result — on `/proxy` · `/svc` too when the first call answered `202` (a retry of a response that already streamed to you gets the `409` with the `paymentId`). Never a second payment. Answering a `202` with a new `requestId` buys the call again.
 
 These behaviours apply to API keys on version **1.48 or later** (see [API versioning](/development-guide/api-versioning)); a key pinned to an older version keeps waiting as before, and its results are still kept.
+
+### Async services: pay once, then read the result for free
+
+Some services return an id from the paid call and deliver the result later, on an endpoint only the paying wallet can read. The Router answers that endpoint's wallet challenge for you and relays the result with `paid: false`, charging nothing. See [Getting your results](/products/catalog/paid-results).
 
 ## Mode A — you call the merchant yourself
 

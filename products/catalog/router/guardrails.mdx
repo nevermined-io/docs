@@ -77,6 +77,21 @@ The same API version adds exact opaque-slug controls to `POST /router/select` an
 slug or fails closed with `0031`; it never substitutes another service. `prefer` permits normal
 fallback, while `exclude` removes its slug from consideration.
 
+## Who can read results
+
+An [async service](/products/catalog/paid-results) delivers its result only to the wallet that paid for it, and checks that with a wallet challenge. The Router signs that challenge only as **your own wallet**, never as anyone else's:
+
+- **The signer is your personal wallet** — the EOA behind your crypto (`erc4337`) Delegation. Never an organization wallet: a proof signed as the org wallet would let any member of the organization read every job paid from it.
+- **Your wallet must have paid.** The Router signs only when that same wallet has a `Settled` payment for the same catalog slug within the follow-up window.
+- **Only on a follow-up.** The endpoint must be marked `auth: "siwx"` in the catalog, or be one of the service's declared follow-up paths, and you must call it by `slug`.
+- **Nothing is spent.** No payment, reservation, fee or ledger row. One retry with the signed answer; if that fails, the call is refused as before (`BCK.ROUTER.0035`).
+
+Because of this, the **paid** call to a service that has `auth: "siwx"` endpoints is refused with `400 BCK.ROUTER.0001` **before anything is charged** when it would be funded by an organization wallet, a subscription or a card. Those payers can't read the result back, so the Router won't sell it to them. On a deployment where follow-ups are turned off, the paid call is refused the same way.
+
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `ROUTER_FREE_FOLLOWUP_TTL_MS` | unset (off) in code; `3600000` (1 hour) on Nevermined's production deployments | How long after the paid call its follow-ups — free result reads and wallet-challenge answers — are allowed. The window runs from when the payment was created, and the payment must have settled by the time of the follow-up. Unset or `0` turns both off, and paid calls to services with `auth: "siwx"` endpoints are refused. |
+
 ## What the Router won't fetch
 
 The Router makes server-side HTTP requests to URLs you supply, so it will not let you point it at infrastructure you shouldn't reach. Targets resolving to loopback, private (RFC 1918), link-local, or cloud-metadata addresses are blocked — both literal IPs and public hostnames that *resolve* to internal addresses, so DNS rebinding doesn't get around it. The connection is then pinned to the address that was validated, so it can't be swapped underneath.
@@ -151,7 +166,7 @@ Every code below also appears in the canonical [API error catalogue](/developmen
 | `BCK.ROUTER.0032` | 410 | The `quoteId` expired before payment began. Nothing was signed, reserved or charged. | No — quote the same call again and decide against the new fee-inclusive total; do not retry the expired id |
 | `BCK.ROUTER.0033` | 409 | The payment differs from the quote in its target, method, headers, body, credential header, delegation, rail, or exact fee-inclusive amount. Nothing was reserved or charged. | No — send the quoted call unchanged, or request a new quote for the changed call |
 | `BCK.ROUTER.0034` | 502 | A paid request got no response from the service (timeout or connection failure) after the credential was sent — the service may already have redeemed the payment. `params` carries the `paymentId`. | No — reconcile via `GET /api/v1/router/payments/{paymentId}`; never retry with a fresh `requestId` (it could pay twice) |
-| `BCK.ROUTER.0035` | 422 | The service's challenge asks for no payment (a zero amount — typically an auth-only "sign in with your wallet" challenge). Your request is not malformed; nothing was signed, reserved or charged. | No — use a service that charges for the call, or authenticate with the service directly |
+| `BCK.ROUTER.0035` | 422 | The service's challenge asks for no payment (a zero amount — typically an auth-only "sign in with your wallet" challenge), and the Router could not answer it. It answers one (an MPP zero-amount proof or an x402 Sign-In-With-X) only for a catalog service, on an endpoint marked `auth: "siwx"` or a declared follow-up path, when your own wallet settled a payment for that service within the follow-up window — see [who can read results](#who-can-read-results). Your request is not malformed; nothing was signed, reserved or charged. | No — make the paid call first from your own wallet, then poll through the same slug; or authenticate with the service directly |
 | `BCK.ROUTER.0036` | 422 | Every catalog endpoint the call reaches is known to answer after the Router abandons a paid call (120 s), and the merchant charges on receipt — so paying would charge and deliver nothing. Refused before any payment (a retry of an already-paid `requestId` gets `0002` instead). `params.source` is `declared` (permanent) or `observed` (lifts at `params.liftsAt`). On a declared free-follow-up path it is raised only when the service answers `402`. | No — pick another endpoint or service; an `observed` refusal lifts at `liftsAt` |
 
 Across the whole Router surface, only `0006`, `0007`, `0020` and quote-only `0028` are worth retrying automatically. The rest are decisions, and retrying them unchanged will produce the same answer. On the *paying* path the set is narrower still — see below.

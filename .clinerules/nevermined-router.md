@@ -192,7 +192,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0032` (410) — the quote expired before payment; nothing signed, reserved or charged. Quote again and decide against the new total; do not retry the expired id.
 - `BCK.ROUTER.0033` (409) — the payment differs from the quote's target, method, headers, body, credential header, delegation, rail, or exact total. Send the quoted call unchanged or request a new quote; do not retry unchanged.
 - `BCK.ROUTER.0034` (502) — a paid request got no response (timeout or connection failure); the payment may have gone through. Reconcile via `GET /router/payments/{paymentId}` (`params.paymentId`); never retry with a fresh `requestId`.
-- `BCK.ROUTER.0035` (422) — the service's challenge asks for no payment (an auth-only wallet sign-in). Nothing was charged; use a paying service or authenticate with it directly. Do not retry unchanged.
+- `BCK.ROUTER.0035` (422) — the service's challenge asks for no payment (an auth-only wallet sign-in) and the Router could not answer it. It signs one only on a slug call to an `auth: "siwx"` endpoint (an async result poll) or follow-up path, after your own wallet paid that service within the follow-up window. Nothing was charged; pay first from your own wallet and poll through the same slug, or authenticate with the service directly. Do not retry unchanged.
 - `BCK.ROUTER.0036` (422) — the endpoint is known to outlast the Router's 120 s paid-call limit, so paying would charge and deliver nothing; refused before payment. `params.source` is `declared` (permanent) or `observed` (lifts at `params.liftsAt`). Pick another endpoint; do not retry unchanged.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the

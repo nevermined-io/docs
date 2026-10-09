@@ -89,7 +89,7 @@ The MPP handler validates the decoded challenge before it signs, and fails close
 
 - **Wrong method or intent** — anything other than `tempo` / `charge`.
 - **Unsupported chain** — a chain id outside the table above.
-- **Malformed recipient, currency, or amount** — addresses must be valid hex; the amount must be a positive integer.
+- **Malformed recipient, currency, or amount** — addresses must be valid hex; the amount must be a positive integer. A charge for `0` is not a payment: see [zero-amount charges](#zero-amount-charges-proving-you-paid).
 - **A non-allowlisted asset** — see above.
 - **Multi-recipient payouts.** A challenge that carries `splits` is refused outright.
 
@@ -98,6 +98,33 @@ The MPP handler validates the decoded challenge before it signs, and fails close
 </Warning>
 
 After signing, the Router decodes the credential it actually produced and compares it against the challenge it validated. If they diverge, the credential is discarded and never leaves the process — so a merchant can't get one thing approved and a different thing signed.
+
+## Zero-amount charges: proving you paid
+
+An async service may guard its result endpoint with a `tempo` `charge` for an amount of **`0`**. It isn't asking you to pay. It's asking you to prove you're the wallet that already did:
+
+```
+HTTP/1.1 402 Payment Required
+WWW-Authenticate: Payment id="…", realm="stablestudio.dev", method="tempo",
+                  intent="charge", request="<base64url, amount 0>", expires="…"
+```
+
+The Router answers it with mppx's **proof credential** instead of a payment: an EIP-712 signature over `Proof{account, challengeId, realm}`, with `source` set to `did:pkh:eip155:<chain>:<your address>`. It goes back in `Authorization: Payment <…>`, and the Router retries the request once with it. Nothing moves: a proof is a fixed typed-data template, not a transaction or a transfer authorization. The response comes back with `paid: false`, and no payment, fee or ledger row is created.
+
+Before signing, the Router checks the challenge:
+
+| Check | Requirement |
+| --- | --- |
+| Method and intent | `tempo` / `charge`, amount `0` |
+| Chain and asset | [Allowlisted](#the-asset-allowlist) per chain, exactly as for a paid charge — Tempo mainnet or Moderato |
+| Payout terms | No `splits` or other [refused terms](#what-the-router-refuses), as for a paid charge |
+| `id` | Present |
+| `realm` | Exactly the host of the URL being called |
+| `expires` | Present, in the future, and at most **10 minutes** away |
+
+A challenge that fails any check isn't answered, and the call is refused with `422 BCK.ROUTER.0035`. When a service sends both an MPP proof challenge and an [x402 Sign-In-With-X](/products/catalog/router/rails-x402#sign-in-with-x-siwx) challenge, the Router answers the MPP one first and falls back to SIWX only if the MPP one is refused.
+
+The proof is signed with your **own wallet's key**, and only on a call that qualifies as a follow-up of a payment that wallet made. [Getting your results](/products/catalog/paid-results) lists every condition.
 
 ## Receipts and settlement
 

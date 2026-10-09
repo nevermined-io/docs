@@ -107,6 +107,31 @@ The signed authorization carries a validity window, capped by the operator (one 
 
 In practice this only matters in mode A: if you mint a credential and sit on it, it can expire before you redeem it. The budget stays reserved and the record stays `Issued`. Mint credentials when you're about to use them.
 
+## Sign-In-With-X (SIWX)
+
+An async service may guard its result endpoint with an x402 `402` that offers **no payment** — an empty `accepts` — and carries a `sign-in-with-x` extension instead. It's asking you to sign in as the wallet that paid, following [EIP-4361](https://eips.ethereum.org/EIPS/eip-4361) (Sign-In with Ethereum).
+
+The Router answers it for you on a qualifying follow-up call: it signs an EIP-4361 message with your **own wallet's key** (EIP-191), sends it base64-encoded in a `Sign-In-With-X` request header, and retries once. Nothing moves — a sign-in message can't become a transfer or a permit. The response comes back with `paid: false`, and no payment, fee or ledger row is created.
+
+Before signing, the Router checks every field the service supplied:
+
+| Field | Requirement |
+| --- | --- |
+| `accepts` | Empty. A `402` that offers a payment is paid, never answered with a sign-in |
+| Chain | `eip155:8453` (Base) or `eip155:84532` (Base Sepolia), with signature type `eip191` |
+| `domain` | Exactly the host of the URL being called |
+| `uri` | Exactly the URL being called |
+| `version` | `1` |
+| `nonce` | Alphanumeric, 8–128 characters |
+| `issuedAt` | An ISO-8601 UTC time, no more than 10 minutes old and no more than 60 seconds in the future (tolerated clock skew) |
+| `expirationTime` | Present, in the future, and at most **10 minutes** away |
+
+The Router builds the message from those validated fields only. Anything else the service wrote — `statement`, `resources`, `requestId`, `notBefore` — is dropped, so no merchant-written text is ever signed.
+
+A challenge that fails any check isn't answered, and the call is refused with `422 BCK.ROUTER.0035`. **Solana SIWX is not supported**, and neither is any other EVM chain. When the service sends an [MPP zero-amount proof](/products/catalog/router/rails-mpp#zero-amount-charges-proving-you-paid) challenge too, the Router answers the MPP one first.
+
+[Getting your results](/products/catalog/paid-results) lists the conditions a call must meet before the Router signs anything.
+
 ## Settling the record
 
 When the merchant accepts the credential it returns a settlement reference in a `PAYMENT-RESPONSE` (or `X-PAYMENT-RESPONSE`) header — the on-chain transaction hash.

@@ -1,0 +1,123 @@
+---
+title: "Getting Your Results"
+description: "Some Catalog services work in two steps: you pay to start the job, then come back for the result. Coming back is free, and only you can do it."
+icon: "box-open"
+---
+
+Most Catalog services answer the paid call with what you bought. Some can't: generating an image or a video, running a long scrape or placing a phone call takes longer than one request. Those services work in **two steps**:
+
+1. **You pay to start the job.** The service answers with a job id.
+2. **You come back for the result** with that id. This step is **free**, and only you can do it, because the result belongs to whoever paid.
+
+The Router handles the second step for you. You don't sign anything or manage keys: you call the result endpoint like any other, and the Router proves to the service that you're the one who paid.
+
+## Example
+
+StableStudio generates images this way. Pay to start the job, then check on it with the id you got back.
+
+<Tabs>
+  <Tab title="Catalog MCP">
+    Start the job with [`pay_service`](/mcp/catalog-mcp/pay-service):
+
+    ```json
+    {
+      "slug": "merit-systems-mpp-2",
+      "path": "/api/generate/nano-banana/generate",
+      "body": { "prompt": "A lighthouse at dusk, watercolor" }
+    }
+    ```
+
+    Then check on it, with the job id in the path. Set `fresh: true` every time you check, so each check is a new request:
+
+    ```json
+    {
+      "slug": "merit-systems-mpp-2",
+      "path": "/api/jobs/3f6c2a9e-7b41-4d0e-9a52-c18e5f07d6b3",
+      "method": "GET",
+      "fresh": true
+    }
+    ```
+  </Tab>
+  <Tab title="REST">
+    Start the job with `POST /api/v1/router/route`:
+
+    ```json
+    {
+      "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
+      "slug": "merit-systems-mpp-2",
+      "path": "/api/generate/nano-banana/generate",
+      "method": "POST",
+      "body": { "prompt": "A lighthouse at dusk, watercolor" },
+      "requestId": "lighthouse-image-v1"
+    }
+    ```
+
+    Then check on it, with the job id in the path and a new `requestId` each time:
+
+    ```json
+    {
+      "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1",
+      "slug": "merit-systems-mpp-2",
+      "path": "/api/jobs/3f6c2a9e-7b41-4d0e-9a52-c18e5f07d6b3",
+      "method": "GET",
+      "requestId": "lighthouse-image-v1-check-1"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+The check comes back with `paid: false`, meaning nothing was charged:
+
+```json
+{
+  "status": 200,
+  "body": { "status": "complete", "…": "your image, exactly as the service returned it" },
+  "paid": false
+}
+```
+
+Keep checking until the job is done. The endpoint's description in the Catalog tells you what to look for, such as `status` becoming `complete`.
+
+## How to spot these services
+
+In the Catalog, the result endpoint is marked **`auth: "siwx"`**, and its path has a placeholder for the id:
+
+```json
+{ "method": "GET", "path": "/api/jobs/{jobId}", "auth": "siwx" }
+```
+
+You see it in the service's endpoints in the [Catalog feed](/products/catalog/discover#read-the-feed) and in [`get_service`](/mcp/catalog-mcp/get-service). Any endpoint with `auth: "siwx"` is free, and only works after you've paid that same service.
+
+## Three things to get right
+
+- **Use the same service.** Check through the same `slug` you paid.
+- **Fill in the id.** Replace `{jobId}` (or `:id`) with the id the paid call returned. A path that still has the placeholder is refused.
+- **Pay from your own wallet.** Only the wallet that paid can read the result. If the paid call would be funded by an organization wallet, a subscription or a card, it's refused **before you're charged**, because nobody could collect the result. Use a crypto Delegation on your own wallet.
+
+Check back in time, too: the free check works for **1 hour** after the paid call on Nevermined's production deployments (the window is set per deployment), as long as that payment has settled by the time you check. After that hour, the check is refused.
+
+## If it doesn't work
+
+The same code can have several causes, so read the error's `details` to tell them apart.
+
+| Error | `details` says | What it means | What to do |
+| --- | --- | --- | --- |
+| `400 BCK.ROUTER.0001` | `fill the path parameters: {jobId} is a template placeholder, not a value` | The path still has `{jobId}` or `:id` in it. | Put the real id in the path. |
+| `400 BCK.ROUTER.0001` | `this service delivers its results only to the personal wallet that paid; …` | You tried to pay with an organization wallet, a subscription or a card. Nothing was charged. | Pay from a Delegation on your own wallet. |
+| `400 BCK.ROUTER.0001` | `… only through wallet-authenticated follow-ups, which are disabled on this deployment` | The deployment you're calling has result checks turned off, so it won't sell the job. Nothing was charged. | Use a deployment with them on, or ask its operator. |
+| `422 BCK.ROUTER.0035` | — | The Router couldn't prove you paid: there's no settled payment from your wallet for this service, or it was more than the window ago. Nothing was charged. | Pay to start the job first, then check through the same slug. |
+
+## Under the hood
+
+The service asks for proof in its own protocol, and the Router answers with your wallet's signature: an [MPP zero-amount proof](/products/catalog/router/rails-mpp#zero-amount-charges-proving-you-paid) or an [x402 Sign-In-With-X](/products/catalog/router/rails-x402#sign-in-with-x-siwx). Neither one can move money. The [guardrails](/products/catalog/router/guardrails#who-can-read-results) list every check the Router makes before it signs.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Discover services" icon="magnifying-glass" href="/products/catalog/discover">
+    Find a service and read its endpoints.
+  </Card>
+  <Card title="How the Router works" icon="diagram-project" href="/products/catalog/router/how-it-works">
+    The paid call, end to end.
+  </Card>
+</CardGroup>
