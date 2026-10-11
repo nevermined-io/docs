@@ -1,0 +1,113 @@
+---
+title: "Pay for services from an OpenAI Agents SDK agent"
+sidebarTitle: "OpenAI Agents SDK"
+description: "Connect an OpenAI Agents SDK agent to the Nevermined Catalog MCP so it can find and pay for services from a budget you cap, with no vendor signups or per-vendor API keys."
+icon: "robot"
+frameworks: ["openai-agents", "python"]
+---
+
+An agent built with the [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) can pay for a service it needs without you opening an account with that vendor. Attach the [Catalog MCP](/mcp/catalog-mcp/overview) as an MCP server: the agent gets tools to search the [AI Services Catalog](/products/catalog/overview), read a listing, and pay for one call. The [Router](/products/catalog/router/overview) pays each call from a Delegation, a budget with a hard cap and an expiry that you set once.
+
+<Note>
+This page is the **buyer** side: your agent spends. To charge other agents for what yours serves, start at the [5-minute setup](/integrate/quickstart/5-minute-setup).
+</Note>
+
+## What you need
+
+- A **Nevermined API key**, from the [Nevermined app](https://nevermined.app). See [Get an API key](/mcp/catalog-mcp/overview#2-get-an-api-key).
+- A **funded Delegation**: the cap your agent spends within. See [Prepare to pay](/mcp/catalog-mcp/overview#4-prepare-to-pay). Discovery works without either.
+- Python with `openai-agents`, and an OpenAI API key for the model.
+
+```bash
+pip install openai-agents
+export NVM_API_KEY="<your-api-key>"
+export OPENAI_API_KEY="<your-openai-key>"
+```
+
+<Warning>
+`https://mcp.live.nevermined.app/mcp` is **live**: `pay_service` moves real funds. Rehearse on `https://mcp.sandbox.nevermined.app/mcp`, which has two free testnet test merchants (`x402-org-protected` and `mpp-dev-paid-ping`), then switch to live with a small cap. See [Environments](/mcp/catalog-mcp/overview#environments).
+</Warning>
+
+## Connect the agent to the Catalog
+
+The SDK's `MCPServerStreamableHttp` connects to the server and lists its tools for the agent. The API key goes on the `Authorization` header, exactly as in the [generic MCP config](/mcp/catalog-mcp/overview#1-connect-your-host). A static tool filter keeps the agent to the tools a buyer needs.
+
+```python
+import asyncio
+import os
+
+from agents import Agent, Runner
+from agents.mcp import MCPServerStreamableHttp, create_static_tool_filter
+
+
+async def main():
+    async with MCPServerStreamableHttp(
+        name="nevermined-catalog",
+        params={
+            "url": "https://mcp.sandbox.nevermined.app/mcp",
+            "headers": {"Authorization": f"Bearer {os.environ['NVM_API_KEY']}"},
+        },
+        cache_tools_list=True,
+        client_session_timeout_seconds=60,
+        tool_filter=create_static_tool_filter(
+            allowed_tool_names=["search_services", "get_service", "pay_service", "get_budget"]
+        ),
+    ) as catalog:
+        agent = Agent(
+            name="Buyer",
+            instructions=(
+                "You buy services from the Nevermined Catalog. "
+                "Search, then read the listing with get_service, then call pay_service "
+                "with that endpoint's payServiceArgs, unchanged. "
+                "Check get_budget before paying and stop if the budget is low."
+            ),
+            mcp_servers=[catalog],
+        )
+        result = await Runner.run(
+            agent, "Buy one call to x402-org-protected and show me the response."
+        )
+        print(result.final_output)
+
+
+asyncio.run(main())
+```
+
+Two settings matter for payments:
+
+- **`client_session_timeout_seconds`** defaults to 5 seconds in the SDK. A paid call waits for the service to answer, so give it longer: a client-side timeout leaves the agent without the result of a call that may already be paid. When a service is slower than the Router waits, `pay_service` itself returns `status: "pending"` with a `paymentId`; the call was paid, and [`get_payment_result`](/mcp/catalog-mcp/get-payment-result) reads the result. After any timeout, check [`list_payments`](/mcp/catalog-mcp/list-payments) before paying again.
+- **`tool_filter`** decides what the model can call. The Catalog MCP serves [twelve tools](/mcp/catalog-mcp/overview#the-tool-surface); only `pay_service`, and `route_by_intent` with `autoPay`, move money.
+
+On sandbox, `x402-org-protected` settles in testnet USDC on Base Sepolia, so the Delegation's wallet needs that asset. On live, replace the prompt with the real need and point `url` at `https://mcp.live.nevermined.app/mcp`.
+
+## What happens on a paid call
+
+1. `search_services` finds listings for the need, most relevant first. Discovery is free.
+2. `get_service` returns the listing's `requestShape`: each callable endpoint with its price and the exact `payServiceArgs` for `pay_service`.
+3. `pay_service` hands the call to the Router, which reads the service's `402` challenge, pays it from your Delegation, and returns the service's response unchanged, with a `payment` record and the `budget` left.
+
+Your agent never holds a wallet key or a vendor key and never speaks a payment protocol. The full return shape is on the [`pay_service` reference](/mcp/catalog-mcp/pay-service).
+
+## Production concerns
+
+- **The cap is enforced server-side.** A loop, a retry or a misread budget cannot spend past the Delegation. When the cap is reached, `pay_service` returns `BCK.ROUTER.0003`. Widening the cap in response is almost always wrong; see [Guardrails](/products/catalog/router/guardrails).
+- **Retries are de-duplicated.** Leave `requestId` unset and a retry of the same call returns `already_paid` instead of paying twice. Set a new `requestId` only for a genuinely separate purchase.
+- **Refusals come back as results, not exceptions.** `pay_service` returns an object with an `error` and a `code` the agent can reason about; the [refusal table](/mcp/catalog-mcp/overview#when-a-payment-is-refused) lists the ones to handle.
+- **Price before paying when it matters.** Add [`quote_service`](/mcp/catalog-mcp/quote-service) to the filter and pass its `quoteId` and `maxTotalCents` to `pay_service`; if the price rises in between, the payment is refused.
+- **Reconcile on the ledger.** Every payment lands on one [ledger](/products/catalog/router/ledger), whichever rail it settled on. Add `list_payments` to the filter to read it from the agent.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Catalog MCP reference" icon="plug" href="/mcp/catalog-mcp/overview">
+    Every tool, argument, return field and refusal.
+  </Card>
+  <Card title="Using the Catalog from a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The safety habits an autonomous buyer should follow.
+  </Card>
+  <Card title="Router quickstart" icon="rocket" href="/products/catalog/router/quickstart">
+    The same flow over plain HTTP, without MCP.
+  </Card>
+  <Card title="Browse the Catalog" icon="magnifying-glass" href="https://nevermined.app/catalog/">
+    See what your agent can buy.
+  </Card>
+</CardGroup>

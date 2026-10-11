@@ -1,0 +1,147 @@
+---
+title: "Pay for services from a LangGraph agent"
+sidebarTitle: "LangGraph"
+description: "Let a LangGraph agent find and pay for services in the Nevermined AI Services Catalog through the Catalog MCP, from a budget you cap. No vendor signups, no per-vendor API keys."
+icon: "diagram-project"
+frameworks: ["langgraph", "langchain", "python"]
+---
+
+Your LangGraph agent can pay for a service it needs (search, scraping, enrichment, inference) without you signing up to that vendor or pasting its API key. Connect the agent to the [Catalog MCP](/mcp/catalog-mcp/overview) with the `langchain-mcp-adapters` package: the agent gets tools to search the [AI Services Catalog](/products/catalog/overview), read a listing, and pay for one call. The [Router](/products/catalog/router/overview) pays each call from a Delegation, a budget with a hard cap and an expiry that you set once.
+
+<Note>
+This page is the **buyer** side: your agent spends. To **charge** for a tool your LangChain or LangGraph agent serves, see [LangChain (seller side)](/integrate/add-to-your-agent/langchain).
+</Note>
+
+## What you need
+
+- A **Nevermined API key**, from the [Nevermined app](https://nevermined.app). See [Get an API key](/mcp/catalog-mcp/overview#2-get-an-api-key).
+- A **funded Delegation**: the cap your agent spends within. See [Prepare to pay](/mcp/catalog-mcp/overview#4-prepare-to-pay). Discovery works without either.
+- Python with `langgraph`, `langchain` and `langchain-mcp-adapters`, plus a chat model LangChain supports.
+
+```bash
+pip install langgraph langchain langchain-mcp-adapters
+export NVM_API_KEY="<your-api-key>"
+```
+
+<Warning>
+`https://mcp.live.nevermined.app/mcp` is **live**: `pay_service` moves real funds. Rehearse on `https://mcp.sandbox.nevermined.app/mcp`, which has two free testnet test merchants (`x402-org-protected` and `mpp-dev-paid-ping`), then switch to live with a small cap. See [Environments](/mcp/catalog-mcp/overview#environments).
+</Warning>
+
+## Connect the agent to the Catalog
+
+<Steps>
+  <Step title="Load the Catalog tools">
+    The adapter connects over streamable HTTP and turns each Catalog MCP tool into a LangChain tool. The API key goes on the `Authorization` header, exactly as in the [generic MCP config](/mcp/catalog-mcp/overview#1-connect-your-host).
+
+    ```python
+    import asyncio
+    import os
+
+    from langchain_mcp_adapters.client import MultiServerMCPClient
+
+    client = MultiServerMCPClient(
+        {
+            "nevermined-catalog": {
+                "transport": "streamable_http",
+                "url": "https://mcp.sandbox.nevermined.app/mcp",
+                "headers": {"Authorization": f"Bearer {os.environ['NVM_API_KEY']}"},
+            }
+        }
+    )
+    ```
+  </Step>
+  <Step title="Give the agent only the tools it needs">
+    The Catalog MCP serves [twelve tools](/mcp/catalog-mcp/overview#the-tool-surface). Only `pay_service`, and `route_by_intent` with `autoPay`, move money. Hand the agent the discovery tools, `pay_service`, and `get_budget` so it can read what it has left.
+
+    ```python
+    BUYER_TOOLS = {"search_services", "get_service", "pay_service", "get_budget"}
+
+    async def load_tools():
+        tools = await client.get_tools()
+        return [t for t in tools if t.name in BUYER_TOOLS]
+    ```
+  </Step>
+  <Step title="Build the agent and ask for something only a paid service can answer">
+    `create_agent` builds a LangGraph graph that calls tools in a loop. Any chat model LangChain supports works here.
+
+    ```python
+    from langchain.agents import create_agent
+
+    async def main():
+        tools = await load_tools()
+        agent = create_agent(
+            "anthropic:claude-sonnet-4-5",
+            tools,
+            system_prompt=(
+                "You buy services from the Nevermined Catalog. "
+                "Search, then read the listing with get_service, then call pay_service "
+                "with that endpoint's payServiceArgs, unchanged. "
+                "Check get_budget before paying and stop if the budget is low."
+            ),
+        )
+        result = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": "Buy one call to x402-org-protected and show me the response."}]}
+        )
+        print(result["messages"][-1].content)
+
+    asyncio.run(main())
+    ```
+  </Step>
+</Steps>
+
+On sandbox, `x402-org-protected` settles in testnet USDC on Base Sepolia, so the Delegation's wallet needs that asset. On live, replace the prompt with the real need ("find a web search service and run this query") and point `url` at `https://mcp.live.nevermined.app/mcp`.
+
+## What happens on a paid call
+
+1. `search_services` finds listings for the need, most relevant first. Discovery is free.
+2. `get_service` returns the listing's `requestShape`: each callable endpoint with its price and the exact `payServiceArgs` for `pay_service`.
+3. `pay_service` hands the call to the Router, which reads the service's `402` challenge, pays it from your Delegation, and returns the service's response unchanged, with a `payment` record and the `budget` left.
+
+Your agent never holds a wallet key or a vendor key and never speaks a payment protocol. The full return shape is on the [`pay_service` reference](/mcp/catalog-mcp/pay-service).
+
+## Production concerns
+
+- **The cap is enforced server-side.** A loop, a retry or a misread budget cannot spend past the Delegation. When the cap is reached, `pay_service` returns `BCK.ROUTER.0003`. Widening the cap in response is almost always wrong; see [Guardrails](/products/catalog/router/guardrails).
+- **Retries are de-duplicated.** Leave `requestId` unset and a retry of the same call returns `already_paid` instead of paying twice. Set a new `requestId` only for a genuinely separate purchase.
+- **Refusals come back as results, not exceptions.** `pay_service` returns an object with an `error` and a `code` your graph can branch on; the [refusal table](/mcp/catalog-mcp/overview#when-a-payment-is-refused) lists the ones to handle.
+- **Price before paying when it matters.** Add [`quote_service`](/mcp/catalog-mcp/quote-service) to the tool set and pass its `quoteId` and `maxTotalCents` to `pay_service`; if the price rises in between, the payment is refused.
+- **Reconcile on the ledger.** Every payment lands on one [ledger](/products/catalog/router/ledger), whichever rail it settled on. Add `list_payments` to read it from the agent.
+
+## Without MCP: call the Router from a tool
+
+If you would rather not run an MCP client, put the Router's REST call inside a LangChain tool of your own. The call below is the one in the [Router quickstart](/products/catalog/router/quickstart#4-make-a-paid-call), which sets `NVM_API_URL` and `NVM_DELEGATION_ID` first. It targets an off-catalog `url`; for a listed service, send its `slug` in the body instead of `url` (see [the calling convention](/products/catalog/from-a-harness#the-calling-convention-one-canonical-shape)). Keep one stable `requestId` per purchase.
+
+```python
+import os, requests
+
+res = requests.post(
+    f"{os.environ['NVM_API_URL']}/api/v1/router/route",
+    headers={"Authorization": f"Bearer {os.environ['NVM_API_KEY']}"},
+    json={
+        "delegationId": os.environ["NVM_DELEGATION_ID"],
+        "url": "https://service.example/api/resource",
+        "method": "GET",
+        "requestId": "fetch-example-resource-v1",
+    },
+).json()
+
+if res["paid"]:
+    print(res["payment"]["settlement"]["approxCents"], "cents", res["payment"]["txHash"])
+```
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Catalog MCP reference" icon="plug" href="/mcp/catalog-mcp/overview">
+    Every tool, argument, return field and refusal.
+  </Card>
+  <Card title="Using the Catalog from a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The safety habits an autonomous buyer should follow.
+  </Card>
+  <Card title="Router guardrails" icon="shield" href="/products/catalog/router/guardrails">
+    The cap, the expiry, and every refusal code.
+  </Card>
+  <Card title="Browse the Catalog" icon="magnifying-glass" href="https://nevermined.app/catalog/">
+    See what your agent can buy.
+  </Card>
+</CardGroup>

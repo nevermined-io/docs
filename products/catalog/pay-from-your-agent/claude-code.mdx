@@ -1,0 +1,107 @@
+---
+title: "Pay for services from Claude Code"
+sidebarTitle: "Claude Code"
+description: "Let Claude Code find and pay for services in the Nevermined AI Services Catalog through the Catalog MCP, from a spending cap you approve once. No vendor signups, no per-vendor API keys."
+icon: "terminal"
+frameworks: ["claude-code"]
+---
+
+Claude Code can pay for a service it needs while it works (a search, a scrape, an enrichment call) without you signing up to that vendor or pasting its API key. Add the [Catalog MCP](/mcp/catalog-mcp/overview) as a server: Claude Code gets tools to search the [AI Services Catalog](/products/catalog/overview), read a listing, and pay for one call. The [Router](/products/catalog/router/overview) pays each call from a Delegation, a budget with a hard cap and an expiry.
+
+There are two ways to connect. **Approve a cap in the browser** and Claude Code never handles a key, or **use an API key** with a Delegation you create yourself.
+
+<Note>
+This page is the **buyer** side: Claude Code spends. To have Claude Code help you **charge** for your own API or agent, install the payments skill instead; see [AI Coding Skill](/development-guide/build-using-nvm-skill).
+</Note>
+
+## Option 1: approve a spending cap (no API key)
+
+Claude Code is one of the hosts Nevermined grants a `commerce` consent to out of the box. It looks for authentication when it first connects, so it uses the `mcp.api.` host, which challenges on the first request ([why](/mcp/catalog-mcp/overview#what-happens-without-a-credential)).
+
+<Steps>
+  <Step title="Add the server with no header">
+    Rehearse on sandbox first:
+
+    ```bash
+    claude mcp add --transport http nevermined-catalog https://mcp.api.sandbox.nevermined.app/mcp
+    ```
+
+    For real money, use `https://mcp.api.live.nevermined.app/mcp`.
+  </Step>
+  <Step title="Authenticate">
+    In Claude Code, run `/mcp`, pick `nevermined-catalog` and authenticate. Nevermined's consent page opens in your browser.
+  </Step>
+  <Step title="Approve the cap">
+    Check the **Sandbox / Live** badge, set the **spending cap** and how long it is **valid for**, then **Grant access**. That approval creates the Delegation and is Claude Code's credential, in one step. See [What the consent page asks](/mcp/catalog-mcp/overview#what-the-consent-page-asks).
+  </Step>
+</Steps>
+
+<Warning>
+**Read what the grant allows before you approve it.** The grant has no per-service allowlist: Claude Code can pay any x402 or MPP service it reaches, up to the cap. The cap, the expiry and revocation are the whole boundary. The cap includes Nevermined's routing fee. The grant can also read your Router payment history and your funding wallet's balance. Revoke it at any time under **Connections** in the [Nevermined app](https://nevermined.app/connections).
+</Warning>
+
+The grant spends stablecoin from your own Nevermined wallet, so the wallet must hold funds on the network the service settles on. See [Fund its wallet](/mcp/catalog-mcp/overview#4-prepare-to-pay).
+
+## Option 2: use an API key
+
+Use this when you want to manage the Delegation yourself, or run Claude Code headless.
+
+<Steps>
+  <Step title="Get a key and a funded Delegation">
+    Create a **Nevermined API key** in the [Nevermined app](https://nevermined.app) and a funded **Delegation** for it to spend from. See [Prepare to pay](/mcp/catalog-mcp/overview#4-prepare-to-pay). If no Delegation exists when Claude Code tries to pay, `pay_service` returns `no_delegation` and Claude Code can call `setup_delegation`, which gives you one URL to set the cap in the browser.
+  </Step>
+  <Step title="Add the server with the key">
+    ```bash
+    claude mcp add --transport http nevermined-catalog https://mcp.live.nevermined.app/mcp \
+      --header "Authorization: Bearer ${NVM_API_KEY}"
+    ```
+
+    Rehearse on `https://mcp.sandbox.nevermined.app/mcp` first. It has two free testnet test merchants, `x402-org-protected` and `mpp-dev-paid-ping`.
+  </Step>
+</Steps>
+
+## Ask it to buy something
+
+Restart the session so Claude Code loads the server, then ask for something only a paid service can answer, and name the connector:
+
+> Using the nevermined-catalog tools, find a web search service in the catalog, check my budget, and run one search for "x402 facilitators".
+
+Claude Code calls `search_services` and `get_service` (free), then `pay_service` with the listing's `payServiceArgs`. The result carries the service's response, a `payment` record, and the `budget` left. To confirm the connection without spending, ask it to list the Catalog categories: that tool is free.
+
+<Tip>
+If Claude Code answers from its own knowledge and pays nothing, the prompt is usually the cause, not the connector. Name the connector and ask for live data. More in [the phrasing tips](/mcp/catalog-mcp/overview#connect-from-your-assistant).
+</Tip>
+
+## Teach it the guardrails: the Router skill
+
+The `nevermined-router` skill gives Claude Code the buy loop and the habits an autonomous buyer should keep: one idempotency key per purchase, stopping on a cap refusal instead of widening it, and what each `BCK.ROUTER` code means. Install it from the Nevermined plugin marketplace, inside Claude Code:
+
+```bash
+/plugin marketplace add nevermined-io/docs
+/plugin install nevermined-router@nevermined
+```
+
+See [AI Coding Skill](/development-guide/build-using-nvm-skill) for updates and the other editors.
+
+## What it cannot do
+
+- **Spend past the cap.** The cap is enforced server-side on every payment. When it is reached, `pay_service` returns `BCK.ROUTER.0003`; Claude Code cannot raise it, and a Delegation is never widened in place. Approve a new cap instead. See [Guardrails](/products/catalog/router/guardrails).
+- **Pay twice for one call by retrying.** A retry of the same call returns `already_paid`.
+- **Refill its own wallet.** Funding is manual; when the wallet runs dry, payments stop until you add funds.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Catalog MCP reference" icon="plug" href="/mcp/catalog-mcp/overview">
+    Every tool, argument, return field and refusal.
+  </Card>
+  <Card title="Using the Catalog from a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The flow and the safety habits, written to hand to your agent.
+  </Card>
+  <Card title="Payment ledger" icon="receipt" href="/products/catalog/router/ledger">
+    Read back everything your agents have spent.
+  </Card>
+  <Card title="Browse the Catalog" icon="magnifying-glass" href="https://nevermined.app/catalog/">
+    See what Claude Code can buy.
+  </Card>
+</CardGroup>
