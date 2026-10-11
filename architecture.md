@@ -123,6 +123,11 @@ Major documentation reorganization completed:
 - ✅ Overview — import, transport, auth, tool surface (`mcp/catalog-mcp/overview.mdx`)
 - ✅ 12 tool pages — discovery (`list_categories`, `search_services`, `get_service`), payments (`quote_service`, `pay_service`, `route_by_intent`, `setup_delegation`, `get_payment_result`), ledger & wallet (`list_payments`, `payment_summary`, `get_budget`, `wallet_balance`)
 
+#### Pay from your agent (buy side; Guides tab, Nevermined Catalog group)
+- ✅ LangGraph (`products/catalog/pay-from-your-agent/langgraph.mdx`)
+- ✅ Claude Code (`products/catalog/pay-from-your-agent/claude-code.mdx`)
+- ✅ OpenAI Agents SDK (`products/catalog/pay-from-your-agent/openai-agents-sdk.mdx`)
+
 #### Docs MCP (one page per tool)
 - ✅ Overview (`mcp/docs-mcp/overview.mdx`, moved from `development-guide/build-using-nvm-mcp.mdx` with a redirect)
 - ✅ 3 tool pages — `search_nevermined_documentation`, `query_docs_filesystem_nevermined_documentation`, `submit_feedback`

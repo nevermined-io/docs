@@ -16,12 +16,15 @@ This page is the **buyer** side: your agent spends. To **charge** for a tool you
 
 - A **Nevermined API key**, from the [Nevermined app](https://nevermined.app). See [Get an API key](/mcp/catalog-mcp/overview#2-get-an-api-key).
 - A **funded Delegation**: the cap your agent spends within. See [Prepare to pay](/mcp/catalog-mcp/overview#4-prepare-to-pay). Discovery works without either.
-- Python with `langgraph`, `langchain` and `langchain-mcp-adapters`, plus a chat model LangChain supports.
+- Python with `langgraph`, `langchain` and `langchain-mcp-adapters`, plus a chat model LangChain supports. The example uses Anthropic, through `langchain-anthropic`.
 
 ```bash
-pip install langgraph langchain langchain-mcp-adapters
+pip install langgraph langchain langchain-mcp-adapters langchain-anthropic
 export NVM_API_KEY="<your-api-key>"
+export ANTHROPIC_API_KEY="<your-anthropic-key>"
 ```
+
+The key must match the server's environment: a `sandbox:` key for `mcp.sandbox.nevermined.app`, a `live:` key for `mcp.live.nevermined.app`. A key from the other environment is refused on every paid tool.
 
 <Warning>
 `https://mcp.live.nevermined.app/mcp` is **live**: `pay_service` moves real funds. Rehearse on `https://mcp.sandbox.nevermined.app/mcp`, which has two free testnet test merchants (`x402-org-protected` and `mpp-dev-paid-ping`), then switch to live with a small cap. See [Environments](/mcp/catalog-mcp/overview#environments).
@@ -51,10 +54,13 @@ export NVM_API_KEY="<your-api-key>"
     ```
   </Step>
   <Step title="Give the agent only the tools it needs">
-    The Catalog MCP serves [twelve tools](/mcp/catalog-mcp/overview#the-tool-surface). Only `pay_service`, and `route_by_intent` with `autoPay`, move money. Hand the agent the discovery tools, `pay_service`, and `get_budget` so it can read what it has left.
+    The Catalog MCP serves [twelve tools](/mcp/catalog-mcp/overview#the-tool-surface). Only `pay_service`, and `route_by_intent` with `autoPay`, move money. Hand the agent the discovery tools and `pay_service`, plus the tools `pay_service` names as its next step: `get_payment_result` for a paid call that is still `pending`, `setup_delegation` when there is no budget yet, and `get_budget` and `list_payments` to read what it has spent.
 
     ```python
-    BUYER_TOOLS = {"search_services", "get_service", "pay_service", "get_budget"}
+    BUYER_TOOLS = {
+        "search_services", "get_service", "pay_service",
+        "get_payment_result", "setup_delegation", "get_budget", "list_payments",
+    }
 
     async def load_tools():
         tools = await client.get_tools()
@@ -105,29 +111,12 @@ Your agent never holds a wallet key or a vendor key and never speaks a payment p
 - **Retries are de-duplicated.** Leave `requestId` unset and a retry of the same call returns `already_paid` instead of paying twice. Set a new `requestId` only for a genuinely separate purchase.
 - **Refusals come back as results, not exceptions.** `pay_service` returns an object with an `error` and a `code` your graph can branch on; the [refusal table](/mcp/catalog-mcp/overview#when-a-payment-is-refused) lists the ones to handle.
 - **Price before paying when it matters.** Add [`quote_service`](/mcp/catalog-mcp/quote-service) to the tool set and pass its `quoteId` and `maxTotalCents` to `pay_service`; if the price rises in between, the payment is refused.
-- **Reconcile on the ledger.** Every payment lands on one [ledger](/products/catalog/router/ledger), whichever rail it settled on. Add `list_payments` to read it from the agent.
+- **Follow `nextTool`.** A `pending` result names `get_payment_result` (the call was paid; read its result there), and `no_delegation` names `setup_delegation` (relay its URL to a person). Keep both tools in the set.
+- **Reconcile on the ledger.** Every payment lands on one [ledger](/products/catalog/router/ledger), whichever rail it settled on; `list_payments` reads it from the agent.
 
-## Without MCP: call the Router from a tool
+## Without MCP
 
-If you would rather not run an MCP client, put the Router's REST call inside a LangChain tool of your own. The call below is the one in the [Router quickstart](/products/catalog/router/quickstart#4-make-a-paid-call), which sets `NVM_API_URL` and `NVM_DELEGATION_ID` first. It targets an off-catalog `url`; for a listed service, send its `slug` in the body instead of `url` (see [the calling convention](/products/catalog/from-a-harness#the-calling-convention-one-canonical-shape)). Keep one stable `requestId` per purchase.
-
-```python
-import os, requests
-
-res = requests.post(
-    f"{os.environ['NVM_API_URL']}/api/v1/router/route",
-    headers={"Authorization": f"Bearer {os.environ['NVM_API_KEY']}"},
-    json={
-        "delegationId": os.environ["NVM_DELEGATION_ID"],
-        "url": "https://service.example/api/resource",
-        "method": "GET",
-        "requestId": "fetch-example-resource-v1",
-    },
-).json()
-
-if res["paid"]:
-    print(res["payment"]["settlement"]["approxCents"], "cents", res["payment"]["txHash"])
-```
+If you would rather not run an MCP client, call the Router's REST API from a tool of your own. The [Router quickstart](/products/catalog/router/quickstart) has the request in Python, and [the calling convention](/products/catalog/from-a-harness#the-calling-convention-one-canonical-shape) covers addressing a listed service by `slug`. Two things a tool wrapper must get right: generate a new `requestId` per purchase and reuse it only when retrying that purchase (a repeated id answers `409 BCK.ROUTER.0002`), and check the HTTP status before reading the body, because a refusal such as `BCK.ROUTER.0003` carries an error, not a `paid` field.
 
 ## Next
 

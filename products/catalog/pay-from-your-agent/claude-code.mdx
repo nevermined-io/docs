@@ -37,7 +37,7 @@ Claude Code is one of the hosts Nevermined grants a `commerce` consent to out of
 </Steps>
 
 <Warning>
-**Read what the grant allows before you approve it.** The grant has no per-service allowlist: Claude Code can pay any x402 or MPP service it reaches, up to the cap. The cap, the expiry and revocation are the whole boundary. The cap includes Nevermined's routing fee. The grant can also read your Router payment history and your funding wallet's balance. Revoke it at any time under **Connections** in the [Nevermined app](https://nevermined.app/connections).
+**Read what the grant allows before you approve it.** The grant has no per-service allowlist: Claude Code can pay any x402 or MPP service it reaches, up to the cap. The cap, the expiry and revocation are the whole boundary. The cap includes Nevermined's routing fee. Beyond spending, the grant can read your Router payment history and your funding wallet's balance, list and revoke your Delegations, and start a new Delegation ceremony for you to approve. The full list is in [`auth.md`](https://nevermined.app/auth.md), section 6. Revoke it at any time under **Connections** in the [Nevermined app](https://nevermined.app/connections).
 </Warning>
 
 The grant spends stablecoin from your own Nevermined wallet, so the wallet must hold funds on the network the service settles on. See [Fund its wallet](/mcp/catalog-mcp/overview#4-prepare-to-pay).
@@ -62,7 +62,7 @@ Use this when you want to manage the Delegation yourself, or run Claude Code hea
 
 ## Ask it to buy something
 
-Restart the session so Claude Code loads the server, then ask for something only a paid service can answer, and name the connector:
+If you added the server with a key, restart the session so Claude Code loads it. Then ask for something only a paid service can answer, and name the connector:
 
 > Using the nevermined-catalog tools, find a web search service in the catalog, check my budget, and run one search for "x402 facilitators".
 
@@ -76,7 +76,7 @@ If Claude Code answers from its own knowledge and pays nothing, the prompt is us
 
 The `nevermined-router` skill gives Claude Code the buy loop and the habits an autonomous buyer should keep: one idempotency key per purchase, stopping on a cap refusal instead of widening it, and what each `BCK.ROUTER` code means. Install it from the Nevermined plugin marketplace, inside Claude Code:
 
-```bash
+```text
 /plugin marketplace add nevermined-io/docs
 /plugin install nevermined-router@nevermined
 ```
