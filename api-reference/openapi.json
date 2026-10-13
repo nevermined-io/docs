@@ -818,7 +818,7 @@
     "/protocol/plans/{planId}/list/{activate}": {
       "put": {
         "summary": "Activate/Deactivate Plan",
-        "description": "Controls the plan's public listing status.",
+        "description": "Lists (`activate=true`) or unlists (`activate=false`) a plan. This is a flag stored by Nevermined, not an on-chain change. An unlisted plan is hidden from discovery and can no longer be purchased: checkout, crypto order and x402 auto-order / pay-as-you-go are refused with `BCK.PROTOCOL.0062`. Subscribers keep spending the credits they already hold while their balance covers a call.",
         "operationId": "togglePlanListing",
         "tags": [
           "Protocol - Plans"
