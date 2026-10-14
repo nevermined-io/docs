@@ -1596,7 +1596,7 @@
             "name": "withPayer",
             "required": false,
             "in": "query",
-            "description": "When \"true\", also resolve `fundingWalletAddress` — the wallet the Router crypto rail spends from (EOA / 7702 kernel, or the org wallet) — and `lockedInChannels`, what that wallet has locked in MPP payment channels. Opt-in because it adds a wallet lookup.",
+            "description": "When \"true\", also resolve `fundingWalletAddress` — the wallet the Router crypto rail spends from (EOA / 7702 kernel, or the org wallet) — and `lockedInChannels`, what that wallet has locked in MPP payment channels. Opt-in because it adds a wallet lookup and a channel read.",
             "example": "true",
             "schema": {
               "type": "string",
@@ -4256,14 +4256,14 @@
         "description": "Money a wallet has locked in MPP session payment channels, on one chain, in one token.",
         "properties": {
           "network": {
-            "type": "number",
+            "type": "integer",
             "example": 4217,
             "description": "Chain id the payment channels are on"
           },
           "token": {
             "type": "string",
             "example": "0x20C000000000000000000000b9537d11c60E8b50",
-            "description": "The token the channels hold in escrow"
+            "description": "The token the channels hold in escrow, EIP-55 checksummed"
           },
           "symbol": {
             "type": [
@@ -4275,7 +4275,7 @@
           },
           "decimals": {
             "type": [
-              "number",
+              "integer",
               "null"
             ],
             "example": 6,
@@ -4283,6 +4283,7 @@
           },
           "atomic": {
             "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
             "example": "6000000",
             "description": "Atomic (integer) amount locked, as a string: over every payment channel on this chain and token that is not closed yet, the deposit minus the payments its vouchers already authorized."
           },
@@ -4292,7 +4293,7 @@
               "null"
             ],
             "example": "6",
-            "description": "Human-readable amount, or null when `decimals` is unknown"
+            "description": "Human-readable amount; null exactly when `decimals` is"
           }
         },
         "required": [
