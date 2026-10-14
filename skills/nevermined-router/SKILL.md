@@ -319,7 +319,7 @@ The Router signs payments from your wallet in response to instructions written b
 
 **`0010` is the one 500 you must never retry.** A payment credential **was already minted** before it failed — and because no payment record was written, your `requestId` will *not* suppress the retry. So a retry mints a **fresh** credential and then fails identically, because the cause is a deterministic defect in the rail's amount derivation, not a transient blip. Report it to the human.
 
-Note `0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. **On the paying path `0007` and `0020` are the codes worth retrying (with backoff).** And seeing `0010` at all means a Nevermined-side regression: no rail emits a non-numeric amount today, so it is a bug report, not a condition to handle. (On the card rail the minted credential is a Stripe Shared Payment Token, left stranded with no revoke path until `min(challenge expiry, Delegation expiry, 89 days)`.)
+Note `0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. **On the paying path `0007`, `0020`, `0042` and `0043` are the codes worth retrying (with backoff).** And seeing `0010` at all means a Nevermined-side regression: no rail emits a non-numeric amount today, so it is a bug report, not a condition to handle. (On the card rail the minted credential is a Stripe Shared Payment Token, left stranded with no revoke path until `min(challenge expiry, Delegation expiry, 89 days)`.)
 
 Catalog errors: `BCK.CATALOG.0001` (404, no listed service with that slug — slugs are case-sensitive), `BCK.CATALOG.0002` (500, transient, retryable).
 

@@ -128,7 +128,7 @@ Here the card is fine; it simply has not been authenticated for this charge.
 
 `0006` and `0010` are both 500s and behave in opposite ways, so "retry 5xx" is the wrong reflex
 here. Note also that `0006` is raised **only by the payments summary read**, never by a payment —
-so on the paying path, `0007` and `0020` are the codes worth retrying (with backoff).
+so on the paying path, `0007`, `0020`, `0042` and `0043` are the codes worth retrying (with backoff).
 
 `0010` means a payment handler reported a settlement amount in cents that isn't a non-negative
 integer, so the routing-fee arithmetic can't compute what to reserve. It deliberately fails rather
