@@ -182,6 +182,9 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 | `BCK.ROUTER.0034` | 502 | A paid request got no response (timeout or connection failure); the service may already have redeemed the payment. `params` carries the `paymentId`. | No — reconcile via `GET /api/v1/router/payments/{paymentId}`; never retry with a fresh `requestId` |
 | `BCK.ROUTER.0035` | 422 | The service's challenge asks for no payment (an auth-only wallet sign-in). Nothing was signed or charged. | No — use a service that charges for the call, or authenticate with it directly |
 | `BCK.ROUTER.0036` | 422 | The endpoint is known to answer after the Router abandons a paid call (120 s) while charging on receipt, so paying would deliver nothing. Refused before any payment. `params.source`: `declared` (permanent) or `observed` (lifts at `params.liftsAt`). | No — pick another endpoint or service |
+| `BCK.ROUTER.0040` | 500 | Internal: the Router refused an inconsistent read or write of its MPP session channel state; nothing moved. | No — report it |
+| `BCK.ROUTER.0041` | 400 | The service is paid only over an MPP session, which `POST /router/payments` cannot pay. Nothing charged. | No — use `/router/route`, `/router/svc/<slug>` or `/router/proxy` |
+| `BCK.ROUTER.0042` | 409 | The MPP session payment channel with this service is closing; nothing signed or charged. | **Yes**, later — same `requestId` |
 | `BCK.OAUTH.0030` | 403 | The API key was OAuth-minted; it may not create Delegations or use `/router/{payments,route,quote,select,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant, `POST /router/commerce/route` to pay and `/router/commerce/quote` to price | No |
 | `BCK.HTTP.412` | 412 | `{"error":"consent_required"}` on `POST /delegation/create` — the account's legal consent lapsed. The code is generic; branch on `body.error` | No — **needs a human** |
 
@@ -191,7 +194,7 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 
 **`0010` is the one 500 you must not retry.** A payment credential **was already minted** before it failed, and because no payment record was written your `requestId` will *not* suppress a retry — so retrying re-mints a fresh credential and fails identically. Report it instead. (`0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. On the paying path `0007` and `0020` (an upstream 5xx/429) are worth retrying.)
 
-**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. **Retry only the codes the table marks retryable — `0006`, `0007`, `0020`, `0022` and `0028`; on the paying path that means `0007` and `0020`.** Everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
+**Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one defeats the whole mechanism. Report and stop. **Retry only the codes the table marks retryable — `0006`, `0007`, `0020`, `0022`, `0028` and `0042`; on the paying path that means `0007`, `0020` and `0042`.** Everything else is a decision, and retrying it unchanged gives the same answer. Delegations also expire silently, so check `expiresAt` before diagnosing a `0003` as anything else.
 
 ## Full Reference
 

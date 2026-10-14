@@ -151,7 +151,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; `details` names it.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
 - Only `BCK.ROUTER.0006` (500, summary read), `0007` (429, too many concurrent), `0020` (5xx/429), `0022` (500,
-  selection not wired) and `0028` (503, quote) are **retryable** — on the paying path, `0007` and `0020`. Everything else is a decision — retrying
+  selection not wired), `0028` (503, quote) and `0042` (409, closing payment channel) are **retryable** — on the paying path, `0007`, `0020` and `0042`. Everything else is a decision — retrying
   unchanged gives the same answer.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry it:** a credential was already minted and
   no record was written, so `requestId` will not suppress the retry. Report it.
@@ -190,6 +190,9 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0034` (502) — a paid request got no response (timeout or connection failure); the payment may have gone through. Reconcile via `GET /router/payments/{paymentId}` (`params.paymentId`); never retry with a fresh `requestId`.
 - `BCK.ROUTER.0035` (422) — the service's challenge asks for no payment (an auth-only wallet sign-in). Nothing was charged; use a paying service or authenticate with it directly. Do not retry unchanged.
 - `BCK.ROUTER.0036` (422) — the endpoint is known to outlast the Router's 120 s paid-call limit, so paying would charge and deliver nothing; refused before payment. `params.source` is `declared` (permanent) or `observed` (lifts at `params.liftsAt`). Pick another endpoint; do not retry unchanged.
+- `BCK.ROUTER.0040` (500) — internal: the Router's MPP session channel state refused an inconsistent read or write. Nothing moved. Report it; do not retry.
+- `BCK.ROUTER.0041` (400) — the service is paid only over an MPP session, which `POST /router/payments` cannot pay. Use `/router/route`, `/router/svc/<slug>` or `/router/proxy`.
+- `BCK.ROUTER.0042` (409) — the MPP session payment channel with this service is closing; nothing signed or charged. Retry later with the same `requestId`.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
