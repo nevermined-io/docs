@@ -21,6 +21,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments" \
 | `from` | ISO-8601 lower bound on `createdAt`, inclusive |
 | `to` | ISO-8601 upper bound on `createdAt`, inclusive |
 | `format` | `json` (default) or `csv` for a downloadable file |
+| `requestId` | Look up the one payment you made with this idempotency key — see [Look up one payment by `requestId`](#look-up-one-payment-by-requestid). The other filters are ignored. |
 
 An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ignoring the filter.
 
@@ -54,6 +55,29 @@ An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ign
 ```
 
 `amount` is in the asset's smallest unit, and `assetDecimals` is the scale to divide it by. The figure charged against your Delegation cap is the cents equivalent, **rounded up**, which is why a long run of sub-cent calls costs more budget than the raw amounts suggest.
+
+### Look up one payment by `requestId`
+
+To find out what happened to one call — a dropped connection, a `502` that says the payment may have gone through — look it up by the `requestId` you sent with it:
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/payments?requestId=order-1234" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+```json
+{
+  "presence": "present",
+  "payments": [
+    { "id": "b1f9c2e4-…", "requestId": "order-1234", "status": "Settled", "…": "…" }
+  ]
+}
+```
+
+- **An exact lookup, scoped to you.** `presence` is `present` with exactly one payment, or `absent` with an empty `payments` when no payment was recorded for that `requestId`. A failed read is an error, never `absent`, so `absent` is an answer you can act on.
+- **The list filters don't apply.** `delegationId`, `from` and `to` are ignored, and the lookup isn't limited to the newest 1000 payments.
+- **`requestId` must be a trimmed, non-blank string of at most 256 characters**, or the call is refused with `400 BCK.ROUTER.0001`.
+- With `format=csv` you get the matching row as CSV instead of the envelope.
 
 ### Reading the asset
 
