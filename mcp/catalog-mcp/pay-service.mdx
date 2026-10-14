@@ -81,11 +81,13 @@ The `funding` argument decides what pays:
 
 | `funding` | What pays |
 | --- | --- |
-| omitted | Your credits, when your subscription can pay this call: you hold one that can spend, and the endpoint has a rate. Otherwise your delegation, exactly as before. Passing `delegationId`, `quoteId` or `maxTotalCents` selects the delegation. |
+| omitted | Your credits, when a subscription quote for this call succeeds: you hold a subscription that can spend, and the endpoint has a rate. Otherwise your delegation, exactly as before. Passing `delegationId`, `quoteId` or `maxTotalCents` selects the delegation. |
 | `"subscription"` | Your credits — refused, never switched to the delegation, if they can't pay this call. |
 | `"delegation"` | Your delegation. |
 
-`delegationId`, `quoteId` and `maxTotalCents` only mean something to a delegation, so passing one with `funding: "subscription"` is refused (`invalid_arguments`, with the offending `fields`). When `funding` is omitted and your subscription can't pay this call, the delegation-funded result says why: `funding: "delegation"`, `fundingReason: "subscription_refused"` and the API's `fundingCode` (or `fundingReason: "delegation_arguments"` when you passed a delegation-only argument).
+`delegationId`, `quoteId` and `maxTotalCents` only mean something to a delegation, so passing one with `funding: "subscription"` is refused (`invalid_arguments`, with the offending `fields`).
+
+The default doesn't look at how many credits you have left or at the merchant's live price — those are checked when the call is made, and a refusal for them is **not** moved to your delegation (see the note below). When your subscription refused this call up front (no rate, no subscription that can spend), the delegation-funded result says so: `funding: "delegation"`, `fundingReason: "subscription_refused"`, the API's `fundingCode` and a `fundingNote` (or `fundingReason: "delegation_arguments"` when you passed a delegation-only argument). If the subscription isn't available to you at all — an OAuth connection, for example — the result carries no funding fields. And if the subscription's answer couldn't be read, the call is refused with `funding_undetermined` rather than paid from your delegation.
 
 A credits call answers with `funding: "subscription"`, the credits it cost and where they stand — and no `budget` or `delegationId`, since no delegation was charged:
 
@@ -102,7 +104,7 @@ A credits call answers with `funding: "subscription"`, the credits it cost and w
 }
 ```
 
-- `creditsStatus` is `Committed` (spent), `Reserved` (still running, or marked for refund) or `Refunded` (returned). `creditsCharged` and `creditsStatus` are `null` when the ledger couldn't be read at answer time — read the payment with [`list_payments`](/mcp/catalog-mcp/list-payments) later.
+- `creditsStatus` is `Committed` (spent), `Reserved` (still running, or marked for refund) or `Refunded` (returned). The top-level `creditsCharged` and `creditsStatus` are `null` when `paid` is `false`, or when the ledger couldn't be read at answer time (`payment` then omits them) — read the payment with [`list_payments`](/mcp/catalog-mcp/list-payments) later.
 - A `pending` answer works as for any paid call: poll [`get_payment_result`](/mcp/catalog-mcp/get-payment-result). The credits stay reserved until the service answers.
 
 ### Refusals when paying with credits
@@ -111,15 +113,18 @@ These charge nothing and reserve no credits. Each carries `funding: "subscriptio
 
 | `error` | What happened |
 | --- | --- |
-| `no_active_subscription` | No subscription that can spend right now: none, ended, past due, suspended by a card dispute — or a call made with an organization's API key. |
-| `subscription_not_eligible` | This endpoint can't be paid with credits — see `reason`. |
+| `no_active_subscription` | No subscription that can spend right now: none, ended, past due, suspended by a card dispute — or a call made with the API key of an organization you're a member of. |
+| `subscription_not_eligible` | This endpoint can't be paid with credits — see `reason`. (With `code: null` and no `alternative`, it's the HTTP method: credits price only `GET`, `POST`, `PUT`, `PATCH` and `DELETE`.) |
 | `insufficient_credits` | Not enough credits left this month for this call (`credits` is its cost). |
-| `subscription_ceiling_exceeded` | The merchant's live price is outside the rate's bound right now (`reason`). |
+| `subscription_ceiling_exceeded` | The merchant's live price is outside what the rate allows right now: above its bound, in another asset or network, or unreadable (`reason`). |
 | `subscription_rail_unsupported` | The merchant asked for a rail credits don't pay (`rail`). |
 | `subscription_payment_refused` | Nevermined's treasury couldn't make this payment; `code` and `retryable` say why and whether to retry. |
 | `subscription_unavailable` | Credits can't be spent from this connection or deployment — for example an OAuth connection, which spends its commerce grant. |
-| `subscription_cap_reached` | A spending limit was reached. The subscription has none beyond your credits, so only an older API deployment returns this. Retry later. |
-| `funding_undetermined` | What would pay this call couldn't be decided. Nothing was charged; retry. |
+| `subscription_cap_reached` | Not returned today: the subscription has no spending limit beyond your credits. Retry later if you see it. |
+
+With `funding` omitted, `{ "error": "funding_undetermined", "retryable": true }` means what would pay this call couldn't be decided — nothing was charged; retry.
+
+Other failures of a credits call use the usual outcomes above — `payment_failed`, `payment_indeterminate`, `already_paid`, `pending` — with `funding: "subscription"`: read `code` and `retryable`.
 
 <Note>
 A credits call refused because too few credits are left this month is **not** moved to your delegation on its own — starting to spend money when your allowance runs out is your decision. Retry with `funding: "delegation"` if you want the delegation to pay.

@@ -69,7 +69,7 @@ With a [Nevermined Subscription](/products/catalog/router/subscription) that can
 }
 ```
 
-`credits` is what one call to this endpoint costs at the current rate. There's no `quoteId` or cent total: pay with `pay_service` and the same arguments. The quote doesn't check the credits you have left this month, the merchant's live price or Nevermined's treasury — `pay_service` checks those when it makes the call. `funding` follows the same rules as on [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits), and a quote that credits can't price is refused with the same [error names](/mcp/catalog-mcp/pay-service#refusals-when-paying-with-credits).
+`credits` is what one call to this endpoint costs at the current rate. There's no `quoteId` or cent total: pay with `pay_service` and the same arguments. The quote doesn't check the credits you have left this month, the merchant's live price or Nevermined's treasury — `pay_service` checks those when it makes the call. `funding` follows the same rules as on [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits): omitted, a call credits can't price gets the delegation quote instead, with `fundingReason`; with `funding: "subscription"`, it is refused with the same [error names](/mcp/catalog-mcp/pay-service#refusals-when-paying-with-credits).
 
 ## Refusals (all charge nothing)
 

@@ -2653,8 +2653,18 @@
               }
             }
           },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
           "402": {
-            "description": "No subscription that can spend right now — none bought, ended, past due, or suspended by a card dispute — or a call made in an organization context, which never falls back to your personal subscription (BCK.SUBSCRIPTION_ROUTER.0002).",
+            "description": "No subscription that can spend right now — none bought, ended, past due, or suspended by a card dispute — or a call made in an organization you are an active member of (`X-Current-Org-Id`, or that organization's API key), which never falls back to your personal subscription (BCK.SUBSCRIPTION_ROUTER.0002).",
             "content": {
               "application/json": {
                 "schema": {
@@ -2694,7 +2704,7 @@
             }
           },
           "500": {
-            "description": "Nevermined-side data error: the subscription does not resolve to its credits (BCK.SUBSCRIPTION_ROUTER.0011) or the endpoint's rate is unusable (BCK.SUBSCRIPTION_ROUTER.0013). Nothing was charged.",
+            "description": "Nevermined-side data error: the subscription does not resolve to its credits (BCK.SUBSCRIPTION_ROUTER.0011). Nothing was charged. (An unusable rate surfaces only on the route, as BCK.SUBSCRIPTION_ROUTER.0013.)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2722,7 +2732,7 @@
     },
     "/router/subscription/route": {
       "post": {
-        "description": "Call a catalog service and pay it with your Nevermined Subscription credits (mode B). Like `POST /router/route`, but Nevermined pays the merchant from its treasury and your subscription is charged the endpoint's rate in credits. There is no Delegation, no wallet to fund and no routing fee.\n\n- **A slug, never a URL.** Address the service by `slug` (+ `path`, `search`, `method`, `headers`, `body`). A `url` or a `delegationId` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`), not ignored.\n- **`requestId` is required** (idempotency): a retry with the same id is never paid twice.\n- **Only a merchant `2xx` keeps the credits.** They are reserved before the merchant is called and kept (`Committed`) only on a `2xx`; anything else marks them for refund and they are returned (`Refunded`). Every refusal below happens before anything is reserved, signed or charged.\n- **Rails:** x402 `exact` and MPP `tempo` merchants only.\n\nFor large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}` with an `X-Router-Request-Id` header; it answers with `X-Router-Credits-Charged` and `X-Router-Credits-Status` beside the `X-Router-Payment-*` headers, and refuses `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id`.\n\nPersonal API keys only: the Nevermined Subscription belongs to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. An OAuth-minted credential is refused (`BCK.OAUTH.0030`). Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
+        "description": "Call a catalog service and pay it with your Nevermined Subscription credits (mode B). Like `POST /router/route`, but Nevermined pays the merchant from its treasury and your subscription is charged the endpoint's rate in credits. There is no Delegation, no wallet to fund and no routing fee.\n\n- **A slug, never a URL.** Address the service by `slug` (+ `path`, `search`, `method`, `headers`, `body`). A `url` or a `delegationId` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`), not ignored.\n- **`requestId` is required** (idempotency): a retry with the same id is never paid twice.\n- **Only a merchant `2xx` keeps the credits.** They are reserved before the merchant is called and kept (`Committed`) only on a `2xx`; anything else marks them for refund and they are returned (`Refunded`). Every refusal below happens before anything is reserved, signed or charged — except a 502, which can follow a payment.\n- **Rails:** x402 `exact` and MPP `tempo` merchants only.\n\nFor large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}` with an `X-Router-Request-Id` header; it answers with `X-Router-Credits-Charged` and `X-Router-Credits-Status` beside the `X-Router-Payment-*` headers, and refuses `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id`.\n\nPersonal API keys only: the Nevermined Subscription belongs to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. An OAuth-minted credential is refused (`BCK.OAUTH.0030`). Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
         "operationId": "routeSubscriptionCall",
         "parameters": [],
         "requestBody": {
@@ -2761,7 +2771,7 @@
             }
           },
           "202": {
-            "description": "The paid call outlived the synchronous wait. Poll `GET /api/v1/router/payments/{id}/result` (also the `Location` header); the credits stay `Reserved` until the call ends.",
+            "description": "API version 1.48 or later: the paid call outlived the synchronous wait. Poll `GET /api/v1/router/payments/{id}/result` (also the `Location` header); the credits stay `Reserved` until the call ends. A retry with the same `requestId` returns this same answer, then the result.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2771,7 +2781,17 @@
             }
           },
           "400": {
-            "description": "Invalid request; a field a subscription call does not accept (BCK.SUBSCRIPTION_ROUTER.0005, `params.field`); or the merchant asked for a rail credits do not pay (BCK.SUBSCRIPTION_ROUTER.0003, `params.rail`).",
+            "description": "Invalid request; a field a subscription call does not accept (BCK.SUBSCRIPTION_ROUTER.0005, `params.field`); the merchant asked for a rail credits do not pay (BCK.SUBSCRIPTION_ROUTER.0003, `params.rail`); or the payment credential would overwrite a header you forward, with no `credentialHeader` naming where the service wants it (BCK.ROUTER.0021).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2781,7 +2801,7 @@
             }
           },
           "402": {
-            "description": "No subscription that can spend right now, including a call made in an organization context, which never falls back to your personal subscription (BCK.SUBSCRIPTION_ROUTER.0002); or not enough credits for this call (BCK.SUBSCRIPTION_ROUTER.0009, `params.credits`).",
+            "description": "No subscription that can spend right now, including a call made in an organization you are an active member of (`X-Current-Org-Id`, or that organization's API key), which never falls back to your personal subscription (BCK.SUBSCRIPTION_ROUTER.0002); or not enough credits for this call (BCK.SUBSCRIPTION_ROUTER.0009, `params.credits`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -2811,7 +2831,17 @@
             }
           },
           "409": {
-            "description": "The merchant's live price is outside the rate's bound, or in another asset or network (BCK.SUBSCRIPTION_ROUTER.0004, `params.reason`); or the `requestId` was already used (BCK.ROUTER.0002).",
+            "description": "The merchant's live price is outside the rate's bound, in another asset or network, or could not be read as a price (BCK.SUBSCRIPTION_ROUTER.0004, `params.reason`); or the `requestId` was already used (BCK.ROUTER.0002 — from API 1.48, a retry of a finished call is answered from its retained result instead).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body is larger than this endpoint accepts (BCK.ROUTER.0027, its `maxRequestBytes`) or than the Router accepts (BCK.ROUTER.0024). Refused before the service is contacted; nothing was charged.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2821,7 +2851,7 @@
             }
           },
           "422": {
-            "description": "The merchant asked to be paid in an asset Nevermined's treasury does not pay in (BCK.SUBSCRIPTION_TREASURY.0002). Nothing was charged; pay this endpoint from a delegation.",
+            "description": "The merchant asked to be paid in an asset Nevermined's treasury does not pay in (BCK.SUBSCRIPTION_TREASURY.0002), or the endpoint is known to outlast the Router's paid-call limit (BCK.ROUTER.0036). Nothing was charged; pay this endpoint from a delegation, or pick another.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2831,7 +2861,7 @@
             }
           },
           "429": {
-            "description": "The per-slug throttle or the per-user concurrency limit. A subscription has no spending limit beyond its credits: the BCK.SUBSCRIPTION_TREASURY.0004–0007 limits are retired.",
+            "description": "The per-slug throttle or the per-user concurrency limit. A subscription has no spending limit beyond its credits.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2842,6 +2872,16 @@
           },
           "500": {
             "description": "Nevermined-side error, nothing charged: the payment could not be prepared consistently (BCK.SUBSCRIPTION_ROUTER.0006, retryable with a new requestId), the subscription does not resolve to its credits (0011), the rate is unusable (0013), or a treasury configuration or ledger error (BCK.SUBSCRIPTION_TREASURY.0011–0013).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The paid call got no response from the service (BCK.ROUTER.0034), or its reply was too large to deliver (BCK.ROUTER.0025): the merchant may have been paid, and the call's credits are marked for refund. Do not retry with a new `requestId`; read the outcome from `GET /api/v1/router/payments?requestId=…` (`creditsStatus`). An unpaid probe the service failed to answer (BCK.ROUTER.0020) paid nothing.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2869,7 +2909,7 @@
     },
     "/router/subscription/balance": {
       "get": {
-        "description": "Your Nevermined Subscription credits left, when they reset, and your plan. Charges nothing. Called in an organization context (`X-Current-Org-Id`, or an organization's API key), it answers `subscribed: false`: it never reads your personal subscription there. `subscribed: false` carries no other field; every other field is present exactly when `subscribed` is true.\n\nPersonal API keys only: the Nevermined Subscription belongs to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. An OAuth-minted credential is refused (`BCK.OAUTH.0030`). Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
+        "description": "Your Nevermined Subscription credits left, when they reset, and your plan. Charges nothing. Called in an organization you are an active member of (`X-Current-Org-Id`, or that organization's API key), it answers `subscribed: false`: it never reads your personal subscription there. `subscribed: false` carries no other field; every other field is present exactly when `subscribed` is true.\n\nPersonal API keys only: the Nevermined Subscription belongs to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. An OAuth-minted credential is refused (`BCK.OAUTH.0030`). Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
         "operationId": "getSubscriptionBalance",
         "parameters": [],
         "responses": {
@@ -2879,6 +2919,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SubscriptionBalanceDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
                 }
               }
             }
@@ -5917,12 +5967,12 @@
               "delegation",
               "subscription"
             ],
-            "description": "What paid for this payment: `delegation` (your delegation cap) or `subscription` (your Nevermined Subscription credits; Nevermined paid the merchant, so `delegationId` is null).",
+            "description": "What paid for this payment: `delegation` (your delegation cap) or `subscription` (your Nevermined Subscription credits). On a `subscription` row Nevermined paid the merchant: `delegationId` is null, `buyer` is Nevermined's treasury, the fee fields are zero (`feeStatus` `None`) and `chargedMicros` is `\"0\"`; what it cost you is `creditsCharged` / `creditsStatus`.",
             "example": "delegation"
           },
           "creditsCharged": {
             "type": [
-              "number",
+              "integer",
               "null"
             ],
             "description": "Credits a subscription-funded payment cost (its rate). Null on a delegation payment.",
@@ -6120,12 +6170,12 @@
             "example": "webscrape-pro"
           },
           "credits": {
-            "type": "number",
+            "type": "integer",
             "description": "Credits one call to this endpoint costs: its current rate on Nevermined's rate card, whatever the merchant charges at the moment of the call.",
             "example": 3
           },
           "tariffVersion": {
-            "type": "number",
+            "type": "integer",
             "description": "The tariff version that sets `credits`.",
             "example": 2
           }
@@ -6197,6 +6247,8 @@
           "requestId": {
             "type": "string",
             "description": "Idempotency key — REQUIRED. At most one payment per (caller, requestId): a retry is never paid twice.",
+            "maxLength": 256,
+            "pattern": "\\S",
             "example": "scrape-example-com-1"
           }
         },
@@ -6229,7 +6281,7 @@
             "description": "On-chain settlement reference of the merchant leg, when the merchant returned one."
           },
           "creditsCharged": {
-            "type": "number",
+            "type": "integer",
             "description": "Credits this call cost (the endpoint's rate). Absent only when the ledger could not be read at answer time; `GET /router/payments` has it.",
             "example": 3
           },
@@ -6277,7 +6329,7 @@
             "description": "The merchant's HTTP status."
           },
           "body": {
-            "description": "The merchant's response body — `null` unless it delivered (2xx), so a failed call reveals nothing about the merchant."
+            "description": "The merchant's response body — `null` unless a paid call delivered (2xx), so a failed call reveals nothing about the merchant. A free answer relays only its `status` (`paid: false`), except a declared follow-up poll after a paid call."
           },
           "bodyEncoding": {
             "type": "string",
@@ -6367,20 +6419,18 @@
             "type": "string",
             "enum": [
               "incomplete",
-              "incomplete_expired",
               "trialing",
               "active",
               "past_due",
-              "canceled",
               "unpaid",
               "paused"
             ],
-            "description": "The subscription status. A `past_due` subscription keeps its credits but cannot spend them until its invoice is paid.",
+            "description": "The subscription status. A `past_due` subscription keeps its credits but cannot spend them until its invoice is paid. An ended subscription answers `subscribed: false`.",
             "example": "active"
           },
           "suspended": {
             "type": "boolean",
-            "description": "True while a card dispute is open, or after one was lost: the credits cannot be spent. A dispute resolved in Nevermined's favour lifts it."
+            "description": "True while a card dispute is open, or after one was lost: the credits cannot be spent. A dispute resolved in Nevermined's favour lifts it once no other dispute is open or lost."
           },
           "plan": {
             "$ref": "#/components/schemas/SubscriptionBalancePlanDto"
