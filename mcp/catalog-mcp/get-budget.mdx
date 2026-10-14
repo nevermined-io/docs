@@ -39,6 +39,30 @@ The figures are nested under `budget`; `delegationId`, `message`, and `instructi
 - Inside `budget`: `spentCents + remainingCents = capCents` while within cap; `transactionCount` is how many payments were made and `maxTransactions` the limit (`null` when there is none).
 - With no `delegationId` this reads the budget `pay_service` would use, which only includes budgets that can still pay. So `{ "status": "no_active_delegation" }` also covers a budget that ran out or expired — pass the `delegationId` from an earlier `pay_service` result to read that one anyway.
 
+## Subscription credits
+
+With a [Nevermined Subscription](/products/catalog/router/subscription), and an API key, the result also carries a `subscription` block — your credits as the API reports them — and a `subscriptionMessage` to relay as it stands:
+
+```json
+{
+  "subscription": {
+    "subscribed": true,
+    "creditsLeft": "1240",
+    "spendable": true,
+    "resetsAt": "2026-10-30T00:00:00.000Z",
+    "cancelAtPeriodEnd": false,
+    "status": "active",
+    "suspended": false,
+    "plan": { "catalogId": "3f2b…", "planKey": "standard", "creditsPerCycle": "20000" }
+  },
+  "subscriptionMessage": "Nevermined Subscription (standard): 1240 of 20000 credits left this month; the monthly allowance resets on 2026-10-30 and unused credits do not carry over."
+}
+```
+
+- **Don't count credits yourself** — `creditsLeft` is what [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits) debits. `spendable: false` means the credits can't pay a call right now (a past-due invoice, or a card dispute).
+- `subscription` is `{ "subscribed": false }` when you don't subscribe. It's absent when the subscription isn't available to you, for an OAuth connection, or when the credits couldn't be read this time — absent never means zero.
+- With no delegation, `status: "no_active_delegation"` still carries the `subscription` block, and drops `nextTool: "setup_delegation"` when your credits can pay: `pay_service` uses them by default.
+
 ## Try it
 
 **Ask your assistant:**
