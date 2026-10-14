@@ -245,7 +245,8 @@ Subscription calls land on the same [payment ledger](/products/catalog/router/le
 `delegationId` is `null` on a subscription call, and `feeBps` is `0`: there is no routing fee. To read one call's final state, look it up by the `requestId` you sent:
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/router/payments?requestId=scrape-example-com-1" \
+curl -s -G "$NVM_API_URL/api/v1/router/payments" \
+  --data-urlencode "requestId=scrape-example-com-1" \
   -H "Authorization: Bearer $NVM_API_KEY"
 ```
 
@@ -258,7 +259,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?requestId=scrape-example-com-1" \
 }
 ```
 
-`presence: "absent"` means no payment was recorded for that `requestId`.
+`presence: "absent"` means no payment is recorded for that `requestId` yet — while the call may still be running, retry it with the same `requestId`, never a new one. See [Look up one payment by `requestId`](/products/catalog/router/ledger#look-up-one-payment-by-requestid).
 
 ## From the Catalog MCP
 
