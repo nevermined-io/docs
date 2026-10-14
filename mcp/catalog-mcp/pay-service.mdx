@@ -105,7 +105,7 @@ A credits call answers with `funding: "subscription"`, the credits it cost and w
 - `creditsStatus` is `Committed` (spent), `Reserved` (still running, or marked for refund) or `Refunded` (returned). `creditsCharged` and `creditsStatus` are `null` when the ledger couldn't be read at answer time — read the payment with [`list_payments`](/mcp/catalog-mcp/list-payments) later.
 - A `pending` answer works as for any paid call: poll [`get_payment_result`](/mcp/catalog-mcp/get-payment-result). The credits stay reserved until the service answers.
 
-### When credits can't pay
+### Refusals when paying with credits
 
 These charge nothing and reserve no credits. Each carries `funding: "subscription"`, the API's `code`, `retryable` and `message`, and an `alternative` saying how to pay the same call from your delegation instead.
 
