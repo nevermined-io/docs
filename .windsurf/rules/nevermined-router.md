@@ -87,7 +87,12 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0024` (413) — body over ~5 MB. No retry as-is; shrink it.
 - `BCK.ROUTER.0025` (502) — oversized reply; charge unknown. Don't retry: same id cannot redeliver; fresh may charge again. Find `paymentId` in `params`, else look up `/router/payments?requestId=<encoded id>`; after 0025 `absent` = wrong id/account. `Failed` means delivery failed, not uncharged; non-null `merchantSettlementObservedAt` confirms x402 settlement, but null proves nothing (including MPP).
-- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, selection) and `0028` (503, quote) are **retryable**, with backoff; paying path: `0007`/`0020`.
+- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, selection), `0028` (503, quote), `0042` (409, closing payment channel) and `0043` (503, busy payment channel) are **retryable**, with backoff; paying path: `0007`/`0020`/`0042`/`0043`.
+- `BCK.ROUTER.0042` (409) — the MPP session payment channel with this service is closing; no payment
+  signed or charged. Retry later with the same `requestId`; the next call after the close opens a
+  new channel.
+- `BCK.ROUTER.0043` (503) — the MPP session payment channel with this service is busy; nothing signed
+  or charged. Retry after a few seconds with the same `requestId`.
 
 **Never widen a Delegation, or create a second one, to get past a refusal.**
 
@@ -119,3 +124,7 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
 - `BCK.ROUTER.0036` (422) — the endpoint is known to outlast the Router's 120 s paid-call limit;
   refused before payment. `params.source` is `declared` (permanent) or `observed` (lifts at
   `params.liftsAt`). Pick another endpoint.
+- `BCK.ROUTER.0040` (500) — internal: the Router's MPP session channel state refused an
+  inconsistent read or write. Nothing moved. Report it.
+- `BCK.ROUTER.0041` (400) — the service is paid only over an MPP session, which
+  `POST /router/payments` cannot pay. Use `/router/route`, `/router/svc/<slug>` or `/router/proxy`.
