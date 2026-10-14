@@ -1981,14 +1981,14 @@
         ]
       },
       "get": {
-        "description": "Returns your Router payments (newest first, capped at 1000) across every agent and delegation —\nthe unified audit trail. Filter by `delegationId` and by `from`/`to` (ISO-8601, inclusive on\n`createdAt`). `format=csv` returns a CSV file download instead of the JSON array.",
+        "description": "Returns your Router payments (newest first, capped at 1000) across every agent and delegation —\nthe unified audit trail. Filter by `delegationId` and by `from`/`to` (ISO-8601, inclusive on\n`createdAt`). `format=csv` returns a CSV file download instead of the JSON array.\n\nSupplying `requestId` selects a separate, exact, caller-scoped lookup instead: the list filters are\nignored and it is not subject to the 1000-row window. JSON answers it with an explicit `presence`\ndiscriminator and zero or one `payments`; a failed lookup is an error, never `absent`. With `format=csv` it\nanswers the matching row, or only the header when there is none. An older\nRouter that ignores `requestId` answers a plain array, which is never authoritative absence.",
         "operationId": "listRouterPayments",
         "parameters": [
           {
             "name": "delegationId",
             "required": false,
             "in": "query",
-            "description": "Only payments spent against this delegation id.",
+            "description": "Only payments spent against this delegation id. Ignored with `requestId`.",
             "schema": {
               "type": "string"
             }
@@ -1997,7 +1997,7 @@
             "name": "from",
             "required": false,
             "in": "query",
-            "description": "ISO-8601 lower bound on createdAt (inclusive).",
+            "description": "ISO-8601 lower bound on createdAt (inclusive). Ignored with `requestId`.",
             "schema": {
               "example": "2026-07-01T00:00:00Z",
               "type": "string"
@@ -2007,10 +2007,22 @@
             "name": "to",
             "required": false,
             "in": "query",
-            "description": "ISO-8601 upper bound on createdAt (inclusive).",
+            "description": "ISO-8601 upper bound on createdAt (inclusive). Ignored with `requestId`.",
             "schema": {
               "example": "2026-07-31T23:59:59Z",
               "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": false,
+            "in": "query",
+            "description": "Exact, caller-scoped idempotency key: look up the one payment made with it. Percent-encode it (an unencoded `+` reads as a space). Selects the lookup envelope (`RouterPaymentLookupDto`); the other list filters are ignored.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "example": "order-1234"
             }
           },
           {
@@ -2029,26 +2041,33 @@
         ],
         "responses": {
           "200": {
-            "description": "The payment record — a JSON array (or a CSV file when `format=csv`).",
+            "description": "A JSON array for a list; the lookup envelope (`RouterPaymentLookupDto`) with `requestId`; or a CSV file when `format=csv`.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RouterPaymentRecordDto"
-                  }
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RouterPaymentRecordDto"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/RouterPaymentLookupDto"
+                    }
+                  ]
                 }
               },
               "text/csv": {
                 "schema": {
                   "type": "string",
-                  "description": "CSV export of the same records, served as a file download (`Content-Disposition: attachment; filename=\"router-payments.csv\"`). Columns carry the JSON field names; new ones are always appended at the end — `assetSymbol` and `assetDecimals` are the most recent — so a consumer reading by column index is unaffected when the record grows."
+                  "description": "CSV export of the same records, served as a file download (`Content-Disposition: attachment; filename=\"router-payments.csv\"`). Columns carry the JSON field names; new ones are always appended at the end, so a consumer reading by column index is unaffected when the record grows."
                 }
               }
             }
           },
           "400": {
-            "description": "`from`/`to` are not valid ISO-8601 timestamps (BCK.ROUTER.0001).",
+            "description": "`from`/`to` are not valid ISO-8601 timestamps, or `requestId` is blank, padded, non-string, or longer than 256 characters (BCK.ROUTER.0001).",
             "content": {
               "application/json": {
                 "schema": {
@@ -5473,6 +5492,33 @@
           "paymentId",
           "status",
           "txHash"
+        ]
+      },
+      "RouterPaymentLookupDto": {
+        "type": "object",
+        "description": "The answer to `GET /router/payments?requestId=…`: an exact, caller-scoped lookup.",
+        "properties": {
+          "presence": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent"
+            ],
+            "description": "`present` when you own the matching payment; `absent` when you have no payment recorded with that `requestId` yet — a call still in flight may record one later, so retry it with the same `requestId`, never a new one. A failed read is an error response, never `absent`.",
+            "example": "present"
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouterPaymentRecordDto"
+            },
+            "description": "Exactly one payment when `presence` is `present`; empty when it is `absent`.",
+            "maxItems": 1
+          }
+        },
+        "required": [
+          "presence",
+          "payments"
         ]
       },
       "RouterPaymentRecordDto": {
