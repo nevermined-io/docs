@@ -15,7 +15,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
 | `delegationId` | Only spend against this Delegation |
 | `from` / `to` | ISO-8601, **inclusive** on `createdAt`. Invalid → `400 BCK.ROUTER.0001` |
 | `format` | `json` (default) or `csv` — a downloadable `router-payments.csv` |
-| `requestId` | Exact lookup of the one payment made with this idempotency key — see below. The other params are ignored. |
+| `requestId` | Exact lookup of the one payment made with this idempotency key — see below. The list filters (`delegationId`, `from`, `to`) are ignored; `format` still applies. |
 
 Returns **newest first, capped at 1000 rows**. The cap is silent: 1000 rows back does not mean there
 were exactly 1000. Narrow with `from`/`to` and page through by time, or use the summary endpoint for
