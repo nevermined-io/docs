@@ -201,7 +201,7 @@ A subscription pays **listed, live catalog endpoints that carry a rate**, on the
 - **x402** merchants using the `exact` scheme, paid in USDC,
 - **MPP** merchants on the `tempo` method, paid in the USD stablecoin Nevermined's treasury holds there.
 
-Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or a service whose results only the paying wallet can read back (a job you poll with your own wallet). Pay those from a Delegation.
+Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or an endpoint whose result only the paying wallet can read back — a job you poll, or something you'd own at the merchant. On a service that delivers results only to the wallet that paid, credits pay just the endpoints Nevermined has reviewed as self-contained (the paid response is the whole result); the rest are refused with `params.reason: wallet_bound`. Pay those from a Delegation.
 
 Credits are spent with a **personal Nevermined API key**. OAuth connections to an assistant (for example the [Catalog MCP](/mcp/catalog-mcp/overview) connected from Claude.ai or ChatGPT) pay from their commerce grant, not from credits.
 
@@ -215,7 +215,7 @@ Branch on `code`. None of these charged anything or reserved any credit.
 
 | Code | Status | What it means | What to do |
 | --- | --- | --- | --- |
-| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with credits — `params.reason` says why (`no_active_tariff` — no rate yet, `price_variable`, `unhealthy`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with credits — `params.reason` says why (`no_active_tariff` — no rate yet, `price_variable`, `unhealthy`, `wallet_bound`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0002` | 402 | No subscription that can spend right now: none bought, ended, past due, or suspended by a card dispute. Also the answer when you call in an organization you're a member of. | Subscribe, settle the open invoice, or call with a personal API key and no `X-Current-Org-Id`. |
 | `BCK.SUBSCRIPTION_ROUTER.0003` | 400 | The merchant asked for a rail credits don't pay (`params.rail`). | Pay from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0004` | 409 | The merchant's live price is outside the rate's bound, or in another asset or network (`params.reason`). | Retry later, or pay from a Delegation. |
@@ -228,7 +228,7 @@ Branch on `code`. None of these charged anything or reserved any credit.
 | `BCK.SUBSCRIPTION_ACCESS.0001` | 404 | The subscription isn't available on this deployment or to this account. | — |
 | `BCK.CATALOG.0001` | 404 | No listed, payable catalog service has that `slug`. | Check the slug in the catalog. |
 | `BCK.OAUTH.0030` | 403 | An OAuth-minted credential: credits are spent with an API key only. | Use your Nevermined API key. |
-| `BCK.ROUTER.0001` | 400 | With the message *this service delivers its results only to the personal wallet that paid*: a wallet-bound service, which credits can't pay. Any other message is a malformed request. | Pay it from your own crypto (`erc4337`) Delegation. |
+| `BCK.ROUTER.0001` | 400 | With the message *this service delivers its results only to the personal wallet that paid*: the Router's own check that a wallet-bound endpoint is one credits can pay (such calls are normally refused earlier, as `BCK.SUBSCRIPTION_ROUTER.0001` `wallet_bound`). Any other message is a malformed request. | Pay it from your own crypto (`erc4337`) Delegation. |
 
 Other errors with a `5xx` status (`BCK.SUBSCRIPTION_ROUTER.0006` and `0010`–`0014`, and the remaining `BCK.SUBSCRIPTION_TREASURY.*` codes) are on Nevermined's side and also charge nothing; `retryable` says whether retrying can help. The Router's common errors apply too — a reused `requestId` (`409 BCK.ROUTER.0002`), the rate and concurrency limits (`429`): see [every error code](/products/catalog/router/guardrails#every-error-code). The full list is in the [error reference](/development-guide/api-errors/codes). `BCK.SUBSCRIPTION_TREASURY.0004`–`0007` and `0014` are retired: they belonged to spending limits removed before launch, and the API no longer returns them.
 
