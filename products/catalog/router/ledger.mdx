@@ -58,10 +58,11 @@ An invalid `from` or `to` returns `400 BCK.ROUTER.0001` rather than silently ign
 
 ### Look up one payment by `requestId`
 
-To find out what happened to one call — a dropped connection, a `502` that says the payment may have gone through — look it up by the `requestId` you sent with it:
+To find out what happened to one call — a dropped connection, a `502` that says the payment may have gone through — look it up by the `requestId` you sent with it. Percent-encode the id: one pasted into the URL raw is read as a different id if it contains `+`, `&` or `#`.
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/router/payments?requestId=order-1234" \
+curl -s -G "$NVM_API_URL/api/v1/router/payments" \
+  --data-urlencode "requestId=order-1234" \
   -H "Authorization: Bearer $NVM_API_KEY"
 ```
 
@@ -69,15 +70,39 @@ curl -s "$NVM_API_URL/api/v1/router/payments?requestId=order-1234" \
 {
   "presence": "present",
   "payments": [
-    { "id": "b1f9c2e4-…", "requestId": "order-1234", "status": "Settled", "…": "…" }
+    {
+      "id": "b1f9c2e4-…",
+      "createdAt": "2026-07-01T09:00:55.605Z",
+      "status": "Settled",
+      "protocol": "x402",
+      "network": "base",
+      "asset": "USDC",
+      "amount": "1000",
+      "merchantAddress": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+      "txHash": "0xfc8af37b…",
+      "delegationId": "5e7481c3-…",
+      "requestId": "order-1234",
+      "resourceUrl": "https://service.example/api/resource",
+      "buyer": "0x8D6A5233…",
+      "feeAtomic": "0",
+      "feeBps": 0,
+      "feeCents": "0",
+      "feeStatus": "None",
+      "feeTxHash": null,
+      "feeNonce": null,
+      "feeFailureReason": null,
+      "assetSymbol": "USDC",
+      "assetDecimals": 6
+    }
   ]
 }
 ```
 
-- **An exact lookup, scoped to you.** `presence` is `present` with exactly one payment, or `absent` with an empty `payments` when no payment was recorded for that `requestId`. A failed read is an error, never `absent`, so `absent` is an answer you can act on.
+- **Exact, and scoped to you.** `presence` is `present` with your one payment for that `requestId`, or `absent` with an empty `payments` when you have none recorded. A failed read is an error, never `absent`.
+- **`absent` means "not recorded yet".** A payment is recorded when the Router pays, which can be well after you sent the call while it probes the service. If the original call may still be running, `absent` doesn't mean "not charged": retry with the **same** `requestId` — the Router pays at most once per `requestId` — never with a new one.
 - **The list filters don't apply.** `delegationId`, `from` and `to` are ignored, and the lookup isn't limited to the newest 1000 payments.
-- **`requestId` must be a trimmed, non-blank string of at most 256 characters**, or the call is refused with `400 BCK.ROUTER.0001`.
-- With `format=csv` you get the matching row as CSV instead of the envelope.
+- **The id must be a trimmed, non-blank string of at most 256 characters**, or the call is refused with `400 BCK.ROUTER.0001`. An id you sent with leading or trailing whitespace can't be looked up this way; list with `delegationId` and `from` and match `requestId` instead.
+- **Use JSON to reconcile.** With `format=csv` you get the matching row, or only the header row when there is none — the CSV carries no `presence`.
 
 ### Reading the asset
 

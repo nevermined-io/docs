@@ -15,10 +15,31 @@ curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
 | `delegationId` | Only spend against this Delegation |
 | `from` / `to` | ISO-8601, **inclusive** on `createdAt`. Invalid → `400 BCK.ROUTER.0001` |
 | `format` | `json` (default) or `csv` — a downloadable `router-payments.csv` |
+| `requestId` | Exact lookup of the one payment made with this idempotency key — see below. The other params are ignored. |
 
 Returns **newest first, capped at 1000 rows**. The cap is silent: 1000 rows back does not mean there
 were exactly 1000. Narrow with `from`/`to` and page through by time, or use the summary endpoint for
 totals.
+
+### Look up one payment by `requestId`
+
+To reconcile one call — a dropped connection, a `502` that says the payment may have gone through —
+look it up by the `requestId` you sent, **percent-encoded** (raw `+` reads as a space, `&`/`#` cut it):
+
+```bash
+curl -s -G "$NVM_API_URL/api/v1/router/payments" --data-urlencode "requestId=$REQUEST_ID" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+# → { "presence": "present", "payments": [ { …one record… } ] }   or   { "presence": "absent", "payments": [] }
+```
+
+- Exact and caller-scoped; ignores `delegationId`/`from`/`to`; not subject to the 1000-row cap. A failed
+  read is an error, never `absent`.
+- **`absent` = not recorded YET.** The row is written when the Router pays, after the unpaid probe — so
+  while the original call may still be running, `absent` is not "uncharged". Retry with the **same**
+  `requestId` (at most one payment per id), never a fresh one.
+- The id must be trimmed, non-blank, ≤ 256 chars, else `400 BCK.ROUTER.0001`. An id sent with
+  leading/trailing whitespace can't be looked up — list with `delegationId` + `from` and match it.
+- Use JSON: `format=csv` answers the row, or a header only when absent — no `presence`.
 
 ### A record
 

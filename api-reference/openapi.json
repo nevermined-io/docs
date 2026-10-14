@@ -1981,7 +1981,7 @@
         ]
       },
       "get": {
-        "description": "Returns your Router payments (newest first, capped at 1000) across every agent and delegation —\nthe unified audit trail. Filter by `delegationId` and by `from`/`to` (ISO-8601, inclusive on\n`createdAt`). `format=csv` returns a CSV file download instead of the JSON array.\n\nSupplying `requestId` selects a separate, exact, caller-scoped lookup instead: the list filters are\nignored and it is not subject to the 1000-row window. JSON answers it with an explicit `presence`\ndiscriminator and zero or one `payments`; a failed lookup is an error, never `absent`. An older\nRouter that ignores `requestId` answers a plain array, which is never authoritative absence.",
+        "description": "Returns your Router payments (newest first, capped at 1000) across every agent and delegation —\nthe unified audit trail. Filter by `delegationId` and by `from`/`to` (ISO-8601, inclusive on\n`createdAt`). `format=csv` returns a CSV file download instead of the JSON array.\n\nSupplying `requestId` selects a separate, exact, caller-scoped lookup instead: the list filters are\nignored and it is not subject to the 1000-row window. JSON answers it with an explicit `presence`\ndiscriminator and zero or one `payments`; a failed lookup is an error, never `absent`. With `format=csv` it\nanswers the matching row, or only the header when there is none. An older\nRouter that ignores `requestId` answers a plain array, which is never authoritative absence.",
         "operationId": "listRouterPayments",
         "parameters": [
           {
@@ -2017,9 +2017,10 @@
             "name": "requestId",
             "required": false,
             "in": "query",
-            "description": "Exact, caller-scoped idempotency key: look up the one payment made with it. Selects the lookup envelope (`RouterPaymentLookupDto`); the other list filters are ignored.",
+            "description": "Exact, caller-scoped idempotency key: look up the one payment made with it. Percent-encode it (an unencoded `+` reads as a space). Selects the lookup envelope (`RouterPaymentLookupDto`); the other list filters are ignored.",
             "schema": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 256,
               "example": "order-1234"
             }
@@ -5503,7 +5504,7 @@
               "present",
               "absent"
             ],
-            "description": "`present` when you own the matching payment; `absent` when the ledger has no payment for that `requestId`. A failed read is an error response, never `absent`.",
+            "description": "`present` when you own the matching payment; `absent` when you have no payment recorded with that `requestId` yet — a call still in flight may record one later, so retry it with the same `requestId`, never a new one. A failed read is an error response, never `absent`.",
             "example": "present"
           },
           "payments": {
@@ -5511,7 +5512,8 @@
             "items": {
               "$ref": "#/components/schemas/RouterPaymentRecordDto"
             },
-            "description": "Exactly one payment when `presence` is `present`; empty when it is `absent`."
+            "description": "Exactly one payment when `presence` is `present`; empty when it is `absent`.",
+            "maxItems": 1
           }
         },
         "required": [
