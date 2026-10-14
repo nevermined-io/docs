@@ -87,9 +87,12 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0024` (413) — body over ~5 MB. No retry as-is; shrink it.
 - `BCK.ROUTER.0025` (502) — oversized reply; charge unknown. Don't retry: same id cannot redeliver; fresh may charge again. Find `paymentId` in `params`, else look up `/router/payments?requestId=<encoded id>`; after 0025 `absent` = wrong id/account. `Failed` means delivery failed, not uncharged; non-null `merchantSettlementObservedAt` confirms x402 settlement, but null proves nothing (including MPP).
-- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, selection), `0028` (503, quote) and `0042` (409, closing payment channel) are **retryable**, with backoff; paying path: `0007`/`0020`/`0042`.
+- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, selection), `0028` (503, quote), `0042` (409, closing payment channel) and `0043` (503, busy payment channel) are **retryable**, with backoff; paying path: `0007`/`0020`/`0042`/`0043`.
 - `BCK.ROUTER.0042` (409) — the MPP session payment channel with this service is closing; nothing
-  signed or charged. Retry later with the same `requestId`; the next call opens a new channel.
+  signed or charged. Retry later with the same `requestId`; the next call after the close opens a
+  new channel.
+- `BCK.ROUTER.0043` (503) — the MPP session payment channel with this service is busy; nothing signed
+  or charged. Retry after a few seconds with the same `requestId`.
 
 **Never widen a Delegation, or create a second one, to get past a refusal.**
 

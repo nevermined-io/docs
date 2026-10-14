@@ -49,10 +49,11 @@ unbound quote and service-selection request shapes.
 | `BCK.ROUTER.0036` | 422 | Every catalog endpoint the call reaches is known to answer after the Router abandons a paid call (120 s), and the merchant charges on receipt — so paying would charge and deliver nothing. Refused before any payment (a retry of an already-paid `requestId` gets `0002` instead). `params.source` is `declared` (permanent) or `observed` (lifts at `params.liftsAt`). On a declared free-follow-up path it is raised only when the service answers `402`. | No — pick another endpoint or service; an `observed` refusal lifts at `liftsAt` |
 | `BCK.ROUTER.0040` | 500 | Internal: the Router's record of an MPP **session** payment channel refused an inconsistent read or write — a defect on our side, not your request. The payment was refused before its credential reached the service, so nothing moved. | No — **report it** with the `correlationId` |
 | `BCK.ROUTER.0041` | 400 | The service is paid only over an MPP **session** (a payment channel). The Router must read the service's receipt after every call to keep the channel consistent, so it pays a session only when it fetches the service itself — never through `POST /router/payments`. Nothing was signed or charged. | No — call it through `POST /router/route`, `/router/svc/<slug>` or `/router/proxy` |
-| `BCK.ROUTER.0042` | 409 | The MPP **session** payment channel with this service is closing (its deposit is used up, or it is being closed), so nothing can be signed on it until the close completes. Nothing was signed, reserved or charged. | **Yes**, later — reuse the same `requestId`; once the channel has closed, the next call opens a new one |
+| `BCK.ROUTER.0042` | 409 | The MPP **session** payment channel with this service is closing — its deposit reached its ceiling, or the service refused the channel, a top-up of its deposit, or the payment after a top-up — so nothing can be signed on it until the close completes. Nothing was signed, reserved or charged. | **Yes**, later — reuse the same `requestId`; the next call after the close opens a new channel |
+| `BCK.ROUTER.0043` | 503 | The MPP **session** payment channel with this service is busy: another payment on it held it too long, or your wallet's signer or balance read did not answer in time (`params.stage`). Nothing was signed, reserved or charged. | **Yes**, after a few seconds — same `requestId` |
 
-**Only `0006`, `0007`, `0020`, `0022`, `0028` and `0042` are worth retrying automatically** — on the paying
-path, `0007`, `0020` and `0042`. The rest are decisions; retrying them unchanged produces the same answer.
+**Only `0006`, `0007`, `0020`, `0022`, `0028`, `0042` and `0043` are worth retrying automatically** — on the
+paying path, `0007`, `0020`, `0042` and `0043`. The rest are decisions; retrying them unchanged produces the same answer.
 
 ### Refusals that are not `BCK.ROUTER.*` at all
 
