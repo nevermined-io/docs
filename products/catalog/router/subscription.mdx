@@ -228,8 +228,9 @@ Branch on `code`. None of these charged anything or reserved any credit.
 | `BCK.SUBSCRIPTION_ACCESS.0001` | 404 | The subscription isn't available on this deployment or to this account. | — |
 | `BCK.CATALOG.0001` | 404 | No listed, payable catalog service has that `slug`. | Check the slug in the catalog. |
 | `BCK.OAUTH.0030` | 403 | An OAuth-minted credential: credits are spent with an API key only. | Use your Nevermined API key. |
+| `BCK.ROUTER.0001` | 400 | With the message *this service delivers its results only to the personal wallet that paid*: a wallet-bound service, which credits can't pay. Any other message is a malformed request. | Pay it from your own crypto (`erc4337`) Delegation. |
 
-Other errors with a `5xx` status (`BCK.SUBSCRIPTION_ROUTER.0006` and `0010`–`0014`, and the remaining `BCK.SUBSCRIPTION_TREASURY.*` codes) are on Nevermined's side and also charge nothing; `retryable` says whether retrying can help. The Router's common errors apply too — a reused `requestId` (`409 BCK.ROUTER.0002`), a malformed request (`400 BCK.ROUTER.0001`), the rate and concurrency limits (`429`): see [every error code](/products/catalog/router/guardrails#every-error-code). The full list is in the [error reference](/development-guide/api-errors/codes). `BCK.SUBSCRIPTION_TREASURY.0004`–`0007` and `0014` are retired: they belonged to spending limits removed before launch, and the API no longer returns them.
+Other errors with a `5xx` status (`BCK.SUBSCRIPTION_ROUTER.0006` and `0010`–`0014`, and the remaining `BCK.SUBSCRIPTION_TREASURY.*` codes) are on Nevermined's side and also charge nothing; `retryable` says whether retrying can help. The Router's common errors apply too — a reused `requestId` (`409 BCK.ROUTER.0002`), the rate and concurrency limits (`429`): see [every error code](/products/catalog/router/guardrails#every-error-code). The full list is in the [error reference](/development-guide/api-errors/codes). `BCK.SUBSCRIPTION_TREASURY.0004`–`0007` and `0014` are retired: they belonged to spending limits removed before launch, and the API no longer returns them.
 
 ## In the ledger
 
@@ -238,7 +239,7 @@ Subscription calls land on the same [payment ledger](/products/catalog/router/le
 | Field | On a subscription call | On a Delegation call |
 | --- | --- | --- |
 | `fundingSource` | `subscription` | `delegation` |
-| `creditsCharged` | The call's rate, in credits | `null` |
+| `creditsCharged` | The call's rate, in credits — kept when the credits are refunded, so count it only when `creditsStatus` is `Committed` | `null` |
 | `creditsStatus` | `Committed`, `Reserved` or `Refunded` | `null` |
 
 `delegationId` is `null` on a subscription call, and `feeBps` is `0`: there is no routing fee. To read one call's final state, look it up by the `requestId` you sent:
@@ -252,7 +253,7 @@ curl -s "$NVM_API_URL/api/v1/router/payments?requestId=scrape-example-com-1" \
 {
   "presence": "present",
   "payments": [
-    { "paymentId": "b1f9c2e4-…", "requestId": "scrape-example-com-1", "fundingSource": "subscription", "creditsCharged": 3, "creditsStatus": "Committed", "delegationId": null, "feeBps": 0, "…": "…" }
+    { "paymentId": "b1f9c2e4-…", "requestId": "scrape-example-com-1", "fundingSource": "subscription", "creditsCharged": 3, "creditsStatus": "Committed", "delegationId": null, "feeBps": 0 }
   ]
 }
 ```
