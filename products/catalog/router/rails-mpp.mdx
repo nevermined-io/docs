@@ -23,7 +23,7 @@ The Router decodes that challenge, signs the payment, and hands back an `Authori
 | **Networks** | Tempo mainnet (chain `4217`) and Tempo Moderato, the public testnet (chain `42431`) |
 | **Assets** | Whatever the operator has allowlisted for that chain (see below) |
 
-Other intents — sessions, subscriptions, metered streams — aren't supported yet. A challenge advertising one is refused rather than approximated.
+Subscriptions and metered streams aren't supported, and a challenge advertising one is refused rather than approximated. **Sessions** (payment channels) are being rolled out — see **Sessions** below.
 
 <Note>
 **You don't have to know a service speaks MPP.** In [mode B](/products/catalog/router/how-it-works) the Router detects the protocol from the 402 itself, and the detected protocol always wins over the optional `protocol` hint in your request. Send the same `/route` call you'd send for x402.
@@ -155,6 +155,28 @@ The differences that matter:
 This rail is **feature-flagged off by default and sandbox-only** while the underlying token issuance is still in limited availability. With the flag off, a card-funded payment is refused with `400 BCK.ROUTER.0001` before anything is minted. Don't build against it in production yet.
 </Warning>
 
+## Sessions (payment channels)
+
+Some MPP merchants sell only over **`intent="session"`**: a one-way payment channel instead of a payment per call. Your wallet locks a **deposit** in an on-chain escrow at the first call, and every call after that carries a signed, **cumulative** voucher rather than a transaction. The merchant can take at most the highest voucher it holds, never more than the deposit, and whatever it did not take comes back to your wallet when the channel closes.
+
+<Warning>
+Session support is **switched off on Nevermined's deployments** until its rollout completes. While it is off, a service that offers only a session is refused with `400 BCK.ROUTER.0001`, exactly as before. The behaviour below is what you get once it is on.
+</Warning>
+
+How the Router pays a session:
+
+- **Mode B only.** `POST /router/route`, `/router/svc/<slug>` and `/router/proxy` pay a session; `POST /router/payments` refuses one with **`400 BCK.ROUTER.0041`**, because the Router has to read the merchant's receipt after every call to keep the channel consistent, and in mode A it never sees it.
+- **Charge first.** A service that offers both a `charge` and a `session` is paid over `charge`, whatever order it lists them in.
+- **One channel per merchant.** The Router keeps one channel per wallet, merchant and token, and reuses it for every call. Concurrent calls to the same merchant are signed one after the other on that channel.
+- **The deposit** is the smallest of the merchant's suggested deposit, **$10** by default, your Delegation's remaining budget less what your wallet already holds unspent in its other open channels (below), and your wallet balance minus a little for gas. If even one call cannot fit, the call is refused before anything is signed: `402 BCK.ROUTER.0009` for the wallet, `402 BCK.ROUTER.0003` for the budget.
+- **Your budget moves by the price of each call, never by the deposit.** The deposit is locked, not spent: it leaves your wallet balance, but it is not charged to your Delegation, and it comes back at close. What it does do is hold room: the unspent deposit in your other open channels is subtracted from what a new channel, or a top-up, may lock. So `402 BCK.ROUTER.0003` can answer a first call to a new merchant while `GET /delegation/{id}` still shows budget left; that room comes back as those channels close.
+- **When the deposit is used up**, the Router **tops the channel up**: it sends the merchant a signed top-up of the deposit, the way the MPP client does, and pays the call once the merchant confirms it. The channel's deposit never grows past **$10** in total by default. A top-up your Delegation or wallet cannot cover is refused like an opening deposit, `402 BCK.ROUTER.0003` or `402 BCK.ROUTER.0009`, and the channel stays open. A channel already at the $10 limit, a merchant that refuses or does not confirm the top-up (or refuses the call right after it), or a merchant that takes no top-up at all moves the channel to **closing**, and the call is refused with **`409 BCK.ROUTER.0042`** (retryable). Retry later with the same `requestId`: the next call after the close opens a new channel, and the close refunds the unspent deposit to your wallet.
+- **Busy, not refused.** When another call on the same channel holds it too long, your wallet's signer or balance read does not answer in time, or a top-up of the channel is still in flight or the service could not be reached to take one, the call is refused with **`503 BCK.ROUTER.0043`** (retryable, `params.stage` says which) before anything is signed. Retry after a few seconds with the same `requestId`.
+- **A channel the merchant cannot use is closed, not retried forever.** If the merchant refuses the call that opened the channel, never acknowledges the channel, or the opening call never reached it, the channel moves to closing, and the next calls answer `0042` until it has closed.
+- **No transaction per call.** A session payment record carries no `txHash` of its own (the receipt's reference is the channel, not a transaction), so a delivered call's record stays `Issued`. The money moves when the merchant settles or closes the channel.
+
+The same checks as on a charge apply before anything is signed — method, chain, recipient, the asset allowlist, your Delegation's recipient scope — plus a few of the channel's own: the escrow must be Tempo's channel escrow, gas must be paid in the channel's token, and the service must bill per request.
+
 ## Operator configuration
 
 | Env var | Required | Purpose |
@@ -162,6 +184,8 @@ This rail is **feature-flagged off by default and sandbox-only** while the under
 | `ROUTER_TEMPO_ASSETS_<chainId>` | **Yes** | Comma-separated allowlist of payment-token addresses settleable on that chain. **Fail-closed** — unset rejects everything. |
 | `ROUTER_TEMPO_RPC_URL_<chainId>` | No | Override RPC endpoint for that chain. Defaults to the chain's public RPC. |
 | `ROUTER_STRIPE_SPT_ENABLED` | No | Master switch for the card-funded rail. Fail-closed; sandbox only. |
+| `ROUTER_MPP_SESSION_ENABLED` | No | Master switch for paying session merchants. Default `false`: a session is refused as if unsupported. |
+| `ROUTER_MPP_SESSION_MAX_DEPOSIT` | No | The most one channel may hold in escrow, in US dollars of its stablecoin. Default `10`. |
 
 ## Next
 
