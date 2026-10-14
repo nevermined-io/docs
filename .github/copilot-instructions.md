@@ -203,6 +203,7 @@ The Router probes the merchant, auto-detects the protocol from the 402, pays and
 | `BCK.ROUTER.0041` | 400 | The service is paid only over an MPP session, which `POST /router/payments` cannot pay. Nothing charged. | No — use `/router/route`, `/router/svc/<slug>` or `/router/proxy` |
 | `BCK.ROUTER.0042` | 409 | The MPP session payment channel with this service is closing; no payment signed or charged. | **Yes**, later — same `requestId` |
 | `BCK.ROUTER.0043` | 503 | The MPP session payment channel with this service is busy; nothing signed or charged. | **Yes**, after a few seconds — same `requestId` |
+| `BCK.ROUTER.0044` | 422 | The Router cannot collect its fee on this MPP session payment: an organization wallet (`params.cause` `org-wallet`) or a network where session fees are not collected (`network`). Nothing charged. | No — pay from your own wallet's delegation (`org-wallet`), or another network's service (`network`) |
 | `BCK.OAUTH.0030` | 403 | The API key was OAuth-minted; it may not create Delegations or use `/router/{payments,route,quote,select,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant, `POST /router/commerce/route` to pay and `/router/commerce/quote` to price | No |
 | `BCK.HTTP.412` | 412 | `{"error":"consent_required"}` on `POST /delegation/create` — the account's legal consent lapsed. The code is generic; branch on `body.error` | No — **needs a human** |
 
