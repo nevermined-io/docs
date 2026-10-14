@@ -84,7 +84,7 @@ curl -s "$NVM_API_URL/api/v1/router/subscription/balance" \
 }
 ```
 
-`creditsLeft` is what the Router debits — read it rather than adding up your calls. `spendable: false` means the credits can't pay a call right now even though some are left: a `past_due` subscription keeps its credits but can't spend them until the invoice is paid, and a subscription with a card dispute open (or lost) is `suspended`. `subscribed: false` carries no other field; it's also the answer when you call in an organization you're a member of.
+`creditsLeft` is what the Router debits — read it rather than adding up your calls. `spendable: false` means the credits can't pay a call right now even though some are left: a `past_due` subscription keeps its credits but can't spend them until the invoice is paid, and a subscription is `suspended` while a card dispute is open, and stays suspended if a dispute is decided in the cardholder's favour. `subscribed: false` carries no other field; it's also the answer when you call in an organization you're a member of.
 
 ### In the catalog
 
@@ -269,7 +269,7 @@ With a subscription and an API key, the [Catalog MCP](/mcp/catalog-mcp/overview)
 These are about the monthly **fee**, not a single call. Subscription fees are **non-refundable**, except where the law requires a refund or for billing errors.
 
 - If a subscription payment is **refunded in full**, the unused credits it granted are removed. A refund can take 5–10 business days to appear on your card statement.
-- If you **dispute** a payment with your card issuer, its unused credits are removed and the subscription can't spend while the dispute is open — or if it's decided against you. If the dispute is resolved in Nevermined's favour, those credits are restored with their original expiry — credits whose billing period has ended by then come back already expired.
+- If you **dispute** a payment with your card issuer, its unused credits are removed and the subscription can't spend while the dispute is open. If the dispute is decided in your favour, the subscription stays unable to spend. If it's decided in Nevermined's favour, those credits are restored with their original expiry — credits whose billing period has ended by then come back already expired.
 
 ## Related
 
