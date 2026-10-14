@@ -4231,7 +4231,7 @@
             "items": {
               "$ref": "#/components/schemas/LockedChannelFundsDto"
             },
-            "description": "Money `fundingWalletAddress` has deposited into MPP session payment channels and can still get back, per chain and token. It has left the wallet but it is not spent and it is not charged to this budget: it comes back to the wallet when the channel closes. The figure belongs to the WALLET, so every delegation spending from the same wallet reports the same channels. Only returned when requested with `?withPayer=true`. An empty list means nothing is locked, and is what a card-backed delegation reports. `null` means it could not be determined (the funding wallet could not be resolved, or the read failed), which is not the same as nothing locked."
+            "description": "Money `fundingWalletAddress` has deposited into MPP session payment channels and can still get back, per chain and token. It has left the wallet but it is not spent and it is not charged to this budget: it comes back to the wallet when the channel closes. It is the FUNDING WALLET’s total, not a per-delegation figure: every delegation spending from the same wallet reports the same channels. Only returned when requested with `?withPayer=true`. An empty list means nothing is locked, and is what a card-backed delegation reports. `null` means it could not be determined (the funding wallet could not be resolved, or the read failed), which is not the same as nothing locked."
           }
         },
         "required": [
