@@ -129,8 +129,12 @@ and relays the result with `paid: false`. No payment, fee or ledger row.
   paid call returned — a `path` still holding `{jobId}` or `:id` is `400 BCK.ROUTER.0001`.
 - Same gates as above (slug call, your `Settled` payment for that slug within the window), plus:
   the payment must come from **your personal wallet**. A paid call to such a service funded by an
-  organization wallet, a subscription or a card is refused with `400 BCK.ROUTER.0001` **before
-  anything is charged** — nobody could read its result.
+  organization wallet or a card is refused with `400 BCK.ROUTER.0001` **before anything is
+  charged** — nobody could read its result.
+- Subscription credits pay only the reviewed self-contained endpoints of such a service (the paid
+  response is the whole result). Any other endpoint is `403 BCK.SUBSCRIPTION_ROUTER.0001` with
+  `params.reason: "wallet_bound"`, nothing reserved: pay it with the `delegationId` of a personal
+  crypto Delegation instead.
 - Challenge checks: realm/domain = the target host, SIWX `uri` = the exact URL, expiry at most
   10 minutes away, allowlisted Tempo asset for MPP. Solana SIWX is not supported. Anything that
   fails is `422 BCK.ROUTER.0035`, with nothing signed.

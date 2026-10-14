@@ -86,7 +86,9 @@ An [async service](/products/catalog/paid-results) delivers its result only to t
 - **Only on a follow-up.** The endpoint must be marked `auth: "siwx"` in the catalog, or be one of the service's declared follow-up paths, and you must call it by `slug`.
 - **Nothing is spent.** No payment, reservation, fee or ledger row. One retry with the signed answer; if that fails, the call is refused as before (`BCK.ROUTER.0035`).
 
-Because of this, the **paid** call to a service that has `auth: "siwx"` endpoints is refused with `400 BCK.ROUTER.0001` **before anything is charged** when it would be funded by an organization wallet, a subscription or a card. Those payers can't read the result back, so the Router won't sell it to them. On a deployment where follow-ups are turned off, the paid call is refused the same way.
+Because of this, the **paid** call to a service that has `auth: "siwx"` endpoints is refused with `400 BCK.ROUTER.0001` **before anything is charged** when it would be funded by an organization wallet or a card. Those payers can't read the result back, so the Router won't sell it to them. On a deployment where follow-ups are turned off, the paid call is refused the same way.
+
+Subscription credits are paid by the Nevermined treasury, so they follow the same rule per endpoint. A small reviewed allowlist of **self-contained** endpoints, whose paid response is the whole result (no job id or token to poll, nothing the payer then owns, no refund to an address), can be paid with credits. Every other endpoint of the service, including any the merchant adds later, is refused with `403 BCK.SUBSCRIPTION_ROUTER.0001` and `params.reason: "wallet_bound"` before anything is reserved. Pay those from a crypto Delegation on your own wallet.
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
