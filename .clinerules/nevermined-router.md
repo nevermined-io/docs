@@ -196,7 +196,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0036` (422) — the endpoint is known to outlast the Router's 120 s paid-call limit, so paying would charge and deliver nothing; refused before payment. `params.source` is `declared` (permanent) or `observed` (lifts at `params.liftsAt`). Pick another endpoint; do not retry unchanged.
 - `BCK.ROUTER.0040` (500) — internal: the Router's MPP session channel state refused an inconsistent read or write. Nothing moved. Report it; do not retry.
 - `BCK.ROUTER.0041` (400) — the service is paid only over an MPP session, which `POST /router/payments` cannot pay. Use `/router/route`, `/router/svc/<slug>` or `/router/proxy`.
-- `BCK.ROUTER.0042` (409) — the MPP session payment channel with this service is closing; nothing signed or charged. Retry later with the same `requestId`.
+- `BCK.ROUTER.0042` (409) — the MPP session payment channel with this service is closing; no payment signed or charged. Retry later with the same `requestId`.
 - `BCK.ROUTER.0043` (503) — the MPP session payment channel with this service is busy; nothing signed or charged. Retry after a few seconds with the same `requestId`.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
