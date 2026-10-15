@@ -2874,7 +2874,7 @@
             }
           },
           "409": {
-            "description": "The merchant's live price is outside the rate's bound, in another asset or network, or could not be read as a price (BCK.SUBSCRIPTION_ROUTER.0004, `params.reason`); or the `requestId` was already used (BCK.ROUTER.0002 — from API 1.48, a retry of a finished call is answered from its retained result instead).",
+            "description": "The merchant's live price is outside the rate's bound, in another asset or network, or could not be read as a price, or — for a service paid over an MPP session — it asked to be paid at an address Nevermined has not seen it use on this endpoint (BCK.SUBSCRIPTION_ROUTER.0004, `params.reason`, e.g. `payee_unobserved`); the MPP session payment channel with this service, shared by every subscriber, is closing (BCK.ROUTER.0042, retry later with the same requestId); or the `requestId` was already used (BCK.ROUTER.0002 — from API 1.48, a retry of a finished call is answered from its retained result instead).",
             "content": {
               "application/json": {
                 "schema": {
@@ -2934,7 +2934,7 @@
             }
           },
           "503": {
-            "description": "Temporarily unable to pay, nothing charged: the reservation timed out (BCK.SUBSCRIPTION_ROUTER.0014, retry with the same requestId), the subscription lookup failed (0012), the deployment cannot run subscription calls (0010), or the treasury refused (a `BCK.SUBSCRIPTION_TREASURY.*` code, e.g. 0003 when its float cannot cover the payment). `retryable` says whether retrying can help.",
+            "description": "Temporarily unable to pay, nothing charged: the reservation timed out (BCK.SUBSCRIPTION_ROUTER.0014, retry with the same requestId), an MPP session step did not answer in time (BCK.ROUTER.0043, `params.stage`, retry with the same requestId), the subscription lookup failed (0012), the deployment cannot run subscription calls (0010), or the treasury refused (a `BCK.SUBSCRIPTION_TREASURY.*` code, e.g. 0003 when its float cannot cover the payment). `retryable` says whether retrying can help.",
             "content": {
               "application/json": {
                 "schema": {
