@@ -84,7 +84,7 @@ curl -s "$NVM_API_URL/api/v1/router/subscription/balance" \
 }
 ```
 
-`creditsLeft` is what the Router debits — read it rather than adding up your calls. `spendable: false` means the credits can't pay a call right now even though some are left: a `past_due` subscription keeps its credits but can't spend them until the invoice is paid, and a subscription is `suspended` while a card dispute is open, and stays suspended if a dispute is decided in the cardholder's favour. `subscribed: false` carries no other field; it's also the answer when you call in an organization you're a member of.
+`creditsLeft` is what the Router debits — read it rather than adding up your calls. `spendable: false` means the credits can't pay a call right now even though some are left: a `past_due` subscription keeps its credits but can't spend them until the invoice is paid, and a subscription is `suspended` while a card dispute is open, and stays suspended if a dispute is decided in the cardholder's favour. `subscribed: false` carries no other field. Called in an organization you're a member of, it reads that organization's subscription, never yours; organizations can no longer subscribe, so that's normally `subscribed: false`.
 
 ### In the catalog
 
@@ -176,6 +176,8 @@ For large or streamed responses, the streaming form is `ALL /api/v1/router/subsc
 
 Your credits are **reserved** before the merchant is called and **kept only if it answers with a `2xx`**. An error status, a timeout, a dropped connection, or a merchant that refuses the payment all mark the call's credits for refund, and they come back automatically, with the expiry they had (or this period's, if that has passed; once the subscription has ended, they're lost).
 
+A `502` with `BCK.ROUTER.0034` (no response from the service) or `BCK.ROUTER.0025` (its reply was too large to deliver) can come after the merchant was paid. The credits are refunded all the same, but don't retry with a new `requestId` — read the outcome with the same one from the [payment ledger](#in-the-ledger).
+
 On the streaming route, a `2xx` counts as delivered when its headers arrive: a body that breaks off mid-stream keeps its credits `Committed`. Contact support if that happens.
 
 `payment.creditsStatus` says where a call's credits stand:
@@ -201,7 +203,7 @@ A subscription pays **listed, live catalog endpoints that carry a rate**, on the
 - **x402** merchants using the `exact` scheme, paid in USDC,
 - **MPP** merchants on the `tempo` method, paid in the USD stablecoin Nevermined's treasury holds there.
 
-Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or an endpoint whose result only the paying wallet can read back — a job you poll, or something you'd own at the merchant. On a service that delivers results only to the wallet that paid, credits pay just the endpoints Nevermined has reviewed as self-contained (the paid response is the whole result); the rest are refused with `params.reason: wallet_bound` and can be paid only from your own crypto (`erc4337`) Delegation — a card or organization Delegation is refused too. Pay the others from a Delegation.
+Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or an endpoint whose result only the paying wallet can read back — a job you poll, or something you'd own at the merchant. On a service that delivers results only to the wallet that paid, credits pay just the endpoints Nevermined has reviewed as self-contained (the paid response is the whole result); the rest are refused with `params.reason: wallet_bound`. Pay all of these from a Delegation — a `wallet_bound` endpoint only from your own crypto (`erc4337`) Delegation, since a card or organization Delegation is refused there too.
 
 Credits are spent with a **personal Nevermined API key**. OAuth connections to an assistant (for example the [Catalog MCP](/mcp/catalog-mcp/overview) connected from Claude.ai or ChatGPT) pay from their commerce grant, not from credits.
 
@@ -215,7 +217,7 @@ Branch on `code`. None of these charged anything or reserved any credit.
 
 | Code | Status | What it means | What to do |
 | --- | --- | --- | --- |
-| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with credits — `params.reason` says why (`no_active_tariff` — no rate yet, `price_variable`, `unhealthy`, `wallet_bound`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with credits — `params.reason` says why (`no_active_tariff` — no rate yet, `price_variable`, `unhealthy`, `wallet_bound`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation — for `wallet_bound`, your own crypto (`erc4337`) Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0002` | 402 | No subscription that can spend right now: none bought, ended, past due, or suspended by a card dispute. Also the answer when you call in an organization you're a member of. | Subscribe, settle the open invoice, or call with a personal API key and no `X-Current-Org-Id`. |
 | `BCK.SUBSCRIPTION_ROUTER.0003` | 400 | The merchant asked for a rail credits don't pay (`params.rail`). | Pay from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0004` | 409 | The merchant's live price is outside the rate's bound, or in another asset or network (`params.reason`). | Retry later, or pay from a Delegation. |
