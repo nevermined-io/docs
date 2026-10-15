@@ -129,3 +129,6 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
   inconsistent read or write. Nothing moved. Report it.
 - `BCK.ROUTER.0041` (400) — the service is paid only over an MPP session, which
   `POST /router/payments` cannot pay. Use `/router/route`, `/router/svc/<slug>` or `/router/proxy`.
+- `BCK.ROUTER.0044` (422) — the Router cannot collect its fee on this MPP session payment;
+  `params.cause` is `org-wallet` (pay from your own wallet's delegation) or `network` (pay another
+  network's service). Nothing charged; do not retry unchanged.
