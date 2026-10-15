@@ -103,15 +103,21 @@ A human *can* set the cap instead — in the app (Payment Methods → Delegate),
 The catalog's read surface is **public** — browse or filter it before spending a cent.
 
 - Human view: [nevermined.app/catalog](https://nevermined.app/catalog/)
-- Full feed (all services): [ai-catalog.json](https://nevermined.app/catalog/ai-catalog.json)
+- Full feed (all services): [ai-catalog.json](https://nevermined.app/catalog/ai-catalog.json) — for discovery; it carries no request schemas (see below)
 
 Every listing tells you what you need to choose: its **slug** (how you address it), **protocol** (x402 or MPP — handled for you), a **price label**, its **endpoints**, and **tags**/category. Filter by task (e.g. web search, email enrichment, scraping, social data) and by price, and shortlist the cheapest service that answers the need.
 
 Listings are returned in a **recommended order** — Nevermined's own quality ranking, not alphabetical — so the top of the list is a sensible default rather than something you score yourself. Treat that order as *guidance, not a contract*: it is recomputed as health and traction change. Each feed entry also carries a `displayPriceSource` of `settled` or `quoted` (a `settled` price means real, multi-payer settlement — the service is genuinely used, not just advertised) and `partner`/`featured` flags you can weigh.
 
-<Tip>
-**Build the request body from the listing, not from guesswork.** Each endpoint publishes a `requestExample` and `responseFields` in its Catalog detail — copy the example and change the values. In particular, multi-model services expect a **provider-prefixed model id** (e.g. `openai/gpt-4o-mini`, `google/gemini-2.5-flash-lite`); a bare `gpt-4o-mini` is usually rejected with a typed `400`. Read the exact id from the `requestExample` rather than probing paid calls.
-</Tip>
+<Warning>
+**Read an endpoint's request schema before you call it — never guess parameter names.** Discover with the feed if you like, but `ai-catalog.json` never carries request schemas, by design. Before calling an endpoint, read its `requestSchema` — the merchant-declared JSON Schema of the query or body fields it takes, and which are `required` — from a detail-shaped read:
+
+- **ARD search:** `POST https://api.live.nevermined.app/api/v1/ard/search` with `{ "query": { "text": "<what you need>" } }` → `results[].nvm:catalog.endpoints[].requestSchema`.
+- **ARD list:** `GET https://api.live.nevermined.app/api/v1/ard/agents` → `items[].nvm:catalog.endpoints[].requestSchema`.
+- **Catalog MCP:** `get_service` → `requestShape.endpoints[].requestSchema` (no key needed).
+
+Use the exact names the schema gives: an endpoint whose schema requires `ticker` rejects a call that sends `symbol` with a `422`. Where an endpoint has no `requestSchema`, build the request from its `requestExample` (pre-filled in `get_service`'s `payServiceArgs` when it is verified) and description, or from the provider's documentation — not from a guess. Multi-model services, for example, expect a **provider-prefixed model id** (`openai/gpt-4o-mini`, `google/gemini-2.5-flash-lite`); a bare `gpt-4o-mini` is usually rejected with a typed `400`.
+</Warning>
 
 <Tip>
 **Don't know which service to pay?** Let the Router pick instead of scoring listings yourself: `POST /api/v1/router/select` with a plain-language `intent` (and optional `filters` — `category`, `protocol`, `network`, `maxPriceLabel`) returns the single best **payable** service plus a ranked `shortlist`, chosen deterministically on Nevermined's own relevance and quality signals behind a payability gate. **Take the returned order as authoritative — read the order, not the numbers**: the `relevance` scores can sit on different scales (semantic vs keyword), so re-sorting by them yourself can pick worse. Add `autoPay: true` (with `requestId` + `delegationId`) to select **and** pay in one call. This uses your API key — see the [Router quickstart](/products/catalog/router/quickstart), and [Let the platform pick a service](/mcp/catalog-mcp/overview#let-the-platform-pick-a-service) for the full shortlist shape.
@@ -215,13 +221,13 @@ Some services are asynchronous — media generation, for example. The first call
 - **A placeholder `callBackUrl` is fine.** Some generators require the field even when you intend to poll — pass any well-formed URL; you do not need to receive the callback.
 - **Know whether the status endpoint is paid or free.** If it answers `402`, each poll is a paid call (see the next bullet). If it is **free** (non-`402`) on a cataloged service, the Router relays only the *status* and withholds the body by default — the free-follow-up window is off unless the deployment enabled it *and* the merchant declared the path — so a free poll can return `200` with no result. Check the endpoint on the listing.
 - **Give every poll a *fresh* `X-Router-Request-Id`.** The Router de-duplicates on that id, so reusing one makes each repeat a *duplicate* that is refused (`409 BCK.ROUTER.0002`, the original `paymentId` in `params`, no result) — it is **not** a new charge, but it never reaches the service either, so a naive poller stalls and never advances. A fresh id per poll advances it — and on a **paid (`402`) status endpoint** each real poll is a separately-billed call (the merchant charges per status check), so bound the number of polls against your delegation cap. (A free status endpoint relays with `paid: false` — no charge.) The [Catalog MCP](/products/catalog/mcp)'s `pay_service` exposes a `fresh` flag that mints the fresh id for you.
-- **Read the generate and status endpoints — and the field that carries the `taskId` and the result — from the service's Catalog detail** (`requestExample` / `responseFields`).
+- **Read the generate and status endpoints — and the field that carries the `taskId` and the result — from the service's detail** (`requestSchema` / `requestExample` / `responseSchema`, via ARD `/search` · `/agents` or MCP `get_service`).
 
 ## The principles that make it smooth
 
 These are the habits that turn trial-and-error into a clean run. Treat them as the manifesto:
 
-1. **Discovery is free — use it first.** Confirm a service's slug, price, and endpoints from the live feed before every task. Prices and listings drift.
+1. **Discovery is free — use it first.** Confirm a service's slug, price, and endpoints from the live feed before every task, and each endpoint's request schema from a detail read (ARD `/search` · `/agents`, or MCP `get_service`) before you call it. Prices and listings drift.
 2. **A failed call is not reliably free — don't treat it as a cheap probe.** Once the payment credential is minted, the merchant leg stands even if the upstream call then errors; only the routing fee may be released, and only on specific paths. Whether the merchant leg settles before or after the upstream `2xx` depends on the call mode. Confirm how a service wants to be called from its listing and docs, not by paying to find out — see [when a fee is not collected](/products/catalog/router/how-it-works#when-a-fee-is-not-collected).
 3. **Judge every result — on junk or a refusal, move to the next service.** A `2xx` is not proof the answer is useful. If the result is irrelevant or empty, or the service refuses the call (a 4xx: `BCK.ROUTER.0019` on `/proxy` · `/svc`, or a 4xx `status` with `body: null` on `/route`), don't stop and don't report the junk as the answer. First tell a free refusal from a paid error (see Step 4): a call refused before payment cost nothing, so fix the request and resend; after a *paid* error the merchant may already be paid, so read that payment before buying the same thing again. Otherwise try the next matching service from discovery (or the next `shortlist` entry from `/router/select`) as a new purchase with a fresh idempotency id. The cap is the budget, so retries come out of it (Step 1).
 4. **Address a service by its slug and let the Router resolve the endpoint.** Don't fight it with hand-assembled sub-paths — the common failure is a mis-resolved path, not a payment problem.
