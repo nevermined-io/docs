@@ -143,7 +143,7 @@ Pricing indicators apply to endpoints identified as payable. Coverage is calcula
 <a id="p2"></a>
 ### P2 — Machine-readable prices
 
-**What it checks.** Every payable endpoint's price or quote must be represented as structured data. The rule is worth 6 points and awards proportional credit; an absence of identified payable endpoints does not pass the rule.
+**What it checks.** Every payable endpoint's price or quote must be represented as structured data. Since `readiness/1.1.0`, a declared MPP `session` counts as machine-readable. The Catalog reads its amount, token, and chain from the session offer's structured fields. The rule is worth 6 points and awards proportional credit; an absence of identified payable endpoints does not pass the rule.
 
 **Why it matters.** Agents cannot reliably compare budgets, currencies, or terms by extracting numbers from prose such as “about one cent.” Structured pricing removes locale and unit ambiguity and allows callers to enforce spending policies without a human interpreting the listing.
 
