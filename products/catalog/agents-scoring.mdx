@@ -4,7 +4,7 @@ description: "The authoritative reference for every indicator, cap, and band in 
 icon: "gauge-high"
 ---
 
-The **readiness score** measures how completely a Catalog service is prepared for an autonomous buyer to discover, evaluate, invoke, and pay for it. It is a builder-facing score from **0 to 100**, calculated with rubric `readiness/1.0.0` ([rubric versions](#rubric-versions)) from published metadata, endpoint definitions, operational guidance, and observed health.
+The **readiness score** measures how completely a Catalog service is prepared for an autonomous buyer to discover, evaluate, invoke, and pay for it. It is a builder-facing score from **0 to 100**, calculated with a versioned rubric (each score records its `readiness/X.Y.Z`; see [rubric versions](#rubric-versions)) from published metadata, endpoint definitions, operational guidance, and observed health.
 
 Readiness is not the service's `qualityScore`, popularity, or traction. It does not judge whether an output is insightful or whether buyers prefer the service. Instead, it identifies gaps that can prevent an otherwise useful service from being found, selected, called correctly, or purchased safely.
 
@@ -143,7 +143,7 @@ Pricing indicators apply to endpoints identified as payable. Coverage is calcula
 <a id="p2"></a>
 ### P2 — Machine-readable prices
 
-**What it checks.** Every payable endpoint's price or quote must be represented as structured data. Since `readiness/1.1.0`, a declared MPP `session` counts as machine-readable. The Catalog reads its amount, token, and chain from the session offer's structured fields. The rule is worth 6 points and awards proportional credit; an absence of identified payable endpoints does not pass the rule.
+**What it checks.** Every payable endpoint's price or quote must be represented as structured data. A declared MPP `session` counts as machine-readable (on the full score since `readiness/1.1.0`; the provisional estimate counted it already). The Catalog reads its amount, token, and chain from the session offer's structured fields. The rule is worth 6 points and awards proportional credit; an absence of identified payable endpoints does not pass the rule.
 
 **Why it matters.** Agents cannot reliably compare budgets, currencies, or terms by extracting numbers from prose such as “about one cent.” Structured pricing removes locale and unit ambiguity and allows callers to enforce spending policies without a human interpreting the listing.
 
@@ -152,7 +152,7 @@ Pricing indicators apply to endpoints identified as payable. Coverage is calcula
 <a id="p3"></a>
 ### P3 — Fixed or dynamic pricing
 
-**What it checks.** The Catalog classifies each payable endpoint as fixed or dynamic. Since `readiness/1.1.0`, an endpoint whose payment challenge declares an MPP `session` is dynamic. The exceptions are a fixed MPP `charge` or x402 price that the Nevermined Router pays instead, and a session whose terms the Router would refuse. Otherwise the Catalog infers the model from observed quotes: consistent quoted amounts indicate fixed pricing, and differing amounts indicate dynamic pricing. The rule is worth 4 points and awards proportional credit, while no identified payable endpoints produces a failure.
+**What it checks.** The Catalog classifies each payable endpoint as fixed or dynamic. An endpoint whose payment challenge declares an MPP `session` is dynamic (on the full score since `readiness/1.1.0`; the provisional estimate did so already). The exceptions are a fixed MPP `charge` or x402 price that the Nevermined Router pays instead, and a session whose terms the Router's audit refuses: a unit other than per request, a foreign escrow or fee token, or an unaudited field. Otherwise the Catalog infers the model from observed quotes: consistent quoted amounts indicate fixed pricing, and differing amounts indicate dynamic pricing. The rule is worth 4 points and awards proportional credit, while no identified payable endpoints produces a failure.
 
 **Why it matters.** A fixed-price classification tells an agent that the observed amount is stable for the operation. A dynamic classification tells it that the charge can change and that it must obtain or refresh a quote; leaving the model unknown invites stale assumptions and budget surprises.
 
@@ -163,14 +163,14 @@ Pricing indicators apply to endpoints identified as payable. Coverage is calcula
 
 **What it checks.** For each dynamically priced endpoint, the Catalog looks for an expected price range, the input or usage factor that changes the price, and the billing unit. The rule is worth 4 points and awards proportional credit.
 
-- **A declared MPP `session`** (since `readiness/1.1.0`) passes when it declares a budget cap (`suggestedDeposit`) and a unit (`unitType`; an offer that names none is billed per request).
+- **A declared MPP `session`** (on the full score since `readiness/1.1.0`) passes when it declares a budget cap (`suggestedDeposit`). Its unit is the request: the only unit the Router pays, whether `unitType` is `request` or absent.
 - **An endpoint inferred as dynamic from observed quotes** needs the observed range and the price driver. A missing price driver is incomplete rather than a hard failure until price-driver capture is available.
 
 If payable endpoints exist but none is dynamic, the rule passes as not applicable. If no payable endpoint is identified, the rule fails rather than treating an empty set as complete.
 
 **Why it matters.** “Dynamic” alone does not let a buyer estimate exposure or let an agent reason about how a request changes the bill. The range establishes likely bounds, the driver explains what varies, and the unit connects consumption to cost.
 
-**How to improve.** For a metered MPP service, set `suggestedDeposit` on the `session` offer. It is the budget a buyer locks in the channel, and it bounds what one session can cost. Name the unit in `unitType`. For other dynamic operations, return accurate, machine-readable quotes across representative requests so the Catalog can observe the range and variability. A declaration form for the exact price driver, such as input tokens, output seconds, records, or compute time, arrives with price-driver capture.
+**How to improve.** For a metered MPP service, set `suggestedDeposit` on the `session` offer. It is the budget a buyer locks in the channel, and it bounds what one session can cost. Bill per request: leave `unitType` out or set it to `request`. The Router does not pay a session metered in another unit (tokens, seconds), so such an offer earns no Pricing credit. For other dynamic operations, return accurate, machine-readable quotes across representative requests so the Catalog can observe the range and variability. A declaration form for the exact price driver, such as input tokens, output seconds, records, or compute time, arrives with price-driver capture.
 
 ## Documentation — 15 points
 
@@ -357,7 +357,7 @@ A new version applies to every analysis from its release, so a score keeps the v
 #### readiness/1.1.0
 
 - **Version level:** MINOR
-- **Summary:** The full score now reads the MPP `session` price a listed endpoint declares. It counts when the analysis finds the endpoint payable and the declaration was observed in the last 48 hours. A declared session is a machine-readable, dynamic price, unless the Router pays a fixed charge for that endpoint or would refuse the session's terms. P4 credits a session only when it declares a budget cap and a unit. Before this version, every payable endpoint was treated as fixed on the full score, so P4 always passed.
+- **Summary:** The full score now reads the MPP `session` price a listed endpoint declares. It counts when the analysis finds the endpoint payable and the declaration was observed in the last 48 hours. A declared session is a machine-readable, dynamic price, unless the Router pays a fixed charge for that endpoint or its audit refuses the session's terms. P4 credits a session only when it declares a budget cap (its unit is the request). Before this version, every payable endpoint was treated as fixed on the full score, so P4 always passed.
 - **Dimensions:** Pricing clarity (P2, P3, P4). Weights, caps, and bands are unchanged.
 - **Why:** P4 checks that a dynamic price declares its range and unit, and it could never fail on the full score.
 - **Effect on your score:**
