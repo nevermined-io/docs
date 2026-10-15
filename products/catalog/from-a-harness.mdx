@@ -206,6 +206,7 @@ If the user holds a [Nevermined Subscription](/products/catalog/router/subscript
 
 - **Catalog MCP, connected with your API key:** `get_service` shows `subscription.creditsPerCall` on each endpoint credits can pay (no `subscription` field means credits can't pay it). `quote_service` with `funding: "subscription"` prices one call.
 - **REST:** `GET /api/v1/subscription/catalog/credits` lists every endpoint credits can pay, with its `creditsPerCall`. `POST /api/v1/router/subscription/quote` with `slug`, `path` and `method` prices one call.
+- **ARD discovery, with your API key:** a keyed `POST /api/v1/ard/search` or `GET /api/v1/ard/agents` read carries `subscription.creditsPerCall` inline on each endpoint credits can pay (`nvm:catalog.endpoints[].subscription`), so the credits price comes back with discovery in one call. An **unauthenticated** read omits it — send your key to see it.
 
 **Pay with credits.** Credits are spent only through these two paths:
 
