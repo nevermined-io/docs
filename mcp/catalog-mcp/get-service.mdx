@@ -60,6 +60,7 @@ Working with `requestShape.endpoints[]`:
 - An endpoint may carry a **`quote`** — the last merchant price the Catalog observed, with the routing fee **excluded**. Good for comparing services; for the live, fee-inclusive total of your exact call use [`quote_service`](/mcp/catalog-mcp/quote-service).
 - `endpointCheck` records a dated unpaid failure, if any.
 - **Subscription credits.** Called with an API key, an endpoint that [Nevermined Subscription](/products/catalog/router/subscription) credits can pay also carries `subscription: { "creditsPerCall": 3, "tariffVersion": 2 }` — what one call costs in credits at the current rate — and the service row carries its default rate the same way. It describes the endpoint, not your account, so it shows whether or not you subscribe; read [`get_budget`](/mcp/catalog-mcp/get-budget#subscription-credits) for your own credits. No `subscription` means credits can't pay that endpoint, the call was anonymous, or the rates couldn't be read this time.
+- An endpoint with **`auth: "siwx"`** is not paid: it is the result endpoint of an async service (a job or call poll), free only for the wallet that paid an earlier call to the same service. Call it with [`pay_service`](/mcp/catalog-mcp/pay-service) after that call, filling its `pathParams` with the id the paid response returned; the Router signs the wallet challenge and charges nothing. See [Getting your results](/products/catalog/paid-results).
 
 ## Try it
 
