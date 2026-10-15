@@ -41,12 +41,24 @@ Five pieces, and it clicks:
 | **Harness** | your agent runtime — where the agent decides what to buy |
 | **Catalog** | the marketplace of pay-per-call services |
 | **Router / Facilitator** | Nevermined's broker that reads a service's payment challenge, pays it, and returns the result — so your agent never touches a vendor account or a private key |
-| **Delegation** | your spending authority: a hard, time-boxed budget cap the agent pays *within* |
+| **Delegation** | your spending authority: a hard, time-boxed budget cap the agent pays *within* — and creates itself |
 | **API key** | authenticates your agent to Nevermined on every call — an assistant host that runs OAuth (Claude, ChatGPT, LangSmith Fleet) obtains one for you through the commerce consent, so your agent never handles it |
 
 The agent never holds card numbers or wallet keys and never calls Stripe or a chain directly. It holds an API key and a delegation; Nevermined does the rest.
 
-## Step 0 — One-time setup (a human is needed once)
+## Who does what
+
+A human is needed only for the account, the money and the key. Everything else is the agent's job — including creating the budget it spends within.
+
+| A human, once (Step 0) | Your agent, with a plain API key |
+|---|---|
+| Creates the Nevermined account (browser sign-in) | Creates its own delegation (Step 1) |
+| Funds the wallet with stablecoin on Base and Tempo — or subscribes, to pay with [credits](#paying-with-subscription-credits) | Discovers services, prices a call, pays, and moves to the next service when one fails |
+| Creates a plain API key and hands it to the agent | Reconciles what it spent |
+
+Ask a human only for the left column. Don't wait for one to create the delegation.
+
+## Step 0 — One-time setup (the only human steps)
 
 <Warning>
 **The Catalog is Live-only for payment.** Discovery works on either host, but listed services settle on mainnet and the sandbox Router funds testnets only — so paying one from sandbox fails (`400 BCK.ROUTER.0001`). The only things a sandbox key can buy are the two free testnet test merchants kept there for rehearsal (see [the Commerce MCP page](/mcp/catalog-mcp/overview#1-connect-your-host)). Every step here uses the Live network and real (if tiny) money; keep caps small and rehearse with a sub-cent service.
@@ -55,7 +67,7 @@ The agent never holds card numbers or wallet keys and never calls Stripe or a ch
 - App (sign in, keys, delegations): [nevermined.app](https://nevermined.app)
 - Live API base: `https://api.live.nevermined.app` — your API key for this network is prefixed `live:` (send the whole string, prefix included).
 
-**Sign in and get a key.** Open [nevermined.app](https://nevermined.app), sign in, and get a Nevermined API Key — a one-time, human-in-the-loop step (SDK-minted, the embedded `/auth/cli` login, or the [device flow (RFC 8628)](/integrate/authentication/device-flow) for headless agents). See [Get a Nevermined API key](/agents-guide/get-api-key) for the embedded-login and SDK paths, and [Authentication](/integrate/authentication/overview) for the OAuth ones. Store it, reuse it, and keep it out of logs.
+**Sign in and get a plain key.** Open [nevermined.app](https://nevermined.app), sign in, and get a plain Nevermined API Key — a one-time, human-in-the-loop step (created in the app, SDK-minted, or through the embedded `/auth/cli` login). Don't use the [device flow (RFC 8628)](/integrate/authentication/device-flow) here: like every OAuth-minted key, its key can't create a delegation or pay through the Router's delegation routes (`403 BCK.OAUTH.0030`). See [Get a Nevermined API key](/agents-guide/get-api-key) for the embedded-login and SDK paths, and [Authentication](/integrate/authentication/overview) for the OAuth ones. Store it, reuse it, and keep it out of logs.
 
 <Tip>
 **The agent-facing version of this step is [`auth.md`](https://nevermined.app/auth.md)** — the machine-readable manifest kept in lockstep with the API: the discovery documents, the bearer contract and key format, every ceremony that ends in a key (SDK, device flow, and the OAuth **commerce consent**), and what needs a human. Hand it to your harness alongside this page; where the two differ, `auth.md` is the one that names endpoints that exist today.
@@ -65,12 +77,26 @@ The agent never holds card numbers or wallet keys and never calls Stripe or a ch
 
 **Fund a way to pay.** A **stablecoin** method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. To pay by **card** instead, [enroll one once](/agents-guide/enroll-card) (a one-time in-browser step) — card enrolment funds the card rails only; a `commerce` grant from an assistant always spends stablecoin from your own wallet.
 
-## Step 1 — Set a budget you cannot exceed (the delegation)
+## Step 1 — The agent creates its budget (the delegation)
 
-The [delegation](/specs/x402-card-delegation) is your capped, server-enforced spending authority (see the mental model above) — the single most important safety control here.
+The [delegation](/specs/x402-card-delegation) is your capped, server-enforced spending authority (see the mental model above) — the single most important safety control here. **With a plain API key, the agent creates it itself. This is not a human step.**
 
-- Create or reuse one in the app (Payment Methods → Delegate) or programmatically; reuse any delegation whose status is *Active*.
-- Set the cap to the most you're willing to spend on the whole task (e.g. $1), and keep a **soft stop** a little below it in your agent so a run halts cleanly rather than erroring at the wall.
+```http
+POST https://api.live.nevermined.app/api/v1/delegation/create
+Authorization: Bearer <your live: API key>
+Content-Type: application/json
+
+{ "provider": "erc4337", "currency": "usdc", "spendingLimitCents": 100, "durationSecs": 86400, "maxTransactions": 10 }
+```
+
+The response carries the `delegationId` every paid call names (`X-Router-Delegation-Id`, or `delegationId` in a JSON body). `erc4337` is the stablecoin delegation the Catalog's rails pay from; it needs no card.
+
+- **Choose the cap within the budget the user gave you** (`100` cents above is $1), and keep a **soft stop** a little below it in your agent so a run halts cleanly rather than erroring at the wall.
+- **Leave room for a retry.** `maxTransactions` counts every paid attempt, including one the service then refuses, so set it above the number of calls you plan — or omit it and let the cap bound the spend. A delegation sized for exactly the planned calls can't recover from one bad result.
+- **Reuse before you create.** `GET /api/v1/delegation?accessible=true` lists the *Active* delegations your key can spend; reuse one with enough budget left.
+- **Ask a human only when** creating it answers `403 BCK.OAUTH.0030` (your key was minted by OAuth — you need a plain key) or `412` with `"error": "consent_required"` (the account must accept updated terms in the app).
+
+A human *can* set the cap instead — in the app (Payment Methods → Delegate), or through the Catalog MCP's `setup_delegation` tool, which returns a link for them to approve — but neither is required.
 
 ## Step 2 — Discover services (free, no key required)
 
@@ -141,7 +167,11 @@ If you drive the Router API directly, there is **one convention in three forms**
 |---|---|---|---|
 | **JSON** | `POST /api/v1/router/route` | `url` (off-catalog) **or** `slug` (cataloged) in the JSON body — exactly one | most harnesses (the quickstart uses `url`) |
 | **Header proxy** | `ANY /api/v1/router/proxy` | `X-Router-Target-Slug` header (cataloged) **or** `X-Router-Target-Url` (off-catalog) — exactly one | pointing an existing HTTP client at the Router transparently |
-| **Path** | `ANY /api/v1/router/svc/<slug>[/<subpath>]` | the slug in the path | a REST-shaped call that maps cleanly onto the service's sub-paths |
+| **Path** | `ANY /api/v1/router/svc/<slug>[/<subpath>]` | the slug in the path — and **no** target header | a REST-shaped call that maps cleanly onto the service's sub-paths |
+
+<Warning>
+**Use one form per call — never mix them.** `/router/proxy` with `X-Router-Target-Slug` reaches only the service's **base URL**. To call an endpoint under it, use `/router/svc/<slug>/<subpath>` and send **no** `X-Router-Target-Slug` (or `X-Router-Target-Url`) header: the Router refuses a `/svc` call that carries one with `400 BCK.ROUTER.0001`, before anything is paid. Take the `<subpath>` from the listing (the endpoint's `invokePath`, or `payServiceArgs.path` in the Catalog MCP).
+</Warning>
 
 All three forms need the same two facts — **which delegation pays** and **an idempotency id** — but they carry them differently.
 
@@ -162,6 +192,22 @@ The transparent response carries `X-Router-Payment-Id`, `X-Router-Payment-Status
 Address a cataloged service by its **slug**, never a raw URL: the Router hides the vendor's host on purpose, so paying one by raw URL is refused (`409 BCK.ROUTER.0014`). Keep raw **URLs and hosts** out of the path — a security guard blocks anything there that looks like it changes the destination host. The resolved `slug` in `/svc/<slug>` is exempt, because the Router maps it to the host server-side.
 </Tip>
 
+## Paying with subscription credits
+
+If the user holds a [Nevermined Subscription](/products/catalog/router/subscription), some catalog endpoints can be paid with its monthly credits instead of the delegation: Nevermined pays the merchant, the call costs a fixed number of credits with no routing fee, and the credits come back if the service doesn't answer `2xx`. Credits pay only the endpoints that carry a rate, so keep a delegation for the rest.
+
+**Price a call in credits** — this charges nothing. A listing's USD `priceLabel` is not its credits price; don't convert one into the other.
+
+- **Catalog MCP, connected with your API key:** `get_service` shows `subscription.creditsPerCall` on each endpoint credits can pay (no `subscription` field means credits can't pay it). `quote_service` with `funding: "subscription"` prices one call.
+- **REST:** `GET /api/v1/subscription/catalog/credits` lists every endpoint credits can pay, with its `creditsPerCall`. `POST /api/v1/router/subscription/quote` with `slug`, `path` and `method` prices one call.
+
+**Pay with credits.** Credits are spent only through these two paths:
+
+- **The Catalog MCP connected with your API key.** `pay_service` pays with credits by default when the subscription and the endpoint qualify, and from the delegation otherwise. Pass `funding: "subscription"` to insist on credits; the result's `funding` and `creditsCharged` say what paid.
+- **`POST /api/v1/router/subscription/route`** with `slug`, `path`, `method`, `body` and `requestId` — no `delegationId`, no URL. The streaming form is `/api/v1/router/subscription/svc/<slug>/<subpath>` with an `X-Router-Request-Id` header.
+
+The delegation routes (`/router/route`, `/router/proxy`, `/router/svc`) never spend credits. Neither does an OAuth connection (the claude.ai connector, ChatGPT, or a host connected through the OAuth consent): it pays from the cap the human approved, and the subscription routes refuse an OAuth-minted key (`403 BCK.OAUTH.0030`). Use a personal API key and no `X-Current-Org-Id` header. `GET /api/v1/router/subscription/balance` returns the credits left. Every rule and refusal code: [Pay with a Nevermined Subscription](/products/catalog/router/subscription).
+
 ## Async services (generate, then poll)
 
 Some services are asynchronous — media generation, for example. The first call returns a `taskId` instead of the result, and you poll a status endpoint until the result appears. It is fully supported; keep these in mind:
@@ -177,16 +223,19 @@ These are the habits that turn trial-and-error into a clean run. Treat them as t
 
 1. **Discovery is free — use it first.** Confirm a service's slug, price, and endpoints from the live feed before every task. Prices and listings drift.
 2. **A failed call is not reliably free — don't treat it as a cheap probe.** Once the payment credential is minted, the merchant leg stands even if the upstream call then errors; only the routing fee may be released, and only on specific paths. Whether the merchant leg settles before or after the upstream `2xx` depends on the call mode. Confirm how a service wants to be called from its listing and docs, not by paying to find out — see [when a fee is not collected](/products/catalog/router/how-it-works#when-a-fee-is-not-collected).
-3. **Address a service by its slug and let the Router resolve the endpoint.** Don't fight it with hand-assembled sub-paths — the common failure is a mis-resolved path, not a payment problem.
-4. **Put target URLs in the request body, never in the path.** A security guard blocks anything in the path that looks like it changes the destination host.
-5. **Give every purchase a stable idempotency id.** Reuse the same id when you retry, so a network hiccup never double-charges; use a fresh id only for a genuinely new purchase.
-6. **Async services: poll, don't wait on a callback.** Synchronous services are simplest, but async ones (e.g. media generation) are fully supported — see [Async services](#async-services-generate-then-poll) above. The one trap is a naive poller: give **each poll a fresh idempotency id**. Reuse one and the Router refuses each repeat as a duplicate (`409`, no charge) so the poll never advances; a fresh id per poll advances it, and each **paid** (`402`) poll is a separately-billed call.
-7. **The delegation is the source of truth for spend.** Reconcile against your delegation's remaining budget, not a local tally.
-8. **Prove the flow cheaply — payment is Live-only.** Sandbox can rehearse the mechanics against its two free testnet test merchants, but no real service is payable there (its Router funds testnets only) — so validate discovery → pay → result end-to-end on Live with a **small delegation cap and the cheapest sub-cent service** before scaling spend up.
+3. **Judge every result — on junk or a refusal, move to the next service.** A `2xx` is not proof the answer is useful. If the result is irrelevant or empty, or the service refuses the call (a 4xx: `BCK.ROUTER.0019` on `/proxy` · `/svc`, or a 4xx `status` with `body: null` on `/route`), don't stop and don't report the junk as the answer. Fix the request if the error is yours; otherwise try the next matching service from discovery (or the next `shortlist` entry from `/router/select`) with a fresh idempotency id, within the budget. Size the delegation for that up front (Step 1).
+4. **Address a service by its slug and let the Router resolve the endpoint.** Don't fight it with hand-assembled sub-paths — the common failure is a mis-resolved path, not a payment problem.
+5. **Put target URLs in the request body, never in the path.** A security guard blocks anything in the path that looks like it changes the destination host.
+6. **Give every purchase a stable idempotency id.** Reuse the same id when you retry, so a network hiccup never double-charges; use a fresh id only for a genuinely new purchase.
+7. **Async services: poll, don't wait on a callback.** Synchronous services are simplest, but async ones (e.g. media generation) are fully supported — see [Async services](#async-services-generate-then-poll) above. The one trap is a naive poller: give **each poll a fresh idempotency id**. Reuse one and the Router refuses each repeat as a duplicate (`409`, no charge) so the poll never advances; a fresh id per poll advances it, and each **paid** (`402`) poll is a separately-billed call.
+8. **The delegation is the source of truth for spend.** Reconcile against your delegation's remaining budget, not a local tally.
+9. **Prove the flow cheaply — payment is Live-only.** Sandbox can rehearse the mechanics against its two free testnet test merchants, but no real service is payable there (its Router funds testnets only) — so validate discovery → pay → result end-to-end on Live with a **small delegation cap and the cheapest sub-cent service** before scaling spend up.
 
 ## Step 4 — Track and reconcile spend
 
 Read your delegation's remaining budget and the Nevermined payment [ledger](/products/catalog/router/ledger) to see exactly what each call cost and how much of the cap is left. This is also your audit trail. See the environment's [OpenAPI reference](https://api.live.nevermined.app/api/v1/rest/docs-json) for the delegation and payment endpoints.
+
+**A refused call is not always a charged one.** A call refused before payment costs nothing: `paid: false` on `/router/route`, and no `X-Router-Payment-Id` header on `/router/proxy` · `/router/svc`. A *paid* call that the service answers with an error other than `402` stays `Issued` until Nevermined reconciles it, and its price stays reserved against your cap until then. That `Issued` is undecided, not proof of a charge: if the merchant never collects, the reserve is released once the payment's window closes; if it did collect, the charge stands. Don't count it as spent or as refunded yet, and leave room for the held reserve when you retry elsewhere.
 
 When a call errors on `/router/proxy` or `/router/svc` (`BCK.ROUTER.0019` / `0020`) — on `/router/route` the same condition arrives as the envelope's `status` with `body: null`, no typed code — `status` is the primary read — it is what you *got* (a non-`2xx` leaves the row unsettled). On the **x402** rail there is also `merchantSettlementObservedAt`: when it is **set** alongside `status: Issued`/`Failed`, the merchant redeemed the payment on-chain and delivered nothing (charged-but-undelivered — worth alerting on). It is `null` on a clean settlement **and on both MPP rails** (which cannot record it), so `null` is *not* proof you weren't charged — fall back to `txHash` / `status` there. Either way, the Router never takes its own routing fee for a call that did not deliver.
 
