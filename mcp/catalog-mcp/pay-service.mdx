@@ -114,7 +114,7 @@ These charge nothing and reserve no credits. Each carries `funding: "subscriptio
 | `error` | What happened |
 | --- | --- |
 | `no_active_subscription` | No subscription that can spend right now: none, ended, past due, suspended by a card dispute — or a call made with the API key of an organization you're a member of. |
-| `subscription_not_eligible` | This endpoint can't be paid with credits — see `reason`. (With `code: null` and no `alternative`, it's the HTTP method: credits price only `GET`, `POST`, `PUT`, `PATCH` and `DELETE`.) |
+| `subscription_not_eligible` | This endpoint can't be paid with credits — see `reason`. With `reason: "wallet_bound"` the service sells only to the payer's own crypto wallet, so the `alternative` asks for the `delegationId` of a personal crypto-wallet delegation: a card or organization delegation can't pay it either. (With `code: null` and no `alternative`, it's the HTTP method: credits price only `GET`, `POST`, `PUT`, `PATCH` and `DELETE`.) |
 | `insufficient_credits` | Not enough credits left this month for this call (`credits` is its cost). |
 | `subscription_ceiling_exceeded` | The merchant's live price is outside what the rate allows right now: above its bound, in another asset or network, or unreadable (`reason`). |
 | `subscription_rail_unsupported` | The merchant asked for a rail credits don't pay (`rail`). |

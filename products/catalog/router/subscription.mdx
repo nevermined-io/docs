@@ -93,7 +93,7 @@ Signed in as a subscriber, the catalog shows your credits: the account menu show
 The catalog can also show service prices **in credits** instead of USD. This display is rolling out and isn't switched on everywhere yet; where it is, a subscriber sees:
 
 - a service card priced like **15 credits**, or **from 15 credits** when its endpoints differ;
-- on a service's page, the credits one call costs and how many credits you have left, with each endpoint priced in credits — or marked **Budget only** when credits can't pay it;
+- on a service's page, the credits one call costs and how many credits you have left, with each endpoint priced in credits — or marked **Budget only** when credits can't pay it (**Own crypto wallet only** on a service that sells only to the payer's own crypto wallet);
 - a switch on the services page, **Pay with your budget instead**, that turns the prices back into USD.
 
 Where the display is off, the catalog shows USD prices to everyone; quote a call (below) for its price in credits.
@@ -201,7 +201,7 @@ A subscription pays **listed, live catalog endpoints that carry a rate**, on the
 - **x402** merchants using the `exact` scheme, paid in USDC,
 - **MPP** merchants on the `tempo` method, paid in the USD stablecoin Nevermined's treasury holds there.
 
-Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or an endpoint whose result only the paying wallet can read back — a job you poll, or something you'd own at the merchant. On a service that delivers results only to the wallet that paid, credits pay just the endpoints Nevermined has reviewed as self-contained (the paid response is the whole result); the rest are refused with `params.reason: wallet_bound`. Pay those from a Delegation.
+Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or an endpoint whose result only the paying wallet can read back — a job you poll, or something you'd own at the merchant. On a service that delivers results only to the wallet that paid, credits pay just the endpoints Nevermined has reviewed as self-contained (the paid response is the whole result); the rest are refused with `params.reason: wallet_bound` and can be paid only from your own crypto (`erc4337`) Delegation — a card or organization Delegation is refused too. Pay the others from a Delegation.
 
 Credits are spent with a **personal Nevermined API key**. OAuth connections to an assistant (for example the [Catalog MCP](/mcp/catalog-mcp/overview) connected from Claude.ai or ChatGPT) pay from their commerce grant, not from credits.
 
