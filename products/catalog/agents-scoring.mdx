@@ -357,7 +357,7 @@ A new version applies to every analysis from its release, so a score keeps the v
 #### readiness/1.1.0
 
 - **Version level:** MINOR
-- **Summary:** The full score now reads the MPP `session` price a listed endpoint declares. A declared session is a machine-readable, dynamic price, unless the Router pays a fixed charge for that endpoint or would refuse the session's terms. P4 credits a session only when it declares a budget cap and a unit. Before this version, every payable endpoint was treated as fixed on the full score, so P4 always passed.
+- **Summary:** The full score now reads the MPP `session` price a listed endpoint declares. It counts when the analysis finds the endpoint payable and the declaration was observed in the last 48 hours. A declared session is a machine-readable, dynamic price, unless the Router pays a fixed charge for that endpoint or would refuse the session's terms. P4 credits a session only when it declares a budget cap and a unit. Before this version, every payable endpoint was treated as fixed on the full score, so P4 always passed.
 - **Dimensions:** Pricing clarity (P2, P3, P4). Weights, caps, and bands are unchanged.
 - **Why:** P4 checks that a dynamic price declares its range and unit, and it could never fail on the full score.
 - **Effect on your score:**
