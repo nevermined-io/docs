@@ -383,6 +383,28 @@ and the connection held open in the meantime counts against your concurrency lim
 
 ---
 
+## Paying with subscription credits — `POST /api/v1/router/subscription/route`
+
+A buyer with a **Nevermined Subscription** can pay catalog services in **credits** instead of from a Delegation. Nevermined's treasury pays the merchant; the call costs the endpoint's **rate** in credits, from Nevermined's live rate card (rates change without notice; the rate at call time applies). No Delegation, no wallet funding, no routing fee. Subscription credits are not seller-plan credits: they are spent only through these routes.
+
+```bash
+curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"slug":"webscrape-pro","path":"scrape","method":"POST","body":{"url":"https://example.com"},"requestId":"scrape-1"}'
+# → { "status": 200, "body": {…}, "paid": true,
+#     "payment": { "paymentId": "…", "status": "Settled", "creditsCharged": 3, "creditsStatus": "Committed", … } }
+```
+
+- **Slug only.** `url` or `delegationId` → `400 BCK.SUBSCRIPTION_ROUTER.0005` (refused, not ignored). `requestId` is required, as on every mode-B call.
+- **Personal API key only.** The subscription belongs to a personal account. A call acting in an organization you're an active member of (`X-Current-Org-Id`, or that org's API key) → `402 …0002`, never your personal credits. OAuth-minted credentials are refused (`BCK.OAUTH.0030`). Sandbox and Live are separate subscriptions.
+- **Price first, free:** `POST /api/v1/router/subscription/quote` `{slug, path, method}` → `{ credits, tariffVersion }`. It does not contact the merchant and does not check the credits left or the treasury.
+- **Credits left:** `GET /api/v1/router/subscription/balance` → `creditsLeft` (digit string), `spendable`, `resetsAt`. Never count credits yourself.
+- **Only a merchant 2xx keeps the credits.** Anything else → credits `Reserved` then `Refunded`, and `body` is `null` (a streamed 2xx counts as delivered when its headers arrive; an undetermined call stays `Reserved` until reviewed). Read the final state from `GET /api/v1/router/payments?requestId=…` → `{ presence, payments: [ { fundingSource: "subscription", creditsCharged, creditsStatus, … } ] }` (`presence: "absent"` = nothing recorded for that id yet; percent-encode the id — see `ledger.md`).
+- **Rails:** x402 `exact` (USDC) and MPP `tempo` only — not MPP-stripe/SPT, and on a service that delivers results only to the paying wallet, only its reviewed self-contained endpoints: the rest → `403 …0001` `wallet_bound` (or `400 BCK.ROUTER.0001` "…only to the personal wallet that paid…", not a malformed request) — pay them from your own crypto Delegation.
+- **No spending limits beyond the credits.** The retired `BCK.SUBSCRIPTION_TREASURY.0004`–`0007` and `0014` are never returned; a call can still be refused when the treasury float is low (`503 …TREASURY.0003`, retryable — retry later).
+- **Refusals charge nothing and reserve nothing.** `402 …0002` no spendable subscription (subscribe, settle the invoice, or use a personal key) · `402 …0009` not enough credits · `403 …0001` endpoint not payable with credits (`params.reason`) · `409 …0004` merchant price outside the rate's bound · `503 …TREASURY.0003` treasury float low. `0001`/`0002` mean credits can't pay this endpoint at all — pay it from your Delegation as usual (for `0001` `wallet_bound`, only your own crypto `erc4337` Delegation: a card or org one is refused too). After `0009`, `0004` or a treasury refusal, paying from a Delegation is a **new decision** — don't switch funding automatically.
+- Streaming: `ALL /api/v1/router/subscription/svc/{slug}/{path}` with `X-Router-Request-Id`; response headers `X-Router-Credits-Charged`, `X-Router-Credits-Status`.
+
 ## Mode A — `POST /api/v1/router/payments`
 
 The Router mints a signed credential; **you** call the merchant. Use it when the Router cannot be in

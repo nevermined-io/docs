@@ -1,0 +1,292 @@
+---
+title: "Pay with a Nevermined Subscription"
+description: "Pay catalog services with monthly credits: Nevermined pays the merchant, you see each call's rate first, and an undelivered call costs nothing."
+icon: "repeat"
+---
+
+The Router normally pays a merchant from **your** money: a Delegation caps the spend and your wallet or card funds it. A **Nevermined Subscription** is the other way to pay. You pay Nevermined a monthly price and get a monthly allowance of **credits**. When your agent calls a catalog service with credits, **Nevermined pays the merchant** from its own treasury and your call costs a fixed number of credits that Nevermined publishes for that endpoint.
+
+That changes three things for an agent:
+
+- **No wallet, no Delegation, no funding.** There is nothing to top up and nothing on-chain for your agent to sign.
+- **A price you see before you call.** Each endpoint has a **rate** on Nevermined's rate card — credits per call — and the rate shown when you call is what the call costs, whatever the merchant charges at that moment (up to the rate's bound).
+- **You only pay for what's delivered.** Credits are kept only when the merchant answers with a `2xx`. Anything else and the credits come back.
+
+<Note>
+**Subscription credits are not plan credits.** Elsewhere in these docs, *credits* are what a seller's [credits-based plan](/integrate/patterns/payment-models#credits-based-plans) grants for that seller's own agent, and a *subscription* is a seller's [time-based plan](/integrate/patterns/payment-models#time-based-plans). The Nevermined Subscription is neither: it's Nevermined's own monthly plan for **buyers**, and its credits are spent only through the Router, on catalog services. On this page, "credits" always means subscription credits.
+</Note>
+
+A subscription and a Delegation live side by side. Some services can't be paid with credits (see [What credits can pay](#what-credits-can-pay)); keep a Delegation for those.
+
+## Subscribe
+
+You buy the subscription in the [Nevermined Catalog](https://nevermined.app/catalog/), on the subscription page.
+
+<Steps>
+  <Step title="Open the subscription page">
+    In the catalog, click **Subscription** in the header, or **Subscribe for $20 a month** on the catalog's home page. Log in with your Nevermined account if the page asks you to.
+  </Step>
+  <Step title="Choose the subscription">
+    The page compares the two ways to pay for the catalog: **Pay per call** from a budget you set up yourself, or the **Nevermined Subscription**. The subscription is **USD 20 per month plus applicable taxes**, and it grants **20,000 credits** each month. Click **Choose Subscription**.
+  </Step>
+  <Step title="Give the consents">
+    Tick both consents. The first agrees that the subscription renews automatically every month until you cancel. The second asks for your credits to be made available immediately, and acknowledges that you lose the 14-day right of withdrawal once they are. Then click **Continue to payment**.
+  </Step>
+  <Step title="Pay on the same page">
+    Stripe's secure payment form opens in the page. Accept the Nevermined Subscription terms in the form, then pay. VAT or sales tax is calculated from your billing address and added on top, and the total is shown before you pay; a business can add its tax ID. Your bank may ask you to confirm this first payment (3-D Secure).
+  </Step>
+  <Step title="Your credits arrive">
+    After you pay, you land on your subscription page in the Nevermined App. Your credits appear there as soon as Stripe confirms the payment.
+  </Step>
+</Steps>
+
+### Personal accounts only
+
+The Nevermined Subscription belongs to a **personal account**: an organization can't subscribe.
+
+- **Spend it with a personal API key** — one with no organization tag — and without an `X-Current-Org-Id` header. A call made in an organization you're an active member of (that header, or that organization's API key) is refused with `402 BCK.SUBSCRIPTION_ROUTER.0002`, and it **never** falls back to your personal credits.
+- **Sandbox and Live are billed separately.** Each workspace has its own subscription and its own credits, and the subscription page shows which workspace you're subscribing for. A Sandbox subscription is paid in Stripe's test mode, and its credits pay the testnet services listed in Sandbox — on the catalog's services page, under **Sandbox test services**.
+
+## Manage your subscription
+
+In the [Nevermined App](https://nevermined.app), open **Nevermined Subscription** in the sidebar — it's in the **Buy** view, so switch to it first if the App opens on Sell — or go straight to [nevermined.app/subscription](https://nevermined.app/subscription). (If you already subscribe, the catalog's subscription page takes you there too.) The page shows:
+
+- **Credits left this month**, your plan and monthly allowance, and the date your allowance resets.
+- **Manage billing**, which opens Stripe's customer portal, where you can update your payment method.
+- **Cancel subscription**, which opens Stripe's cancellation step. A cancellation takes effect at the end of the current billing period, and you can use the rest of this month's credits until then.
+- **Invoices**, with each invoice's status. An invoice that was refunded reads **Refunded** or **Partially refunded**; if its refund state can't be read, it reads **Status unavailable**. A refund can take 5–10 business days to appear on your card statement.
+
+**What your credits paid for is in Purchases.** In the Nevermined App's **Purchases** page, a call paid with credits shows **Subscription** under *Paid with* and its cost in credits (struck through when the credits came back). Filter by **Subscription credits** to see only those, and the **Credits used · this cycle** tile adds up the current billing period.
+
+## Credits
+
+- **One allowance per billing period.** Your plan includes a monthly allowance of 20,000 credits, available once each monthly invoice is paid. Changes to the price or the monthly allowance are announced in advance, and you can cancel before they apply.
+- **They expire at the end of the period.** Unused credits don't roll over; your allowance resets when the next period's invoice is paid.
+- **They are not money.** Credits have no cash value, can't be cashed out, and can't be transferred to another account.
+
+Check how many credits you have left this month at any time — it charges nothing:
+
+```bash
+curl -s "$NVM_API_URL/api/v1/router/subscription/balance" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+```json
+{
+  "subscribed": true,
+  "creditsLeft": "1240",
+  "spendable": true,
+  "resetsAt": "2026-10-30T00:00:00.000Z",
+  "cancelAtPeriodEnd": false,
+  "status": "active",
+  "suspended": false,
+  "plan": { "catalogId": "3f2b…", "planKey": "standard", "creditsPerCycle": "20000" }
+}
+```
+
+`creditsLeft` is what the Router debits — read it rather than adding up your calls. `spendable: false` means the credits can't pay a call right now even though some are left: a `past_due` subscription keeps its credits but can't spend them until the invoice is paid, and a subscription is `suspended` while a card dispute is open, and stays suspended if a dispute is decided in the cardholder's favour. `subscribed: false` carries no other field. Called in an organization you're a member of, it reads that organization's subscription, never yours; organizations can no longer subscribe, so that's normally `subscribed: false`.
+
+### In the catalog
+
+Signed in as a subscriber, the catalog shows your credits: the account menu shows **Subscription credits** left this month, and the catalog's home page shows a status bar such as **Subscribed · 19,835 credits left this month**.
+
+The catalog can also show service prices **in credits** instead of USD. This display is rolling out and isn't switched on everywhere yet; where it is, a subscriber sees:
+
+- a service card priced like **15 credits**, or **from 15 credits** when its endpoints differ;
+- on a service's page, the credits one call costs and how many credits you have left, with each endpoint priced in credits — or marked **Budget only** when credits can't pay it (**Own crypto wallet only** on a service that sells only to the payer's own crypto wallet);
+- a switch on the services page, **Pay with your budget instead**, that turns the prices back into USD.
+
+Where the display is off, the catalog shows USD prices to everyone; quote a call (below) for its price in credits.
+
+## The rate card: what a call costs
+
+Every endpoint that credits can pay has a **rate**: the number of credits one call costs. The rate shown when you make the call is what that call costs — the merchant's price at that moment doesn't change it. (The API calls a rate's version `tariffVersion`.)
+
+- **In the MCP**, `get_service` called with your API key shows `subscription.creditsPerCall` (and the `tariffVersion`) on each endpoint that credits can pay.
+- **Over REST**, quote the exact call. Nothing is reserved or charged, and the merchant isn't contacted:
+
+```bash
+curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/quote" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "slug": "webscrape-pro", "path": "scrape", "method": "POST" }'
+```
+
+```json
+{ "slug": "webscrape-pro", "credits": 3, "tariffVersion": 2 }
+```
+
+A quote refuses what the call would refuse before contacting the merchant (see [When a call is refused](#when-a-call-is-refused)). It doesn't check how many credits you have left, the merchant's live price, or Nevermined's treasury — those are checked when the call is made.
+
+### How a rate is set
+
+Nevermined prices each endpoint from the merchant's own price. It takes what the merchant charges for a call, applies a markup, converts the result to credits at a nominal value per credit, and rounds **up** to the next step of a fixed scale of credit amounts — so every rate is a whole number of credits on that scale. Nevermined re-prices endpoints regularly as merchant prices move; between two pricings, the stored rate is what every call costs.
+
+Each rate also bounds what Nevermined will pay the merchant. If the merchant's live price rises above that bound, the call is refused before anything is paid (`BCK.SUBSCRIPTION_ROUTER.0004`), and the endpoint is flagged for re-pricing.
+
+A subscription call carries **no Router fee**: the rate is the whole cost.
+
+**The rate card is live.** It covers every catalog endpoint that credits can pay, and those services' own prices move all the time, so rates — and the markup, credit value and scale behind them — change, up or down, as soon as Nevermined updates them, without notice. Quote before you call when the cost matters; the rate in force at the time of the call is what you pay.
+
+## Pay a call with credits
+
+Call a catalog service by its **slug**, exactly as you would through [`POST /api/v1/router/route`](/api-reference/router/route-request), but on the subscription route and without a Delegation:
+
+```bash
+curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{
+    "slug": "webscrape-pro",
+    "path": "scrape",
+    "method": "POST",
+    "body": { "url": "https://example.com" },
+    "requestId": "scrape-example-com-1"
+  }'
+```
+
+```json
+{
+  "status": 200,
+  "body": { "…": "the merchant's response, unchanged" },
+  "bodyEncoding": "json",
+  "contentType": "application/json",
+  "paid": true,
+  "payment": {
+    "paymentId": "b1f9c2e4-…",
+    "status": "Settled",
+    "txHash": "0xfc8af37b…",
+    "creditsCharged": 3,
+    "creditsStatus": "Committed",
+    "failureReason": null,
+    "correlationId": "…"
+  }
+}
+```
+
+What's different from the Delegation route:
+
+- **A slug, never a URL.** Credits pay listed catalog services only, so the request names a `slug` (plus `path`, `method`, `search`, `headers`, `body`). A `url` or a `delegationId` is **refused** (`400 BCK.SUBSCRIPTION_ROUTER.0005`), not ignored, so a request that meant something else is never paid with credits.
+- **`requestId` is required**, as on every mode-B call: a retry with the same id is never paid twice — see [Paying twice](/products/catalog/router/guardrails#paying-twice).
+- **Nothing to sign or fund.** Nevermined pays the merchant and never hands you a payment credential — there is no subscription equivalent of [minting a credential](/api-reference/router/mint-payment-credential).
+- **No routing fee.** A subscription call costs its rate and nothing else.
+- **Long calls** behave as on the Delegation route: past the synchronous wait you get `202` with a `resultUrl` to poll, and the credits stay `Reserved` until the call ends.
+
+For large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}`. Point your HTTP client at it with your API key and an `X-Router-Request-Id` header; the method, body and headers pass through and the response streams back with `X-Router-Credits-Charged` and `X-Router-Credits-Status` alongside the usual `X-Router-Payment-*` headers. `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id` are refused on this route.
+
+## When a service doesn't deliver
+
+Your credits are **reserved** before the merchant is called and **kept only if it answers with a `2xx`**. An error status, a timeout, a dropped connection, or a merchant that refuses the payment all mark the call's credits for refund, and they come back automatically, with the expiry they had (or this period's, if that has passed; once the subscription has ended, they're lost).
+
+A `502` with `BCK.ROUTER.0034` (no response from the service) or `BCK.ROUTER.0025` (its reply was too large to deliver) can come after the merchant was paid. The credits are refunded all the same, but don't retry with a new `requestId` — read the outcome with the same one from the [payment ledger](#in-the-ledger).
+
+On the streaming route, a `2xx` counts as delivered when its headers arrive: a body that breaks off mid-stream keeps its credits `Committed`. Contact support if that happens.
+
+`payment.creditsStatus` says where a call's credits stand:
+
+| `creditsStatus` | Meaning |
+| --- | --- |
+| `Committed` | The merchant delivered. The credits are spent. |
+| `Reserved` | The call hasn't finished, or it didn't deliver and its credits are being returned. |
+| `Refunded` | The credits are back in your monthly allowance. |
+
+A failed call's response body is `null`: you see the merchant's status, never its error body.
+
+If a service answered successfully but its result was defective, the credits are not returned automatically — contact support, and Nevermined may add credits to your current monthly allowance at its discretion (credits added this way expire at the end of the current billing period). Nevermined doesn't promise the availability or uptime of third-party services. Read the final state of any call from the [payment ledger](#in-the-ledger). In the rare case where the Router can't tell whether a call was delivered, the call is reviewed and either confirmed or refunded — its credits stay `Reserved` until then.
+
+<Note>
+**Credits never move on a refused call.** Every refusal below happens before the merchant is paid and before any credit is reserved, so there is nothing to refund.
+</Note>
+
+## What credits can pay
+
+A subscription pays **listed, live catalog endpoints that carry a rate**, on these rails:
+
+- **x402** merchants using the `exact` scheme, paid in USDC,
+- **MPP** merchants on the `tempo` method, paid in the USD stablecoin Nevermined's treasury holds there.
+
+Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or an endpoint whose result only the paying wallet can read back — a job you poll, or something you'd own at the merchant. On a service that delivers results only to the wallet that paid, credits pay just the endpoints Nevermined has reviewed as self-contained (the paid response is the whole result); the rest are refused with `params.reason: wallet_bound`. Pay all of these from a Delegation — a `wallet_bound` endpoint only from your own crypto (`erc4337`) Delegation, since a card or organization Delegation is refused there too.
+
+Credits are spent with a **personal Nevermined API key**. OAuth connections to an assistant (for example the [Catalog MCP](/mcp/catalog-mcp/overview) connected from Claude.ai or ChatGPT) pay from their commerce grant, not from credits.
+
+### No spending limits beyond your credits
+
+A subscription has no spending limit beyond your credits — no daily, per-service or pace cap. The Router's usual per-service rate limit and concurrency limit still apply (`429`). A call can also be refused when Nevermined's treasury can't pay right now — most often because its float is low (`503 BCK.SUBSCRIPTION_TREASURY.0003`, retryable). Nothing is charged; retry later.
+
+## When a call is refused
+
+Branch on `code`. None of these charged anything or reserved any credit.
+
+| Code | Status | What it means | What to do |
+| --- | --- | --- | --- |
+| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with credits — `params.reason` says why (`no_active_tariff` — no rate yet, `price_variable`, `unhealthy`, `wallet_bound`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation — for `wallet_bound`, your own crypto (`erc4337`) Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0002` | 402 | No subscription that can spend right now: none bought, ended, past due, or suspended by a card dispute. Also the answer when you call in an organization you're a member of. | Subscribe, settle the open invoice, or call with a personal API key and no `X-Current-Org-Id`. |
+| `BCK.SUBSCRIPTION_ROUTER.0003` | 400 | The merchant asked for a rail credits don't pay (`params.rail`). | Pay from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0004` | 409 | The merchant's live price is outside the rate's bound, or in another asset or network (`params.reason`). | Retry later, or pay from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0005` | 400 | A field that only makes sense elsewhere (`url`, `delegationId`, a target header) — `params.field`. | Address the service by `slug` only. |
+| `BCK.SUBSCRIPTION_ROUTER.0007` | 400 | Mode A (`POST /router/payments`) can't be funded by a subscription — you sent it `fundingSource: "subscription"` or a `subscriptionId`. | Use the subscription route. |
+| `BCK.SUBSCRIPTION_ROUTER.0009` | 402 | Not enough credits left for this call (`params.credits` is its cost). | Wait for the next period, pick a cheaper endpoint, or pay from a Delegation. |
+| `BCK.SUBSCRIPTION_TREASURY.0002` | 422 | The merchant wants to be paid in an asset Nevermined's treasury doesn't pay in. | Pay from a Delegation. |
+| `BCK.SUBSCRIPTION_TREASURY.0003` | 503 | Nevermined's treasury float can't cover this payment right now. | Retry later (`retryable: true`). |
+| `BCK.SUBSCRIPTION_TREASURY.0008` | 403 | Nevermined's treasury can't pay this merchant. | Pay another service. |
+| `BCK.SUBSCRIPTION_ACCESS.0001` | 404 | The subscription isn't available on this deployment or to this account. | — |
+| `BCK.CATALOG.0001` | 404 | No listed, payable catalog service has that `slug`. | Check the slug in the catalog. |
+| `BCK.OAUTH.0030` | 403 | An OAuth-minted credential: credits are spent with an API key only. | Use your Nevermined API key. |
+| `BCK.ROUTER.0001` | 400 | With the message *this service delivers its results only to the personal wallet that paid*: the Router's own check that a wallet-bound endpoint is one credits can pay (such calls are normally refused earlier, as `BCK.SUBSCRIPTION_ROUTER.0001` `wallet_bound`). Any other message is a malformed request. | Pay it from your own crypto (`erc4337`) Delegation. |
+
+Other errors with a `5xx` status (`BCK.SUBSCRIPTION_ROUTER.0006` and `0010`–`0014`, and the remaining `BCK.SUBSCRIPTION_TREASURY.*` codes) are on Nevermined's side and also charge nothing; `retryable` says whether retrying can help. The Router's common errors apply too — a reused `requestId` (`409 BCK.ROUTER.0002`), the rate and concurrency limits (`429`): see [every error code](/products/catalog/router/guardrails#every-error-code). The full list is in the [error reference](/development-guide/api-errors/codes). `BCK.SUBSCRIPTION_TREASURY.0004`–`0007` and `0014` are retired: they belonged to spending limits removed before launch, and the API no longer returns them.
+
+## In the ledger
+
+Subscription calls land on the same [payment ledger](/products/catalog/router/ledger) as everything else, with three extra fields:
+
+| Field | On a subscription call | On a Delegation call |
+| --- | --- | --- |
+| `fundingSource` | `subscription` | `delegation` |
+| `creditsCharged` | The call's rate, in credits — kept when the credits are refunded, so count it only when `creditsStatus` is `Committed` | `null` |
+| `creditsStatus` | `Committed`, `Reserved` or `Refunded` | `null` |
+
+`delegationId` is `null` on a subscription call, and `feeBps` is `0`: there is no routing fee. To read one call's final state, look it up by the `requestId` you sent:
+
+```bash
+curl -s -G "$NVM_API_URL/api/v1/router/payments" \
+  --data-urlencode "requestId=scrape-example-com-1" \
+  -H "Authorization: Bearer $NVM_API_KEY"
+```
+
+```json
+{
+  "presence": "present",
+  "payments": [
+    { "paymentId": "b1f9c2e4-…", "requestId": "scrape-example-com-1", "fundingSource": "subscription", "creditsCharged": 3, "creditsStatus": "Committed", "delegationId": null, "feeBps": 0 }
+  ]
+}
+```
+
+`presence: "absent"` means no payment is recorded for that `requestId` yet — while the call may still be running, retry it with the same `requestId`, never a new one. See [Look up one payment by `requestId`](/products/catalog/router/ledger#look-up-one-payment-by-requestid).
+
+## From the Catalog MCP
+
+With a subscription and an API key, the [Catalog MCP](/mcp/catalog-mcp/overview)'s [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits) pays — and [`quote_service`](/mcp/catalog-mcp/quote-service#quote-in-subscription-credits) prices — in credits by default when your subscription and the endpoint qualify, and [`get_budget`](/mcp/catalog-mcp/get-budget#subscription-credits) and [`wallet_balance`](/mcp/catalog-mcp/wallet-balance#subscription-credits) report your credits left.
+
+## Refunds and disputes of the subscription itself
+
+These are about the monthly **fee**, not a single call. Subscription fees are **non-refundable**, except where the law requires a refund or for billing errors.
+
+- If a subscription payment is **refunded in full**, the unused credits it granted are removed. A refund can take 5–10 business days to appear on your card statement.
+- If you **dispute** a payment with your card issuer, its unused credits are removed and the subscription can't spend while the dispute is open. If the dispute is decided in your favour, the subscription stays unable to spend. If it's decided in Nevermined's favour, those credits are restored with their original expiry — credits whose billing period has ended by then come back already expired.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="How the Router works" icon="route" href="/products/catalog/router/how-it-works">
+    Mode A and mode B, and the Delegation-funded path.
+  </Card>
+  <Card title="Guardrails" icon="shield-check" href="/products/catalog/router/guardrails">
+    Every check on a Delegation-funded payment.
+  </Card>
+  <Card title="Payment ledger" icon="receipt" href="/products/catalog/router/ledger">
+    Query and export every payment, credits included.
+  </Card>
+  <Card title="Catalog MCP" icon="plug" href="/mcp/catalog-mcp/overview">
+    Discover and pay from an AI assistant.
+  </Card>
+</CardGroup>

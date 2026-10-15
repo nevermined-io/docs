@@ -23,6 +23,7 @@ Pay for a service from your spend-capped delegation and return the vendor's resp
 | `delegationId` | no | string | Delegation to charge (API key only); defaults to your active one. An OAuth caller always spends from its grant. Feeds the derived idempotency key when `requestId` is omitted, so keep it the same across retries. |
 | `fresh` | no | boolean | Set `true` on **every poll** of an async status endpoint, **including the first**, so each poll mints a fresh idempotency key and advances. With `fresh` a retry is **not** de-duplicated and **is** charged again. Ignored when `requestId` is set. |
 | `requestId` | no | string | Idempotency key. Leave unset — a retry of the same call is de-duplicated automatically. Set a **new** value only for a genuinely separate, additional charge. |
+| `funding` | no | string | `"subscription"` or `"delegation"`: what pays this call. Omit it to pay with [subscription credits](#pay-with-subscription-credits) when they can pay this call, and from your delegation otherwise. |
 
 <Note>
 **A bare slug reaches the service's base URL.** For a multi-endpoint API that is a 404, not a purchase — pass the endpoint's `path`. Only a single-endpoint service is callable by slug alone.
@@ -71,6 +72,63 @@ The vendor's response plus the payment record. A paid result also carries `deleg
 <Warning>
 **Async services: set `fresh: true` on every poll, including the first.** An async service returns a `taskId`, then you poll a status endpoint with the same id. Without `fresh`, every later poll reuses the first poll's idempotency key and gets the first poll's stored answer (or `already_paid`) back, so the status never advances. `fresh` makes each poll a distinct, separately-billed call. Leave `fresh` **off** the submit and off any retry of a call whose outcome is unsure.
 </Warning>
+
+## Pay with subscription credits
+
+With a [Nevermined Subscription](/products/catalog/router/subscription), `pay_service` can pay with **credits** instead of your delegation: Nevermined pays the merchant, the call costs the endpoint's rate from Nevermined's rate card, and the credits come back if the service doesn't answer with a `2xx`. Credits are spent with an **API key** only — an OAuth connection always pays from its grant.
+
+The `funding` argument decides what pays:
+
+| `funding` | What pays |
+| --- | --- |
+| omitted | Your credits, when a subscription quote for this call succeeds: you hold a subscription that can spend, and the endpoint has a rate. Otherwise your delegation, exactly as before. Passing `delegationId`, `quoteId` or `maxTotalCents` selects the delegation. |
+| `"subscription"` | Your credits — refused, never switched to the delegation, if they can't pay this call. |
+| `"delegation"` | Your delegation. |
+
+`delegationId`, `quoteId` and `maxTotalCents` only mean something to a delegation, so passing one with `funding: "subscription"` is refused (`invalid_arguments`, with the offending `fields`).
+
+The default doesn't look at how many credits you have left or at the merchant's live price — those are checked when the call is made, and a refusal for them is **not** moved to your delegation (see the note below). When your subscription refused this call up front (no rate, no subscription that can spend), the delegation-funded result says so: `funding: "delegation"`, `fundingReason: "subscription_refused"`, the API's `fundingCode` and a `fundingNote` (or `fundingReason: "delegation_arguments"` when you passed a delegation-only argument). If the subscription isn't available to you at all — an OAuth connection, for example — the result carries no funding fields. And if the subscription's answer couldn't be read, the call is refused with `funding_undetermined` rather than paid from your delegation.
+
+A credits call answers with `funding: "subscription"`, the credits it cost and where they stand — and no `budget` or `delegationId`, since no delegation was charged:
+
+```json
+{
+  "funding": "subscription",
+  "paid": true,
+  "upstreamStatus": 200,
+  "creditsCharged": 3,
+  "creditsStatus": "Committed",
+  "payment": { "paymentId": "b1f9c2e4-…", "status": "Settled", "txHash": "0xfc8af37b…", "creditsCharged": 3, "creditsStatus": "Committed" },
+  "request": { "method": "POST", "path": "/scrape", "methodSource": "catalog", "catalogEndpoint": "/scrape" },
+  "response": { "…": "the vendor's body, unchanged" }
+}
+```
+
+- `creditsStatus` is `Committed` (spent), `Reserved` (still running, or marked for refund) or `Refunded` (returned). The top-level `creditsCharged` and `creditsStatus` are `null` when `paid` is `false`, or when the ledger couldn't be read at answer time (`payment` then omits them) — read the payment with [`list_payments`](/mcp/catalog-mcp/list-payments) later.
+- A `pending` answer works as for any paid call: poll [`get_payment_result`](/mcp/catalog-mcp/get-payment-result). The credits stay reserved until the service answers.
+
+### Refusals when paying with credits
+
+These charge nothing and reserve no credits. Each carries `funding: "subscription"`, the API's `code`, `retryable` and `message`, and an `alternative` saying how to pay the same call from your delegation instead.
+
+| `error` | What happened |
+| --- | --- |
+| `no_active_subscription` | No subscription that can spend right now: none, ended, past due, suspended by a card dispute — or a call made with the API key of an organization you're a member of. |
+| `subscription_not_eligible` | This endpoint can't be paid with credits — see `reason`. With `reason: "wallet_bound"` the service sells only to the payer's own crypto wallet, so the `alternative` asks for the `delegationId` of a personal crypto-wallet delegation: a card or organization delegation can't pay it either. (With `code: null` and no `alternative`, it's the HTTP method: credits price only `GET`, `POST`, `PUT`, `PATCH` and `DELETE`.) |
+| `insufficient_credits` | Not enough credits left this month for this call (`credits` is its cost). |
+| `subscription_ceiling_exceeded` | The merchant's live price is outside what the rate allows right now: above its bound, in another asset or network, or unreadable (`reason`). |
+| `subscription_rail_unsupported` | The merchant asked for a rail credits don't pay (`rail`). |
+| `subscription_payment_refused` | Nevermined's treasury couldn't make this payment; `code` and `retryable` say why and whether to retry. |
+| `subscription_unavailable` | Credits can't be spent from this connection or deployment — for example an OAuth connection, which spends its commerce grant. |
+| `subscription_cap_reached` | Not returned today: the subscription has no spending limit beyond your credits. Retry later if you see it. |
+
+With `funding` omitted, `{ "error": "funding_undetermined", "retryable": true }` means what would pay this call couldn't be decided — nothing was charged; retry.
+
+Other failures of a credits call use the usual outcomes above — `payment_failed`, `payment_indeterminate`, `already_paid`, `pending` — with `funding: "subscription"`: read `code` and `retryable`.
+
+<Note>
+A credits call refused because too few credits are left this month is **not** moved to your delegation on its own — starting to spend money when your allowance runs out is your decision. Retry with `funding: "delegation"` if you want the delegation to pay.
+</Note>
 
 ## Try it
 
