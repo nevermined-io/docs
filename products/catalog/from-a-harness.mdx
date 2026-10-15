@@ -113,9 +113,8 @@ Listings are returned in a **recommended order** — Nevermined's own quality ra
 <Warning>
 **Read an endpoint's request schema before you call it — never guess parameter names.** Discover with the feed if you like, but `ai-catalog.json` never carries request schemas, by design. Before calling an endpoint, read its `requestSchema` — the merchant-declared JSON Schema of the query or body fields it takes, and which are `required` — from a detail-shaped read:
 
-- **ARD search:** `POST https://api.live.nevermined.app/api/v1/ard/search` with `{ "query": { "text": "<what you need>" } }` → `results[].nvm:catalog.endpoints[].requestSchema`.
-- **ARD list:** `GET https://api.live.nevermined.app/api/v1/ard/agents` → `items[].nvm:catalog.endpoints[].requestSchema`.
-- **Catalog MCP:** `get_service` → `requestShape.endpoints[].requestSchema` (no key needed).
+- **One service you already picked:** Catalog MCP `get_service` with its slug → `requestShape.endpoints[].requestSchema` (no key needed), or ARD search `POST https://api.live.nevermined.app/api/v1/ard/search` with `{ "query": { "text": "<the service's name or what you need>" } }` → `results[].nvm:catalog.endpoints[].requestSchema`.
+- **Browsing:** ARD list `GET https://api.live.nevermined.app/api/v1/ard/agents` → `items[].nvm:catalog.endpoints[].requestSchema`. It is paged (20 per page by default, up to 100) and filters only by `type`, `tags`, `publisher` and `updatedAt`, so it cannot fetch one service by slug.
 
 Use the exact names the schema gives: an endpoint whose schema requires `ticker` rejects a call that sends `symbol` with a `422`. Where an endpoint has no `requestSchema`, build the request from its `requestExample` (pre-filled in `get_service`'s `payServiceArgs` when it is verified) and description, or from the provider's documentation — not from a guess. Multi-model services, for example, expect a **provider-prefixed model id** (`openai/gpt-4o-mini`, `google/gemini-2.5-flash-lite`); a bare `gpt-4o-mini` is usually rejected with a typed `400`.
 </Warning>
