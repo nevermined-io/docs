@@ -84,6 +84,8 @@ The marketplace entries use `source: "./skills"` with an explicit per-plugin `sk
 
 `strict: false` is load-bearing too: it tells the marketplace entry — rather than a `plugin.json` inside the skill directory — to define which skills the plugin exposes. The skill directories have no `plugin.json`, so removing `strict` would leave the entries claiming components nothing declares.
 
+The **Catalog MCP** is distributed to the **Cursor Marketplace** as a plugin: `.cursor-plugin/marketplace.json` at the repo root points at `plugins/nevermined-catalog/`, whose `mcp.json` names the hosted endpoint (`https://mcp.live.nevermined.app/mcp`; Cursor runs the OAuth sign-in on first use). It carries no skills, so a skill change never triggers Cursor's manual review. `source` is the same copy boundary as above — keep it on the plugin folder, never `"./"`. Its name, description, docs URL and keywords mirror `server.json` in nvm-monorepo (the official MCP Registry manifest); keep them in step. The endpoint is not versioned, so a release needs no plugin change; any change to these files is reviewed by Cursor again before it is published.
+
 ---
 
 ## Content Tone & Voice
