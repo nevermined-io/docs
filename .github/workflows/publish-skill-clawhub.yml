@@ -73,6 +73,16 @@ jobs:
       - name: Install ClawHub CLI
         run: npm install -g clawhub@^0.22
 
+      # A skill folder is also a Claude Code plugin (`.claude-plugin/` holds its
+      # plugin.json and directory icon), and `clawhub skill publish` refuses any
+      # folder with a plugin manifest ("This looks like a plugin"). Publish a copy
+      # without it; --source-path still names the real folder in this repo.
+      - name: Stage the skill without its plugin manifest
+        run: |
+          STAGED="$RUNNER_TEMP/$(basename "$SKILL_PATH")"
+          rsync -a --exclude '.claude-plugin/' "$SKILL_PATH/" "$STAGED/"
+          echo "PUBLISH_PATH=$STAGED" >> "$GITHUB_ENV"
+
       - name: Authenticate with ClawHub
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
@@ -97,7 +107,7 @@ jobs:
           # last line. `if` has no such edge — verified both ways.
           VERSION_ARG=()
           if [ -n "${SKILL_VERSION:-}" ]; then VERSION_ARG=(--version "$SKILL_VERSION"); fi
-          clawhub --no-input skill publish "$SKILL_PATH" \
+          clawhub --no-input skill publish "$PUBLISH_PATH" \
             --owner "$OWNER" --slug "$SLUG" --name "$SKILL_NAME" \
             "${VERSION_ARG[@]}" \
             --source-repo "$SOURCE_REPO" --source-commit "$SOURCE_COMMIT" \
@@ -113,7 +123,7 @@ jobs:
           VERSION_ARG=()
           if [ -n "${SKILL_VERSION:-}" ]; then VERSION_ARG=(--version "$SKILL_VERSION"); fi
           set +e
-          OUT=$(clawhub --no-input skill publish "$SKILL_PATH" \
+          OUT=$(clawhub --no-input skill publish "$PUBLISH_PATH" \
             --owner "$OWNER" --slug "$SLUG" --name "$SKILL_NAME" \
             "${VERSION_ARG[@]}" \
             --source-repo "$SOURCE_REPO" --source-commit "$SOURCE_COMMIT" \
