@@ -81,13 +81,21 @@ Every tool declares this split in its listing (`securitySchemes`: `noauth` on th
 
 ### Instant Setup Commands
 
-Any host that can send headers takes the server URL plus your Nevermined API key on the `Authorization` header. Discovery works with no key; paying needs a Nevermined **API key** and a funded, spend-capped **Delegation** — get a key from the [Nevermined app](https://nevermined.app) (see [Get an API key](#2-get-an-api-key)). Choose your tool:
+Any host that can send headers takes the server URL plus your Nevermined API key on the `Authorization` header. Discovery works with no key; paying needs a Nevermined **API key** and a funded, spend-capped **Delegation**. Get a key from the [Nevermined app](https://nevermined.app) (see [Get an API key](#2-get-an-api-key)). A Delegation is the spend mandate a person approves: an amount, an expiry and a number of purchases. Choose your tool:
 
 <Tabs>
   <Tab title="Claude Code">
     ```bash
     claude mcp add --transport http nevermined-catalog https://mcp.live.nevermined.app/mcp \
       --header "Authorization: Bearer ${NVM_API_KEY}"
+    ```
+  </Tab>
+  <Tab title="Codex">
+    ```toml
+    # Add to ~/.codex/config.toml
+    [mcp_servers.nevermined-catalog]
+    url = "https://mcp.live.nevermined.app/mcp"
+    bearer_token_env_var = "NVM_API_KEY"
     ```
   </Tab>
   <Tab title="Cursor">

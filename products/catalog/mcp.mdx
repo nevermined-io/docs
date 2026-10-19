@@ -10,9 +10,48 @@ The **Catalog MCP** (also called the Commerce MCP) is a hosted [MCP](https://mod
 This is the **buyer** side, packaged as MCP tools. If you instead want to put a paywall on *your own* MCP server so its tools get paid, that's the seller side — see [MCP Integration](/integrations/mcp). The [Docs MCP](/mcp/docs-mcp/overview) is a third, unrelated server that streams this documentation into your IDE.
 </Note>
 
-<Info>
-**The full guide lives in the MCP section: [Catalog MCP Overview](/mcp/catalog-mcp/overview).** It covers how to import the server into any harness, Claude or ChatGPT; authentication; the walkthrough quickstart; and the complete tool surface — with a reference page per tool. This page is the short introduction and the video.
-</Info>
+A **Delegation** is the spend mandate a person approves: an amount, an expiry and a number of purchases. The MCP spends only inside it.
+
+## Install
+
+| Environment | Server URL |
+| --- | --- |
+| **Live** | `https://mcp.live.nevermined.app/mcp` |
+| **Sandbox** | `https://mcp.sandbox.nevermined.app/mcp` |
+
+Discovery needs no key. Paying needs a Nevermined API key ([get one](/agents-guide/get-api-key)) and a funded Delegation ([enroll a card](/agents-guide/enroll-card)). Swap in the sandbox URL for a first run.
+
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http nevermined-catalog https://mcp.live.nevermined.app/mcp \
+      --header "Authorization: Bearer ${NVM_API_KEY}"
+    ```
+  </Tab>
+  <Tab title="Codex">
+    ```toml
+    # Add to ~/.codex/config.toml
+    [mcp_servers.nevermined-catalog]
+    url = "https://mcp.live.nevermined.app/mcp"
+    bearer_token_env_var = "NVM_API_KEY"
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    ```bash
+    mkdir -p ~/.cursor && echo '{
+      "mcpServers": {
+        "nevermined-catalog": {
+          "url": "https://mcp.live.nevermined.app/mcp",
+          "type": "http",
+          "headers": { "Authorization": "Bearer YOUR_NEVERMINED_API_KEY" }
+        }
+      }
+    }' > ~/.cursor/mcp.json
+    ```
+  </Tab>
+</Tabs>
+
+Claude and ChatGPT can connect with no API key, by approving a spending cap once over OAuth. The [full guide](/mcp/catalog-mcp/overview) covers that path, Continue and Claude Desktop, the quickstart and every tool.
 
 ## See it in action
 
