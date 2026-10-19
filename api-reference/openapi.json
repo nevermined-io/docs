@@ -2031,11 +2031,10 @@
             "name": "requestId",
             "required": false,
             "in": "query",
-            "description": "Exact, caller-scoped idempotency key: look up the one payment made with it. Percent-encode it (an unencoded `+` reads as a space). Selects the lookup envelope (`RouterPaymentLookupDto`); the other list filters are ignored.",
+            "description": "Exact, caller-scoped idempotency key: look up the one payment made with it. Matched exactly as you sent it, padding included. Percent-encode it (an unencoded `+` reads as a space). Selects the lookup envelope (`RouterPaymentLookupDto`); the other list filters are ignored.",
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 256,
               "example": "order-1234"
             }
           },
@@ -2081,7 +2080,7 @@
             }
           },
           "400": {
-            "description": "`from`/`to` are not valid ISO-8601 timestamps, or `requestId` is blank, padded, non-string, or longer than 256 characters (BCK.ROUTER.0001).",
+            "description": "`from`/`to` are not valid ISO-8601 timestamps, or `requestId` is empty or repeated (BCK.ROUTER.0001).",
             "content": {
               "application/json": {
                 "schema": {
