@@ -81,10 +81,12 @@ Every tool declares this split in its listing (`securitySchemes`: `noauth` on th
 
 ### Instant Setup Commands
 
-Any host that can send headers takes the server URL plus your Nevermined API key on the `Authorization` header. Discovery works with no key; paying needs a Nevermined **API key** and a funded, spend-capped **Delegation**. Get a key from the [Nevermined app](https://nevermined.app) (see [Get an API key](#2-get-an-api-key)). A Delegation is the spend mandate a person approves: an amount, an expiry and a number of purchases. Choose your tool:
+Any host that can send headers takes the server URL plus your Nevermined API key on the `Authorization` header. Discovery works with no key; paying needs a Nevermined **API key** and a funded, spend-capped **Delegation**. Get a key from the [Nevermined app](https://nevermined.app) (see [Get an API key](#2-get-an-api-key)). A Delegation is a payment method plus a spend mandate: an amount, an expiry and a number of purchases. Choose your tool:
 
 <Tabs>
   <Tab title="Claude Code">
+    Set `NVM_API_KEY` in your shell first: the command expands it once, into the stored server config.
+
     ```bash
     claude mcp add --transport http nevermined-catalog https://mcp.live.nevermined.app/mcp \
       --header "Authorization: Bearer ${NVM_API_KEY}"
@@ -97,18 +99,26 @@ Any host that can send headers takes the server URL plus your Nevermined API key
     url = "https://mcp.live.nevermined.app/mcp"
     bearer_token_env_var = "NVM_API_KEY"
     ```
+
+    Codex reads `NVM_API_KEY` from its environment when it starts, so restart Codex after setting it.
   </Tab>
   <Tab title="Cursor">
+    Add this entry under `"mcpServers"` in `~/.cursor/mcp.json`, next to any servers already there:
+
+    ```json
+    "nevermined-catalog": {
+      "url": "https://mcp.live.nevermined.app/mcp",
+      "type": "http",
+      "headers": { "Authorization": "Bearer YOUR_NEVERMINED_API_KEY" }
+    }
+    ```
+
+    Or merge it from the shell with `jq`, which keeps your existing servers and leaves the file untouched if it cannot parse it:
+
     ```bash
-    mkdir -p ~/.cursor && echo '{
-      "mcpServers": {
-        "nevermined-catalog": {
-          "url": "https://mcp.live.nevermined.app/mcp",
-          "type": "http",
-          "headers": { "Authorization": "Bearer YOUR_NEVERMINED_API_KEY" }
-        }
-      }
-    }' > ~/.cursor/mcp.json
+    mkdir -p ~/.cursor && f=~/.cursor/mcp.json && { [ -s "$f" ] || echo '{}' > "$f"; } && \
+      jq --arg k "$NVM_API_KEY" '.mcpServers["nevermined-catalog"] = {url: "https://mcp.live.nevermined.app/mcp", type: "http", headers: {Authorization: ("Bearer " + $k)}}' \
+      "$f" > "$f.tmp" && mv "$f.tmp" "$f"
     ```
   </Tab>
   <Tab title="Continue">
@@ -144,13 +154,13 @@ Any host that can send headers takes the server URL plus your Nevermined API key
   </Tab>
 </Tabs>
 
-Then restart your IDE to activate the connection. Rehearse on `https://mcp.sandbox.nevermined.app/mcp` first. A **stdio-only** host can bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
-
-If your assistant runs OAuth for you (Claude, ChatGPT, LangSmith Fleet), you don't need a key at all — connect by URL and approve a spending cap once. That path is [Connect from your assistant](#connect-from-your-assistant) below; the API-key path is the [Quickstart](#quickstart).
+Then restart your host to activate the connection. A **stdio-only** host can bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
 
 <Warning>
-These point at **live**, where `pay_service` moves real funds. Rehearse on sandbox, then switch to live with a small Delegation cap and the cheapest sub-cent service.
+These point at **live**, where `pay_service` moves real funds. Rehearse on sandbox first: use `https://mcp.sandbox.nevermined.app/mcp` with a **sandbox** API key (`sandbox:...`), because a key works only in the environment it was issued for. Then switch to live with a small Delegation cap and the cheapest sub-cent service.
 </Warning>
+
+**Hosts that need no API key.** Claude (claude.ai), ChatGPT, Claude Code, LangSmith Fleet, and Cursor through the Nevermined plugin in the Cursor Marketplace run OAuth for you: connect by URL and approve a spending cap once. See [Connect from your assistant](/mcp/catalog-mcp/overview#connect-from-your-assistant). The API-key setup above is for every other host, and for Claude Code or Cursor when you prefer a key.
 
 ## Auth & transport
 
