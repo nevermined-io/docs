@@ -16,7 +16,7 @@ Read the balances of your **own personal wallet** — the funding source the cry
 
 ## Returns
 
-The wallet address and, per network, its token balances:
+The wallet address and, per network, its token balances and the money it has locked in payment channels:
 
 ```json
 {
@@ -27,9 +27,26 @@ The wallet address and, per network, its token balances:
       "balances": [
         { "symbol": "USDC", "decimals": 6, "atomic": "1500000", "formatted": "1.5" },
         { "symbol": "EURC", "decimals": 6, "atomic": "0", "formatted": "0" }
-      ]
+      ],
+      "lockedInChannels": []
     },
-    { "network": 4217, "error": "…" }
+    {
+      "network": 4217,
+      "balances": [
+        { "symbol": "USDC.e", "decimals": 6, "atomic": "4000000", "formatted": "4" },
+        { "symbol": "EURC.e", "decimals": 6, "atomic": "0", "formatted": "0" }
+      ],
+      "lockedInChannels": [
+        {
+          "network": 4217,
+          "token": "0x20C000000000000000000000b9537d11c60E8b50",
+          "symbol": "USDC.e",
+          "decimals": 6,
+          "atomic": "6000000",
+          "formatted": "6"
+        }
+      ]
+    }
   ]
 }
 ```
@@ -39,6 +56,7 @@ The wallet address and, per network, its token balances:
 </Warning>
 
 - A token whose `atomic`/`formatted` is **`null`** was **not read** (the on-chain read failed) — that is **not** a zero balance. A chain that couldn't be read at all comes back as an entry with `error` instead of `balances`.
+- **`lockedInChannels`** is money your payer wallet (the one the Router signs MPP payments with, which is this wallet once your account is migrated) has deposited into payment channels with merchants that charge per call over an MPP session, per token, held in the channel's escrow. It is **not** part of `balances` and it is **not spent**: it can pay further calls only to the merchant holding that channel, and what is unused comes back to that wallet when the channel closes, after 15 minutes without use. Report it beside the balance, never as spending, and never count it toward paying any other merchant. A null `symbol`/`decimals`/`formatted` here means a token Nevermined does not recognise (report `atomic` as raw units of `token`), not an unread amount. An empty list means nothing is locked; **`null`** means it could not be read, not that nothing is locked.
 - Pass a chain id this deployment does **not** serve and you get the deployment's **primary** network back (its own chain id, not the one you asked for) with a `warning` — so those balances say nothing about the chain you asked about.
 
 ## What it doesn't cover

@@ -37,6 +37,7 @@ The figures are nested under `budget`; `delegationId`, `message`, and `instructi
 
 - **Relay `message` as it stands** — it is written to be read to the human, and because the figures include routing fees and rounding, **never substitute a figure of your own**.
 - Inside `budget`: `spentCents + remainingCents = capCents` while within cap; `transactionCount` is how many payments were made and `maxTransactions` the limit (`null` when there is none).
+- **`lockedInChannels`**, when present, is money the wallet this budget pays from has deposited into payment channels with merchants that charge per call over an MPP session, per token (same shape as in [`wallet_balance`](/mcp/catalog-mcp/wallet-balance)). It is **not spent** and **not charged to this budget**: it can pay further calls only to the merchant holding each channel, and what is unused comes back to that wallet when the channel closes, after 15 minutes without use; `message` then says so. It is that **wallet's total**, not a figure of this budget's own: every budget paying from the same wallet reports the same channels. An empty list means nothing is locked; `null` means it could not be read, and `message` says that too.
 - With no `delegationId` this reads the budget `pay_service` would use, which only includes budgets that can still pay. So `{ "status": "no_active_delegation" }` also covers a budget that ran out or expired — pass the `delegationId` from an earlier `pay_service` result to read that one anyway.
 
 ## Subscription credits

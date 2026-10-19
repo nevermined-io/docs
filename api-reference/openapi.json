@@ -1591,6 +1591,20 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "withPayer",
+            "required": false,
+            "in": "query",
+            "description": "When \"true\", also resolve `fundingWalletAddress` — the wallet the Router crypto rail spends from (EOA / 7702 kernel, or the org wallet) — and `lockedInChannels`, what that wallet has locked in MPP payment channels. Opt-in because it adds a wallet lookup and a channel read.",
+            "example": "true",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
           }
         ],
         "responses": {
@@ -4587,6 +4601,24 @@
             ],
             "example": "2026-02-13T14:00:00Z",
             "format": "date-time"
+          },
+          "fundingWalletAddress": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "0x1234abcd5678ef901234abcd5678ef901234abcd",
+            "description": "On-chain wallet the Router crypto rail spends from for this delegation — the caller EOA (7702 kernel address for migrated wallets) for a personal delegation, or the organization wallet for an org-wallet delegation. Fund/check THIS wallet before a Router call. Only returned when requested with `?withPayer=true`. `null` on card-backed delegations (a card is not funded from a wallet), or on a crypto delegation whose payer wallet could not be resolved."
+          },
+          "lockedInChannels": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LockedChannelFundsDto"
+            },
+            "description": "Money `fundingWalletAddress` has deposited into MPP session payment channels and can still get back, per chain and token. It has left the wallet but it is not spent and it is not charged to this budget: it comes back to the wallet when the channel closes. It is the FUNDING WALLET’s total, not a per-delegation figure: every delegation spending from the same wallet reports the same channels. Only returned when requested with `?withPayer=true`. An empty list means nothing is locked, and is what a card-backed delegation reports. `null` means it could not be determined (the funding wallet could not be resolved, or the read failed), which is not the same as nothing locked."
           }
         },
         "required": [
@@ -4604,6 +4636,60 @@
           "planId",
           "maxTransactions",
           "lastUsedAt"
+        ]
+      },
+      "LockedChannelFundsDto": {
+        "type": "object",
+        "description": "Money a wallet has locked in MPP session payment channels, on one chain, in one token.",
+        "properties": {
+          "network": {
+            "type": "integer",
+            "example": 4217,
+            "description": "Chain id the payment channels are on"
+          },
+          "token": {
+            "type": "string",
+            "example": "0x20C000000000000000000000b9537d11c60E8b50",
+            "description": "The token the channels hold in escrow, EIP-55 checksummed"
+          },
+          "symbol": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "USDC.e",
+            "description": "Ticker, or null when the token is not one Nevermined recognises"
+          },
+          "decimals": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "example": 6,
+            "description": "Decimal scale of `atomic`, or null when unknown"
+          },
+          "atomic": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "example": "6000000",
+            "description": "Atomic (integer) amount locked, as a string: over every payment channel on this chain and token that is not closed yet, the deposit minus the payments its vouchers already authorized."
+          },
+          "formatted": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "6",
+            "description": "Human-readable amount; null exactly when `decimals` is"
+          }
+        },
+        "required": [
+          "network",
+          "token",
+          "symbol",
+          "decimals",
+          "atomic",
+          "formatted"
         ]
       },
       "DelegationTransactionListDto": {
