@@ -35,13 +35,13 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
 
 <Steps>
   <Step title="Add the server to your Kiro MCP config">
-    Add a remote MCP server to Kiro's MCP configuration (`mcp.json`) pointing at the environment you want. Set `oauth.clientId` to `kiro` and omit `clientSecret` — the Kiro IDE supports public clients only, so there is no secret to paste:
+    Add a remote MCP server to Kiro's MCP config — `.kiro/settings/mcp.json` in your workspace, or `~/.kiro/settings/mcp.json` for every workspace — pointing at the environment you want. Set `oauth.clientId` to `kiro` and omit `clientSecret` — the Kiro IDE supports public clients only, so there is no secret to paste:
 
     ```json
     {
       "mcpServers": {
         "nevermined": {
-          "url": "https://mcp.sandbox.nevermined.app/mcp",
+          "url": "https://mcp.api.sandbox.nevermined.app/mcp",
           "oauth": {
             "clientId": "kiro"
           }
@@ -50,7 +50,7 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
     }
     ```
 
-    For **live**, use `https://mcp.live.nevermined.app/mcp`. You don't need `redirectUri` — Kiro's default loopback callback (path `/oauth/callback`, on a random port) is already registered for the `kiro` client.
+    For **live**, use `https://mcp.api.live.nevermined.app/mcp`. Use the `mcp.api.<env>` host (not `mcp.<env>`): Kiro only starts OAuth when it connects to a server that challenges, and this host challenges on the first request. You don't need `redirectUri` — Kiro's default loopback callback (path `/oauth/callback`, on a random port) is already registered for the `kiro` client, and Nevermined matches it on any port.
   </Step>
   <Step title="Sign in">
     Kiro opens Nevermined's consent page in your browser when it connects to the server — see [Approve the spending cap](#approve-the-spending-cap).
@@ -74,11 +74,11 @@ That approval is a **commerce grant**: it spends only from the budget you just a
 
 ## Make your first paid call
 
-Ask for something only live data can answer, and name the connector so Kiro reaches for it rather than answering from memory.
+Once you've connected and approved the cap, name the connector so Kiro reaches for it rather than answering from memory.
 
 <Steps>
-  <Step title="Browse for free">
-    Ask *"list the Nevermined catalog categories"* — a free tool call, no sign-in.
+  <Step title="Browse the catalog">
+    Ask *"list the Nevermined catalog categories through the Nevermined connector"* to see what's available.
   </Step>
   <Step title="Ask it to buy">
     *"Buy the service with slug `<slug>` through the Nevermined connector and show me the response."* The paid call draws on the cap you approved and returns the merchant's response.
@@ -92,7 +92,7 @@ If Kiro answers without paying, it answered from its own knowledge — name the 
 ## Disconnect
 
 - **Revoke the budget (Nevermined side).** Open [Connections](https://nevermined.app/connections) and disconnect Kiro. The credential stops working on its next call; discovery still works.
-- **Remove the connector (Kiro side).** Remove the `nevermined` entry from the `mcpServers` block in your `mcp.json`.
+- **Remove the connector (Kiro side).** Remove the `nevermined` entry from the `mcpServers` block in your `mcp.json`, or set `"disabled": true` on it to switch it off without deleting it.
 
 To spend again — after you disconnect, or after a cap is used up — re-run the connect step and approve a **new** cap. A budget is never widened or extended in place.
 

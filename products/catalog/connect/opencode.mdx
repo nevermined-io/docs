@@ -35,26 +35,24 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
 
 <Steps>
   <Step title="Add the server to your OpenCode config">
-    Add a remote MCP server to `opencode.jsonc` (your project config, or your global config to have it in every project) pointing at the environment you want. Set the OAuth **client id** to `opencode` and leave the **secret** out — Nevermined accepts public PKCE clients only, so there is no secret to paste:
+    Add a remote MCP server to your OpenCode config — the global `~/.config/opencode/opencode.json`, or `opencode.json` in a project root — pointing at the environment you want. Set the OAuth **client id** to `opencode` and leave the **secret** out — Nevermined accepts public PKCE clients only, so there is no secret to paste:
 
-    ```jsonc
+    ```json
     {
       "$schema": "https://opencode.ai/config.json",
       "mcp": {
-        "servers": {
-          "nevermined": {
-            "type": "remote",
-            "url": "https://mcp.sandbox.nevermined.app/mcp",   // live: https://mcp.live.nevermined.app/mcp
-            "oauth": {
-              "client_id": "opencode"
-            }
+        "nevermined": {
+          "type": "remote",
+          "url": "https://mcp.sandbox.nevermined.app/mcp",
+          "oauth": {
+            "clientId": "opencode"
           }
         }
       }
     }
     ```
 
-    You don't need `redirect_uri` — OpenCode's default loopback callback (`http://127.0.0.1/callback`, on an ephemeral port) is already registered for the `opencode` client.
+    For **live**, use `https://mcp.live.nevermined.app/mcp`. You don't need to set a redirect URI — OpenCode's default loopback callback (`http://127.0.0.1:19876/mcp/oauth/callback`) is already registered for the `opencode` client, and Nevermined matches it on any port.
   </Step>
   <Step title="Sign in">
     Run `opencode mcp auth nevermined`. OpenCode opens Nevermined's consent page in your browser — see [Approve the spending cap](#approve-the-spending-cap).
@@ -96,7 +94,7 @@ If OpenCode answers without paying, it answered from its own knowledge — name 
 ## Disconnect
 
 - **Revoke the budget (Nevermined side).** Open [Connections](https://nevermined.app/connections) and disconnect OpenCode. The credential stops working on its next call; discovery still works.
-- **Remove the connector (OpenCode side).** Remove the `nevermined` entry from the `mcp.servers` block in `opencode.jsonc`.
+- **Remove the connector (OpenCode side).** Run `opencode mcp logout nevermined` to clear the stored tokens (OpenCode keeps them in `~/.local/share/opencode/mcp-auth.json`), then remove the `nevermined` entry from the `mcp` block in your `opencode.json`.
 
 To spend again — after you disconnect, or after a cap is used up — re-run the connect step and approve a **new** cap. A budget is never widened or extended in place.
 
