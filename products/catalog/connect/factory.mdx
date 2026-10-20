@@ -35,29 +35,26 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
 
 <Steps>
   <Step title="Add the MCP server">
-    Add the Nevermined Catalog as a remote MCP server in Droid's MCP configuration, pointing at the URL for your environment:
+    Add the Nevermined Catalog as a remote HTTP MCP server with `droid mcp add`, pointing at the environment you want:
 
-    | Environment | Server URL |
-    | --- | --- |
-    | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
-    | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
+    ```bash
+    droid mcp add nevermined https://mcp.sandbox.nevermined.app/mcp --type http   # live: https://mcp.live.nevermined.app/mcp
+    ```
 
-    Leave any client id / secret out — Droid self-registers over OAuth using its published client metadata (the Catalog is a public PKCE client), so there is no key to paste.
-    {/* TODO (flag to the docs reviewer): confirm the exact Droid MCP config path / command and the loopback `callbackPort` default before removing this comment. Factory publishes no public MCP-config docs URL for this — the CIMD values were captured from the droid CLI, not a doc. */}
+    The entry lands in your user config at `~/.factory/mcp.json` (a project-scoped `.factory/mcp.json` works too — don't commit secrets there). Pass no `--header` and no `--no-oauth`: Droid identifies itself to Nevermined with its own client metadata document and runs the OAuth (PKCE) flow, so there is nothing to register and no key to paste.
   </Step>
-  <Step title="Authorize">
-    The first **paid** tool call opens Nevermined's consent page — see [Approve the spending cap](#approve-the-spending-cap). Browsing and free tools need no sign-in.
-    {/* TODO (D4 per-host check — argocd#785 trust entries): "first paid call" assumes this host retries a mid-session 401 like Claude does. If Droid only runs OAuth on connect (e.g. an explicit login command) it is never prompted on the mcp.<env> host; confirm this host and, if connect-only, switch this page to the mcp.api.<env> host (mcp/catalog-mcp/overview.mdx:355). */}
+  <Step title="Sign in">
+    `droid mcp list` shows the server as **needs authentication** until you sign in. Run `/mcp`, select the Nevermined server and choose **Authenticate** — Droid opens Nevermined's consent page in your browser. See [Approve the spending cap](#approve-the-spending-cap).
   </Step>
 </Steps>
 
 <Note>
-Factory's remote-MCP configuration is still settling and its menus differ across `droid` builds. If you can't find where to add a remote MCP server, check Factory's current MCP docs — the connection is a standard remote MCP server over OAuth, with no client id or secret to enter.
+Droid signs in against the quickstart `mcp.<env>` host above, which starts the consent when Droid authenticates. If your `droid` build reports the server healthy but never prompts you to authenticate against that host, switch the URL to the `mcp.api.<env>` host — `https://mcp.api.sandbox.nevermined.app/mcp` (live: `https://mcp.api.live.nevermined.app/mcp`) — which challenges on connect.
 </Note>
 
 ## Approve the spending cap
 
-Factory Droid opens Nevermined's consent page on your first **paid** call. Discovery and free tools need no credential. It is the one place a human is required.
+Factory Droid opens Nevermined's consent page when you authenticate the server — the `/mcp` → **Authenticate** step above. It is the one place a human is required.
 
 <Steps>
   <Step title="Check who and where">
@@ -76,7 +73,7 @@ Ask for something only live data can answer, and name the connector so Droid rea
 
 <Steps>
   <Step title="Browse for free">
-    Ask *"list the Nevermined catalog categories"* — a free tool call, no sign-in.
+    Ask *"list the Nevermined catalog categories"* — a free tool call that doesn't draw on your cap.
   </Step>
   <Step title="Ask it to buy">
     *"Buy the service with slug `<slug>` through the Nevermined connector and show me the response."* The paid call draws on the cap you approved and returns the merchant's response.
@@ -90,7 +87,7 @@ If Droid answers without paying, it answered from its own knowledge — name the
 ## Disconnect
 
 - **Revoke the budget (Nevermined side).** Open [Connections](https://nevermined.app/connections) and disconnect Factory Droid. The credential stops working on its next call; discovery still works.
-- **Remove the connector (Factory Droid side).** Remove the Nevermined server from Droid's MCP configuration.
+- **Remove the connector (Factory Droid side).** In `/mcp`, choose **Clear auth** to drop the stored OAuth credentials, then **Remove** to delete the server — or delete its entry from `~/.factory/mcp.json`.
 
 To spend again — after you disconnect, or after a cap is used up — re-run the connect step and approve a **new** cap. A budget is never widened or extended in place.
 
