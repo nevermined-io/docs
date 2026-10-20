@@ -34,31 +34,33 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
 
 <Steps>
   <Step title="Add the server to Antigravity's MCP config">
-    Add a remote server entry to Antigravity's MCP configuration (`mcp_config.json`) with the Catalog's server URL for your environment:
+    Open the raw MCP config — in the agent side panel, **… → MCP Servers → Manage MCP Servers → View raw config** (stored at `~/.gemini/config/mcp_config.json`) — and add the Catalog as a remote server, using the `serverUrl` key (Antigravity does not accept `url` or `httpUrl`):
 
-    | Environment | Server URL |
-    | --- | --- |
-    | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
-    | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
+    ```json
+    {
+      "mcpServers": {
+        "nevermined": {
+          "serverUrl": "https://mcp.sandbox.nevermined.app/mcp"
+        }
+      }
+    }
+    ```
 
-    Antigravity runs an OAuth (PKCE) flow to authorize. Depending on your Antigravity build it may complete the flow on its own or ask for an OAuth client id / secret — we are confirming which (see the note below).
-    {/* TODO (flag in PR, verify at D4): Antigravity's config path differs between versions
-        (~/.gemini/antigravity/mcp_config.json vs ~/.gemini/config/mcp_config.json), and community
-        reports that remote-MCP OAuth support in the IDE is still maturing. Confirm the exact path
-        and that the CIMD OAuth round-trip completes before removing the Note below. */}
+    For **live**, use `https://mcp.live.nevermined.app/mcp`. Antigravity then runs an OAuth (PKCE) flow to authorize; depending on your build it may complete the flow on its own or ask for an OAuth client id / secret — we are confirming which (see the note below).
+    {/* TODO (verify at D4): shared config path is ~/.gemini/config/mcp_config.json (a workspace copy can live at .agents/mcp_config.json); older builds used ~/.gemini/antigravity/mcp_config.json. Remote-MCP OAuth in the IDE is still maturing — confirm the CIMD OAuth round-trip, and whether an `oauth` block with clientId/clientSecret is required, before removing the Note below. */}
   </Step>
   <Step title="Authorize">
-    Use the **Authenticate** action next to the server; Antigravity opens Nevermined's consent page. The first **paid** call is what triggers it — browsing and free tools need no sign-in. See [Approve the spending cap](#approve-the-spending-cap).
+    When Antigravity prompts to authorize the server — use the **Authenticate** action next to it — it opens Nevermined's consent page. See [Approve the spending cap](#approve-the-spending-cap). (We are confirming at D4 whether Antigravity authorizes up front or on the first paid call — see the note below.)
   </Step>
 </Steps>
 
 <Note>
-Antigravity's remote-MCP OAuth support is still settling across versions, and the config path differs between builds. We are validating the exact steps; if authorization does not complete, confirm your Antigravity build supports remote MCP servers with OAuth.
+Antigravity's remote-MCP OAuth support is still settling across versions, and the config path differs between builds. We are validating the exact steps at D4 — including whether Antigravity authorizes up front or on the first paid call. If it only authorizes on connect, this page will switch to the `mcp.api.<env>` host, which challenges on connect instead. If authorization does not complete, confirm your Antigravity build supports remote MCP servers with OAuth.
 </Note>
 
 ## Approve the spending cap
 
-Google Antigravity opens Nevermined's consent page on your first **paid** call. Discovery and free tools need no credential. It is the one place a human is required.
+Google Antigravity opens Nevermined's consent page when it runs the OAuth flow to authorize the server. It is the one place a human is required.
 
 <Steps>
   <Step title="Check who and where">

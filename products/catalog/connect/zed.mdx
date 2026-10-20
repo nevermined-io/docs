@@ -45,6 +45,7 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
   </Step>
   <Step title="Authorize">
     With no `Authorization` header set, Zed runs OAuth and opens Nevermined's consent page on your first **paid** call — browsing and free tools need no sign-in. The indicator dot next to the server name turns green (**Server is active**) once it is connected.
+    {/* TODO (D4 per-host check — argocd#785 trust entries): "first paid call" assumes this host retries a mid-session 401 like Claude does. If it only runs OAuth on connect it is never prompted on the mcp.<env> host; confirm this host and, if connect-only, switch this page to the mcp.api.<env> host (mcp/catalog-mcp/overview.mdx:355). */}
   </Step>
 </Steps>
 

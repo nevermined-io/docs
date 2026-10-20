@@ -45,6 +45,7 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
   </Step>
   <Step title="Authorize">
     Use the Catalog from Copilot **agent mode**. Browsing and free tools need no sign-in; the first **paid** call returns `401` and VS Code opens a browser window for authorization — Nevermined's consent page.
+    {/* TODO (D4 per-host check — argocd#785 trust entries): "first paid call" assumes this host retries a mid-session 401 like Claude does. If it only runs OAuth on connect it is never prompted on the mcp.<env> host; confirm this host and, if connect-only, switch this page to the mcp.api.<env> host (mcp/catalog-mcp/overview.mdx:355). */}
   </Step>
 </Steps>
 
