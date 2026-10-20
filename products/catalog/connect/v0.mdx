@@ -33,31 +33,29 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
 ## Add the Catalog to v0
 
 <Steps>
-  <Step title="Add the Catalog as an integration">
-    In a v0 chat, open the **Connect** tab and add the Nevermined Catalog as an MCP integration, pointing at the server URL for your environment:
+  <Step title="Add the Catalog as a custom MCP server">
+    In a v0 chat, open the **+** menu in the prompt form and choose **MCPs → add a custom server**. Enter the server URL for your environment and pick **OAuth** as the authentication method:
 
     | Environment | Server URL |
     | --- | --- |
     | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
     | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
 
-    {/* TODO (flag in PR, verify at D4): v0's public docs cover Marketplace integrations and an
-        API path for OAuth MCP servers, but do not clearly document adding an ARBITRARY remote MCP
-        URL with OAuth from the chat UI. Confirm the exact add-path (Connect tab vs the v0 API) and
-        the CIMD OAuth round-trip before removing the Note below. */}
+    {/* TODO (verify at D4): v0 documents the + → MCPs → custom-server → OAuth path, but not the
+        OAuth screens / field names. Confirm the CIMD OAuth round-trip completes before removing the Note below. */}
   </Step>
   <Step title="Authorize">
-    Complete the authentication flow v0 shows and grant the permissions it asks for — this opens Nevermined's consent page.
+    Complete the **OAuth** flow v0 shows and grant the permissions it asks for — this opens Nevermined's consent page. The first **paid** call is what triggers it; browsing and free tools need no sign-in.
   </Step>
 </Steps>
 
 <Note>
-v0's path for adding a custom remote MCP server with OAuth is still being verified. If the **Connect** tab does not accept the server URL, check v0's current MCP integration docs.
+If the **+ → MCPs** custom-server dialog is not available in your v0 build, check v0's current MCP docs — the custom-server UI is still rolling out.
 </Note>
 
 ## Approve the spending cap
 
-v0 opens Nevermined's consent page when you connect the integration. It is the one place a human is required.
+v0 opens Nevermined's consent page on your first **paid** call. Discovery and free tools need no credential. It is the one place a human is required.
 
 <Steps>
   <Step title="Check who and where">
@@ -90,7 +88,7 @@ If v0 answers without paying, it answered from its own knowledge — name the co
 ## Disconnect
 
 - **Revoke the budget (Nevermined side).** Open [Connections](https://nevermined.app/connections) and disconnect v0. The credential stops working on its next call; discovery still works.
-- **Remove the connector (v0 side).** Remove the Nevermined integration from the **Connect** tab / integration settings in v0.
+- **Remove the connector (v0 side).** Remove or disable the Nevermined custom server from the **+ → MCPs** menu in v0.
 
 To spend again — after you disconnect, or after a cap is used up — re-run the connect step and approve a **new** cap. A budget is never widened or extended in place.
 

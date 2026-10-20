@@ -41,7 +41,7 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
     url = "https://mcp.sandbox.nevermined.app/mcp"   # live: https://mcp.live.nevermined.app/mcp
     ```
 
-    Leave any client id / secret out — Codex self-registers over OAuth (the Catalog is a public PKCE client), so there is no key to paste.
+    Leave any client id / secret out — Codex identifies itself to Nevermined with its own client metadata document and runs the OAuth (PKCE) flow, so there is nothing to register and no key to paste.
   </Step>
   <Step title="Sign in">
     Run `codex mcp login nevermined`. Codex opens Nevermined's consent page in your browser — see [Approve the spending cap](#approve-the-spending-cap).
@@ -83,7 +83,7 @@ If Codex answers without paying, it answered from its own knowledge — name the
 ## Disconnect
 
 - **Revoke the budget (Nevermined side).** Open [Connections](https://nevermined.app/connections) and disconnect Codex. The credential stops working on its next call; discovery still works.
-- **Remove the connector (Codex side).** Remove the `[mcp_servers.nevermined]` block from your `config.toml` (or run `codex mcp remove nevermined`).
+- **Remove the connector (Codex side).** Run `codex mcp logout nevermined` first to clear the stored OAuth tokens, then remove the `[mcp_servers.nevermined]` block from your `config.toml` (or run `codex mcp remove nevermined`). To keep the entry but switch it off instead, set `enabled = false`.
 
 To spend again — after you disconnect, or after a cap is used up — re-run the connect step and approve a **new** cap. A budget is never widened or extended in place.
 

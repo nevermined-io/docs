@@ -41,10 +41,10 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
     | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
     | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
 
-    (Goose Desktop: **Settings → Extensions → Add custom extension** and paste the same URL.) There is no key to set — Goose uses OAuth 2.0 with PKCE and refreshes tokens for you.
+    (Goose Desktop: open the **Extensions** view and choose **Add custom extension**, then paste the same URL.) There is no key to set — Goose uses OAuth 2.0 with PKCE.
   </Step>
   <Step title="Sign in on first use">
-    The first tool call opens a browser to Nevermined's consent page — see [Approve the spending cap](#approve-the-spending-cap).
+    The first **paid** tool call opens a browser to Nevermined's consent page — see [Approve the spending cap](#approve-the-spending-cap). Browsing and free tools need no sign-in.
   </Step>
 </Steps>
 
@@ -83,7 +83,7 @@ If Goose answers without paying, it answered from its own knowledge — name the
 ## Disconnect
 
 - **Revoke the budget (Nevermined side).** Open [Connections](https://nevermined.app/connections) and disconnect Goose. The credential stops working on its next call; discovery still works.
-- **Remove the connector (Goose side).** Remove the extension (`goose configure` → *Toggle/Remove Extensions*, or Goose Desktop **Settings → Extensions**).
+- **Remove the connector (Goose side).** In the CLI, disable it first (`goose configure` → *Toggle Extensions*), then remove it (`goose configure` → *Remove Extension*); in Goose Desktop, use the **Extensions** view.
 
 To spend again — after you disconnect, or after a cap is used up — re-run the connect step and approve a **new** cap. A budget is never widened or extended in place.
 

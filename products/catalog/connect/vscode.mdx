@@ -34,17 +34,17 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
 
 <Steps>
   <Step title="Add the MCP server">
-    Open the Command Palette and run **MCP: Add Server**, choose **HTTP**, and paste the URL for your environment:
+    Open the Command Palette and run **MCP: Add Server**, choose **HTTP (HTTP or Server-Sent Events)**, and paste the URL for your environment:
 
     | Environment | Server URL |
     | --- | --- |
     | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
     | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
 
-    VS Code writes it to `.vscode/mcp.json` (workspace) or your user profile. Leave the OAuth client id / secret empty — VS Code runs the OAuth flow for you (the Catalog is a public PKCE client that self-registers).
+    Pick where to save it — **Global → Copilot Global** writes to `~/.copilot/mcp-config.json`; the workspace `.vscode/mcp.json` and user-profile `mcp.json` options still work but are labelled deprecated in the guided flow. Leave the OAuth client id / secret empty — VS Code identifies itself with its own client metadata document and runs the OAuth (PKCE) flow for you, so there is nothing to register.
   </Step>
   <Step title="Authorize">
-    On the first connection VS Code opens a browser window for authorization — Nevermined's consent page. Then use the Catalog from Copilot **agent mode**.
+    Use the Catalog from Copilot **agent mode**. Browsing and free tools need no sign-in; the first **paid** call returns `401` and VS Code opens a browser window for authorization — Nevermined's consent page.
   </Step>
 </Steps>
 
@@ -54,7 +54,7 @@ This covers Microsoft's official **VS Code** builds with GitHub Copilot. Other V
 
 ## Approve the spending cap
 
-VS Code opens Nevermined's consent page on the first connection to the server. It is the one place a human is required.
+VS Code opens Nevermined's consent page on your first **paid** call — not when you add the server. Discovery and free tools need no credential. It is the one place a human is required.
 
 <Steps>
   <Step title="Check who and where">
@@ -87,7 +87,7 @@ If VS Code answers without paying, it answered from its own knowledge — name t
 ## Disconnect
 
 - **Revoke the budget (Nevermined side).** Open [Connections](https://nevermined.app/connections) and disconnect VS Code. The credential stops working on its next call; discovery still works.
-- **Remove the connector (VS Code side).** Remove the server from `.vscode/mcp.json` (or your user `mcp.json`), or disable it from the MCP servers view.
+- **Remove the connector (VS Code side).** Remove the server from wherever you saved it (e.g. `~/.copilot/mcp-config.json`), or disable it from the MCP servers view.
 
 To spend again — after you disconnect, or after a cap is used up — re-run the connect step and approve a **new** cap. A budget is never widened or extended in place.
 

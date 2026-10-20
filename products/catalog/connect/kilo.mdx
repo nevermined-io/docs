@@ -41,16 +41,16 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
     | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
     | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
 
-    Leave the headers / client id empty — Kilo starts the OAuth flow on connect (the Catalog is a public PKCE client). In the Kilo **CLI**, add it to `~/.kilocode/cli/global/settings/mcp_settings.json` instead.
+    Leave the headers / client id empty — in the VS Code extension Kilo runs the OAuth (PKCE) flow for you, identifying itself with its own client metadata document, so there is nothing to register. In the Kilo **CLI**, add it instead to your Kilo config (`~/.config/kilo/kilo.json`, or `./kilo.json` / `.kilo/kilo.json` for a project) as a `type: "remote"` entry with the `url`, then run `kilo mcp auth` to authenticate.
   </Step>
   <Step title="Authorize">
-    Kilo opens Nevermined's consent page when it connects to the server — see [Approve the spending cap](#approve-the-spending-cap).
+    Kilo opens a browser to Nevermined's consent page on your first **paid** call — see [Approve the spending cap](#approve-the-spending-cap). Browsing and free tools need no sign-in.
   </Step>
 </Steps>
 
 ## Approve the spending cap
 
-Kilo Code opens Nevermined's consent page when Kilo connects to the server. It is the one place a human is required.
+Kilo Code opens Nevermined's consent page on your first **paid** call. Discovery and free tools need no credential. It is the one place a human is required.
 
 <Steps>
   <Step title="Check who and where">

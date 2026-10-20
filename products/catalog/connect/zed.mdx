@@ -41,16 +41,16 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
     | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
     | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
 
-    Leave the headers and OAuth Client ID fields blank — Zed runs the standard MCP OAuth flow for you (the Catalog is a public PKCE client). Zed stores it under `context_servers` in your settings.
+    Leave the headers blank — with no `Authorization` header Zed runs the standard MCP OAuth (PKCE) flow for you, identifying itself with its own client metadata document, so there is nothing to register. Zed stores the server under `context_servers` in your settings.
   </Step>
   <Step title="Authorize">
-    With no auth header set, Zed prompts you to authenticate — Nevermined's consent page. Watch the indicator dot next to the server name turn ready.
+    With no `Authorization` header set, Zed runs OAuth and opens Nevermined's consent page on your first **paid** call — browsing and free tools need no sign-in. The indicator dot next to the server name turns green (**Server is active**) once it is connected.
   </Step>
 </Steps>
 
 ## Approve the spending cap
 
-Zed opens Nevermined's consent page when Zed prompts you to authenticate the server. It is the one place a human is required.
+Zed opens Nevermined's consent page on your first **paid** call. Discovery and free tools need no credential. It is the one place a human is required.
 
 <Steps>
   <Step title="Check who and where">
