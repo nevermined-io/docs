@@ -54,7 +54,7 @@ The per-assistant walkthroughs are below, and collected on the [Catalog videos](
 
 ## Pick your assistant
 
-The click paths differ; the mechanics underneath are identical. Each tab has the short version and a link to the full walkthrough.
+The click paths differ; the mechanics underneath are identical. Each tab has the short version and a link to the full walkthrough; **Other hosts** collects the coding agents and IDEs that connect the same way.
 
 <Tabs>
   <Tab title="Claude (claude.ai)">
@@ -137,6 +137,20 @@ The click paths differ; the mechanics underneath are identical. Each tab has the
     </Frame>
 
     Full provider table, the `mcp.api.` host requirement, and the cached-credential gotcha: [Catalog MCP → LangSmith Fleet](/mcp/catalog-mcp/overview#connect-from-your-assistant).
+  </Tab>
+  <Tab title="Other hosts">
+    Any MCP host that speaks OAuth connects the same way — point it at the Catalog URL and approve one cap. These coding agents and IDEs each have a step-by-step page (walkthrough videos are still being recorded):
+
+    - **[OpenAI Codex](/products/catalog/connect/codex)** — add the server to `~/.codex/config.toml`, then `codex mcp login`.
+    - **[VS Code + GitHub Copilot](/products/catalog/connect/vscode)** — **MCP: Add Server → HTTP**, used from Copilot agent mode.
+    - **[Google Antigravity](/products/catalog/connect/antigravity)** — add a remote MCP server and authorize.
+    - **[Hermes Agent](/products/catalog/connect/hermes)** — `hermes mcp add`, then `hermes mcp login`.
+    - **[Kilo Code](/products/catalog/connect/kilo)** — **Settings → MCP → Remote (HTTP)**, or the Kilo CLI.
+    - **[v0](/products/catalog/connect/v0)** — **＋ → MCPs → add a custom server → OAuth**.
+    - **[Zed](/products/catalog/connect/zed)** — **Settings → AI → MCP Servers → Add Remote Server**.
+    - **[Goose](/products/catalog/connect/goose)** — `goose configure → Add Extension → Remote Extension`.
+
+    Driving the Catalog from your own code or a coding agent instead? The concepts live on [Using the Catalog from a harness](/products/catalog/from-a-harness).
   </Tab>
 </Tabs>
 
