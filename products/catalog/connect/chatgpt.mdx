@@ -44,15 +44,13 @@ This covers the **manual** connection — adding the Catalog as a custom MCP app
   <Step title="A paid ChatGPT plan">
     Developer mode, where custom MCP apps live, needs a paid plan (Plus or above).
   </Step>
-  <Step title="Something to spend from">
-    A paid call draws on a budget you control. You can set one up two ways:
-    - **A spending cap you approve during connect** — the default. Nothing to prepare in advance: you approve it in [step 3](#approve-the-spending-cap), funded from your own wallet (crypto) or a card. This is a [commerce grant](/mcp/catalog-mcp/overview#auth-&-transport) — a capped, revocable budget, not a key.
-    - **A [Nevermined Subscription](/products/catalog/router/subscription)** — a monthly credit allowance Nevermined spends for you, with no wallet or Delegation to fund.
+  <Step title="A funded wallet">
+    A paid call draws on a **spending cap** you approve during connect — a [commerce grant](/mcp/catalog-mcp/overview#auth-&-transport): a capped, revocable budget funded from your own wallet, not a key. Fund that wallet first with the asset the service settles in — see [Fund your wallet](/products/catalog/router/quickstart#3-fund-your-wallet). You approve the cap itself in [step 3](#approve-the-spending-cap).
   </Step>
 </Steps>
 
 <Note>
-Start on **sandbox**, where nothing costs real money, before you point ChatGPT at **live**.
+Start on **sandbox**, where you use testnet funds and nothing costs real money, before you point ChatGPT at **live**.
 </Note>
 
 ## Add the Catalog to ChatGPT
@@ -126,11 +124,9 @@ To spend again — after you disconnect, or after a cap is used up — re-run th
 
 ## From the ChatGPT directory
 
-A one-click listing in ChatGPT's connector directory — so users add the Catalog without Developer mode — is still in progress, and arrives with Wave 0.
-
-<Warning>
-**TODO (Wave 0, blocked on [nvm-monorepo #4542](https://github.com/nevermined-io/nvm-monorepo/issues/4542)).** The directory submission is not complete, and OpenAI's directory may require a UserInfo endpoint that the Nevermined authorization server does not yet expose. The directory connect steps, any deeplink, and the listing name are **not finalized** — this section is a placeholder and will be filled when Wave 0 lands. Until then, use the manual path above.
-</Warning>
+<Note>
+A one-click listing in ChatGPT's app directory — so you can add the Catalog without Developer mode — is coming. Until then, use the manual path above.
+</Note>
 
 ## Next
 
