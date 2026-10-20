@@ -38,19 +38,16 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
     Add the Nevermined Catalog as a remote HTTP MCP server with `droid mcp add`, pointing at the environment you want:
 
     ```bash
-    droid mcp add nevermined https://mcp.sandbox.nevermined.app/mcp --type http   # live: https://mcp.live.nevermined.app/mcp
+    droid mcp add nevermined https://mcp.api.sandbox.nevermined.app/mcp --type http   # live: https://mcp.api.live.nevermined.app/mcp
     ```
 
     The entry lands in your user config at `~/.factory/mcp.json` (a project-scoped `.factory/mcp.json` works too — don't commit secrets there). Pass no `--header` and no `--no-oauth`: Droid identifies itself to Nevermined with its own client metadata document and runs the OAuth (PKCE) flow, so there is nothing to register and no key to paste.
+    {/* Uses the mcp.api.<env> host (challenges on connect), not the quickstart mcp.<env> host: Droid is an explicit-auth host — it marks a server "needs authentication" and offers /mcp → Authenticate only when connecting gets a 401 challenge. mcp.<env> serves initialize/tools-list unchallenged (mcp/catalog-mcp/overview.mdx:180), so Droid would list the server as connected and never prompt; overview.mdx:355 routes explicit-auth hosts to the connect-challenge host. */}
   </Step>
   <Step title="Sign in">
     `droid mcp list` shows the server as **needs authentication** until you sign in. Run `/mcp`, select the Nevermined server and choose **Authenticate** — Droid opens Nevermined's consent page in your browser. See [Approve the spending cap](#approve-the-spending-cap).
   </Step>
 </Steps>
-
-<Note>
-Droid signs in against the quickstart `mcp.<env>` host above, which starts the consent when Droid authenticates. If your `droid` build reports the server healthy but never prompts you to authenticate against that host, switch the URL to the `mcp.api.<env>` host — `https://mcp.api.sandbox.nevermined.app/mcp` (live: `https://mcp.api.live.nevermined.app/mcp`) — which challenges on connect.
-</Note>
 
 ## Approve the spending cap
 
