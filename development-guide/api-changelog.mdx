@@ -14,6 +14,128 @@ every supported pin keeps working. See the [versioning guide](/development-guide
 - **Floor (oldest supported version):** `1.0`
 - **Live current version:** `GET /api/v1/meta/versions`
 
+## 1.70
+
+_Changes relative to `1.60`:_
+
+- **Router: a payment the merchant answered with an error (HTTP 4xx/5xx on the paid call, x402 exact or MPP-tempo charge) reads deliveryStatus "not_delivered" instead of "pending" until reconciliation decides whether the merchant charged; the delegation cap reserve is held exactly as before. GET /api/v1/router/payments (JSON and CSV) and GET /api/v1/purchases carry the new value; GET /api/v1/router/delegations/{id} adds a not_delivered key to spentMicrosByDeliveryStatus. Clients pinned below 1.70 read "pending" for those payments and the not_delivered spend folded into pending.** (`response`)
+  - `GET /api/v1/router/payments`
+  - `GET /api/v1/router/delegations/:id`
+  - `GET /api/v1/purchases`
+
+## 1.60
+
+_Changes relative to `1.56`:_
+
+- **Purchases: GET /api/v1/purchases includes Router calls paid with Nevermined Subscription credits (currency "credits", decimals 0, amountAtomic = credits charged; status may be the new "refunded", which marks the original row). Every row carries paidWith (card | crypto | credits), and the feed accepts a paidWith filter. GET /api/v1/purchases/summary adds a separate credits bucket (count, used, pending, refunded) and counts.refunded; credits are never added to a currency in byCurrency. Clients pinned below 1.60 see neither credits rows nor credits in any count (the handler decides from the resolved version); this gate strips paidWith, credits and counts.refunded for them.** (`response`)
+  - `GET /api/v1/purchases`
+  - `GET /api/v1/purchases/summary`
+
+## 1.56
+
+_Changes relative to `1.55`:_
+
+- **Router route results now retain normalized contentType and explicitly identify JSON, text and base64 body encodings; clients pinned below 1.56 retain the prior response shape, including bodyEncoding only for base64 bodies.** (`response`)
+  - `POST /api/v1/router/route`
+  - `POST /api/v1/router/route/with-controls`
+  - `POST /api/v1/router/commerce/route`
+  - `POST /api/v1/router/commerce/route/with-controls`
+  - `POST /api/v1/router/select`
+  - `POST /api/v1/router/commerce/select`
+
+## 1.55
+
+_Changes relative to `1.53`:_
+
+- **Router select requests add opaque catalog-slug require, prefer and exclude controls; older pins ignore those controls and retain the prior ranking behavior.** (`request`)
+  - `POST /api/v1/router/select`
+  - `POST /api/v1/router/commerce/select`
+- **Catalog rankScore becomes independent of the seller organization subscription tier; older pins receive null rather than a score whose semantics changed.** (`response`)
+  - `GET /api/v1/catalog/services`
+  - `GET /api/v1/catalog/services/:slug`
+  - `POST /api/v1/router/select`
+  - `POST /api/v1/router/commerce/select`
+- **Search and Router selection results add closed per-item match reasons (plus Router gate reasons), move ranking source onto each item, and separate semantic, lexical and federated score scales.** (`response`)
+  - `POST /api/v1/ard/search`
+  - `POST /api/v1/router/select`
+  - `POST /api/v1/router/commerce/select`
+- **Router quotes now return a short-lived opaque quoteId and expiresAt; passing quoteId to the matching /router/route call pays the sealed merchant challenge and exact fee-inclusive figure, while invalid, expired and mismatched ids are refused before payment. Clients pinned below 1.55 retain the prior quote response and routed-payment request shapes.** (`request+response`)
+  - `POST /api/v1/router/quote`
+  - `POST /api/v1/router/commerce/quote`
+  - `POST /api/v1/router/route`
+  - `POST /api/v1/router/route/with-controls`
+  - `POST /api/v1/router/commerce/route`
+  - `POST /api/v1/router/commerce/route/with-controls`
+
+## 1.53
+
+_Changes relative to `1.49`:_
+
+- **Catalog details replace responseFields with sanitised responseSchema/responseExample and add recipients/provenance.** (`response`)
+  - `GET /api/v1/catalog/services`
+  - `GET /api/v1/catalog/services/:slug`
+  - `POST /api/v1/ard/search`
+  - `GET /api/v1/ard/agents`
+- **Catalog details add endpoint and service verification plus service-level ledger success metrics.** (`response`)
+  - `GET /api/v1/catalog/services/:slug`
+  - `POST /api/v1/ard/search`
+  - `GET /api/v1/ard/agents`
+
+## 1.49
+
+_Changes relative to `1.48`:_
+
+- **Router route responses carry binary upstream bodies as lossless base64 with bodyEncoding; older pins retain the former UTF-8-decoded body.** (`response`)
+  - `POST /api/v1/router/route`
+  - `POST /api/v1/router/route/with-controls`
+  - `POST /api/v1/router/commerce/route`
+  - `POST /api/v1/router/commerce/route/with-controls`
+  - `POST /api/v1/router/select`
+  - `POST /api/v1/router/commerce/select`
+
+## 1.48
+
+_Changes relative to `1.43`:_
+
+- **Router: paid mode-B results are retained for the paying user for 24 hours and readable at the new GET /api/v1/router/payments/{id}/result; a paid routed result carries payment.resultUrl (under result on an autoPay /router/select). From 1.48 a paid /router/route-family call whose merchant has not answered within the 45 s sync budget is answered 202 { paymentId, resultUrl, status: "Pending" } (202 + Location + X-Router-Payment-Id on /router/proxy and /router/svc, before any response byte is streamed), and a retry with the same requestId returns the retained result instead of 409 BCK.ROUTER.0002. Clients pinned below 1.48 keep waiting for the hop and keep the 409 (the handler decides both from the resolved version); this gate strips payment.resultUrl for them.** (`response`)
+  - `POST /api/v1/router/route`
+  - `POST /api/v1/router/route/with-controls`
+  - `POST /api/v1/router/commerce/route`
+  - `POST /api/v1/router/commerce/route/with-controls`
+  - `POST /api/v1/router/select`
+  - `POST /api/v1/router/commerce/select`
+
+## 1.43
+
+_Changes relative to `1.34`:_
+
+- **BREAKING (shipped as a MINOR — see note): POST /organizations/:orgId/billing/upgrade no longer applies the tier inline. It now returns upgraded:false with requiresPayment:true and a clientSecret for a standalone PaymentIntent; only the payment_intent.succeeded webhook grants the tier. A client resolved below 1.43 CANNOT render the PaymentElement, so the handler REFUSES it up front with BCK.BILLING.0031 (an error, before any Stripe change) rather than returning a half-usable success — so this gate never actually reshapes a success response for an old client (it only ever sees 1.43+ responses); it is retained to register the 1.43 version boundary and as defence-in-depth. Released as 1.43 rather than 2.0.0 deliberately: the API version is the monorepo-wide MAJOR.MINOR, and a major bump would force every client on every endpoint to re-evaluate its pin for one endpoint whose old behaviour was itself a money bug (it granted paid tiers without payment). The break is now explicit (a 400 that names the required version), not a silent shape change, which is why a minor + the 0031 refusal is the deliberate choice.** (`response`)
+  - `POST /api/v1/organizations/:orgId/billing/upgrade`
+
+## 1.34
+
+_Changes relative to `1.31`:_
+
+- **POST /x402/permissions defaults to tokenVersion 3 (bound, single-use) when the field is omitted; clients below 1.34 keep the version 2 default (reusable, unbound)** (`request`)
+  - `POST /api/v1/x402/permissions`
+
+## 1.31
+
+_Changes relative to `1.21`:_
+
+- **Organization customer/analytics spend is bucketed per currency (totalSpentByCurrency, amountByCurrency, totalRevenueByCurrency, mrrByCurrency); clients below 1.31 keep the old cross-currency scalar fields (totalSpent, amount, totalRevenue, mrr)** (`response`)
+  - `GET /api/v1/organizations/:orgId/customers/aggregations`
+  - `GET /api/v1/organizations/:orgId/customers/:customerId/aggregations`
+  - `GET /api/v1/organizations/:orgId/analytics/revenue`
+  - `GET /api/v1/organizations/:orgId/analytics/mrr`
+
+## 1.21
+
+_Changes relative to `1.1`:_
+
+- **my-memberships surfaces cancelled orgs as lapsed memberships and adds an orgActive field; clients below 1.21 keep the old shape (cancelled orgs omitted, no orgActive field)** (`response`)
+  - `GET /api/v1/organizations/my-memberships`
+
 ## 1.1
 
 _Changes relative to `1.0`:_
