@@ -101,7 +101,7 @@ curl -s -G "$NVM_API_URL/api/v1/router/payments" \
 - **Exact, and scoped to you.** `presence` is `present` with your one payment for that `requestId`, or `absent` with an empty `payments` when you have none recorded. A failed read is an error, never `absent`.
 - **`absent` means "not recorded yet".** A payment is recorded when the Router pays, which can be well after you sent the call while it probes the service. If the original call may still be running, `absent` doesn't mean "not charged": retry with the **same** `requestId` — the Router pays at most once per `requestId` — never with a new one.
 - **The list filters don't apply.** `delegationId`, `from` and `to` are ignored, and the lookup isn't limited to the newest 1000 payments.
-- **The id must be a trimmed, non-blank string of at most 256 characters**, or the call is refused with `400 BCK.ROUTER.0001`. An id you sent with leading or trailing whitespace can't be looked up this way; list with `delegationId` and `from` and match `requestId` instead.
+- **The id is matched exactly as you sent it**, leading or trailing whitespace included, so `" order-1234"` and `"order-1234"` are two different payments. An empty or repeated `requestId` parameter is refused with `400 BCK.ROUTER.0001`.
 - **Use JSON to reconcile.** With `format=csv` you get the matching row, or only the header row when there is none — the CSV carries no `presence`.
 
 ### Reading the asset

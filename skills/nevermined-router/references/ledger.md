@@ -37,8 +37,8 @@ curl -s -G "$NVM_API_URL/api/v1/router/payments" --data-urlencode "requestId=$RE
 - **`absent` = not recorded YET.** The row is written when the Router pays, after the unpaid probe — so
   while the original call may still be running, `absent` is not "uncharged". Retry with the **same**
   `requestId` (at most one payment per id), never a fresh one.
-- The id must be trimmed, non-blank, ≤ 256 chars, else `400 BCK.ROUTER.0001`. An id sent with
-  leading/trailing whitespace can't be looked up — list with `delegationId` + `from` and match it.
+- The id is matched exactly as sent, whitespace included (`" a"` ≠ `"a"`). An empty or repeated
+  `requestId` parameter is `400 BCK.ROUTER.0001`.
 - Use JSON: `format=csv` answers the row, or a header only when absent — no `presence`.
 
 ### A record
