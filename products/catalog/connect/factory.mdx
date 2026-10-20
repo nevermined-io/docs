@@ -46,7 +46,8 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
     {/* TODO (flag to the docs reviewer): confirm the exact Droid MCP config path / command (docs.factory.com/cli/configuration/mcp) and the loopback `callbackPort` default before removing this comment. */}
   </Step>
   <Step title="Authorize">
-    Droid opens Nevermined's consent page to authorize — see [Approve the spending cap](#approve-the-spending-cap).
+    The first **paid** tool call opens Nevermined's consent page — see [Approve the spending cap](#approve-the-spending-cap). Browsing and free tools need no sign-in.
+    {/* TODO (D4 per-host check — argocd#785 trust entries): "first paid call" assumes this host retries a mid-session 401 like Claude does. If Droid only runs OAuth on connect (e.g. an explicit login command) it is never prompted on the mcp.<env> host; confirm this host and, if connect-only, switch this page to the mcp.api.<env> host (mcp/catalog-mcp/overview.mdx:355). */}
   </Step>
 </Steps>
 
@@ -56,7 +57,7 @@ Factory's remote-MCP configuration is still settling and its menus differ across
 
 ## Approve the spending cap
 
-Factory Droid opens Nevermined's consent page when it connects to the server. It is the one place a human is required.
+Factory Droid opens Nevermined's consent page on your first **paid** call. Discovery and free tools need no credential. It is the one place a human is required.
 
 <Steps>
   <Step title="Check who and where">
