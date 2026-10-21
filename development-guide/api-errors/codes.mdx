@@ -54,7 +54,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.PROTOCOL`](#bck-protocol) — 62 codes
 - [`BCK.PURCHASES`](#bck-purchases) — 5 codes
 - [`BCK.ROUTER`](#bck-router) — 44 codes
-- [`BCK.STRIPE`](#bck-stripe) — 40 codes
+- [`BCK.STRIPE`](#bck-stripe) — 41 codes
 - [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 8 codes
 - [`BCK.SUBSCRIPTION_ACCESS`](#bck-subscription_access) — 1 code
 - [`BCK.SUBSCRIPTION_BILLING`](#bck-subscription_billing) — 18 codes
@@ -832,6 +832,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-stripe-0042"></a>`BCK.STRIPE.0042` | 400 | validation | ❌ | A billing address is required for an organization subscription | Organization plans are billed net of tax, and VAT or sales tax is added from the billing address. Send `billingDetails.address` (at least the country) with the request. Nothing was charged. |
 | <a id="bck-stripe-0043"></a>`BCK.STRIPE.0043` | 400 | validation | ❌ | The billing address cannot be used to calculate tax | Stripe could not resolve a tax location from the billing address (see params.country). Check the country and, for the United States or Canada, the postal code, then try again. Nothing was charged. |
 | <a id="bck-stripe-0044"></a>`BCK.STRIPE.0044` | 400 | validation | ❌ | The tax ID is not valid | Stripe refused the tax ID for its type (see params.taxIdType) — usually a format that does not match the country. Correct it, or leave the tax ID empty to continue without one. Nothing was charged. |
+| <a id="bck-stripe-0045"></a>`BCK.STRIPE.0045` | 409 | business | ❌ | Your organization already has an active subscription | This organization-tier checkout did not say which organization to apply to, and your current organization already has an active subscription. To create a NEW organization, use "Create new organization"; to change this organization's tier, go to Organization → Billing. Nothing was charged. |
 
 ## <span id="bck-stripe-connect"></span>`BCK.STRIPE.CONNECT`
 
