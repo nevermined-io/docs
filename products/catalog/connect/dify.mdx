@@ -1,0 +1,100 @@
+---
+title: "Connect the Catalog from Dify"
+description: "How a Dify app will pay for Nevermined Catalog services with a plain API key — the funding you set up now, and the connector that's on the way."
+icon: "plug"
+---
+
+{/*
+  Instantiated from products/catalog/connect/_template.mdx (Wave 3, API-key hosts, nvm-monorepo#4545, epic #4537).
+  API-KEY MODEL (not OAuth): the plan is for Dify to authenticate to the Catalog MCP with a plain Nevermined API key.
+  OPEN (visible TODO on the page): Dify's BUILT-IN "Add MCP Server (HTTP)" flow supports only OAuth — Dynamic Client
+  Registration or a manual Client ID + Secret — with NO custom Authorization-header / API-key field (confirmed from
+  docs.dify.ai/en/guides/tools/mcp). So the plain-API-key connection is NOT available through Dify's native connector
+  today. The #4545 distribution route for Dify is a Marketplace plugin (DevRel, other repo) — once it ships it will
+  carry the key. Kept honest per the #579 precedent: document the funding you can set up now and flag the connector
+  as on-the-way, do not invent a header field Dify's UI doesn't have.
+  No Nevermined walkthrough video for Dify yet — add a <Frame> "See it in action" section when one is recorded
+  (video kit: products/catalog/connect/_video-kit.md).
+*/}
+
+A Dify app will be able to browse the [Nevermined Catalog](/products/catalog/overview) and pay for services with a plain Nevermined API key. This page covers the funding you can set up now and the connector that's on the way; for the full tool surface and the safety model, see [Using the Catalog from a harness](/products/catalog/from-a-harness).
+
+<Note>
+Dify connects with a **plain Nevermined API key**, not the OAuth "approve a spending cap" flow that some assistants (Claude, ChatGPT) use. The key is your credential — it spends whatever its Nevermined account funds, so you set the budget on your account, not in Dify.
+</Note>
+
+<Warning>
+**The connector is on the way.** Dify's built-in **Add MCP Server (HTTP)** flow authenticates with **OAuth only** (Dynamic Client Registration, or a manual Client ID + Secret) — it has no field for a plain API-key header, which is how the Catalog accepts these hosts. So you can't yet add the Catalog through Dify's native connector. A **Nevermined Dify Marketplace plugin** that carries the key is in progress; until it lands, drive the Catalog from your own code or another host — see [Using the Catalog from a harness](/products/catalog/from-a-harness). {/* TODO (Wave 3, nvm-monorepo#4545): publish the Dify Marketplace plugin, then document the "add the plugin → paste your key" steps here. */}
+</Warning>
+
+## Before you connect
+
+<Steps>
+  <Step title="A Nevermined account">
+    Free, at [nevermined.app](https://nevermined.app).
+  </Step>
+  <Step title="A Nevermined API key">
+    Create a **plain** API key in the app — **Settings → Global NVM API Keys** — for the environment you want, and send the whole string, prefix included (`sandbox:…` or `live:…`). A key minted by an OAuth flow can't pay through the Router's delegation routes, so use a plain one. See [Get a Nevermined API key](/agents-guide/get-api-key).
+  </Step>
+  <Step title="A way to pay">
+    The key spends from one of two budgets you set up once: a [Nevermined Subscription](/products/catalog/router/subscription) whose monthly credits a plain key can spend, or a spending **delegation** — a capped, revocable budget funded from your own wallet ([Using the Catalog from a harness](/products/catalog/from-a-harness) walks through it). Discovery is free and needs neither.
+  </Step>
+</Steps>
+
+<Note>
+Start on **sandbox**, where you use testnet funds and nothing costs real money, before you point Dify at **live**.
+</Note>
+
+## Add the Catalog to Dify
+
+The Catalog will connect through the **Nevermined Dify Marketplace plugin** (in progress — see the note above), because Dify's built-in MCP connector authenticates with OAuth only and the Catalog uses a plain API-key header for these hosts. When the plugin is published, this section becomes: add it from the Dify Marketplace and paste your Nevermined API key.
+
+The server URLs the plugin will point at:
+
+| Environment | Server URL |
+| --- | --- |
+| **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
+| **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
+
+In the meantime, your Nevermined account and funding are already usable from any host that accepts an API-key header, or from your own code — see [Using the Catalog from a harness](/products/catalog/from-a-harness).
+
+## Your Nevermined API key
+
+That key is your credential — there is no separate consent screen to approve. Keep the prefix: a `live:` key for `mcp.live`, a `sandbox:` key for `mcp.sandbox`.
+
+The key spends whatever its account funds — your [Subscription](/products/catalog/router/subscription) credits, or a [spending delegation](/products/catalog/from-a-harness) funded from your wallet — so the budget and the audit trail live on your Nevermined account, not in Dify. Treat it like a password: never commit it or paste it into a shared chat. Every way to mint one: [Get a Nevermined API key](/agents-guide/get-api-key).
+
+## Make your first paid call
+
+Once the plugin is connected, give your Dify app a task that needs a live, paid service, so it reaches for the Catalog tools rather than answering from memory.
+
+<Steps>
+  <Step title="Browse for free">
+    Have the app call a free discovery tool first — *list the Nevermined catalog categories*, or *search the catalog for a weather service*. Discovery needs no payment.
+  </Step>
+  <Step title="Let it buy">
+    Then have it pay a service by slug — *buy the service `<slug>` and return the response*. The paid call draws on your subscription credits or delegation and returns the merchant's response.
+  </Step>
+</Steps>
+
+<Tip>
+If the app answers without paying, it answered from its own knowledge — have it call a discovery tool first and ask for something only live data can answer. More on phrasing: [Catalog MCP tips](/mcp/catalog-mcp/overview#connect-from-your-assistant).
+</Tip>
+
+## Disconnect or rotate the key
+
+- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut Dify off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Connections](https://nevermined.app/connections); discovery still works.
+- **Remove the server (Dify side).** Once the plugin is installed, remove it from your Dify app's tools.
+
+To spend again, paste a fresh key and, if you revoked the delegation, fund a new [budget](/products/catalog/router/subscription).
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Using the Catalog from a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The full plain-key playbook — discovery, delegations, and the safety rules.
+  </Card>
+  <Card title="Catalog MCP — full reference" icon="plug" href="/mcp/catalog-mcp/overview#auth-&-transport">
+    Every tool, the API-key header, and every refusal code.
+  </Card>
+</CardGroup>

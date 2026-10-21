@@ -1,0 +1,108 @@
+---
+title: "Connect the Catalog from Notion Custom Agents"
+description: "Connect the Nevermined Catalog to a Notion Custom Agent — add one MCP connection, paste your Nevermined API key, and the agent pays for services as it works."
+icon: "plug"
+---
+
+{/*
+  Instantiated from products/catalog/connect/_template.mdx (Wave 3, API-key hosts, nvm-monorepo#4545, epic #4537).
+  API-KEY MODEL (not OAuth): a Notion Custom Agent authenticates to the Catalog MCP with a plain Nevermined API key
+  via header-based auth ("API keys or bearer tokens") — it does NOT need the OAuth commerce-consent flow. The key
+  spends whatever its account funds: Subscription credits, or a delegation (commerce grant) the user sets up.
+  Add-the-server path confirmed from notion.com/help/mcp-connections-for-custom-agents: a workspace admin enables
+  custom MCP servers and approves the URL first (Settings → Connections), then per-agent: Settings → Tools & Access
+  → Add connection → Custom MCP server → URL + auth → Connect.
+  GATING: MCP connections are Business/Enterprise plans only, Custom Agents only (not the default Notion AI). The
+  two Notion help pages give slightly different admin menu paths, so the admin step is worded at the Settings →
+  Connections level rather than asserting one exact sub-path.
+  No Nevermined walkthrough video for Notion yet — add a <Frame> "See it in action" section when one is recorded
+  (video kit: products/catalog/connect/_video-kit.md).
+*/}
+
+A Notion Custom Agent can browse the [Nevermined Catalog](/products/catalog/overview) and pay for services as it works. You add one MCP connection, paste your Nevermined API key, and the agent does the rest. This is the per-host walkthrough; for the full tool surface and the safety model, see [Using the Catalog from a harness](/products/catalog/from-a-harness).
+
+<Note>
+Notion connects with a **plain Nevermined API key**, not the OAuth "approve a spending cap" flow that some assistants (Claude, ChatGPT) use. The key is your credential — it spends whatever its Nevermined account funds, so you set the budget on your account, not in Notion.
+</Note>
+
+<Warning>
+Custom MCP connections are a **Custom Agents** feature on **Business and Enterprise plans only**, and a **workspace admin must enable custom MCP servers and approve the server URL** before an agent can use it. They don't apply to the default Notion AI.
+</Warning>
+
+## Before you connect
+
+<Steps>
+  <Step title="A Nevermined account">
+    Free, at [nevermined.app](https://nevermined.app).
+  </Step>
+  <Step title="A Nevermined API key">
+    Create a **plain** API key in the app — **Settings → Global NVM API Keys** — for the environment you want, and send the whole string, prefix included (`sandbox:…` or `live:…`). A key minted by an OAuth flow can't pay through the Router's delegation routes, so use a plain one. See [Get a Nevermined API key](/agents-guide/get-api-key).
+  </Step>
+  <Step title="A way to pay">
+    The key spends from one of two budgets you set up once: a [Nevermined Subscription](/products/catalog/router/subscription) whose monthly credits a plain key can spend, or a spending **delegation** — a capped, revocable budget funded from your own wallet ([Using the Catalog from a harness](/products/catalog/from-a-harness) walks through it). Discovery is free and needs neither.
+  </Step>
+</Steps>
+
+<Note>
+Start on **sandbox**, where you use testnet funds and nothing costs real money, before you point the agent at **live**.
+</Note>
+
+## Add the Catalog to your Custom Agent
+
+<Steps>
+  <Step title="Admin: approve the server (once)">
+    A workspace admin enables custom MCP servers and approves the Catalog URL in **Settings → Connections**. Approve the URL for the environment you want:
+
+    | Environment | Server URL |
+    | --- | --- |
+    | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
+    | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
+  </Step>
+  <Step title="Add the connection to the agent">
+    In your Custom Agent, open **Settings → Tools & Access → Add connection → Custom MCP server**, enter the same URL and a display name.
+  </Step>
+  <Step title="Authenticate with your key">
+    Choose the **header-based** (API key / bearer token) sign-in, paste your Nevermined API key, and **Connect**.
+  </Step>
+</Steps>
+
+## Your Nevermined API key
+
+That key is your credential — there is no separate consent screen to approve. Keep the prefix: a `live:` key for `mcp.live`, a `sandbox:` key for `mcp.sandbox`.
+
+The key spends whatever its account funds — your [Subscription](/products/catalog/router/subscription) credits, or a [spending delegation](/products/catalog/from-a-harness) funded from your wallet — so the budget and the audit trail live on your Nevermined account, not in Notion. Treat it like a password: never commit it or paste it into a shared chat. Every way to mint one: [Get a Nevermined API key](/agents-guide/get-api-key).
+
+## Make your first paid call
+
+Ask for something only live data can answer, and name the connection so the agent reaches for it rather than answering from memory.
+
+<Steps>
+  <Step title="Browse for free">
+    Ask the agent to *"list the Nevermined catalog categories"* — a free tool call, no payment.
+  </Step>
+  <Step title="Ask it to buy">
+    *"Buy the service with slug `<slug>` through the Nevermined connection and show me the response."* The paid call draws on your subscription credits or delegation and returns the merchant's response.
+  </Step>
+</Steps>
+
+<Tip>
+If the agent answers without paying, it answered from its own knowledge — name the connection and ask for live data. More on phrasing: [Catalog MCP tips](/mcp/catalog-mcp/overview#connect-from-your-assistant).
+</Tip>
+
+## Disconnect or rotate the key
+
+- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut the agent off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Connections](https://nevermined.app/connections); discovery still works.
+- **Remove the server (Notion side).** Remove the connection from the agent's **Tools & Access**; a workspace admin can also remove the approved server in **Settings → Connections**.
+
+To spend again, paste a fresh key and, if you revoked the delegation, fund a new [budget](/products/catalog/router/subscription).
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Using the Catalog from a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The full plain-key playbook — discovery, delegations, and the safety rules.
+  </Card>
+  <Card title="Catalog MCP — full reference" icon="plug" href="/mcp/catalog-mcp/overview#auth-&-transport">
+    Every tool, the API-key header, and every refusal code.
+  </Card>
+</CardGroup>
