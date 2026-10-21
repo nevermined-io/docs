@@ -60,10 +60,7 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
     | **Sandbox** — the right place for a first run | `https://mcp.sandbox.nevermined.app/mcp` |
     | **Live** — real merchants, real money | `https://mcp.live.nevermined.app/mcp` |
 
-    You can also add it from **Settings → MCP → Add server** (choose **Streamable HTTP**). Leave the server's `auth` unset — if you set `auth: oauth`, OpenClaw ignores the static `Authorization` header.
-  </Step>
-  <Step title="Check the connection">
-    Run `openclaw mcp doctor nevermined-catalog --probe` to confirm the server is reachable and the credential is accepted.
+    Leave the server's `auth` unset — if you set `auth: oauth`, OpenClaw ignores the static `Authorization` header.
   </Step>
 </Steps>
 
@@ -92,10 +89,10 @@ If OpenClaw answers without paying, it answered from its own knowledge — name 
 
 ## Disconnect or rotate the key
 
-- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut OpenClaw off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Connections](https://nevermined.app/connections); discovery still works.
+- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut OpenClaw off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Payment methods](https://nevermined.app/payment-methods); discovery still works.
 - **Remove the server (OpenClaw side).** Remove the Nevermined server from **Settings → MCP**, or delete its block under `mcp.servers` in your `openclaw.json`.
 
-To spend again, paste a fresh key and, if you revoked the delegation, fund a new [budget](/products/catalog/router/subscription).
+To spend again, paste a fresh key; if you revoked the delegation, create a new one — see [Using the Catalog from a harness](/products/catalog/from-a-harness).
 
 ## Next
 

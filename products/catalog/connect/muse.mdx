@@ -1,28 +1,28 @@
 ---
-title: "Connect the Catalog from Meta Muse"
-description: "How Meta Muse will reach the Nevermined Catalog — the account and funding you set up now, and the directory connector that's on the way."
+title: "Connect the Catalog from Muse"
+description: "How Muse will reach the Nevermined Catalog — the account and funding you set up now, and the directory connector that's on the way."
 icon: "plug"
 ---
 
 {/*
   Instantiated from products/catalog/connect/_template.mdx (Wave 3, API-key hosts, nvm-monorepo#4545, epic #4537).
-  API-KEY MODEL (not OAuth): the plan is for Meta Muse to reach the Catalog with a plain Nevermined API key.
+  API-KEY MODEL (not OAuth): the plan is for Muse to reach the Catalog with a plain Nevermined API key.
   OPEN (visible TODO on the page): platform.muse.ai (the "Muse Connector Platform") is SUBMISSION/REVIEW-ONLY —
   a developer describes the product, submits for review, and an approved connector becomes discoverable in the
   Muse agent and in Settings → Connectors. There is NO documented end-user "add a custom MCP server with a header"
   flow (confirmed from platform.muse.ai + /docs). So a user cannot self-serve this today; Nevermined must submit a
   connector for directory listing (DevRel, out of scope). Kept honest per the #579 precedent.
-  ATTRIBUTION NOTE for the reviewer: the #4545 host list names this "Meta Muse"; the site itself brands as "Muse
-  Connector Platform" (platform.muse.ai) and the page text read did not confirm Meta ownership — title follows the
-  issue's naming, body uses the platform's own name.
-  No Nevermined walkthrough video for Meta Muse yet — add a <Frame> "See it in action" section when one is recorded
+  NAMING NOTE: nvm-monorepo#4545 lists this host as "Meta Muse", but platform.muse.ai brands itself only as the
+  "Muse Connector Platform" and Meta ownership is NOT confirmed from the site. Per a should-fix on docs#591 the page,
+  title, slug and file are "Muse" — naming a third party wrongly on a published page is worse than leaving it out.
+  No Nevermined walkthrough video for Muse yet — add a <Frame> "See it in action" section when one is recorded
   (video kit: products/catalog/connect/_video-kit.md).
 */}
 
-Meta Muse will be able to browse the [Nevermined Catalog](/products/catalog/overview) and pay for services with a plain Nevermined API key. This page covers the account and funding you can set up now and the directory connector that's on the way; for the full tool surface and the safety model, see [Using the Catalog from a harness](/products/catalog/from-a-harness).
+Muse will be able to browse the [Nevermined Catalog](/products/catalog/overview) and pay for services with a plain Nevermined API key. This page covers the account and funding you can set up now and the directory connector that's on the way; for the full tool surface and the safety model, see [Using the Catalog from a harness](/products/catalog/from-a-harness).
 
 <Note>
-Meta Muse connects with a **plain Nevermined API key**, not the OAuth "approve a spending cap" flow that some assistants (Claude, ChatGPT) use. The key is your credential — it spends whatever its Nevermined account funds, so you set the budget on your account, not in Muse.
+Muse connects with a **plain Nevermined API key**, not the OAuth "approve a spending cap" flow that some assistants (Claude, ChatGPT) use. The key is your credential — it spends whatever its Nevermined account funds, so you set the budget on your account, not in Muse.
 </Note>
 
 <Warning>
@@ -47,9 +47,9 @@ Meta Muse connects with a **plain Nevermined API key**, not the OAuth "approve a
 Start on **sandbox**, where you use testnet funds and nothing costs real money, before you point Muse at **live**.
 </Note>
 
-## Add the Catalog to Meta Muse
+## Add the Catalog to Muse
 
-The Catalog will appear in Muse's **Settings → Connectors** once Nevermined's connector is approved on the Muse Connector Platform (in progress — see the note above). When it's listed, this section becomes: find Nevermined in the connectors directory and paste your Nevermined API key.
+The Catalog will appear in Muse's **Settings → Connectors** once Nevermined's connector is approved on the Muse Connector Platform (in progress — see the warning above). When it's listed, this section becomes: find Nevermined in the connectors directory and paste your Nevermined API key.
 
 In the meantime, your Nevermined account and funding are already usable from any host that accepts an API-key header, or from your own code — see [Using the Catalog from a harness](/products/catalog/from-a-harness).
 
@@ -78,10 +78,10 @@ If Muse answers without paying, it answered from its own knowledge — name the 
 
 ## Disconnect or rotate the key
 
-- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut Muse off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Connections](https://nevermined.app/connections); discovery still works.
+- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut Muse off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Payment methods](https://nevermined.app/payment-methods); discovery still works.
 - **Remove the server (Muse side).** Once the connector is listed, disconnect it from Muse's **Settings → Connectors**.
 
-To spend again, paste a fresh key and, if you revoked the delegation, fund a new [budget](/products/catalog/router/subscription).
+To spend again, paste a fresh key; if you revoked the delegation, create a new one — see [Using the Catalog from a harness](/products/catalog/from-a-harness).
 
 ## Next
 

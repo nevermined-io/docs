@@ -60,6 +60,10 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
   </Step>
 </Steps>
 
+<Note>
+Rehearse on **sandbox** first. The Catalog MCP accepts only the exact header `Authorization: Bearer <key>`; if Lovable sends your key in another shape, calls look connected but never pay — if that happens, ask for a free discovery call and confirm a paid one actually charges before trusting it on **live**.
+</Note>
+
 ## Your Nevermined API key
 
 That key is your credential — there is no separate consent screen to approve. Keep the prefix: a `live:` key for `mcp.live`, a `sandbox:` key for `mcp.sandbox`.
@@ -85,10 +89,10 @@ If Lovable answers without paying, it answered from its own knowledge — name t
 
 ## Disconnect or rotate the key
 
-- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut Lovable off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Connections](https://nevermined.app/connections); discovery still works.
+- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut Lovable off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Payment methods](https://nevermined.app/payment-methods); discovery still works.
 - **Remove the server (Lovable side).** In **Connectors**, open the Nevermined MCP server and remove it.
 
-To spend again, paste a fresh key and, if you revoked the delegation, fund a new [budget](/products/catalog/router/subscription).
+To spend again, paste a fresh key; if you revoked the delegation, create a new one — see [Using the Catalog from a harness](/products/catalog/from-a-harness).
 
 ## Next
 

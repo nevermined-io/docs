@@ -47,7 +47,7 @@ Start on **sandbox**, where you use testnet funds and nothing costs real money, 
 
 ## Add the Catalog to Dify
 
-The Catalog will connect through the **Nevermined Dify Marketplace plugin** (in progress — see the note above), because Dify's built-in MCP connector authenticates with OAuth only and the Catalog uses a plain API-key header for these hosts. When the plugin is published, this section becomes: add it from the Dify Marketplace and paste your Nevermined API key.
+The Catalog will connect through the **Nevermined Dify Marketplace plugin** (in progress — see the warning above), because Dify's built-in MCP connector authenticates with OAuth only and the Catalog uses a plain API-key header for these hosts. When the plugin is published, this section becomes: add it from the Dify Marketplace and paste your Nevermined API key.
 
 The server URLs the plugin will point at:
 
@@ -83,10 +83,10 @@ If the app answers without paying, it answered from its own knowledge — have i
 
 ## Disconnect or rotate the key
 
-- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut Dify off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Connections](https://nevermined.app/connections); discovery still works.
+- **Stop the credential (Nevermined side).** The key *is* the credential, so to cut Dify off, **rotate or delete the key** in the app (**Settings → Global NVM API Keys**) — every call with the old key then fails. To cap spending without revoking the key, revoke the delegation it spends from in [Payment methods](https://nevermined.app/payment-methods); discovery still works.
 - **Remove the server (Dify side).** Once the plugin is installed, remove it from your Dify app's tools.
 
-To spend again, paste a fresh key and, if you revoked the delegation, fund a new [budget](/products/catalog/router/subscription).
+To spend again, paste a fresh key; if you revoked the delegation, create a new one — see [Using the Catalog from a harness](/products/catalog/from-a-harness).
 
 ## Next
 
