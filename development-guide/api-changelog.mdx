@@ -18,7 +18,7 @@ every supported pin keeps working. See the [versioning guide](/development-guide
 
 _Changes relative to `1.60`:_
 
-- **Router: a payment the merchant answered with an error (HTTP 4xx/5xx on the paid call, x402 exact or MPP-tempo charge) reads deliveryStatus "not_delivered" instead of "pending" until reconciliation decides whether the merchant charged; the delegation cap reserve is held exactly as before. GET /api/v1/router/payments (JSON and CSV) and GET /api/v1/purchases carry the new value; GET /api/v1/router/delegations/{id} adds a not_delivered key to spentMicrosByDeliveryStatus. Clients pinned below 1.70 read "pending" for those payments and the not_delivered spend folded into pending.** (`response`)
+- **Router: a payment the merchant answered with an error (HTTP 4xx/5xx on the paid call, x402 exact or MPP-tempo charge) reads deliveryStatus "not_delivered" instead of "pending" until reconciliation decides whether the merchant charged; the delegation cap reserve is held exactly as before. GET /api/v1/router/payments (JSON and CSV) and GET /api/v1/purchases carry the new value; `GET /api/v1/router/delegations/{id}` adds a not_delivered key to spentMicrosByDeliveryStatus. Clients pinned below 1.70 read "pending" for those payments and the not_delivered spend folded into pending.** (`response`)
   - `GET /api/v1/router/payments`
   - `GET /api/v1/router/delegations/:id`
   - `GET /api/v1/purchases`
@@ -97,7 +97,7 @@ _Changes relative to `1.48`:_
 
 _Changes relative to `1.43`:_
 
-- **Router: paid mode-B results are retained for the paying user for 24 hours and readable at the new GET /api/v1/router/payments/{id}/result; a paid routed result carries payment.resultUrl (under result on an autoPay /router/select). From 1.48 a paid /router/route-family call whose merchant has not answered within the 45 s sync budget is answered 202 { paymentId, resultUrl, status: "Pending" } (202 + Location + X-Router-Payment-Id on /router/proxy and /router/svc, before any response byte is streamed), and a retry with the same requestId returns the retained result instead of 409 BCK.ROUTER.0002. Clients pinned below 1.48 keep waiting for the hop and keep the 409 (the handler decides both from the resolved version); this gate strips payment.resultUrl for them.** (`response`)
+- **Router: paid mode-B results are retained for the paying user for 24 hours and readable at the new `GET /api/v1/router/payments/{id}/result`; a paid routed result carries payment.resultUrl (under result on an autoPay /router/select). From 1.48 a paid /router/route-family call whose merchant has not answered within the 45 s sync budget is answered 202 `{ paymentId, resultUrl, status: "Pending" }` (202 + Location + X-Router-Payment-Id on /router/proxy and /router/svc, before any response byte is streamed), and a retry with the same requestId returns the retained result instead of 409 BCK.ROUTER.0002. Clients pinned below 1.48 keep waiting for the hop and keep the 409 (the handler decides both from the resolved version); this gate strips payment.resultUrl for them.** (`response`)
   - `POST /api/v1/router/route`
   - `POST /api/v1/router/route/with-controls`
   - `POST /api/v1/router/commerce/route`
