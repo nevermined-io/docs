@@ -55,7 +55,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.PURCHASES`](#bck-purchases) — 5 codes
 - [`BCK.ROUTER`](#bck-router) — 44 codes
 - [`BCK.STRIPE`](#bck-stripe) — 41 codes
-- [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 11 codes
+- [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 12 codes
 - [`BCK.SUBSCRIPTION_ACCESS`](#bck-subscription_access) — 1 code
 - [`BCK.SUBSCRIPTION_BILLING`](#bck-subscription_billing) — 18 codes
 - [`BCK.SUBSCRIPTION_CATALOG`](#bck-subscription_catalog) — 9 codes
@@ -850,6 +850,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-stripe-connect-0009"></a>`BCK.STRIPE.CONNECT.0009` | 403 | auth | — | This account cannot onboard as a Stripe seller | Seller onboarding is not available for this Nevermined account: it is disabled, or its profile has not been created yet. Sign in to the Nevermined app once to create the profile, or contact Nevermined support if you believe this is a mistake. |
 | <a id="bck-stripe-connect-0010"></a>`BCK.STRIPE.CONNECT.0010` | 403 | business | — | Seller onboarding is not available for this email domain | Use an email address on a different domain for your Nevermined account and Stripe onboarding, or contact Nevermined support. |
 | <a id="bck-stripe-connect-0011"></a>`BCK.STRIPE.CONNECT.0011` | 429 | business | ✅ | Too many Stripe accounts created recently | Each Nevermined account can create a limited number of Stripe Express accounts per day. Finish onboarding the account you already started, try again later, or contact Nevermined support. |
+| <a id="bck-stripe-connect-0012"></a>`BCK.STRIPE.CONNECT.0012` | 403 | auth | — | Stripe onboarding account does not belong to the caller | A supplied stripeAccountId must match your saved personal Stripe account in the current environment. Omit stripeAccountId to create a new account, or use the organization onboarding flow with orgId and no stripeAccountId. |
 
 ## <span id="bck-subscription_access"></span>`BCK.SUBSCRIPTION_ACCESS`
 
