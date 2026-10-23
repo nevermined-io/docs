@@ -26,6 +26,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.BILLING`](#bck-billing) — 27 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 21 codes
 - [`BCK.BUDGETS`](#bck-budgets) — 6 codes
+- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 5 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
 - [`BCK.CREDITS`](#bck-credits) — 14 codes
@@ -224,6 +225,16 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-budgets-0004"></a>`BCK.BUDGETS.0004` | 422 | validation | ❌ | Invalid group budget: the spending limit must be a positive number of cents | Provide spendingLimitCents as a whole number of minor units greater than 0 (e.g. "150000" for $1,500). |
 | <a id="bck-budgets-0005"></a>`BCK.BUDGETS.0005` | 409 | business | ❌ | A budget already exists for this currency in this group | Each group holds one budget per currency. Edit the existing budget for this currency, or create the budget in a different currency. |
 | <a id="bck-budgets-0006"></a>`BCK.BUDGETS.0006` | 422 | business | ❌ | No group budget is configured for this currency | An organization-wallet spend must be capped by a group budget. Add a budget in this currency to the group that shares the wallet. |
+
+## <span id="bck-card_payment"></span>`BCK.CARD_PAYMENT`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-card_payment-0001"></a>`BCK.CARD_PAYMENT.0001` | 404 | business | ❌ | The enrolled card cannot pay | params.paymentMethodId names no active card of the caller that can pay this purchase: it does not exist, belongs to someone else, is revoked, or carries no active network token. Only cards listed by GET /api/v1/payment-methods/chargeable qualify. Nothing was charged. |
+| <a id="bck-card_payment-0002"></a>`BCK.CARD_PAYMENT.0002` | 402 | business | ❌ | The enrolled card was declined | The card issuer refused the payment (params.declineCode when it gave one). Nothing was charged. Try another card. |
+| <a id="bck-card_payment-0003"></a>`BCK.CARD_PAYMENT.0003` | 502 | integration | ✅ | The enrolled card could not be authorised with the card network | No payment cryptogram could be obtained for the card, so nothing was sent to the payment processor and nothing was charged. Retry, or use another card. |
+| <a id="bck-card_payment-0004"></a>`BCK.CARD_PAYMENT.0004` | 502 | integration | ❌ | The outcome of the enrolled-card payment is unknown | The payment processor did not confirm the outcome, and the card may have been charged. Do not retry: the purchase completes, or fails, once the processor reports it. |
+| <a id="bck-card_payment-0005"></a>`BCK.CARD_PAYMENT.0005` | 409 | business | ❌ | Paying with an enrolled card is not available for this purchase | Paying this purchase (params.purpose) with a card enrolled with Nevermined is turned off on this deployment. GET /api/v1/payment-methods/chargeable answers enabled: false for it. |
 
 ## <span id="bck-catalog"></span>`BCK.CATALOG`
 
@@ -877,7 +888,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-subscription_billing-0013"></a>`BCK.SUBSCRIPTION_BILLING.0013` | 422 | integration | ❌ | A dispute closed with an outcome the subscription does not handle | The dispute (params.disputeId) closed with status params.status, which is neither won nor lost (for example prevented). Its clawback and suspension were left as they are and the event unprocessed. Decide the outcome, apply it by hand, then resend the event if a handler for the status ships. |
 | <a id="bck-subscription_billing-0014"></a>`BCK.SUBSCRIPTION_BILLING.0014` | 403 | business | ❌ | The Nevermined Subscription is available to personal accounts only | A checkout for an organization (ownerType "org") is refused: until it is decided how the subscription works for organizations, only a personal subscription can be bought. Subscribe with ownerType "user". An organization subscription bought earlier can still be read, managed and cancelled. |
 | <a id="bck-subscription_billing-0015"></a>`BCK.SUBSCRIPTION_BILLING.0015` | 404 | business | ❌ | Subscription checkout session not found | params.sessionId names no Nevermined Subscription checkout of this owner (params.ownerType): it does not exist, or another owner started it. Read the status of a checkout started by POST /api/v1/subscription/checkout, with the session id Stripe put on the return URL. |
-| <a id="bck-subscription_billing-0016"></a>`BCK.SUBSCRIPTION_BILLING.0016` | 404 | business | ❌ | The enrolled card cannot pay the subscription | params.paymentMethodId names no active card of the caller that can pay the Nevermined Subscription: it does not exist, is revoked, or carries no active network token. Only cards listed by GET /api/v1/subscription/checkout/enrolled-cards qualify; otherwise pay through POST /api/v1/subscription/checkout. Nothing was charged. |
+| <a id="bck-subscription_billing-0016"></a>`BCK.SUBSCRIPTION_BILLING.0016` | 404 | business | ❌ | The enrolled card cannot pay the subscription | params.paymentMethodId names no active card of the caller that can pay the Nevermined Subscription: it does not exist, is revoked, or carries no active network token. Only cards listed by GET /api/v1/payment-methods/chargeable?purpose=subscription qualify; otherwise pay through POST /api/v1/subscription/checkout. Nothing was charged. |
 | <a id="bck-subscription_billing-0017"></a>`BCK.SUBSCRIPTION_BILLING.0017` | 402 | business | ❌ | The enrolled card was declined | The first payment of the subscription was refused (params.declineCode when the issuer gave one). The subscription attempt was cancelled and nothing was charged. Try another card through POST /api/v1/subscription/checkout. |
 | <a id="bck-subscription_billing-0018"></a>`BCK.SUBSCRIPTION_BILLING.0018` | 409 | business | ❌ | Tax cannot be computed for paying with an enrolled card | Paying with an enrolled card taxes the subscription from the buyer’s payment country, and Stripe Tax could not compute the tax from it (params.taxStatus): no country on the profile, or a country that also needs a postal code (the United States, Canada). Nothing was charged. Pay through POST /api/v1/subscription/checkout, which collects the billing address. |
 
