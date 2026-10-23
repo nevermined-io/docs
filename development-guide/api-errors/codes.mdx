@@ -26,7 +26,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.BILLING`](#bck-billing) — 27 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 21 codes
 - [`BCK.BUDGETS`](#bck-budgets) — 6 codes
-- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 5 codes
+- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 6 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
 - [`BCK.CREDITS`](#bck-credits) — 14 codes
@@ -235,6 +235,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-card_payment-0003"></a>`BCK.CARD_PAYMENT.0003` | 502 | integration | ✅ | The enrolled card could not be authorised with the card network | No payment cryptogram could be obtained for the card, so nothing was sent to the payment processor and nothing was charged. Retry, or use another card. |
 | <a id="bck-card_payment-0004"></a>`BCK.CARD_PAYMENT.0004` | 502 | integration | ❌ | The outcome of the enrolled-card payment is unknown | The payment processor did not confirm the outcome, and the card may have been charged. Do not retry: the purchase completes, or fails, once the processor reports it. |
 | <a id="bck-card_payment-0005"></a>`BCK.CARD_PAYMENT.0005` | 409 | business | ❌ | Paying with an enrolled card is not available for this purchase | Paying this purchase (params.purpose) with a card enrolled with Nevermined is turned off on this deployment. GET /api/v1/payment-methods/chargeable answers enabled: false for it. |
+| <a id="bck-card_payment-0006"></a>`BCK.CARD_PAYMENT.0006` | 503 | internal | ✅ | The enrolled cards could not be read | Reading the caller’s enrolled cards failed, so it is not known which can pay. Nothing was charged and no card was judged unusable. Retry shortly. |
 
 ## <span id="bck-catalog"></span>`BCK.CATALOG`
 
