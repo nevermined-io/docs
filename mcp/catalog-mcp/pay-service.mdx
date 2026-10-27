@@ -81,13 +81,13 @@ The `funding` argument decides what pays:
 
 | `funding` | What pays |
 | --- | --- |
-| omitted | Your credits, when a credits quote for this call succeeds: the endpoint has a rate, and you hold a subscription that can spend or enough other credits for this call. Otherwise your delegation, exactly as before. Passing `delegationId`, `quoteId` or `maxTotalCents` selects the delegation. |
+| omitted | Your credits, when a credits quote for this call succeeds: the endpoint has a rate, and you hold a subscription that can spend or enough other credits for this call (or automatic top-ups that would cover it). Otherwise your delegation, exactly as before. Passing `delegationId`, `quoteId` or `maxTotalCents` selects the delegation. |
 | `"subscription"` | Your credits — refused, never switched to the delegation, if they can't pay this call. |
 | `"delegation"` | Your delegation. |
 
 `delegationId`, `quoteId` and `maxTotalCents` only mean something to a delegation, so passing one with `funding: "subscription"` is refused (`invalid_arguments`, with the offending `fields`).
 
-For a subscriber in good standing, the default doesn't look at how many credits are left or at the merchant's live price — those are checked when the call is made, and a refusal for them is **not** moved to your delegation (see the note below). Without a subscription in good standing, the quote also checks that your credits cover this call. When your credits were refused for this call up front (no rate, nothing that can pay it, credits frozen by a card dispute or an overdue renewal), the delegation-funded result says so: `funding: "delegation"`, `fundingReason: "subscription_refused"`, the API's `fundingCode` and a `fundingNote` (or `fundingReason: "delegation_arguments"` when you passed a delegation-only argument). If credits aren't available to you at all — an OAuth connection you didn't allow to spend them, for example — the result carries no funding fields. And if the subscription's answer couldn't be read, the call is refused with `funding_undetermined` rather than paid from your delegation.
+For a subscriber in good standing, the default doesn't look at how many credits are left or at the merchant's live price — those are checked when the call is made, and a refusal for them is **not** moved to your delegation (see the note below). Without a subscription in good standing, the quote also checks that your credits cover this call, unless an automatic top-up would cover it. When your credits were refused for this call up front (no rate, nothing that can pay it, credits frozen by a card dispute or an overdue renewal), the delegation-funded result says so: `funding: "delegation"`, `fundingReason: "subscription_refused"`, the API's `fundingCode` and a `fundingNote` (or `fundingReason: "delegation_arguments"` when you passed a delegation-only argument). If credits aren't available to you at all — an OAuth connection you didn't allow to spend them, for example — the result carries no funding fields. And if the subscription's answer couldn't be read, the call is refused with `funding_undetermined` rather than paid from your delegation.
 
 A credits call answers with `funding: "subscription"`, the credits it cost and where they stand — and no `budget` or `delegationId`, since no delegation was charged:
 
@@ -120,9 +120,11 @@ These charge nothing and reserve no credits. Each carries `funding: "subscriptio
 | `subscription_rail_unsupported` | The merchant asked for a rail credits don't pay (`rail`). |
 | `subscription_payment_refused` | Nevermined's treasury couldn't make this payment; `code` and `retryable` say why and whether to retry. |
 | `subscription_unavailable` | Credits can't be spent from this connection or deployment — for example an OAuth connection that isn't a commerce connection. |
-| `subscription_credits_not_granted` | An OAuth commerce connection you didn't allow to spend your credits (`BCK.OAUTH.0037`). Reconnect and tick **Let this assistant spend my Nevermined credits**. |
-| `personal_grant_org_refused` | An OAuth connection allowed to spend your credits, used in an organization (`BCK.OAUTH.0038`): it spends only your personal credits. |
+| `subscription_credits_not_granted` | An OAuth commerce connection you didn't allow to spend your credits (`BCK.OAUTH.0037`). Reconnect and tick **Let this assistant spend my Nevermined credits**. No `alternative`. |
+| `personal_grant_org_refused` | An OAuth connection allowed to spend your credits, used in an organization (`BCK.OAUTH.0038`): it spends only your personal credits. No `alternative`, and a delegation-only argument doesn't avoid it: pass `funding: "delegation"` to pay from the delegation. |
 | `subscription_cap_reached` | Not returned today: the subscription has no spending limit beyond your credits. Retry later if you see it. |
+
+With `funding: "subscription"`, credits frozen by a card dispute (`BCK.SUBSCRIPTION_ROUTER.0015`) or by an overdue renewal (`0016`) come back as `payment_failed` with that `code` and no `alternative`. With `funding` omitted, those calls are paid from your delegation instead.
 
 With `funding` omitted, `{ "error": "funding_undetermined", "retryable": true }` means what would pay this call couldn't be decided — nothing was charged; retry.
 

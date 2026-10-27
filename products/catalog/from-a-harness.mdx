@@ -200,7 +200,7 @@ Address a cataloged service by its **slug**, never a raw URL: the Router hides t
 
 ## Paying with Nevermined credits
 
-If the user holds [Nevermined credits](/products/catalog/router/subscription) — the free credits every new account gets, or a Nevermined Subscription's monthly allowance — some catalog endpoints can be paid with them instead of the delegation: Nevermined pays the merchant, the call costs a fixed number of credits with no routing fee, and the credits come back if the service doesn't answer `2xx`. Credits pay only the endpoints that carry a rate, so keep a delegation for the rest.
+If the user holds [Nevermined credits](/products/catalog/router/subscription) — the free credits a new account gets, or a Nevermined Subscription's monthly allowance — some catalog endpoints can be paid with them instead of the delegation: Nevermined pays the merchant, the call costs a fixed number of credits with no routing fee, and the credits come back if the service doesn't answer `2xx`. Credits pay only the endpoints that carry a rate, so keep a delegation for the rest.
 
 **Price a call in credits** — this charges nothing. A listing's USD `priceLabel` is not its credits price; don't convert one into the other.
 
@@ -210,7 +210,7 @@ If the user holds [Nevermined credits](/products/catalog/router/subscription) �
 
 **Pay with credits.** Credits are spent only through these two paths:
 
-- **The Catalog MCP connected with your API key.** `pay_service` pays with credits by default when the credits and the endpoint qualify, and from the delegation otherwise. Pass `funding: "subscription"` to insist on credits; the result's `funding` and `creditsCharged` say what paid.
+- **The Catalog MCP connected with your API key**, or through an OAuth connection the human allowed to spend credits (below). `pay_service` pays with credits by default when the credits and the endpoint qualify, and from the delegation otherwise. Pass `funding: "subscription"` to insist on credits; the result's `funding` and `creditsCharged` say what paid.
 - **`POST /api/v1/router/subscription/route`** with `slug`, `path`, `method`, `body` and `requestId` — no `delegationId`, no URL. The streaming form is `/api/v1/router/subscription/svc/<slug>/<subpath>` with an `X-Router-Request-Id` header.
 
 The delegation routes (`/router/route`, `/router/proxy`, `/router/svc`) never spend credits. An OAuth connection (the claude.ai connector, ChatGPT, or a host connected through the OAuth consent) spends them only if the human ticked **Let this assistant spend my Nevermined credits** when connecting it; otherwise it pays from the cap the human approved, and the credits routes refuse it (`403 BCK.OAUTH.0037`, or `0030` for an OAuth key that isn't a commerce connection). Use a personal API key and no `X-Current-Org-Id` header. `GET /api/v1/credits/balance` returns the credits that can pay now. Every rule and refusal code: [Pay with Nevermined credits](/products/catalog/router/subscription).
