@@ -2817,7 +2817,7 @@
         },
         "responses": {
           "201": {
-            "description": "The merchant's response (`status`, and `body` only when it delivered) plus the `payment` Nevermined made and the credits it cost.",
+            "description": "The merchant's response (`status`, and `body` only when it delivered) plus the `payment` Nevermined made and the credits it cost — and `topUp` when the call charged a credit pack to cover itself.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2827,11 +2827,11 @@
             }
           },
           "202": {
-            "description": "API version 1.48 or later: the paid call outlived the synchronous wait. Poll `GET /api/v1/router/payments/{id}/result` (also the `Location` header); the credits stay `Reserved` until the call ends. A retry with the same `requestId` returns this same answer, then the result.",
+            "description": "API version 1.48 or later: the paid call outlived the synchronous wait. Poll `GET /api/v1/router/payments/{id}/result` (also the `Location` header); the credits stay `Reserved` until the call ends. A retry with the same `requestId` returns this same answer, then the result. Carries `topUp` when the call charged a credit pack to cover itself.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RoutePendingDto"
+                  "$ref": "#/components/schemas/SubscriptionRoutePendingDto"
                 }
               }
             }
@@ -2857,7 +2857,7 @@
             }
           },
           "402": {
-            "description": "Nothing to pay this call with: no subscription in good standing and no credits — or not enough for this call — that can be spent, including a call made in an organization you are an active member of (`X-Current-Org-Id`, or that organization's API key), which never falls back to your personal credits (BCK.SUBSCRIPTION_ROUTER.0002); not enough credits for this call (BCK.SUBSCRIPTION_ROUTER.0009, `params.credits`); every credit frozen by a card dispute (BCK.SUBSCRIPTION_ROUTER.0015); or only a monthly allowance frozen by an overdue renewal would cover it (BCK.SUBSCRIPTION_ROUTER.0016, `params.credits`).",
+            "description": "Nothing to pay this call with: no subscription in good standing and no credits — or not enough for this call — that can be spent, including a call made in an organization you are an active member of (`X-Current-Org-Id`, or that organization's API key), which never falls back to your personal credits (BCK.SUBSCRIPTION_ROUTER.0002); not enough credits for this call (BCK.SUBSCRIPTION_ROUTER.0009, `params.credits`) — with credit top-ups on, `params.topUps` says why no credit pack covered it: `paused`, `limitReached`, `pending` (a pack is being charged and may already be), `unavailable` (none was charged) or `bought` (this call charged one, but concurrent calls spent it first); every credit frozen by a card dispute (BCK.SUBSCRIPTION_ROUTER.0015); or only a monthly allowance frozen by an overdue renewal would cover it (BCK.SUBSCRIPTION_ROUTER.0016, `params.credits`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -6601,12 +6601,61 @@
           },
           "payment": {
             "$ref": "#/components/schemas/SubscriptionRoutePaymentDto"
+          },
+          "topUp": {
+            "description": "Present only when this call ran out of credits and, with credit top-ups on, charged one credit pack to the saved card to cover it. The pack's credits went to your credits balance and never expire. Your card was charged: tell the person you are acting for.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SubscriptionRouteTopUpDto"
+              }
+            ]
           }
         },
         "required": [
           "status",
           "body",
           "paid"
+        ]
+      },
+      "SubscriptionRouteTopUpDto": {
+        "type": "object",
+        "description": "The credit pack a call charged to cover itself.",
+        "properties": {
+          "credits": {
+            "type": "integer",
+            "description": "Credits the pack added. They never expire.",
+            "example": 10000
+          },
+          "amountUsd": {
+            "type": "number",
+            "description": "The pack's price, before tax, in US dollars.",
+            "example": 10
+          }
+        },
+        "required": [
+          "credits",
+          "amountUsd"
+        ]
+      },
+      "SubscriptionRoutePendingDto": {
+        "description": "`202` answer of `POST /router/subscription/route` when the paid call outlives the sync budget: the Delegation route's `202`, plus `topUp` when the call charged a credit pack.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RoutePendingDto"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "topUp": {
+                "description": "Present only when this call ran out of credits and, with credit top-ups on, charged one credit pack to the saved card to cover it. The pack's credits went to your credits balance and never expire. Your card was charged: tell the person you are acting for.",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SubscriptionRouteTopUpDto"
+                  }
+                ]
+              }
+            }
+          }
         ]
       },
       "SubscriptionBalancePlanDto": {
@@ -6785,8 +6834,12 @@
             ]
           },
           "topups": {
-            "type": "object",
-            "description": "Your credit top-up settings. Present when credit top-ups are available to you; absent when they are not, or when the settings could not be read this time."
+            "description": "Your credit top-up settings. Present when credit top-ups are available to you; absent when they are not, or when the settings could not be read this time. Top-ups are turned on and managed in the Nevermined App, not over the API.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreditTopupsSettingsDto"
+              }
+            ]
           }
         },
         "required": [
@@ -6794,6 +6847,118 @@
           "spendable",
           "parts",
           "nextExpiry"
+        ]
+      },
+      "CreditTopupsPausedDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "payment_failed",
+              "action_required",
+              "card_unavailable",
+              "dispute"
+            ],
+            "description": "`payment_failed`: the last automatic pack was declined. `action_required`: its card asked for authentication. `card_unavailable`: the card that pays packs can no longer pay (removed, or no longer usable); choosing another card lifts it. Buying a pack lifts any of these. `dispute`: a card dispute is open, or was decided in the cardholder's favour — every credit is frozen and no pack is charged.",
+            "example": "payment_failed"
+          },
+          "since": {
+            "type": "string",
+            "description": "Since when (ISO 8601).",
+            "example": "2026-10-19T10:00:00.000Z"
+          }
+        },
+        "required": [
+          "reason",
+          "since"
+        ]
+      },
+      "CreditTopupsCardDto": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string",
+            "description": "The saved card's brand, as Stripe names it.",
+            "example": "visa"
+          },
+          "last4": {
+            "type": "string",
+            "description": "The saved card's last four digits.",
+            "example": "4242"
+          }
+        },
+        "required": [
+          "brand",
+          "last4"
+        ]
+      },
+      "CreditTopupsSettingsDto": {
+        "type": "object",
+        "description": "A personal account's credit top-up settings: a pack of never-expiring credits charged automatically when the credits run out, up to a monthly limit. Amounts are US dollars.",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether a pack is charged automatically when credits run out. Off by default; switched on by buying the first pack in the Nevermined App.",
+            "example": true
+          },
+          "monthlyLimitUsd": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The monthly limit the account set, in whole US dollars before tax, or `null` when it never set one. Kept when top-ups are switched off.",
+            "example": 30
+          },
+          "maxMonthlyLimitUsd": {
+            "type": "integer",
+            "description": "The highest monthly limit Nevermined allows, in whole US dollars.",
+            "example": 50
+          },
+          "boughtThisMonthUsd": {
+            "type": "number",
+            "description": "Packs bought this UTC calendar month, in US dollars before tax — every pack charged or being charged, a refunded one included. What the monthly limit counts.",
+            "example": 10
+          },
+          "packPriceUsd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The price of one pack, in US dollars before tax: what the next pack adds to `boughtThisMonthUsd`. The lowest monthly limit is this rounded up to a whole dollar. `null` when no pack is on sale in this deployment.",
+            "example": 10
+          },
+          "paused": {
+            "description": "`null` unless packs are paused, and why.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CreditTopupsPausedDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "card": {
+            "description": "The saved card that pays packs, or `null` when none is saved.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CreditTopupsCardDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "monthlyLimitUsd",
+          "maxMonthlyLimitUsd",
+          "boughtThisMonthUsd",
+          "packPriceUsd",
+          "paused",
+          "card"
         ]
       },
       "WelcomeCreditsOfferTermsDto": {

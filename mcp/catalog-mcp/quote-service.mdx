@@ -55,7 +55,7 @@ The rail, the merchant amount, and the fee-inclusive total. `fee.capChargedCents
 
 ## Quote in subscription credits
 
-When your [Nevermined credits](/products/catalog/router/subscription) can pay this call — from a subscription or free credits — `quote_service` answers from Nevermined's rate card alone — **the service isn't contacted**, so the warning above doesn't apply:
+When your [Nevermined credits](/products/catalog/router/subscription) can pay this call — from a subscription, free credits or top-up packs — `quote_service` answers from Nevermined's rate card alone — **the service isn't contacted**, so the warning above doesn't apply:
 
 ```json
 {
@@ -69,7 +69,7 @@ When your [Nevermined credits](/products/catalog/router/subscription) can pay th
 }
 ```
 
-`credits` is what one call to this endpoint costs at the current rate. There's no `quoteId` or cent total: pay with `pay_service` and the same arguments. For a subscriber in good standing, the quote doesn't check the credits left (without one, it checks that they cover the call, unless an automatic top-up would); it never checks the merchant's live price or Nevermined's treasury — `pay_service` checks those when it makes the call. `funding` follows the same rules as on [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits): omitted, a call credits can't price gets the delegation quote instead, with `fundingReason`; with `funding: "subscription"`, it is refused with the same [error names](/mcp/catalog-mcp/pay-service#refusals-when-paying-with-credits).
+`credits` is what one call to this endpoint costs at the current rate. There's no `quoteId` or cent total: pay with `pay_service` and the same arguments. For a subscriber in good standing, the quote doesn't check the credits left (without one, it checks that they cover the call, unless an automatic [top-up](/products/catalog/router/subscription#top-ups) would); it never checks the merchant's live price or Nevermined's treasury — `pay_service` checks those when it makes the call. `funding` follows the same rules as on [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits): omitted, a call credits can't price gets the delegation quote instead, with `fundingReason`; with `funding: "subscription"`, it is refused with the same [error names](/mcp/catalog-mcp/pay-service#refusals-when-paying-with-credits).
 
 ## Refusals (all charge nothing)
 
