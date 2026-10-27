@@ -26,7 +26,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.BILLING`](#bck-billing) — 27 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 21 codes
 - [`BCK.BUDGETS`](#bck-budgets) — 6 codes
-- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 7 codes
+- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 8 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
 - [`BCK.CREDITS`](#bck-credits) — 14 codes
@@ -237,6 +237,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-card_payment-0005"></a>`BCK.CARD_PAYMENT.0005` | 409 | business | ❌ | Paying with an enrolled card is not available for this purchase | Paying this purchase (params.purpose) with a card enrolled with Nevermined is turned off on this deployment. GET /api/v1/payment-methods/chargeable answers enabled: false for it. |
 | <a id="bck-card_payment-0006"></a>`BCK.CARD_PAYMENT.0006` | 503 | internal | ✅ | The enrolled cards could not be read | Reading the caller’s enrolled cards failed, so it is not known which can pay. Nothing was charged and no card was judged unusable. Retry shortly. |
 | <a id="bck-card_payment-0007"></a>`BCK.CARD_PAYMENT.0007` | 409 | business | ❌ | An earlier payment for this purchase was made or is under way | An earlier attempt at the same purchase (params.subscriptionId), paid with an enrolled card, was charged or its payment is still being processed, so this one was refused and nothing was charged. Wait for that purchase to complete instead of paying again. |
+| <a id="bck-card_payment-0008"></a>`BCK.CARD_PAYMENT.0008` | 400 | validation | ❌ | The organization tier purchase does not say which organization it is for | Paying an organization tier (params.planId) with an enrolled card needs orgId (the organization to upgrade) or intent: create without orgId (a new organization). Nothing was charged. |
 
 ## <span id="bck-catalog"></span>`BCK.CATALOG`
 
