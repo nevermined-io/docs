@@ -394,7 +394,7 @@ Credits have no spending limit beyond your balance — no daily, per-service or 
 
 ## When a call is refused
 
-Branch on `code`. None of these spent or reserved any credit, and none charged anything — except that with top-ups on, a `0009` can follow a top-up pack charged to your card (`params.topUps`: `bought`, or `pending`), as the [table below](#when-no-top-up-covers-the-call) says.
+Branch on `code`. None of these spent or reserved any credit, and none charged anything — except that with top-ups on, a `0009` can follow a top-up pack charged to your card (`params.topUps`: `bought`, or `pending`), and so can a `0015` or `0016` (`params.topUps`: `bought`), as the [table below](#when-no-top-up-covers-the-call) says.
 
 | Code | Status | What it means | What to do |
 | --- | --- | --- | --- |
@@ -405,8 +405,8 @@ Branch on `code`. None of these spent or reserved any credit, and none charged a
 | `BCK.SUBSCRIPTION_ROUTER.0005` | 400 | A field that only makes sense elsewhere (`url`, `delegationId`, a target header) — `params.field`. | Address the service by `slug` only. |
 | `BCK.SUBSCRIPTION_ROUTER.0007` | 400 | Mode A (`POST /router/payments`) can't be funded by a subscription — you sent it `fundingSource: "subscription"` or a `subscriptionId`. | Use the subscription route. |
 | `BCK.SUBSCRIPTION_ROUTER.0009` | 402 | Not enough credits left for this call (`params.credits` is its cost). Mostly what a subscriber in good standing, or an account whose top-ups would charge a pack, gets: otherwise the quote usually refuses a call your credits can't cover with `0002`. With top-ups on, `params.topUps` says why no pack covered the call — see [the table below](#when-no-top-up-covers-the-call). | Pick a cheaper endpoint, turn on [top-ups](#top-ups), or pay from a Delegation. A subscriber's allowance comes back next period. |
-| `BCK.SUBSCRIPTION_ROUTER.0015` | 402 | All your credits are frozen: a card payment you made to Nevermined is disputed, or a dispute was decided in the cardholder's favour. | Withdraw the dispute with your card issuer, or contact Nevermined support. Until then, pay from a Delegation. |
-| `BCK.SUBSCRIPTION_ROUTER.0016` | 402 | Your subscription's renewal payment is overdue, so its allowance is frozen, and your other credits don't cover this call (`params.credits` is its cost). | Update your card on the subscription page so the invoice is paid, or pay from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0015` | 402 | All your credits are frozen: a card payment you made to Nevermined is disputed, or a dispute was decided in the cardholder's favour. With `params.topUps: "bought"`, this call charged a pack before the dispute froze it, and that pack's credits are frozen with the rest. | Withdraw the dispute with your card issuer, or contact Nevermined support. Until then, pay from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0016` | 402 | Your subscription's renewal payment is overdue, so its allowance is frozen, and your other credits don't cover this call (`params.credits` is its cost). With `params.topUps: "bought"`, this call charged a pack, but other calls spent its credits first. | Update your card on the subscription page so the invoice is paid, or pay from a Delegation. |
 | `BCK.SUBSCRIPTION_TREASURY.0002` | 422 | The merchant wants to be paid in an asset Nevermined's treasury doesn't pay in. | Pay from a Delegation. |
 | `BCK.SUBSCRIPTION_TREASURY.0003` | 503 | Nevermined's treasury float can't cover this payment right now. | Retry later (`retryable: true`). |
 | `BCK.SUBSCRIPTION_TREASURY.0008` | 403 | Nevermined's treasury can't pay this merchant. | Pay another service. |
@@ -427,9 +427,9 @@ With top-ups on, a call that runs out of credits charges a pack and goes ahead. 
 | `limitReached` | One more pack would take this month past your monthly limit, or past Nevermined's maximum. | Raise your limit in the Top-ups panel, or wait for next month (UTC). |
 | `pending` | A pack is being charged and wasn't confirmed in time. Your card may have been charged; its credits land once the payment is recorded. | Retry in a moment. |
 | `unavailable` | No pack could be charged right now, and none was. | Retry later. |
-| `bought` | This call charged a pack to your card, but other calls spent its credits first. The pack's credits are yours. | Tell the person you're acting for that their card was charged, then retry. |
+| `bought` | This call charged a pack to your card (`params.purchaseId` names it), but other calls spent its credits first. The pack's credits are yours. | Tell the person you're acting for that their card was charged, then retry. |
 
-A `0009` without `params.topUps` usually tried no pack: top-ups are off, or not available to you. (It can also come after another call's pack covered this one and was spent before this call could use it.) A call that a frozen allowance would have covered (`0016`) or that a card dispute froze (`0015`) never charges a pack.
+A `0009` without `params.topUps` usually tried no pack: top-ups are off, or not available to you. (It can also come after another call's pack covered this one and was spent before this call could use it.) A call that a frozen allowance would have covered (`0016`) or that a card dispute froze (`0015`) never charges a pack. One refused that way after it charged a pack (a dispute opened, or a renewal went overdue, in between) says so: `params.topUps: "bought"`, with the pack's `params.purchaseId` — tell the person you're acting for that their card was charged.
 
 Other errors with a `5xx` status (`BCK.SUBSCRIPTION_ROUTER.0006` and `0010`–`0014`, and the remaining `BCK.SUBSCRIPTION_TREASURY.*` codes) are on Nevermined's side and also charge nothing; `retryable` says whether retrying can help. The Router's common errors apply too — a reused `requestId` (`409 BCK.ROUTER.0002`), the rate and concurrency limits (`429`): see [every error code](/products/catalog/router/guardrails#every-error-code).
 
