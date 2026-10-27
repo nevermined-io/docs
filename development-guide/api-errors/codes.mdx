@@ -26,7 +26,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.BILLING`](#bck-billing) — 27 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 21 codes
 - [`BCK.BUDGETS`](#bck-budgets) — 6 codes
-- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 8 codes
+- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 10 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
 - [`BCK.CREDITS`](#bck-credits) — 14 codes
@@ -239,6 +239,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-card_payment-0006"></a>`BCK.CARD_PAYMENT.0006` | 503 | internal | ✅ | The enrolled cards could not be read | Reading the caller’s enrolled cards failed, so it is not known which can pay. Nothing was charged and no card was judged unusable. Retry shortly. |
 | <a id="bck-card_payment-0007"></a>`BCK.CARD_PAYMENT.0007` | 409 | business | ❌ | An earlier payment for this purchase was made or is under way | An earlier attempt at the same purchase (params.subscriptionId), paid with an enrolled card, was charged or its payment is still being processed, so this one was refused and nothing was charged. Wait for that purchase to complete instead of paying again. |
 | <a id="bck-card_payment-0008"></a>`BCK.CARD_PAYMENT.0008` | 400 | validation | ❌ | The organization tier purchase does not say which organization it is for | Paying an organization tier (params.planId) with an enrolled card needs orgId (the organization to upgrade) or intent: create without orgId (a new organization). Nothing was charged. |
+| <a id="bck-card_payment-0009"></a>`BCK.CARD_PAYMENT.0009` | 503 | internal | ✅ | What the enrolled card pays for could not be read | Reading the subscriptions and credit top-ups the card pays for failed, so the card was not revoked. Retry shortly, or revoke it anyway with confirm=true. |
+| <a id="bck-card_payment-0010"></a>`BCK.CARD_PAYMENT.0010` | 409 | business | ❌ | The card pays for a subscription, an organization tier or credit top-ups | params.pays lists what the card pays for (purpose, and orgId/orgName for an org tier). Nothing was revoked. Revoking it pauses automatic credit top-ups, but a subscription or org tier keeps renewing on the card saved at Stripe until it is cancelled or paid with another card. Send confirm=true to revoke it anyway. |
 
 ## <span id="bck-catalog"></span>`BCK.CATALOG`
 
