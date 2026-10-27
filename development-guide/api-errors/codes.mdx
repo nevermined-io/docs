@@ -20,7 +20,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 
 - [`BCK.ACCOUNT_PROVISIONING`](#bck-account_provisioning) — 2 codes
 - [`BCK.AGENT`](#bck-agent) — 12 codes
-- [`BCK.APIKEY`](#bck-apikey) — 18 codes
+- [`BCK.APIKEY`](#bck-apikey) — 19 codes
 - [`BCK.ARD`](#bck-ard) — 3 codes
 - [`BCK.AUTH`](#bck-auth) — 17 codes
 - [`BCK.BILLING`](#bck-billing) — 27 codes
@@ -126,6 +126,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-apikey-0017"></a>`BCK.APIKEY.0017` | 409 | auth | ✅ | API key has no session key for the requested network | This API key was issued without a session key for this network (#1929). Re-issue the key including this network and retry — the webapp rotates the key automatically. |
 | <a id="bck-apikey-0018"></a>`BCK.APIKEY.0018` | 400 | validation | — | Authenticated but no wallet linked to the account | Link a wallet to your account before registering an API key. Email/social sign-ins must add a wallet first. |
 | <a id="bck-apikey-0019"></a>`BCK.APIKEY.0019` | 500 | internal | — | Unexpected failure minting the API key | Minting failed server-side. Common causes: a pending DB migration on a freshly-deployed image, a Privy/ZeroDev outage while deriving the account, or a served network with no settlement token configured (the details name the network; retrying cannot fix that one). Retry; if it persists, quote the correlation id. |
+| <a id="bck-apikey-0020"></a>`BCK.APIKEY.0020` | 409 | auth | ✅ | The wallet has not authorized Nevermined to sign for it | The Nevermined app grants this when the user signs in. Retry once sign-in has finished; if it keeps failing, sign out of the Nevermined app and sign in again to grant it. |
 
 ## <span id="bck-ard"></span>`BCK.ARD`
 
