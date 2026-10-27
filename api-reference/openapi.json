@@ -3079,6 +3079,30 @@
         ]
       }
     },
+    "/credits/welcome/offer": {
+      "get": {
+        "description": "The free welcome credits a new account is granted when it signs up with a verified email, and how many days they last. `offer` is `null` while the offer is closed. A non-null offer says what the offer grants, not that a particular sign-up right now will be granted. No authentication; the answer is the same for every caller and may be cached for 5 minutes.",
+        "operationId": "getWelcomeCreditsOffer",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The welcome credits offer, or `null` while it is closed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WelcomeCreditsOfferDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Read the welcome credits offer",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
     "/router/payments/{id}/settled": {
       "post": {
         "description": "After you attached a mode-A credential and the agent settled on-chain, report the settlement\n`txHash` (from the agent’s `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE` header) so the payment\nrecord moves `Issued → Settled`. Idempotent: re-reporting the same txHash is a no-op; a\ndifferent txHash, or a record not in `Issued`, is rejected. NOT needed for mode B\n(`/route` and `/proxy` self-complete the record from the upstream settlement header).",
@@ -6770,6 +6794,44 @@
           "spendable",
           "parts",
           "nextExpiry"
+        ]
+      },
+      "WelcomeCreditsOfferTermsDto": {
+        "type": "object",
+        "properties": {
+          "credits": {
+            "type": "string",
+            "description": "Credits granted to a new account, as a whole-number digit string.",
+            "example": "2000"
+          },
+          "ttlDays": {
+            "type": "integer",
+            "description": "Days until the granted credits expire.",
+            "example": 30
+          }
+        },
+        "required": [
+          "credits",
+          "ttlDays"
+        ]
+      },
+      "WelcomeCreditsOfferDto": {
+        "type": "object",
+        "properties": {
+          "offer": {
+            "description": "The welcome credits a new account receives, or `null` while the offer is closed.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WelcomeCreditsOfferTermsDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "offer"
         ]
       },
       "RouterErrorResponseDto": {

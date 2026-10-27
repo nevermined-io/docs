@@ -185,7 +185,7 @@ One exception to the flag, and it is the [sub-cent case](#the-routing-fee-on-a-r
 **`Failed` does not imply `Released`.** They are separate steps, and the reserve comes back only on the paths listed above. A fee that failed some other way stays charged against your cap — in particular one that on-chain reconciliation resolved as never consumed — so read `feeStatus` for the release rather than inferring it from a failure. And an *unknown* outcome is never released at all — those rows stay `Submitted` until the chain settles the question.
 </Warning>
 
-### Subscription-funded records
+### Credits-funded records
 
 A call paid with [Nevermined credits](/products/catalog/router/subscription) — a subscription's allowance or free credits — spends them, not your Delegation, and says so:
 
@@ -195,7 +195,7 @@ A call paid with [Nevermined credits](/products/catalog/router/subscription) —
 | `creditsCharged` | The call's rate, in credits. `null` on a Delegation record. |
 | `creditsStatus` | `Committed` (delivered, credits spent), `Reserved` (still running, or undelivered and being refunded) or `Refunded` (credits returned). `null` on a Delegation record. |
 
-On a subscription record `delegationId` is `null` — Nevermined's treasury paid the merchant, so `amount`, `asset`, `txHash`, `buyer` (the treasury's address) and `deliveryStatus` describe **that** payment, not a charge to you — there is no routing fee (`feeBps` is `0`), and `chargedMicros` is `"0"`. `creditsCharged` is the call's rate on every subscription record, refunded ones included: it counts against your allowance only when `creditsStatus` is `Committed`, so filter on `creditsStatus` before adding it up.
+On a credits record `delegationId` is `null` — Nevermined's treasury paid the merchant, so `amount`, `asset`, `txHash`, `buyer` (the treasury's address) and `deliveryStatus` describe **that** payment, not a charge to you — there is no routing fee (`feeBps` is `0`), and `chargedMicros` is `"0"`. `creditsCharged` is the call's rate on every credits record, refunded ones included: it counts against your credits only when `creditsStatus` is `Committed`, so filter on `creditsStatus` before adding it up.
 
 ### Export
 
