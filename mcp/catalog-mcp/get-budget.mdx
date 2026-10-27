@@ -62,8 +62,8 @@ With a personal API key, the result also carries your [Nevermined credits](/prod
 }
 ```
 
-- `credits` is your balance as [`GET /api/v1/credits/balance`](/api-reference/router/credits-balance) reports it: `spendable` is what can pay a call now, and `parts` lists the credits left by kind (`welcome` for free credits, `allowance` for a subscription's monthly allowance) and expiry, with any freeze. `creditsMessage` says the same in a sentence. Relay it as it stands.
-- `subscription` is your Nevermined Subscription, with `subscriptionMessage` to relay as it stands. It's `{ "subscribed": false }` when you don't subscribe. A subscriber sees the plan, the reset date and `creditsLeft`. For a subscriber who also holds free credits, `subscriptionMessage` counts them in the credits "left this month", so relay `creditsMessage` for what each part is and when it expires:
+- `credits` is your balance as [`GET /api/v1/credits/balance`](/api-reference/router/credits-balance) reports it: `spendable` is what can pay a call now, and `parts` lists the credits left by kind (`welcome` for free credits, `allowance` for a subscription's monthly allowance, `topup` for top-up credits) and expiry, with any freeze. `creditsMessage` says the same in a sentence. Relay it as it stands.
+- `subscription` is your Nevermined Subscription, with `subscriptionMessage` to relay as it stands. It's `{ "subscribed": false }` when you don't subscribe. A subscriber sees the plan, the reset date and `creditsLeft`. For a subscriber who also holds free or top-up credits, `subscriptionMessage` counts them in the credits "left this month" — and its "unused credits do not carry over", or "unused credits expire on …, when the subscription ends" after a cancellation, is about the allowance only — so relay `creditsMessage` for what each part is and when it expires:
 
 ```json
 {
@@ -84,9 +84,28 @@ With a personal API key, the result also carries your [Nevermined credits](/prod
 - **Don't count credits yourself.** `credits.spendable` is what [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits) can spend now with a personal API key; a call made in an organization never spends them. `subscription.creditsLeft` counts your whole balance, free credits included. `subscription.spendable` is about the subscription only: `false` unless it's `active` or `trialing` and not suspended by a card dispute. While it's overdue (`past_due` or `unpaid`), only its allowance is frozen.
 - `credits` is `null` when your balance couldn't be read this time, and `creditsMessage` says so. That never means zero.
 - An OAuth connection that you [allowed to spend your credits](/products/catalog/router/subscription#who-can-spend-your-credits) gets `subscription` but no `credits`: that balance takes a personal API key. Any other OAuth connection gets neither. Both are also absent when the subscription isn't available to you or when it couldn't be read this time. Absent never means zero.
-- With no delegation, `status: "no_active_delegation"` still carries these fields, and drops `nextTool: "setup_delegation"` when your credits can pay: `pay_service` uses them by default. An OAuth connection gets no `credits`, so without a subscription that can pay it keeps `nextTool: "setup_delegation"`, even when `pay_service` can spend its free credits.
+- With no delegation, `status: "no_active_delegation"` still carries these fields, and drops `nextTool: "setup_delegation"` when your credits can pay: `pay_service` uses them by default. An OAuth connection gets no `credits`, so without a subscription that can pay it keeps `nextTool: "setup_delegation"`, even when `pay_service` can spend its credits.
 
-{/* #4454: top-ups — `credits.topups` and what get_budget says about them — go here. */}
+### Top-up credits
+
+Credits from [top-up packs](/products/catalog/router/subscription#top-ups) are a `topup` part that never expires (`expiresAt: null`), listed last because they're spent last, and `creditsMessage` says so:
+
+```json
+{
+  "credits": {
+    "total": "11500",
+    "spendable": "11500",
+    "parts": [
+      { "kind": "welcome", "credits": "1500", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null },
+      { "kind": "topup", "credits": "10000", "expiresAt": null, "frozen": null }
+    ],
+    "nextExpiry": { "credits": "1500", "at": "2026-11-26T09:12:44.000Z" }
+  },
+  "creditsMessage": "You have 11,500 credits. 1,500 welcome credits expire on 2026-11-26. 10,000 top-up credits never expire."
+}
+```
+
+`get_budget` doesn't report the top-up settings: `credits` carries no `topups` block, so it says nothing about whether top-ups are on, the monthly limit or a pause. The human sees those in the Nevermined App's [Top-ups panel](/products/catalog/router/subscription#manage-top-ups); with a personal API key, `topups` on [`GET /api/v1/credits/balance`](/api-reference/router/credits-balance) has them too. When a call that goes ahead charges a pack, [`pay_service`](/mcp/catalog-mcp/pay-service#when-a-call-charges-a-top-up-pack) says so.
 
 ## Try it
 

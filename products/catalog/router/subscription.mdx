@@ -1,17 +1,16 @@
 ---
 title: "Pay with Nevermined credits"
-description: "Pay catalog services with Nevermined credits, free at sign-up or by subscription: Nevermined pays the merchant and an undelivered call costs nothing."
+description: "Pay catalog services with Nevermined credits, free at sign-up, by subscription or in top-up packs: Nevermined pays the merchant and an undelivered call costs nothing."
 icon: "repeat"
 ---
 
 The Router normally pays a merchant from **your** money: a Delegation caps the spend and your wallet or card funds it. **Nevermined credits** are the other way to pay. When your agent calls a catalog service with credits, **Nevermined pays the merchant** from its own treasury and your call costs a fixed number of credits that Nevermined publishes for that endpoint.
 
-You get credits in two ways:
+You get credits in three ways:
 
 - **Free credits when you sign up.** A new account that signs up with a verified email gets 2,000 credits, with no card and no subscription. See [Free credits](#free-credits).
+- **Top-ups.** Turn them on and a pack of 10,000 credits that never expire is charged to your card whenever your credits run out, up to a monthly limit you set — with or without a subscription. See [Top-ups](#top-ups).
 - **A Nevermined Subscription.** You pay Nevermined a monthly price and get a monthly allowance of credits. See [Subscribe](#subscribe).
-
-{/* #4454: the credit top-ups bullet goes here, and its "## Top-ups" section after "## Free credits". */}
 
 All your credits are [one balance](#credits), and they're spent the same way whatever their source. That changes three things for an agent:
 
@@ -64,6 +63,77 @@ curl -s "$NVM_API_URL/api/v1/credits/welcome/offer"
 
 An assistant you connect through OAuth, such as the Catalog MCP from Claude.ai or ChatGPT, can spend your credits too, if you allow it. See [Who can spend your credits](#who-can-spend-your-credits).
 
+## Top-ups
+
+Top-ups keep your agent going when your credits run out. Turn them on, and each time a call needs more credits than you can spend, Nevermined charges your card for a **pack of 10,000 credits that never expire** and the call goes ahead, up to a monthly limit you set. They're for every personal account, with or without a subscription.
+
+- **A pack is USD 10 plus applicable taxes** for 10,000 credits. The tax is calculated from your billing address, and the total is shown before you pay.
+- **Top-up credits never expire.** They join your [one balance](#credits). The credits that expire soonest are spent first, so top-up credits are spent last, after your free credits and your subscription's allowance.
+- **Off by default.** You turn top-ups on by buying your first pack, and the card you pay it with pays the packs after it.
+- **Only when a call needs it.** While top-ups are on, a pack is charged automatically when a call costs more credits than you can spend, then the call is paid from your balance, which now includes the pack. Nothing else charges a pack, and a call charges at most one. Any call that spends your credits can charge one: one made with your personal API key, or by an assistant you [allowed to spend your credits](#who-can-spend-your-credits) through OAuth.
+- **Up to your monthly limit.** You choose a monthly limit in whole US dollars, before tax; there's no default. A pack is charged only while the packs bought this calendar month (UTC), that one included, stay within it. The lowest limit is the price of one pack, and the highest is USD 50, Nevermined's maximum.
+- **Not withdrawable.** When you turn top-ups on, you ask for each pack's credits to be made available immediately and give up the 14-day right of withdrawal, for your first pack and every pack charged automatically after it. See [Refunds and disputes of a pack](#refunds-and-disputes-of-a-pack).
+- **Live and Sandbox.** Each environment has its own top-ups, packs and limit. A Sandbox pack is paid in test mode, and its credits pay the Sandbox test services.
+
+<Note>
+These are **Nevermined credits** bought from Nevermined, spent only through the Router. They're not the [automatic credit top-ups](/integrate/patterns/top-up) of a seller's plan, which a Delegation pays when a request settles.
+</Note>
+
+### Turn on top-ups
+
+You turn top-ups on in the [Nevermined App](https://nevermined.app), on the same page as your credits.
+
+<Steps>
+  <Step title="Open the Top-ups panel">
+    Open **Catalog Subscription** in the sidebar — it's in the **Buy** view — or go straight to [nevermined.app/subscription](https://nevermined.app/subscription). The catalog's **Get started** page links there too, with **Set up top-ups**. In the **Top-ups** panel, click **Turn on top-ups**.
+  </Step>
+  <Step title="Set your monthly limit">
+    Type a monthly limit in US dollars, before tax. The panel says how many packs a month it allows: a USD 30 limit allows up to 3 packs a month.
+  </Step>
+  <Step title="Give the consents">
+    Tick both boxes. The first agrees that Nevermined charges your card USD 10 plus applicable taxes for each pack of 10,000 credits that never expire: the first pack now, and another automatically each time your credits run out, up to your monthly limit. The second asks for each pack's credits to be made available immediately and acknowledges that you lose your 14-day right of withdrawal once they are, for your first pack and every pack charged automatically after it. **Top-up terms** below the boxes has the full terms.
+  </Step>
+  <Step title="Pay for your first pack">
+    Choose a saved card, or **Add a card** and enter its details. Confirm your billing country — with a postal code in the US and Canada — and the panel shows your total, such as **Total today: $10.81, including $0.81 tax**. Click **Pay with •••• 4242**. Your bank may ask you to confirm the payment (3-D Secure).
+  </Step>
+  <Step title="Your credits arrive">
+    Once the payment is confirmed, top-ups are on, the pack's 10,000 credits are in your balance, and an email sends you the receipt. The same card pays the packs charged automatically after this one.
+  </Step>
+</Steps>
+
+### Manage top-ups
+
+The **Top-ups** panel shows what you bought this month against your limit, such as **$10 of $30 this month**, and the card that pays the packs. From there:
+
+- **Change limit** sets a new monthly limit. A limit below what you've already bought this month stops packs for the rest of the month.
+- **Change card** chooses another of your cards to pay the packs.
+- **Turn off top-ups** stops further packs. The credits you've bought stay in your balance. To turn top-ups on again, buy a pack again.
+- **Packs** lists your packs, newest first: when each was bought (**At checkout** or **Automatic**), its credits, price and tax, its status (**Being charged**, **Paid**, **Declined**, **Not charged** or **Refunded**), and a link to its receipt.
+
+When this month's packs reach your limit, the panel says so: no more packs are charged until the first day of next month (UTC), unless you raise the limit. While top-ups are on or paused, the catalog's account menu also shows where they stand, such as **Top-ups on, $10 of $30 this month**.
+
+Nevermined emails you a receipt for every pack, a notice when this month's packs reach 50%, 75%, 90% and 100% of your limit (only the highest, when one pack crosses several), a notice when an automatic pack can't be charged and top-ups pause, and a confirmation when Nevermined support refunds a pack.
+
+### When top-ups pause
+
+An automatic pack is charged while you're away, so a card that can't pay it **pauses** top-ups instead of retrying. While they're paused, no pack is charged, and a call that needs more credits than you can spend is refused: a subscriber in good standing gets `402 BCK.SUBSCRIPTION_ROUTER.0009` with `params.topUps: "paused"`, and anyone else gets `402 BCK.SUBSCRIPTION_ROUTER.0002`. The panel says why:
+
+| The panel says | What happened | To resume |
+| --- | --- | --- |
+| *your card declined the last automatic pack* | The card was declined. | **Buy a pack to resume**: pay for one pack with a card, as when you turned top-ups on. |
+| *your bank asked to confirm the last automatic pack* | The bank asked for 3-D Secure, and nobody was there to confirm it. | **Buy a pack to resume**. |
+| *the card that pays them can no longer be used* | The card was removed, or can no longer pay. | **Change card**, or **Buy a pack to resume**. |
+
+A declined pack charges nothing, and appears in **Packs** as **Declined** or **Not charged**.
+
+A card dispute stops top-ups too, but it isn't a pause you can lift from the panel: every credit is frozen and calls are refused with `0015`. A dispute on a pack shows in the panel as *Top-ups are stopped and your credits are on hold*; a dispute on your subscription doesn't show there. See [Refunds and disputes of a pack](#refunds-and-disputes-of-a-pack).
+
+### Refunds and disputes of a pack
+
+Top-up packs can't be withdrawn: when you turned top-ups on, you asked for each pack's credits to be made available immediately and gave up the 14-day right of withdrawal, for every pack. Their credits stay in your balance and never expire. For a refund, contact Nevermined support. A refund through support removes the pack's unused credits from your balance and returns their share of what you paid, tax included. The pack then reads **Refunded** in **Packs**, and it still counts toward that month's limit.
+
+If you **dispute** a pack with your card issuer, its unused credits are removed, none of your credits — free, top-up or subscription — can be spent, and top-ups stop while the dispute is open. If it's decided in Nevermined's favour, the credits it removed are restored as top-up credits, and top-ups resume once no other dispute on a pack holds them. If it's decided in your favour, your credits stay unable to spend.
+
 ## Subscribe
 
 You buy the subscription in the [Nevermined Catalog](https://nevermined.app/catalog/), on the subscription page.
@@ -88,7 +158,7 @@ You buy the subscription in the [Nevermined Catalog](https://nevermined.app/cata
 
 ### Personal accounts only
 
-The Nevermined Subscription and Nevermined credits belong to a **personal account**: an organization can't subscribe.
+The Nevermined Subscription, top-ups and Nevermined credits belong to a **personal account**: an organization can't subscribe or buy top-ups.
 
 - **Spend credits with a personal API key** — one with no organization tag — and without an `X-Current-Org-Id` header. A call made in an organization you're an active member of (that header, or that organization's API key) is refused with `402 BCK.SUBSCRIPTION_ROUTER.0002`, and it **never** falls back to your personal credits.
 - **Sandbox and Live are billed separately.** Each workspace has its own subscription and its own credits, and the subscription page shows which workspace you're subscribing for. A Sandbox subscription is paid in Stripe's test mode, and its credits pay the testnet services listed in Sandbox — on the catalog's services page, under **Sandbox test services**.
@@ -98,7 +168,8 @@ The Nevermined Subscription and Nevermined credits belong to a **personal accoun
 In the [Nevermined App](https://nevermined.app), open **Catalog Subscription** in the sidebar — it's in the **Buy** view, so switch to it first if the App opens on Sell — or go straight to [nevermined.app/subscription](https://nevermined.app/subscription). (If you already subscribe, the catalog's subscription page takes you there too.) The page shows:
 
 - **Credits left this month**, your plan and monthly allowance, and the date your allowance resets.
-- **Credits**, when you also hold free credits: how many you can spend now, and when each part of them expires.
+- **Credits**, when you also hold free or top-up credits: how many you can spend now, and when each part of them expires.
+- **Top-ups**, where you turn them on and manage them. See [Manage top-ups](#manage-top-ups).
 - **Manage billing**, which opens Stripe's customer portal, where you can update your payment method.
 - **Cancel subscription**, which opens Stripe's cancellation step. A cancellation takes effect at the end of the current billing period, and you can use the rest of this month's credits until then.
 - **Invoices**, with each invoice's status. An invoice that was refunded reads **Refunded** or **Partially refunded**; if its refund state can't be read, it reads **Status unavailable**. A refund can take 5–10 business days to appear on your card statement.
@@ -107,12 +178,13 @@ In the [Nevermined App](https://nevermined.app), open **Catalog Subscription** i
 
 ## Credits
 
-All the credits your account holds are **one balance**, whether they're free credits or your subscription's monthly allowance. A call costs its rate whatever the source, and **the credits that expire soonest are spent first**.
+All the credits your account holds are **one balance**, whether they're free credits, top-up credits or your subscription's monthly allowance. A call costs its rate whatever the source, and **the credits that expire soonest are spent first**.
 
 - **One allowance per billing period.** Your plan includes a monthly allowance of 20,000 credits, available once each monthly invoice is paid. Changes to the price or the monthly allowance are announced in advance, and you can cancel before they apply.
 - **The allowance expires at the end of the period.** Unused allowance credits don't roll over; your allowance resets when the next period's invoice is paid. Free credits expire 30 days after they're added, whatever your billing period.
-- **An overdue renewal freezes only the allowance.** While a subscription payment is overdue, its allowance credits can't be spent until the payment goes through. Your free credits still can.
-- **A card dispute freezes everything.** While a card payment you made to Nevermined is disputed with your card issuer, none of your credits can be spent.
+- **Top-up credits never expire,** so they're spent last.
+- **An overdue renewal freezes only the allowance.** While a subscription payment is overdue, its allowance credits can't be spent until the payment goes through. Your free and top-up credits still can, and top-ups stay on. But a call that the frozen allowance would have covered is refused (`0016`) instead of charging a pack: paying the overdue invoice is what unlocks it.
+- **A card dispute freezes everything.** While a card payment you made to Nevermined — for the subscription or for a top-up pack — is disputed with your card issuer, none of your credits can be spent, and top-ups stop.
 - **They are not money.** Credits have no cash value, can't be cashed out, and can't be transferred to another account.
 
 Check your credits at any time, subscribed or not — it charges nothing:
@@ -124,21 +196,42 @@ curl -s "$NVM_API_URL/api/v1/credits/balance" \
 
 ```json
 {
-  "total": "2000",
-  "spendable": "2000",
+  "total": "11500",
+  "spendable": "11500",
   "parts": [
-    { "kind": "welcome", "credits": "2000", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null }
+    { "kind": "welcome", "credits": "1500", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null },
+    { "kind": "topup", "credits": "10000", "expiresAt": null, "frozen": null }
   ],
-  "nextExpiry": { "credits": "2000", "at": "2026-11-26T09:12:44.000Z" },
-  "topups": { "…": "your credit top-up settings" }
+  "nextExpiry": { "credits": "1500", "at": "2026-11-26T09:12:44.000Z" },
+  "topups": {
+    "enabled": true,
+    "monthlyLimitUsd": 30,
+    "maxMonthlyLimitUsd": 50,
+    "boughtThisMonthUsd": 10,
+    "packPriceUsd": 10,
+    "paused": null,
+    "card": { "brand": "visa", "last4": "4242" }
+  }
 }
 ```
 
 - `spendable` is what a personal API key can pay with right now — read it rather than adding up your calls. `total` also counts frozen credits.
-- `parts` lists what's left by `kind` (`welcome` for free credits, `allowance` for a subscription's monthly allowance, `sla` for credits Nevermined added for a defective result, `topup` for top-up credits), in the order they're spent: earliest expiry first. `expiresAt` is `null` on credits that never expire.
+- `parts` lists what's left by `kind` (`welcome` for free credits, `allowance` for a subscription's monthly allowance, `sla` for credits Nevermined added for a defective result, `topup` for top-up credits), in the order they're spent: earliest expiry first, never-expiring last. `expiresAt` is `null` on credits that never expire.
 - `frozen` is `null` on credits you can spend, `renewal_overdue` on an allowance frozen by an overdue renewal, and `dispute` on every part while a card dispute is open.
 - `nextExpiry` is the next credits to expire, or `null` when none of them expire.
-- `topups` holds your credit top-up settings, when top-ups are available to you. It's left out when they're not, or when they couldn't be read this time.
+- `topups` holds your [top-up](#top-ups) settings, when top-ups are available to you. It's left out when they're not, or when they couldn't be read this time.
+
+In `topups`, amounts are US dollars before tax:
+
+- `enabled` is whether a pack is charged automatically when your credits run out. It's `false` until you buy your first pack, and after you turn top-ups off.
+- `monthlyLimitUsd` is your monthly limit, or `null` if you never set one. It's kept when you turn top-ups off.
+- `maxMonthlyLimitUsd` is the highest limit Nevermined allows.
+- `boughtThisMonthUsd` is what the packs bought this calendar month (UTC) cost — the figure your limit counts, refunded packs and a pack still being charged included.
+- `packPriceUsd` is the price of one pack, or `null` when no pack is on sale.
+- `paused` is `null`, or why no pack is being charged and since when: `{ "reason": "payment_failed", "since": "2026-10-19T10:00:00.000Z" }`. `reason` is `payment_failed` (the last automatic pack was declined), `action_required` (its card asked for authentication), `card_unavailable` (the card that pays packs can no longer pay; API version 1.84 or later — older versions read `payment_failed`) or `dispute` (a card dispute on a top-up pack freezes every credit). A dispute on your subscription freezes every credit too, but leaves `paused` at `null`: read `frozen` on the parts. See [When top-ups pause](#when-top-ups-pause).
+- `card` is the card that pays packs (`brand` and `last4`), or `null` when none is saved.
+
+You manage top-ups in the Nevermined App, not over the API: see [Manage top-ups](#manage-top-ups).
 
 A caller with no credits gets `"total": "0"` and an empty `parts`. The balance is always your personal one: an organization tag on the key or an `X-Current-Org-Id` header is ignored. A call made in an organization never spends these credits, though (`402 BCK.SUBSCRIPTION_ROUTER.0002`). See the [API reference](/api-reference/router/credits-balance).
 
@@ -162,11 +255,11 @@ curl -s "$NVM_API_URL/api/v1/router/subscription/balance" \
 }
 ```
 
-`creditsLeft` counts your whole balance, free credits included, frozen or not. `spendable` is about the subscription only: `true` while it's `active` or `trialing` and not `suspended` by a card dispute on its payments, `false` otherwise. An overdue subscription (`past_due` or `unpaid`) freezes only its allowance, so your free credits can still pay a call then. And a dispute on another payment you made to Nevermined freezes every credit while this still reads `true`. Read `spendable` on [`GET /api/v1/credits/balance`](#credits) for what can pay right now. `subscribed: false` carries no other field. Called in an organization you're a member of, it reads that organization's subscription, never yours; organizations can no longer subscribe, so that's normally `subscribed: false`.
+`creditsLeft` counts your whole balance, free credits included, frozen or not. `spendable` is about the subscription only: `true` while it's `active` or `trialing` and not `suspended` by a card dispute on its payments, `false` otherwise. An overdue subscription (`past_due` or `unpaid`) freezes only its allowance, so your free and top-up credits can still pay a call then. And a dispute on another payment you made to Nevermined freezes every credit while this still reads `true`. Read `spendable` on [`GET /api/v1/credits/balance`](#credits) for what can pay right now. `subscribed: false` carries no other field. Called in an organization you're a member of, it reads that organization's subscription, never yours; organizations can no longer subscribe, so that's normally `subscribed: false`.
 
 ### In the catalog
 
-Signed in, the catalog shows your credits in the account menu under **Credits**, subscribed or not. A subscriber also sees a status bar on the catalog's home page, such as **Subscribed · 19,835 credits left this month**.
+Signed in, the catalog shows your credits in the account menu under **Credits**, subscribed or not, and where your top-ups stand. A subscriber also sees a status bar on the catalog's home page, such as **Subscribed · 19,835 credits left this month**.
 
 When your credits can pay a call, the catalog shows service prices **in credits** instead of USD:
 
@@ -247,8 +340,13 @@ What's different from the Delegation route:
 - **Nothing to sign or fund.** Nevermined pays the merchant and never hands you a payment credential — there is no subscription equivalent of [minting a credential](/api-reference/router/mint-payment-credential).
 - **No routing fee.** A subscription call costs its rate and nothing else.
 - **Long calls** behave as on the Delegation route: past the synchronous wait you get `202` with a `resultUrl` to poll, and the credits stay `Reserved` until the call ends.
+- **A top-up shows on the call that charged it.** When this call ran out of credits and, with [top-ups](#top-ups) on, charged a pack to cover itself, the response — the result, or the `202` — also carries `topUp`: the credits the pack added and its price before tax. Your card was charged, so tell the person you're acting for.
 
-For large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}`. Point your HTTP client at it with your API key and an `X-Router-Request-Id` header; the method, body and headers pass through and the response streams back with `X-Router-Credits-Charged` and `X-Router-Credits-Status` alongside the usual `X-Router-Payment-*` headers. `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id` are refused on this route.
+```json
+{ "topUp": { "credits": 10000, "amountUsd": 10 } }
+```
+
+For large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}`. Point your HTTP client at it with your API key and an `X-Router-Request-Id` header; the method, body and headers pass through and the response streams back with `X-Router-Credits-Charged` and `X-Router-Credits-Status` alongside the usual `X-Router-Payment-*` headers, plus `X-Router-Topup-Credits` and `X-Router-Topup-Amount-Usd` when the call charged a top-up pack. `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id` are refused on this route.
 
 ## When a service doesn't deliver
 
@@ -286,7 +384,7 @@ Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw UR
 ### Who can spend your credits
 
 - **A personal Nevermined API key**: one with no organization tag, used without an `X-Current-Org-Id` header. This is how an agent you run yourself spends them, through the Catalog MCP or the API.
-- **An assistant you connected through OAuth** (for example the [Catalog MCP](/mcp/catalog-mcp/overview) from Claude.ai or ChatGPT), only if you ticked **Let this assistant spend my Nevermined credits** on the consent screen. It's off by default. With it on, the assistant can read and spend your personal credits at eligible catalog services, with no separate credit cap, until you revoke the connection. It can't start a subscription for you or spend an organization's credits. Without it, [`pay_service`](/mcp/catalog-mcp/pay-service) pays from the connection's stablecoin spending cap instead, and a call to the credits route is refused with `403 BCK.OAUTH.0037`. An existing connection never gains this permission on its own: reconnect to allow it.
+- **An assistant you connected through OAuth** (for example the [Catalog MCP](/mcp/catalog-mcp/overview) from Claude.ai or ChatGPT), only if you ticked **Let this assistant spend my Nevermined credits** on the consent screen. It's off by default. With it on, the assistant can read and spend your personal credits at eligible catalog services, with no separate credit cap, until you revoke the connection. With [top-ups](#top-ups) on, a call it makes that runs out of credits charges a pack to your card, like any other call. It can't start a subscription for you, turn on top-ups, or spend an organization's credits. Without it, [`pay_service`](/mcp/catalog-mcp/pay-service) pays from the connection's stablecoin spending cap instead, and a call to the credits route is refused with `403 BCK.OAUTH.0037`. An existing connection never gains this permission on its own: reconnect to allow it.
 
 Any other kind of OAuth credential is refused with `403 BCK.OAUTH.0030`. An OAuth connection can't read [`GET /api/v1/credits/balance`](#credits) either, even one allowed to spend your credits: that balance takes a personal API key.
 
@@ -296,17 +394,17 @@ Credits have no spending limit beyond your balance — no daily, per-service or 
 
 ## When a call is refused
 
-Branch on `code`. None of these charged anything or reserved any credit.
+Branch on `code`. None of these spent or reserved any credit, and none charged anything — except that with top-ups on, a `0009` can follow a top-up pack charged to your card (`params.topUps`: `bought`, or `pending`), as the [table below](#when-no-top-up-covers-the-call) says.
 
 | Code | Status | What it means | What to do |
 | --- | --- | --- | --- |
 | `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with credits — `params.reason` says why (`no_active_tariff` — no rate yet, `price_variable`, `unhealthy`, `wallet_bound`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation — for `wallet_bound`, your own crypto (`erc4337`) Delegation. |
-| `BCK.SUBSCRIPTION_ROUTER.0002` | 402 | Nothing to pay this call with: no subscription in good standing (none bought, ended or past due), and no credits — or not enough for this call — that can be spent. Also the answer when you call in an organization you're a member of. | Subscribe, settle the open invoice, pick a cheaper endpoint, pay from a Delegation, or call with a personal API key and no `X-Current-Org-Id`. |
+| `BCK.SUBSCRIPTION_ROUTER.0002` | 402 | Nothing to pay this call with: no subscription in good standing (none bought, ended or past due), and no credits — or not enough for this call — that can be spent, with no top-up that would cover it: top-ups off, paused, at this month's limit or still charging a pack. Also the answer when you call in an organization you're a member of. | Subscribe, turn on [top-ups](#top-ups) — or resume them or raise their limit in the [Top-ups panel](#manage-top-ups) — settle the open invoice, pick a cheaper endpoint, pay from a Delegation, or call with a personal API key and no `X-Current-Org-Id`. |
 | `BCK.SUBSCRIPTION_ROUTER.0003` | 400 | The merchant asked for a rail credits don't pay (`params.rail`). | Pay from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0004` | 409 | The merchant's live price is outside the rate's bound, or in another asset or network — or, for a service paid over an MPP **session**, it asked to be paid at an address Nevermined has not yet seen it use for this endpoint (`payee_unobserved`). `params.reason` says which. | Retry later, or pay from a Delegation. A `payee_unobserved` call stays refused until Nevermined has seen that address on this endpoint, so pay it from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0005` | 400 | A field that only makes sense elsewhere (`url`, `delegationId`, a target header) — `params.field`. | Address the service by `slug` only. |
 | `BCK.SUBSCRIPTION_ROUTER.0007` | 400 | Mode A (`POST /router/payments`) can't be funded by a subscription — you sent it `fundingSource: "subscription"` or a `subscriptionId`. | Use the subscription route. |
-| `BCK.SUBSCRIPTION_ROUTER.0009` | 402 | Not enough credits left for this call (`params.credits` is its cost). Mostly what a subscriber in good standing gets: without one, the quote usually refuses a call your credits can't cover with `0002`. | Pick a cheaper endpoint or pay from a Delegation. A subscriber's allowance comes back next period. |
+| `BCK.SUBSCRIPTION_ROUTER.0009` | 402 | Not enough credits left for this call (`params.credits` is its cost). Mostly what a subscriber in good standing, or an account whose top-ups would charge a pack, gets: otherwise the quote usually refuses a call your credits can't cover with `0002`. With top-ups on, `params.topUps` says why no pack covered the call — see [the table below](#when-no-top-up-covers-the-call). | Pick a cheaper endpoint, turn on [top-ups](#top-ups), or pay from a Delegation. A subscriber's allowance comes back next period. |
 | `BCK.SUBSCRIPTION_ROUTER.0015` | 402 | All your credits are frozen: a card payment you made to Nevermined is disputed, or a dispute was decided in the cardholder's favour. | Withdraw the dispute with your card issuer, or contact Nevermined support. Until then, pay from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0016` | 402 | Your subscription's renewal payment is overdue, so its allowance is frozen, and your other credits don't cover this call (`params.credits` is its cost). | Update your card on the subscription page so the invoice is paid, or pay from a Delegation. |
 | `BCK.SUBSCRIPTION_TREASURY.0002` | 422 | The merchant wants to be paid in an asset Nevermined's treasury doesn't pay in. | Pay from a Delegation. |
@@ -319,7 +417,19 @@ Branch on `code`. None of these charged anything or reserved any credit.
 | `BCK.OAUTH.0038` | 403 | An OAuth connection allowed to spend your credits, used in an organization. It spends only your personal credits. | Call without the organization context. |
 | `BCK.ROUTER.0001` | 400 | With the message *this service delivers its results only to the personal wallet that paid*: the Router's own check that a wallet-bound endpoint is one credits can pay (such calls are normally refused earlier, as `BCK.SUBSCRIPTION_ROUTER.0001` `wallet_bound`). Any other message is a malformed request. | Pay it from your own crypto (`erc4337`) Delegation. |
 
-{/* #4454: 0009's `params.topUps` (what an automatic top-up did) belongs in the 0009 row above. */}
+### When no top-up covers the call
+
+With top-ups on, a call that runs out of credits charges a pack and goes ahead. When it can't, it's refused with `402 BCK.SUBSCRIPTION_ROUTER.0009`, and `params.topUps` says why. Without a subscription in good standing, though, a call made while top-ups are paused, at the limit or still charging a pack never gets that far: it's refused `0002`, with no `params.topUps`. No credits were spent on the refused call in any case, but with `bought`, and possibly `pending`, your card was charged for a pack.
+
+| `params.topUps` | What happened | What to do |
+| --- | --- | --- |
+| `paused` | A pack was declined or needed authentication, or its card can no longer pay — now or earlier — so top-ups are paused. | Resume them from the Top-ups panel — see [When top-ups pause](#when-top-ups-pause). |
+| `limitReached` | One more pack would take this month past your monthly limit, or past Nevermined's maximum. | Raise your limit in the Top-ups panel, or wait for next month (UTC). |
+| `pending` | A pack is being charged and wasn't confirmed in time. Your card may have been charged; its credits land once the payment is recorded. | Retry in a moment. |
+| `unavailable` | No pack could be charged right now, and none was. | Retry later. |
+| `bought` | This call charged a pack to your card, but other calls spent its credits first. The pack's credits are yours. | Tell the person you're acting for that their card was charged, then retry. |
+
+A `0009` without `params.topUps` usually tried no pack: top-ups are off, or not available to you. (It can also come after another call's pack covered this one and was spent before this call could use it.) A call that a frozen allowance would have covered (`0016`) or that a card dispute froze (`0015`) never charges a pack.
 
 Other errors with a `5xx` status (`BCK.SUBSCRIPTION_ROUTER.0006` and `0010`–`0014`, and the remaining `BCK.SUBSCRIPTION_TREASURY.*` codes) are on Nevermined's side and also charge nothing; `retryable` says whether retrying can help. The Router's common errors apply too — a reused `requestId` (`409 BCK.ROUTER.0002`), the rate and concurrency limits (`429`): see [every error code](/products/catalog/router/guardrails#every-error-code).
 
@@ -356,14 +466,14 @@ curl -s -G "$NVM_API_URL/api/v1/router/payments" \
 
 ## From the Catalog MCP
 
-With credits and a personal API key — or an OAuth connection [allowed to spend them](#who-can-spend-your-credits) — the [Catalog MCP](/mcp/catalog-mcp/overview)'s [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits) pays, and [`quote_service`](/mcp/catalog-mcp/quote-service#quote-in-subscription-credits) prices, in credits by default when your credits and the endpoint qualify. With a personal API key, [`get_budget`](/mcp/catalog-mcp/get-budget#nevermined-credits) and [`wallet_balance`](/mcp/catalog-mcp/wallet-balance#nevermined-credits) report your credits.
+With credits and a personal API key — or an OAuth connection [allowed to spend them](#who-can-spend-your-credits) — the [Catalog MCP](/mcp/catalog-mcp/overview)'s [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits) pays, and [`quote_service`](/mcp/catalog-mcp/quote-service#quote-in-subscription-credits) prices, in credits by default when your credits and the endpoint qualify. With a personal API key, [`get_budget`](/mcp/catalog-mcp/get-budget#nevermined-credits) and [`wallet_balance`](/mcp/catalog-mcp/wallet-balance#nevermined-credits) report your credits. When a call that goes ahead charges a top-up pack, `pay_service` says so in [`topUpMessage`](/mcp/catalog-mcp/pay-service#when-a-call-charges-a-top-up-pack), for your assistant to tell you.
 
 ## Refunds and disputes of the subscription itself
 
 These are about the monthly **fee**, not a single call. Subscription fees are **non-refundable**, except where the law requires a refund or for billing errors.
 
 - If a subscription payment is **refunded in full**, the unused credits it granted are removed. A refund can take 5–10 business days to appear on your card statement.
-- If you **dispute** a payment with your card issuer, its unused credits are removed and none of your credits — free credits included — can be spent while the dispute is open. If the dispute is decided in your favour, they stay unable to spend. If it's decided in Nevermined's favour, those credits are restored with their original expiry — credits whose billing period has ended by then come back already expired.
+- If you **dispute** a payment with your card issuer, its unused credits are removed and none of your credits — free and top-up credits included — can be spent while the dispute is open, so no top-up pack is charged either. If the dispute is decided in your favour, they stay unable to spend. If it's decided in Nevermined's favour, those credits are restored with their original expiry — credits whose billing period has ended by then come back already expired.
 
 ## Related
 

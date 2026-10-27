@@ -75,7 +75,7 @@ The vendor's response plus the payment record. A paid result also carries `deleg
 
 ## Pay with subscription credits
 
-With [Nevermined credits](/products/catalog/router/subscription) — free credits from sign-up, or a Nevermined Subscription's monthly allowance — `pay_service` can pay with **credits** instead of your delegation: Nevermined pays the merchant, the call costs the endpoint's rate from Nevermined's rate card, and the credits come back if the service doesn't answer with a `2xx`. Credits are spent with a personal **API key**, or through an OAuth connection you [allowed to spend them](/products/catalog/router/subscription#who-can-spend-your-credits); any other OAuth connection pays from its grant.
+With [Nevermined credits](/products/catalog/router/subscription) — free credits from sign-up, top-up packs, or a Nevermined Subscription's monthly allowance — `pay_service` can pay with **credits** instead of your delegation: Nevermined pays the merchant, the call costs the endpoint's rate from Nevermined's rate card, and the credits come back if the service doesn't answer with a `2xx`. Credits are spent with a personal **API key**, or through an OAuth connection you [allowed to spend them](/products/catalog/router/subscription#who-can-spend-your-credits); any other OAuth connection pays from its grant.
 
 The `funding` argument decides what pays:
 
@@ -96,6 +96,7 @@ A credits call answers with `funding: "subscription"`, the credits it cost and w
   "funding": "subscription",
   "paid": true,
   "upstreamStatus": 200,
+  "creditsLeft": "11497",
   "creditsCharged": 3,
   "creditsStatus": "Committed",
   "payment": { "paymentId": "b1f9c2e4-…", "status": "Settled", "txHash": "0xfc8af37b…", "creditsCharged": 3, "creditsStatus": "Committed" },
@@ -105,17 +106,40 @@ A credits call answers with `funding: "subscription"`, the credits it cost and w
 ```
 
 - `creditsStatus` is `Committed` (spent), `Reserved` (still running, or marked for refund) or `Refunded` (returned). The top-level `creditsCharged` and `creditsStatus` are `null` when `paid` is `false`, or when the ledger couldn't be read at answer time (`payment` then omits them) — read the payment with [`list_payments`](/mcp/catalog-mcp/list-payments) later.
+- `creditsLeft` is your credits after the call, as a digit string. `null` means it couldn't be read, not zero.
 - A `pending` answer works as for any paid call: poll [`get_payment_result`](/mcp/catalog-mcp/get-payment-result). The credits stay reserved until the service answers.
+
+### When a call charges a top-up pack
+
+With [top-ups](/products/catalog/router/subscription#top-ups) on, a credits call that runs out of credits charges one pack to the human's saved card and goes ahead. Its result then also carries `topUp` — the credits the pack added and its price in US dollars, before tax — and `topUpMessage`, a sentence to relay:
+
+```json
+{
+  "funding": "subscription",
+  "paid": true,
+  "upstreamStatus": 200,
+  "creditsLeft": "10497",
+  "creditsCharged": 3,
+  "creditsStatus": "Committed",
+  "topUp": { "credits": 10000, "amountUsd": 10 },
+  "topUpMessage": "Your credits ran out, so this call charged a credit pack to your saved card: 10,000 credits for $10.00 plus any tax. Tell the user. Top-up credits never expire; the pack and its receipt are on the Nevermined dashboard, where the monthly top-up limit is managed."
+}
+```
+
+- **Relay `topUpMessage` to the human.** Their card was charged, and they should hear it from you, not only from the receipt email.
+- A `pending` answer carries them too.
+- When the pack the Router reported can't be read, `topUpMessage` comes alone, without `topUp`, saying the call **may** have charged a pack. Relay that as well.
+- Only a call that goes ahead carries them. A call refused after its pack was charged says so only as `insufficient_credits` with `topUps: "bought"`; any other refusal then says nothing about the pack. The human's **Packs** list in the Nevermined App and the receipt email are the record.
 
 ### Refusals when paying with credits
 
-These charge nothing and reserve no credits. Each carries `funding: "subscription"`, the API's `code`, `retryable` and `message`, and an `alternative` saying how to pay the same call from your delegation instead.
+These spend and reserve no credits. They charge nothing either — except that with top-ups on, an `insufficient_credits` with `topUps: "bought"` (or `"pending"`) can follow a pack charged to the human's card: tell them. Each carries `funding: "subscription"`, the API's `code`, `retryable` and `message`, and an `alternative` saying how to pay the same call from your delegation instead.
 
 | `error` | What happened |
 | --- | --- |
-| `no_active_subscription` | Nothing to pay with: no subscription in good standing, and no credits — or not enough for this call — that can be spent. Also a call made with the API key of an organization you're a member of. |
+| `no_active_subscription` | Nothing to pay with: no subscription in good standing, and no credits — or not enough for this call — that can be spent. Also a call made with the API key of an organization you're a member of. Without a subscription in good standing, top-ups that are paused, at their monthly limit or still charging a pack land here too, with no `topUps`: with `funding` omitted, such a call is paid from the delegation instead, so tell the human their top-ups need attention in the Nevermined App. |
 | `subscription_not_eligible` | This endpoint can't be paid with credits — see `reason`. With `reason: "wallet_bound"` the service sells only to the payer's own crypto wallet, so the `alternative` asks for the `delegationId` of a personal crypto-wallet delegation: a card or organization delegation can't pay it either. (With `code: null` and no `alternative`, it's the HTTP method: credits price only `GET`, `POST`, `PUT`, `PATCH` and `DELETE`.) |
-| `insufficient_credits` | Not enough credits left for this call (`credits` is its cost). |
+| `insufficient_credits` | Not enough credits left for this call (`credits` is its cost). When the call tried a pack, `topUps` says why none covered it: `paused` (a pack was declined, needed authentication, or its card can no longer pay; the human resumes top-ups in the Nevermined App), `limitReached` (the monthly top-up limit), `pending` (a pack is being charged and may already be; retry in a moment), `unavailable` (no pack was charged; retry later) or `bought` (this call charged a pack, but other calls spent it first; retry). See [When no top-up covers the call](/products/catalog/router/subscription#when-no-top-up-covers-the-call). |
 | `subscription_ceiling_exceeded` | The merchant's live price is outside what the rate allows right now: above its bound, in another asset or network, or unreadable (`reason`). |
 | `subscription_rail_unsupported` | The merchant asked for a rail credits don't pay (`rail`). |
 | `subscription_payment_refused` | Nevermined's treasury couldn't make this payment; `code` and `retryable` say why and whether to retry. |
@@ -131,7 +155,7 @@ With `funding` omitted, `{ "error": "funding_undetermined", "retryable": true }`
 Other failures of a credits call use the usual outcomes above — `payment_failed`, `payment_indeterminate`, `already_paid`, `pending` — with `funding: "subscription"`: read `code` and `retryable`.
 
 <Note>
-A credits call refused at the call because too few credits are left (`insufficient_credits`) is **not** moved to your delegation on its own — starting to spend money when your credits run out is your decision. Retry with `funding: "delegation"` if you want the delegation to pay.
+A credits call refused at the call because too few credits are left (`insufficient_credits`) is **not** moved to your delegation on its own — starting to spend money when your credits run out is your decision. Retry with `funding: "delegation"` if you want the delegation to pay. To have a pack of credits charged automatically instead, the human turns on [top-ups](/products/catalog/router/subscription#turn-on-top-ups) in the Nevermined App; an assistant can't turn them on.
 </Note>
 
 ## Try it
