@@ -23,7 +23,7 @@ Price **one** call to a service **without paying it**: it charges nothing, signs
 | `body` | no | any | The request payload you'd send; some services price by it. |
 | `headers` | no | object | Extra headers you'd send to the vendor. |
 | `delegationId` | no | string | The delegation you'd pay with (API key only). A card or org-wallet delegation can select a different rail, and so a different price. An OAuth caller is always quoted for its grant. |
-| `funding` | no | string | `"subscription"` or `"delegation"`, as on `pay_service`. Omit it to get the [price in subscription credits](#quote-in-subscription-credits) when your subscription can pay this call, and the delegation quote otherwise. |
+| `funding` | no | string | `"subscription"` or `"delegation"`, as on `pay_service`. Omit it to get the [price in credits](#quote-in-subscription-credits) when your Nevermined credits can pay this call, and the delegation quote otherwise. |
 
 ## Returns
 
@@ -55,7 +55,7 @@ The rail, the merchant amount, and the fee-inclusive total. `fee.capChargedCents
 
 ## Quote in subscription credits
 
-With a [Nevermined Subscription](/products/catalog/router/subscription) that can pay this call, `quote_service` answers from Nevermined's rate card alone — **the service isn't contacted**, so the warning above doesn't apply:
+When your [Nevermined credits](/products/catalog/router/subscription) can pay this call — from a subscription or free credits — `quote_service` answers from Nevermined's rate card alone — **the service isn't contacted**, so the warning above doesn't apply:
 
 ```json
 {
@@ -69,7 +69,7 @@ With a [Nevermined Subscription](/products/catalog/router/subscription) that can
 }
 ```
 
-`credits` is what one call to this endpoint costs at the current rate. There's no `quoteId` or cent total: pay with `pay_service` and the same arguments. The quote doesn't check the credits you have left this month, the merchant's live price or Nevermined's treasury — `pay_service` checks those when it makes the call. `funding` follows the same rules as on [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits): omitted, a call credits can't price gets the delegation quote instead, with `fundingReason`; with `funding: "subscription"`, it is refused with the same [error names](/mcp/catalog-mcp/pay-service#refusals-when-paying-with-credits).
+`credits` is what one call to this endpoint costs at the current rate. There's no `quoteId` or cent total: pay with `pay_service` and the same arguments. For a subscriber in good standing, the quote doesn't check the credits left; it never checks the merchant's live price or Nevermined's treasury — `pay_service` checks those when it makes the call. `funding` follows the same rules as on [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits): omitted, a call credits can't price gets the delegation quote instead, with `fundingReason`; with `funding: "subscription"`, it is refused with the same [error names](/mcp/catalog-mcp/pay-service#refusals-when-paying-with-credits).
 
 ## Refusals (all charge nothing)
 
