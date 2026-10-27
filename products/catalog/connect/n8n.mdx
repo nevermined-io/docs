@@ -28,6 +28,16 @@ n8n connects with a **plain Nevermined API key**, not the OAuth "approve a spend
 
 To ground the setup, here is a workflow we built and ran on n8n: a weekly **agentic-commerce research agent**. Every Monday it wakes on a schedule, researches the last seven days of agentic commerce, and returns a short brief — delivered to Slack and by email. It discovers and pays for the services it needs on its own, under a **$2 budget** it cannot exceed.
 
+<Frame caption="A research agent in n8n, paid per call — built on the Nevermined Catalog: one prompt and a $2 budget, the Catalog discovers and pays for the services each run needs, and a weekly brief lands in Slack and email.">
+  <iframe
+    src="https://www.youtube.com/embed/DEHwDbTcw-Y"
+    title="A research agent in n8n, paid per call — Nevermined Catalog × n8n"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+    style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: "0.5rem", border: 0, display: "block" }}
+  ></iframe>
+</Frame>
+
 The point is how little there is to wire up. You don't integrate a search provider, a funding-data provider, and three social sources, each with its own account, key, and invoice. You describe the result you want and set a budget — an [Outcome](/products/catalog/build-outcomes) — and the Catalog composes the services at run time and pays each one per call.
 
 <Frame caption="One prompt and a $2 budget go in; the Catalog discovers and chains the services it needs — news and web search, newly launched and funded companies, and social signals across X, LinkedIn and Hacker News — reads the sources, writes the report, and returns one weekly brief. Every call is paid per use against the one budget.">
