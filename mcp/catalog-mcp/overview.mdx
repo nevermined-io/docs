@@ -63,7 +63,7 @@ Discovery is **free** — no credential needed. Pricing, picking or paying for a
 | [`wallet_balance`](/mcp/catalog-mcp/wallet-balance) | key / grant | nothing | What your funding wallet holds, on every network the Catalog settles on. Filter: `network`. |
 
 <Note>
-**Paying with a Nevermined Subscription.** With a [Nevermined Subscription](/products/catalog/router/subscription) and an API key, `pay_service` pays — and `quote_service` prices — in subscription credits by default when your subscription and the endpoint qualify — see [Pay with subscription credits](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits) — and `get_budget` and `wallet_balance` report your credits left.
+**Paying with Nevermined credits.** With [Nevermined credits](/products/catalog/router/subscription) — free credits from sign-up, or a Nevermined Subscription — and an API key, `pay_service` pays, and `quote_service` prices, in credits by default when your credits and the endpoint qualify — see [Pay with subscription credits](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits). `get_budget` and `wallet_balance` report your credits. An OAuth connection spends them only if you allowed it when you connected.
 </Note>
 
 Every tool declares this split in its listing (`securitySchemes`: `noauth` on the free tools, `oauth2` with the `commerce` scope on the paid ones), so a host that reads tool metadata — ChatGPT does — knows which tools need linking before it calls one.

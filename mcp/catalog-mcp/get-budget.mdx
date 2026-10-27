@@ -40,9 +40,30 @@ The figures are nested under `budget`; `delegationId`, `message`, and `instructi
 - **`lockedInChannels`**, when present, is money the wallet this budget pays from has deposited into payment channels with merchants that charge per call over an MPP session, per token (same shape as in [`wallet_balance`](/mcp/catalog-mcp/wallet-balance)). It is **not spent** and **not charged to this budget**: it can pay further calls only to the merchant holding each channel, and what is unused comes back to that wallet when the channel closes, after 15 minutes without use; `message` then says so. It is that **wallet's total**, not a figure of this budget's own: every budget paying from the same wallet reports the same channels. An empty list means nothing is locked; `null` means it could not be read, and `message` says that too.
 - With no `delegationId` this reads the budget `pay_service` would use, which only includes budgets that can still pay. So `{ "status": "no_active_delegation" }` also covers a budget that ran out or expired — pass the `delegationId` from an earlier `pay_service` result to read that one anyway.
 
-## Subscription credits
+## Nevermined credits
 
-With a [Nevermined Subscription](/products/catalog/router/subscription), and an API key, the result also carries a `subscription` block — your credits as the API reports them — and a `subscriptionMessage` to relay as it stands:
+With a personal API key, the result also carries your [Nevermined credits](/products/catalog/router/subscription), with or without a subscription:
+
+```json
+{
+  "status": "no_active_delegation",
+  "message": "There is no delegation spending budget, but your Nevermined credits cover the catalog services that carry a credits tariff: pay_service uses them by default for those, and does not fall back to a delegation when they run out. To pay merchants from a delegation instead, call setup_delegation.",
+  "subscription": { "subscribed": false },
+  "subscriptionMessage": "You have no Nevermined Subscription. You have 2,000 credits. 2,000 welcome credits expire on 2026-11-26.",
+  "credits": {
+    "total": "2000",
+    "spendable": "2000",
+    "parts": [
+      { "kind": "welcome", "credits": "2000", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null }
+    ],
+    "nextExpiry": { "credits": "2000", "at": "2026-11-26T09:12:44.000Z" }
+  },
+  "creditsMessage": "You have 2,000 credits. 2,000 welcome credits expire on 2026-11-26."
+}
+```
+
+- `credits` is your balance as [`GET /api/v1/credits/balance`](/api-reference/router/credits-balance) reports it: `spendable` is what can pay a call now, and `parts` lists the credits left by kind (`welcome` for free credits, `allowance` for a subscription's monthly allowance) and expiry, with any freeze. `creditsMessage` says the same in a sentence. Relay it as it stands.
+- `subscription` is your Nevermined Subscription, with `subscriptionMessage` to relay as it stands. It's `{ "subscribed": false }` when you don't subscribe. A subscriber sees the plan, the reset date and `creditsLeft`. For a subscriber who also holds free credits, `subscriptionMessage` counts them in the credits "left this month", so relay `creditsMessage` for what each part is and when it expires:
 
 ```json
 {
@@ -60,9 +81,12 @@ With a [Nevermined Subscription](/products/catalog/router/subscription), and an 
 }
 ```
 
-- **Don't count credits yourself** — `creditsLeft` is what [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits) debits. `spendable: false` means the credits can't pay a call right now (a past-due invoice, or a card dispute).
-- `subscription` is `{ "subscribed": false }` when you don't subscribe. It's absent when the subscription isn't available to you, for an OAuth connection, or when the credits couldn't be read this time — absent never means zero.
-- With no delegation, `status: "no_active_delegation"` still carries the `subscription` block, and drops `nextTool: "setup_delegation"` when your credits can pay: `pay_service` uses them by default.
+- **Don't count credits yourself.** `credits.spendable` is what [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits) can spend now with a personal API key; a call made in an organization never spends them. `subscription.creditsLeft` counts your whole balance, free credits included. `subscription.spendable` is about the subscription only: `false` unless it's `active` or `trialing` and not suspended by a card dispute. While it's overdue (`past_due` or `unpaid`), only its allowance is frozen.
+- `credits` is `null` when your balance couldn't be read this time, and `creditsMessage` says so. That never means zero.
+- An OAuth connection that you [allowed to spend your credits](/products/catalog/router/subscription#who-can-spend-your-credits) gets `subscription` but no `credits`: that balance takes a personal API key. Any other OAuth connection gets neither. Both are also absent when the subscription isn't available to you or when it couldn't be read this time. Absent never means zero.
+- With no delegation, `status: "no_active_delegation"` still carries these fields, and drops `nextTool: "setup_delegation"` when your credits can pay: `pay_service` uses them by default. An OAuth connection gets no `credits`, so without a subscription that can pay it keeps `nextTool: "setup_delegation"`, even when `pay_service` can spend its free credits.
+
+{/* #4454: top-ups — `credits.topups` and what get_budget says about them — go here. */}
 
 ## Try it
 
