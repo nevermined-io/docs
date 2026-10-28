@@ -1,0 +1,152 @@
+---
+title: "Connect the Catalog from H Company"
+description: "Connect the Nevermined Catalog to H Company's Runner H: give an agent Catalog tools backed by your API key, and it discovers and pays for services as it runs."
+icon: "plug"
+---
+
+{/*
+  Mirrors products/catalog/connect/n8n.mdx (the API-key / Bearer host shape), NOT the OAuth-consent
+  _template.mdx. The connect method shown is the CLIENT-EXECUTED TOOLS path: the Runner H agent emits a
+  Catalog tool call and pauses, the integrator's backend resolves it against the Catalog MCP with a plain
+  Nevermined API key (Authorization: Bearer), and posts the result back to the session. No OAuth flow.
+  This path completes end to end and is what the "See it in action" demo used.
+
+  NATIVE "mcp" ENVIRONMENT PATH INTENTIONALLY OMITTED (2026-10-28). Runner H has a native kind:"mcp"
+  environment that is the cleaner 1:1 analog of n8n's MCP Client Tool node, but a delivered paid call
+  through it is not reliably completing yet, pending a fix on the host side. Do NOT document the native
+  path until that lands; then it can be added back as the primary connect method. Details are in the
+  internal H Company spike notes.
+
+  "See it in action" / "What one run looks like" come from a real build+run captured 2026-10-27: the
+  saved Agent `recall-checker` (Peloton Tread+), ~165 subscription credits (RecallRadar 150 + Perplexity
+  15). Nothing was re-run for the recording. Video: YouTube 7PkMvaeUX8A. No platform screenshots exist,
+  so the run is shown as prose + a table, not fabricated images.
+*/}
+
+H Company's Runner H can browse the [Nevermined Catalog](/products/catalog/overview) and pay for services as an agent works, unattended and under a budget you set. You give the agent a couple of Catalog tools, resolve those tool calls in your own backend with a Nevermined API key, and the agent discovers and pays for what a task needs. This is the per-host walkthrough; for the full tool surface and the safety model, see [Using the Catalog from a harness](/products/catalog/from-a-harness).
+
+<Note>
+H Company connects through a **plain Nevermined API key**, not the OAuth "approve a spending cap" flow that some assistants (Claude, ChatGPT) use. The key stays in your backend and is never handed to the agent; it spends whatever its Nevermined account funds, so you set the budget on your account, not in H Company.
+</Note>
+
+## See it in action
+
+To ground the setup, here is an agent we built and ran on H Company: a **recall checker**. You hand it a product and it returns a sourced safety brief, discovering and paying for the services it needs on its own. It is a saved Runner H Agent (`recall-checker`, model `holo4-27b`) with the Catalog wired in as its tools, the same shape an n8n builder gets from the MCP Client Tool node.
+
+<Frame caption="A recall-checker agent on H Company, paid per call, built on the Nevermined Catalog: given one product, the agent discovers and pays for a public-safety-recall lookup and a model to write the brief, and returns a sourced risk assessment. Every call is paid per use from the account's credits.">
+  <iframe
+    src="https://www.youtube.com/embed/7PkMvaeUX8A"
+    title="A recall-checker agent on H Company, paid per call · Nevermined Catalog × H Company"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowFullScreen
+    style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: "0.5rem", border: 0, display: "block" }}
+  ></iframe>
+</Frame>
+
+The point is how little there is to wire up. You do not integrate a recalls provider and a model vendor, each with its own account, key, and invoice. You describe the result you want, an [Outcome](/products/catalog/build-outcomes), and the Catalog composes the services at run time and pays each one per call. Given a Peloton Tread+, the agent found the real CPSC recall of 2021, wrote a HIGH-risk brief from it, and paid for exactly the two calls it needed.
+
+## What one run looks like
+
+On a run the agent calls the Catalog more than once. For each part of the brief it searches for a service that fits, pays for that one call, and moves on, all against the same budget.
+
+| Step | Service it paid | What came back | Cost |
+| --- | --- | --- | --- |
+| 1 | `recallradar` (recall lookup) | The real **CPSC recall of 2021-05-05**: the Tread+ entrapment hazard, the remedy, and the cpsc.gov source | 150 credits, settled, upstream 200 |
+| 2 | `perplexity` (`sonar`) | The risk brief written from that record plus live sources, with 10 citations | 15 credits, settled, upstream 200 |
+
+The agent then emitted a sourced **HIGH-risk** brief: the active CPSC recall, the hazard, the remedy, a recommended action, and the source link. About **165 credits** in total, all from the account's **subscription credits**, with no stablecoin spend. It paid for the two calls its task needed and nothing else. The Catalog tool calls in this run were resolved by the integration's own backend, the method shown in [Add the Catalog to H Company](#add-the-catalog-to-h-company).
+
+## Before you connect
+
+<Steps>
+  <Step title="A Nevermined account">
+    Free, at [nevermined.app](https://nevermined.app).
+  </Step>
+  <Step title="A Nevermined API key">
+    Create a **plain** API key in the app (**Settings → Global NVM API Keys**) for the environment you want, and send the whole string, prefix included (`sandbox:…` or `live:…`). Use a plain key rather than one from an OAuth consent flow: your backend needs a static bearer token and has no consent step to run. See [Get a Nevermined API key](/agents-guide/get-api-key).
+  </Step>
+  <Step title="A way to pay">
+    The key spends from your [Nevermined credits](/products/catalog/router/subscription): the free credits a new account gets when it signs up with a verified email, top-up packs, or a Nevermined Subscription's monthly allowance. It can also spend from a capped, revocable **delegation** funded from your own wallet ([Using the Catalog from a harness](/products/catalog/from-a-harness) walks through it). Discovery is free and needs neither.
+  </Step>
+  <Step title="An H Company agent">
+    Access to H Company's Agents API (`https://agp.eu.hcompany.ai/api`) with your H Company API key, so you can define an agent and run a session.
+  </Step>
+</Steps>
+
+<Note>
+Start on **sandbox**, where you use testnet funds and nothing costs real money, before you point H Company at **live**. The Catalog is **Live-only for payment**: sandbox discovers services but cannot settle a real one, so run the money path on **live** with a small cap.
+</Note>
+
+## Add the Catalog to H Company
+
+Runner H agents call tools, and a tool can be **client-executed**: the agent emits the call, pauses, and your integration runs it and sends the result back. That is where the Catalog lives. You give the agent a couple of Catalog tools, and your backend resolves each call against the Catalog MCP with your Nevermined API key. The key stays in your backend, so the agent never holds it.
+
+Your backend talks to the Catalog MCP endpoint for the environment you are on:
+
+| Environment | Server URL |
+| --- | --- |
+| **Sandbox** (connect and browse here first) | `https://mcp.sandbox.nevermined.app/mcp` |
+| **Live** (real merchants, real money) | `https://mcp.live.nevermined.app/mcp` |
+
+<Steps>
+  <Step title="Define the agent with Catalog tools">
+    Create an agent (`POST /v2/agents`, or pass it inline per session) whose `tools` are client-executed definitions for the Catalog, for example one to **search** services and one to **pay** a service by slug. Run sessions against it by name.
+  </Step>
+  <Step title="Run a session and watch for tool calls">
+    Start the session (`POST /v2/sessions`) with the task, then poll `GET /v2/sessions/{id}/changes`. When the agent calls a tool, the session turns to `awaiting_tool_results` and the pending calls arrive with their name and arguments.
+  </Step>
+  <Step title="Resolve each call against the Catalog">
+    Call the Catalog MCP (the URL above) with your key as `Authorization: Bearer <your Nevermined API key>`, then post the result back with `POST /v2/sessions/{id}/tool_results`. The agent resumes and, once it has what it needs, returns its answer. Keep the prefix: a `live:` key for `mcp.live`, a `sandbox:` key for `mcp.sandbox`.
+  </Step>
+</Steps>
+
+Browsing the Catalog is free; paying a service is what draws on your budget. See the [Catalog MCP page](/products/catalog/mcp) for the setup, and the [full Catalog MCP reference](/mcp/catalog-mcp/overview) for every tool, its arguments, and the refusal codes. The plain-key playbook your backend follows, discovery, delegations and the safety rules, is [Using the Catalog from a harness](/products/catalog/from-a-harness).
+
+## The budget is the guardrail
+
+An agent runs with no human watching each call, so the account's limits do the work a person would. The key spends only what its Nevermined account funds, enforced on Nevermined's side, not inside H Company. With a plain key the Commerce MCP pays from your **credits** first whenever they can cover a call, and from a **delegation** otherwise, so know which one an agent is spending and what actually bounds it.
+
+- **A delegation is a hard, revocable cap.** Fund it once and its cap is the ceiling for every call paid from it. Revoke it any time, in one action, from [Payment methods](https://nevermined.app/payment-methods), and the next delegation-funded call fails. For a hard per-agent ceiling, have your backend send `funding: "delegation"` on every pay call, so the delegation cap is the only bound no matter what credits the account holds. (Running the agent on a separate account with no credits works too, but welcome credits and a subscription's allowance arrive on their own, so the explicit lever is simpler.)
+- **Credits have no cap beyond your balance.** There is no daily, per-service or per-key limit, and with [top-ups](/products/catalog/router/subscription#top-ups) on, a call that runs short charges your card for a 10,000-credit pack, up to a monthly limit you set. Revoking a delegation does not stop credit spend; the Nevermined-side stop for credits is rotating or deleting the key and turning top-ups off.
+- **Keep the stop within reach.** Treat the backend secret that stores the key as spending authority, and know the lever before you need it: the key and top-ups for credits, the delegation cap for delegated calls.
+
+## Make your first paid call
+
+Give the agent a task that needs a live, paid service, so it reaches for the Catalog tools rather than answering from memory.
+
+<Steps>
+  <Step title="Browse for free">
+    Ask the agent to call a free discovery tool first, for example *list the Nevermined catalog categories* or *search the catalog for a recalls service*. Your backend resolves the call against the Catalog, and discovery needs no payment.
+  </Step>
+  <Step title="Let it buy">
+    Then ask it to pay a service by slug, for example *buy the service `<slug>` and return the response*. Your backend runs the pay call against the Catalog; it draws on your Nevermined credits or delegation and returns the merchant's response. Payment is **live-only**: on sandbox the only payable services are the two testnet test merchants, `mpp-dev-paid-ping` and `x402-org-protected`, so make your first real purchase on live with a small cap.
+  </Step>
+</Steps>
+
+<Tip>
+If the agent answers without paying, it answered from its own knowledge. Have it call a discovery tool first and ask for something only live data can answer. More on phrasing: [Catalog MCP tips](/mcp/catalog-mcp/overview#connect-from-your-assistant).
+</Tip>
+
+## Disconnect or rotate the key
+
+- **Stop the credential (Nevermined side).** The key *is* the credential, so **rotate or delete the key** in the app (**Settings → Global NVM API Keys**); every call made with the old key then fails, your backend's included. That is the only Nevermined-side stop for credit spend, so also turn off [top-ups](/products/catalog/router/subscription#top-ups). To cap delegation-funded spend without revoking the key, revoke the delegation in [Payment methods](https://nevermined.app/payment-methods); discovery still works.
+- **Stop resolving calls (H Company side).** Remove the Catalog tools from the agent, or retire the agent, so it can no longer reach the Catalog, and remove the key from your backend.
+
+To spend again, use a fresh key; if you revoked the delegation, create a new one. See [Using the Catalog from a harness](/products/catalog/from-a-harness).
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="What the Catalog is" icon="store" href="/products/catalog/overview">
+    The marketplace of pay-per-call services your agent can discover and buy.
+  </Card>
+  <Card title="Build an Outcome" icon="wand-magic-sparkles" href="/products/catalog/build-outcomes">
+    Describe a result and a budget; the Catalog composes and pays for the services, the pattern behind the recall checker above.
+  </Card>
+  <Card title="Catalog MCP reference" icon="plug" href="/mcp/catalog-mcp/overview">
+    Every tool, its arguments, the API-key header, and every refusal code.
+  </Card>
+  <Card title="Using the Catalog from a harness" icon="terminal" href="/products/catalog/from-a-harness">
+    The full plain-key playbook: discovery, delegations, and the safety rules.
+  </Card>
+</CardGroup>
