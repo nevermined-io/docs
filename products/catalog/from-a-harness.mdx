@@ -75,7 +75,11 @@ Ask a human only for the left column. Don't wait for one to create the delegatio
 
 **Or let your assistant get it for you.** If your harness is an AI assistant that runs OAuth on your behalf — Claude (the claude.ai connector), ChatGPT, Claude Code, LangSmith Fleet, or another MCP host whose client Nevermined's operator has listed (following the MCP authorization spec buys a host its identity, not this authority — an unlisted host is refused at the consent screen) — you skip the key, and Step 1's delegation: add the [Catalog MCP](/mcp/catalog-mcp/overview#auth-&-transport) with no key, and the assistant sends you to Nevermined to approve a **spending cap** once — when you add the server on the strict host, on the first paid call on the public one. That approval is the delegation of Step 1 *and* the credential of this step, in one screen; the assistant renews the credential silently. The cap bounds what it can *spend* — not what the grant can see or do on your account (it reads your Router payment history and wallet balance, lists and can revoke your delegations, and can start a new delegation ceremony for you to approve); `auth.md` §6 has the full list. Which host and client each assistant uses (two of the four above need the strict `mcp.api.<tier>` host), and the mechanics the host follows, are `auth.md` §6. **Funding is not skipped:** a commerce grant spends stablecoin from your own wallet, so the next bullet still applies.
 
-**Fund a way to pay.** A **stablecoin** method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. To pay by **card** instead, [enroll one once](/agents-guide/enroll-card) (a one-time in-browser step) — card enrolment funds the card rails only; a `commerce` grant from an assistant always spends stablecoin from your own wallet.
+**Fund the stablecoin delegation.** A **stablecoin** (`erc4337`) method exists by default — fund it on the networks the Catalog settles on: **Base** and **Tempo**. Services settle on different rails (some on Base, some on Tempo), so keeping a small balance on **both** keeps any service payable — otherwise a call can fail simply because your funds are on the other network. A `commerce` grant from an assistant spends this same stablecoin from your own wallet.
+
+<Warning>
+**A card does not fund Catalog calls by default.** An x402 catalog listing needs a stablecoin `erc4337` delegation, and by default the Router pays catalog calls only from one — the Stripe SPT card rail is **off by default** and enabled per deployment. (Separately, a card delegation pays Nevermined *plans* over x402/MPP — a different flow.) For the Catalog, fund the stablecoin delegation above, or spend [Nevermined credits](#paying-with-nevermined-credits).
+</Warning>
 
 ## Step 1 — The agent creates its budget (the delegation)
 
@@ -151,7 +155,7 @@ If your harness speaks MCP, the server drops discovery and payment in as native 
 }
 ```
 
-Use `https://mcp.sandbox.nevermined.app/mcp` to rehearse. The tools your agent then has — discovery is **free**, the rest need the credential, and only `pay_service` / `route_by_intent` (with `autoPay`) move money:
+Use `https://mcp.sandbox.nevermined.app/mcp` to rehearse. The tools your agent then has — discovery is **free**, the rest need the credential, and `pay_service`, `route_by_intent` (with `autoPay`) and `top_up_credits` move money:
 
 | Tool | Free? | What it does |
 | --- | --- | --- |
@@ -162,6 +166,7 @@ Use `https://mcp.sandbox.nevermined.app/mcp` to rehearse. The tools your agent t
 | `setup_delegation` | paid | Get a URL for a human to approve a spending cap, when none exists yet. |
 | `get_payment_result` | paid | Read a paid call's result by `paymentId` (for a `pending` call, or a lost response). |
 | `list_payments` · `payment_summary` · `get_budget` · `wallet_balance` | paid | Reconcile spend, count payments, read the budget, and check wallet funding. |
+| `top_up_credits` | paid | Refill [Nevermined credits](#paying-with-nevermined-credits) within the human-set monthly limit — charges one pack to their card, no new approval. |
 
 Every argument, return field and refusal is in the [Catalog MCP reference](/mcp/catalog-mcp/overview); the [product page](/products/catalog/mcp) has the per-assistant setup walkthroughs.
 
@@ -194,13 +199,15 @@ All three forms need the same two facts — **which delegation pays** and **an i
 
 The transparent response carries `X-Router-Payment-Id`, `X-Router-Payment-Status`, `X-Router-Tx-Hash`, and — on a failed/unsettled payment — `X-Router-Failure-Reason`.
 
+**Two optional controls on the JSON form** (`/router/route`): put a GET's query string in **`search`** — **without** a leading `?`; the Router appends it to the resolved target. Cap one call with **`maxTotalCents`**, the most whole cents it may reserve against the delegation, **fee included** (the `402` price can differ from the catalog label; a quote above it is refused `402 BCK.ROUTER.0018`, no charge). See [Guardrails](/products/catalog/router/guardrails).
+
 <Tip>
 Address a cataloged service by its **slug**, never a raw URL: the Router hides the vendor's host on purpose, so paying one by raw URL is refused (`409 BCK.ROUTER.0014`). Keep raw **URLs and hosts** out of the path — a security guard blocks anything there that looks like it changes the destination host. The resolved `slug` in `/svc/<slug>` is exempt, because the Router maps it to the host server-side.
 </Tip>
 
 ## Paying with Nevermined credits
 
-If the user holds [Nevermined credits](/products/catalog/router/subscription) — the free credits a new account gets, top-up packs, or a Nevermined Subscription's monthly allowance — some catalog endpoints can be paid with them instead of the delegation: Nevermined pays the merchant, the call costs a fixed number of credits with no routing fee, and the credits come back if the service doesn't answer `2xx`. Credits pay only the endpoints that carry a rate, so keep a delegation for the rest.
+If the user holds [Nevermined credits](/products/catalog/router/subscription) — the free credits a new account gets (check `GET /api/v1/credits/welcome/offer`), top-up packs, or a Nevermined Subscription's monthly allowance — some catalog endpoints can be paid with them instead of the delegation: Nevermined pays the merchant, the call costs a fixed number of credits with no routing fee, and the credits come back if the service doesn't answer `2xx`. Credits pay only the endpoints that carry a rate, so keep a delegation for the rest.
 
 **Price a call in credits** — this charges nothing. A listing's USD `priceLabel` is not its credits price; don't convert one into the other.
 
@@ -214,6 +221,8 @@ If the user holds [Nevermined credits](/products/catalog/router/subscription) �
 - **`POST /api/v1/router/subscription/route`** with `slug`, `path`, `method`, `body` and `requestId` — no `delegationId`, no URL. The streaming form is `/api/v1/router/subscription/svc/<slug>/<subpath>` with an `X-Router-Request-Id` header.
 
 The delegation routes (`/router/route`, `/router/proxy`, `/router/svc`) never spend credits. An OAuth connection (the claude.ai connector, ChatGPT, or a host connected through the OAuth consent) spends them only if the human ticked **Let this assistant spend my Nevermined credits** when connecting it; otherwise it pays from the cap the human approved, and the credits routes refuse it (`403 BCK.OAUTH.0037`, or `0030` for an OAuth key that isn't a commerce connection). Use a personal API key and no `X-Current-Org-Id` header. `GET /api/v1/credits/balance` returns the credits that can pay now. Every rule and refusal code: [Pay with Nevermined credits](/products/catalog/router/subscription).
+
+**Refill before you run low.** If a human has enrolled a card and set a monthly top-up limit, the agent can charge a pack of credits itself — within that limit, no new approval. `POST /api/v1/credits/topups/pack` with a `requestId` you choose and `forCallCredits` (what the next call needs) charges one pack **only when your spendable credits are below it** (otherwise `not_needed`, nothing charged); `GET` the same path reads the limit first. The Catalog MCP wraps this as [`top_up_credits`](/mcp/catalog-mcp/top-up-credits), which documents every `status` and the 3-D Secure / `operatorUrl` handling. Turning top-ups on and setting the limit stay with the human, in the App. (With **your own API key** and top-ups on, a credits call that runs out also charges a pack on its own; through an OAuth connection it never does, so an OAuth-connected agent must call `top_up_credits` — see [`pay_service`](/mcp/catalog-mcp/pay-service#when-a-call-charges-a-top-up-pack).)
 
 ## Async services (generate, then poll)
 

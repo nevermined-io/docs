@@ -43,7 +43,7 @@ Discovery is **free** — no credential needed. Pricing, picking or paying for a
     [`quote_service`](/mcp/catalog-mcp/quote-service) · [`pay_service`](/mcp/catalog-mcp/pay-service) · [`route_by_intent`](/mcp/catalog-mcp/route-by-intent) · [`setup_delegation`](/mcp/catalog-mcp/setup-delegation) · [`get_payment_result`](/mcp/catalog-mcp/get-payment-result)
   </Card>
   <Card title="Ledger & wallet" icon="receipt">
-    [`list_payments`](/mcp/catalog-mcp/list-payments) · [`payment_summary`](/mcp/catalog-mcp/payment-summary) · [`get_budget`](/mcp/catalog-mcp/get-budget) · [`wallet_balance`](/mcp/catalog-mcp/wallet-balance)
+    [`list_payments`](/mcp/catalog-mcp/list-payments) · [`payment_summary`](/mcp/catalog-mcp/payment-summary) · [`get_budget`](/mcp/catalog-mcp/get-budget) · [`wallet_balance`](/mcp/catalog-mcp/wallet-balance) · [`top_up_credits`](/mcp/catalog-mcp/top-up-credits)
   </Card>
 </CardGroup>
 
@@ -61,6 +61,7 @@ Discovery is **free** — no credential needed. Pricing, picking or paying for a
 | [`payment_summary`](/mcp/catalog-mcp/payment-summary) | key / grant | nothing | Count of payments plus a daily time series. Filters: `from`, `to`. |
 | [`get_budget`](/mcp/catalog-mcp/get-budget) | key / grant | nothing | The spending budget `pay_service` draws on — cap, spent, remaining, expiry. |
 | [`wallet_balance`](/mcp/catalog-mcp/wallet-balance) | key / grant | nothing | What your funding wallet holds, on every network the Catalog settles on. Filter: `network`. |
+| [`top_up_credits`](/mcp/catalog-mcp/top-up-credits) | key / grant | **the human's card** | Refill credits within the human-set monthly limit — charge one pack when your credits run low, no new approval. |
 
 <Note>
 **Paying with Nevermined credits.** With [Nevermined credits](/products/catalog/router/subscription) — free credits from sign-up, top-up packs, or a Nevermined Subscription — and an API key, `pay_service` pays, and `quote_service` prices, in credits by default when your credits and the endpoint qualify — see [Pay with subscription credits](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits). `get_budget` and `wallet_balance` report your credits. An OAuth connection spends them only if you allowed it when you connected.
