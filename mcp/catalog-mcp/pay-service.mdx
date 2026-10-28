@@ -111,7 +111,7 @@ A credits call answers with `funding: "subscription"`, the credits it cost and w
 
 ### When a call charges a top-up pack
 
-With [top-ups](/products/catalog/router/subscription#top-ups) on, a credits call that runs out of credits charges one pack to the human's saved card and goes ahead. Its result then also carries `topUp` — the credits the pack added and its price in US dollars, before tax — and `topUpMessage`, a sentence to relay:
+With [top-ups](/products/catalog/router/subscription#top-ups) on **and a personal API key**, a credits call that runs out of credits charges one pack to the human's saved card and goes ahead (a call made through an OAuth connection never charges a pack on its own — an OAuth-connected agent uses [`top_up_credits`](/mcp/catalog-mcp/top-up-credits) instead). Its result then also carries `topUp` — the credits the pack added and its price in US dollars, before tax — and `topUpMessage`, a sentence to relay:
 
 ```json
 {
