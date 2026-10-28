@@ -1,0 +1,81 @@
+---
+title: "top_up_credits"
+sidebarTitle: "Top Up Credits"
+description: "Catalog MCP tool: charge one credit pack to the card your human enrolled, within the monthly top-up limit they set. Charges real funds."
+---
+
+Refill your [Nevermined credits](/products/catalog/router/subscription#top-ups) within the human-set monthly limit. Charges one **pack of 10,000 credits that never expire** to the card your human enrolled — **no new human approval** — and only when your spendable credits are below the call you're about to make. **This charges the human's card.** Needs a credential (API key, or a `commerce` OAuth grant that enabled credit top-ups at consent).
+
+Turning top-ups on and setting the monthly limit stay with the human, in the [Nevermined App](https://nevermined.app) — this tool charges a pack *within* that limit, it does not create or change it. Most agents never call it: with top-ups on, a credits call that runs out charges a pack on its own (see [`pay_service`](/mcp/catalog-mcp/pay-service#when-a-call-charges-a-top-up-pack)). Call `top_up_credits` to refill **before** a call, so the credits are in place when you make it.
+
+**Auth:** key / grant (grant must allow top-ups) · **Charges:** real funds, the human's card
+
+## Arguments
+
+| Argument | Required | Type | Description |
+| --- | --- | --- | --- |
+| `requestId` | yes | string | An idempotency handle you choose for **this** top-up. Use a **new** value for each top-up you intend; reuse the **same** value only to re-send a call that may not have completed — a retry returns the pack already charged, never a second one. 8–200 chars of letters, digits and `._:-` (e.g. a run id or a UUID). |
+| `forCallCredits` | yes | integer | The credits the call you're about to make will spend (read it from a [`quote_service`](/mcp/catalog-mcp/quote-service) or your plan's per-call cost). A pack is charged only when your spendable credits are **below** this; when they already cover it, nothing is charged (`not_needed`). 1–1,000,000. |
+
+## Returns
+
+The pack's result and where your top-up spend stands this month. Amounts are US dollars before tax.
+
+```json
+{
+  "status": "bought",
+  "replayed": false,
+  "purchaseId": "9c2e4a71-…",
+  "creditsAdded": 10000,
+  "monthlyLimitUsd": 30,
+  "boughtThisMonthUsd": 10,
+  "packPriceUsd": 10,
+  "message": "Charged a 10,000-credit pack ($10.00 plus tax) to the saved card."
+}
+```
+
+- `creditsAdded` is set only when a pack was actually charged (`status: "bought"` with `replayed: false`).
+- `operatorUrl` appears on `needs_attention` and `disabled` — a link to hand the human. Relay `message` to them whenever a pack was or may have been charged.
+
+To read the limit before you decide, without charging anything, use the REST endpoint `GET /api/v1/credits/topups/pack` (`enabled`, `monthlyLimitUsd`, `maxMonthlyLimitUsd`, `boughtThisMonthUsd`, `packPriceUsd`, `paused`), or the `topups` block on [`GET /api/v1/credits/balance`](/products/catalog/router/subscription#credits).
+
+## Outcomes
+
+Read `status`. Only `bought` (with `replayed: false`) charged a pack.
+
+| `status` | Meaning | What to do |
+| --- | --- | --- |
+| `bought` | A pack was charged and its credits are in your balance (`creditsAdded`). If `replayed` is `true`, this `requestId` had already bought one and **nothing new** was charged. | Make your call. Use a **new** `requestId` next time. |
+| `pending` | **Your** pack was charged and is awaiting confirmation. | Read your balance shortly; don't re-send. |
+| `busy` | Another top-up is already being charged — **nothing was charged for this request**. | Check your balance shortly; re-send the **same** `requestId` only if you still need one. |
+| `limit_reached` | This UTC month's top-up limit is used up; nothing charged. | Don't retry until next month, or ask the human to raise the limit. |
+| `not_needed` | Your spendable credits already cover `forCallCredits`; nothing charged. | Make your call — you don't need a pack. |
+| `needs_attention` | A human must act: the card was declined or needs 3-D Secure, a card payment is disputed, setup is unfinished, a prior top-up is stuck, or a prior top-up's outcome is unconfirmed (it **may** have been charged). | Hand the human `operatorUrl`; **never** try to confirm 3-D Secure yourself. Don't start a new top-up until they act — if the message says the outcome is unconfirmed, keep the **same** `requestId`. |
+| `disabled` | Top-ups aren't on; nothing charged. | Give the human `operatorUrl` to turn them on in the App. |
+| `unavailable` | Nothing was charged. | Retry with a **new** `requestId` — reusing this one keeps returning the same settled result. |
+
+<Warning>
+**A new `requestId` per top-up; the same one only to re-send.** On any non-2xx other than a coded `4xx` refusal (e.g. `BCK.OAUTH.0041`), or no response at all, re-send with the **same** `requestId` — the charge may have landed, and the id returns that pack instead of charging a second one. A `needs_attention` whose message says the outcome is unconfirmed may already have charged: keep the same `requestId`, don't start a new top-up.
+</Warning>
+
+<Note>
+A `commerce` OAuth grant that may top up but not spend answers `403 BCK.OAUTH.0041` to a spend. The reverse is also true: a grant that can spend credits but wasn't allowed to top up can't charge a pack. Reconnect with the right boxes ticked — see [Who can spend your credits](/products/catalog/router/subscription#who-can-spend-your-credits).
+</Note>
+
+## Try it
+
+**Ask your assistant:**
+
+> My credits are low and the next call needs about 1,000. Top up within my limit, then make the call.
+
+**Call it directly** (⚠️ **charges the human's card** — rehearse on `https://mcp.sandbox.nevermined.app/mcp` first):
+
+```bash
+curl -X POST https://mcp.live.nevermined.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"top_up_credits","arguments":{"requestId":"run-7f3a9c21-topup-1","forCallCredits":1000}}}'
+```
+
+The REST equivalent is `POST /api/v1/credits/topups/pack` with the same `{ "requestId", "forCallCredits" }` body and your API key.
