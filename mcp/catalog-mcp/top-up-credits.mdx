@@ -60,12 +60,12 @@ Read `status` (see the charge rule above — `bought`/`pending`/unconfirmed `nee
 
 A refusal comes back as an `error` result, not an HTTP status (through the MCP tool you never see one) — each carries a `code`, a `message` and an `instructions` string; **follow `instructions`**:
 
-- `{ "error": "topup_failed", "code", "message", "instructions" }` — the top-up was refused. Coded consent/credential refusals: `BCK.OAUTH.0040` (the grant lacks **top-up** consent), `BCK.OAUTH.0030` (not a commerce grant), `BCK.OAUTH.0038` (an organization context), and `404 BCK.CREDIT_TOPUPS.0001` (no card enrolled or no limit set).
+- `{ "error": "topup_failed", "code", "message", "instructions" }` — the top-up was refused. Coded consent/credential refusals: `BCK.OAUTH.0040` (the grant lacks **top-up** consent), `BCK.OAUTH.0030` (not a commerce grant), `BCK.OAUTH.0038` (an organization context), and `404 BCK.CREDIT_TOPUPS.0001` (top-ups aren't available to this account or deployment).
 - `{ "error": "topup_unsupported" }` — this deployment's API is too old for top-ups.
 - a credential-refused result — re-authorize, or set your API key.
 
 <Warning>
-**A new `requestId` per top-up; the same one only to re-send.** When you drive the REST route directly, on any non-2xx other than a coded `4xx` refusal, or no response at all, re-send with the **same** `requestId` — the charge may have landed, and the id returns that pack instead of charging a second one. Even a coded pre-charge `4xx` on a **reused** id can follow an earlier call that did charge: keep the same id and read `GET /api/v1/credits/topups/purchases` rather than starting a new top-up. A `needs_attention` whose message says the outcome is unconfirmed may already have charged — same rule.
+**A new `requestId` per top-up; the same one only to re-send.** When you drive the REST route directly, on any non-2xx other than a coded `4xx` refusal, or no response at all, re-send with the **same** `requestId` — the charge may have landed, and the id returns that pack instead of charging a second one. Even a coded pre-charge `4xx` on a **reused** id can follow an earlier call that did charge: keep the same id and read [`get_budget`](/mcp/catalog-mcp/get-budget) rather than starting a new top-up (with a plain API key, `GET /api/v1/credits/topups/purchases` also lists the packs; an OAuth grant can't read it). A `needs_attention` whose message says the outcome is unconfirmed may already have charged — same rule.
 </Warning>
 
 <Note>
