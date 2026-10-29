@@ -15,17 +15,22 @@ builds the standard header.
 ```bash
 cd references/c402pay && npm i --silent          # installs viem
 
+# offline guard self-check (no network, no spend, no key): asserts the pre-sign guards fail closed
+node pay.mjs selfcheck
+
 # sign-only self-check (no network, no spend): proves the key signs and self-recovers
 WALLET_PRIVATE_KEY=0x<64hex> node pay.mjs dryrun
 
 # real paid call: probe → 402 → sign → resend with X-PAYMENT → 200 + receipt
-WALLET_PRIVATE_KEY=0x<64hex> [WALLET_ADDRESS=0x<expected>] \
+WALLET_PRIVATE_KEY=0x<64hex> [WALLET_ADDRESS=0x<expected>] [MAX_PAY_ATOMIC=100000] \
   node pay.mjs pay "https://HOST/v1/tools/<tool>/call" '{"input":{"iban":"DE89370400440532013000"}}'
 ```
 
 `WALLET_ADDRESS` is optional; when set, the script aborts if the key derives a different
 address (catches a key/address mismatch before you spend). The key is read from env and
-**never printed**.
+**never printed**. The amount to sign comes from the merchant's 402 (untrusted), so the
+script **refuses to sign** a non-USDC asset or an amount over `MAX_PAY_ATOMIC` (default
+`100000` = 0.10 USDC at 6 decimals) — raise the cap explicitly if a legitimate price is higher.
 
 ## What a pass looks like
 
@@ -91,8 +96,16 @@ const header = Buffer.from(JSON.stringify(payload)).toString('base64')
 
 ## Guardrails
 
-- Validate at the boundary: reject a non-`exact` scheme, a missing `payTo`, or a wrong-chain
-  `asset` — do not sign a transfer you can't reason about.
-- Cap the blast radius: fund the EOA with only what the test needs (a few cents of USDC).
+The 402 challenge is **merchant-controlled** — the `payTo`, `asset`, and `amount` you are
+about to sign over all come from an untrusted response. The payer validates at the boundary
+**before signing**, and so should any adaptation:
+
+- **Right asset:** it refuses any `accept.asset` that isn't the configured USDC (`USDC_BASE`).
+  For a different chain, set `USDC_BASE` to that chain's USDC first — don't remove the check.
+- **Bounded amount:** it refuses an amount over `MAX_PAY_ATOMIC` (default `100000` = 0.10 USDC).
+  Raise it deliberately for a known-higher price; never uncap it.
+- **`exact` scheme + present `payTo`:** `pickAccept` only considers `scheme:"exact"` options
+  that carry a `payTo` and amount — do not sign a transfer you can't reason about.
+- **Cap the blast radius anyway:** fund the EOA with only what the test needs (a few cents).
 - The self-recover check (`recovered == account.address`) is the cheap assertion that the
   signature is well-formed before you put money on the wire — keep it.

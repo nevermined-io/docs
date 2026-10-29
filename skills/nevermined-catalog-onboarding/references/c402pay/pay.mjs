@@ -5,15 +5,20 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { recoverTypedDataAddress, toHex } from 'viem'
 import { randomBytes } from 'node:crypto'
 
+const mode = process.argv[2] || 'dryrun'
+const needsKey = mode === 'dryrun' || mode === 'pay'   // selfcheck is offline + keyless
 const PK = (process.env.WALLET_PRIVATE_KEY || '').trim()
 const EXPECT_ADDR = (process.env.WALLET_ADDRESS || '').trim()
-if (!/^0x[0-9a-fA-F]{64}$/.test(PK)) { console.error('bad/missing WALLET_PRIVATE_KEY'); process.exit(2) }
-const account = privateKeyToAccount(PK)
-if (EXPECT_ADDR && account.address.toLowerCase() !== EXPECT_ADDR.toLowerCase()) {
+if (needsKey && !/^0x[0-9a-fA-F]{64}$/.test(PK)) { console.error('bad/missing WALLET_PRIVATE_KEY'); process.exit(2) }
+const account = needsKey ? privateKeyToAccount(PK) : null
+if (needsKey && EXPECT_ADDR && account.address.toLowerCase() !== EXPECT_ADDR.toLowerCase()) {
   console.error(`key/address mismatch: derived ${account.address} != ${EXPECT_ADDR}`); process.exit(2)
 }
 
 const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'.toLowerCase()
+// Spend cap. The amount comes from the merchant's 402 (untrusted) — never sign one you
+// didn't bound. Default 100000 atomic = 0.10 USDC (6dp); raise with MAX_PAY_ATOMIC.
+const MAX_PAY_ATOMIC = BigInt(process.env.MAX_PAY_ATOMIC || '100000')
 const types = {
   TransferWithAuthorization: [
     { name: 'from', type: 'address' }, { name: 'to', type: 'address' },
@@ -65,7 +70,28 @@ function pickAccept(accepts) {
   return pool.sort((a, b) => Number(a.maxAmountRequired ?? a.amount) - Number(b.maxAmountRequired ?? b.amount))[0]
 }
 
-const mode = process.argv[2] || 'dryrun'
+// Validate the untrusted 402 option before signing. Throws on anything we won't pay;
+// returns the atomic amount on success.
+function assertPayable(accept) {
+  if (!accept) throw new Error('no usable "exact" option with payTo+amount in the challenge')
+  if ((accept.asset || '').toLowerCase() !== USDC_BASE) throw new Error(`refusing non-USDC asset ${accept.asset} (set USDC_BASE for this chain to pay it)`)
+  const amount = BigInt(accept.maxAmountRequired ?? accept.amount)
+  if (amount > MAX_PAY_ATOMIC) throw new Error(`amount ${amount} exceeds cap ${MAX_PAY_ATOMIC} atomic — raise MAX_PAY_ATOMIC to allow`)
+  return amount
+}
+
+if (mode === 'selfcheck') {
+  // Offline: no network, no key, no spend. Asserts the pre-sign guards fail closed.
+  const assert = (cond, msg) => { if (!cond) { console.error('FAIL:', msg); process.exit(1) } }
+  const rejects = (a, why) => { try { assertPayable(a); console.error('FAIL (did not reject):', why); process.exit(1) } catch { /* expected */ } }
+  assert(assertPayable({ scheme: 'exact', asset: USDC_BASE, payTo: '0xabc', maxAmountRequired: '20000' }) === 20000n, 'valid USDC-under-cap option should pass')
+  assert(pickAccept([]) === undefined, 'empty accepts → no option')
+  rejects(undefined, 'missing option')
+  rejects({ scheme: 'exact', asset: '0xdead', payTo: '0xabc', maxAmountRequired: '20000' }, 'non-USDC asset')
+  rejects({ scheme: 'exact', asset: USDC_BASE, payTo: '0xabc', maxAmountRequired: (MAX_PAY_ATOMIC + 1n).toString() }, 'over-cap amount')
+  console.log('selfcheck OK')
+  process.exit(0)
+}
 
 if (mode === 'dryrun') {
   const sample = { scheme: 'exact', network: 'base', asset: USDC_BASE, payTo: '0xc59c85e661d34084a7769f955d17fd38254a6235', maxAmountRequired: '5000', extra: { name: 'USD Coin', version: '2' } }
@@ -88,7 +114,9 @@ if (mode === 'pay') {
   }
   const challenge = await r1.json()
   const accept = pickAccept(challenge.accepts)
-  console.log('paying option:', { scheme: accept.scheme, network: accept.network, asset: accept.asset, payTo: accept.payTo, amount: accept.maxAmountRequired ?? accept.amount, currency: accept.extra?.currency })
+  let amount
+  try { amount = assertPayable(accept) } catch (e) { console.error(e.message); process.exit(6) }
+  console.log('paying option:', { scheme: accept.scheme, network: accept.network, asset: accept.asset, payTo: accept.payTo, amount: amount.toString(), currency: accept.extra?.currency })
   const { auth, signature, recovered } = await signAuth(accept)
   if (recovered.toLowerCase() !== account.address.toLowerCase()) { console.error('self-recover failed'); process.exit(4) }
   const header = xPaymentHeader(accept, auth, signature)
