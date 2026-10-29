@@ -8,20 +8,23 @@ Use the **Nevermined AI Skill** to give your coding assistant deep knowledge of 
 
 Instead of copy-pasting docs, you import the skill once and your AI assistant knows how to wire up payments for you.
 
-## Two skills, opposite directions
+## The Nevermined skills
 
-There are two, and which one you want depends on which side of the payment you're on.
+Which one you want depends on what you're doing. The first two are **integration skills** your assistant keeps loaded while you code; the third is an **on-demand workflow** you invoke when you have a service to list.
 
 | Skill | Your agent is… | Covers |
 | --- | --- | --- |
 | **`nevermined-payments`** | **receiving** money, or buying a Nevermined plan | SDK integration, middleware, plans, credits — the rest of this page |
 | **`nevermined-router`** | **spending** money at external services | Discovering services in the catalog, creating a spending Delegation, paying any x402 or MPP endpoint through the [Nevermined Router](/products/catalog/router/overview), and the guardrails an autonomous buyer must respect |
+| **`nevermined-catalog-onboarding`** | **listing** an external x402 service in the Catalog | Picking the routable endpoint, proving it charges with a direct wallet payment, publishing and promoting the listing, a real paid Router e2e, plus ownership/claiming and subscription-credit eligibility |
 
-Installing both is fine — they don't overlap. Every supported tool can now reach the Router:
+Installing any mix is fine — they don't overlap. Every supported tool can now reach the Router:
 
 - **Claude Code** — install them as plugins, one command each. See the tab below.
 - **Cursor, Windsurf, Cline, Amazon Q** — swap `nevermined-payments` for `nevermined-router` in the paths below, or run the extra command shown in each tab.
 - **Codex CLI and GitHub Copilot** — `AGENTS.md` and `.github/copilot-instructions.md` are *single* files with no skill name to swap, so each one carries **both** halves: the payments guidance and a condensed Router section. Take the whole file. Codex can also install `nevermined-router` as a proper skill directory under `.agents/skills/` — see its tab.
+
+`nevermined-catalog-onboarding` is a workflow you invoke on demand ("onboard this service"), not a rule that should fire on every code edit, so it ships only as a skill **directory** — through the Claude Code marketplace, ClawHub, or a folder copy (`.agents/skills/`, `~/.claude/skills/`) — and has no always-on per-IDE rule file.
 
 ## What's Included
 
@@ -54,8 +57,9 @@ Choose your AI coding tool below for step-by-step installation instructions.
     ```text
     /plugin marketplace add nevermined-io/docs
 
-    /plugin install nevermined-payments@nevermined    # charging for your agent
-    /plugin install nevermined-router@nevermined      # buying from external services
+    /plugin install nevermined-payments@nevermined             # charging for your agent
+    /plugin install nevermined-router@nevermined               # buying from external services
+    /plugin install nevermined-catalog-onboarding@nevermined   # listing a service in the Catalog
     ```
 
     Those are Claude Code commands — type them in Claude Code, not in a shell.
@@ -87,11 +91,12 @@ Choose your AI coding tool below for step-by-step installation instructions.
   <Tab title="ClawHub">
     ### ClawHub
 
-    Both skills are published to the [ClawHub](https://clawhub.ai) registry under the `nevermined-io` publisher, so any tool that reads a `skills/` directory can pull them with one command:
+    All three skills are published to the [ClawHub](https://clawhub.ai) registry under the `nevermined-io` publisher, so any tool that reads a `skills/` directory can pull them with one command:
 
     ```bash
-    npx clawhub install nevermined            # the payments skill
-    npx clawhub install nevermined-router     # buying through the Router
+    npx clawhub install nevermined                        # the payments skill
+    npx clawhub install nevermined-router                 # buying through the Router
+    npx clawhub install nevermined-catalog-onboarding     # listing a service in the Catalog
     ```
 
     This writes to `skills/<slug>/` in the current directory. `--dir` sets a different target — it's a global flag, so it goes **before** the subcommand:
@@ -263,7 +268,7 @@ Choose your AI coding tool below for step-by-step installation instructions.
 
 ## Supported Tools at a Glance
 
-`<skill>` is `nevermined-payments` or `nevermined-router` — install either or both.
+`<skill>` is `nevermined-payments` or `nevermined-router` — install either or both. The on-demand `nevermined-catalog-onboarding` workflow installs as a skill directory via Claude Code, ClawHub, or a folder copy (the first and last rows below); it has no always-on IDE rule file.
 
 | Tool | Config File | Router available? | Auto-Activates |
 |---|---|---|---|

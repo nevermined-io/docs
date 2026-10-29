@@ -28,10 +28,13 @@ This document provides comprehensive guidelines for AI agents to write and maint
 
 ### AI Coding Skill
 
-This repository publishes **two** Nevermined AI Skills, pointed in opposite directions:
+This repository publishes **three** Nevermined AI Skills:
 
 - `skills/nevermined-payments/` — **receiving** payments (SDK, middleware, plans, credits), 12 reference files.
 - `skills/nevermined-router/` — **spending** at external x402 / MPP services through the Nevermined Router, 5 reference files.
+- `skills/nevermined-catalog-onboarding/` — **listing** an external x402 service in the Catalog (pick the endpoint, direct-wallet proof, publish + promote, Router e2e, claiming, credit eligibility), 3 reference files + a runnable payer.
+
+The first two are **integration skills** an assistant keeps loaded while you code; the third is an **on-demand workflow** invoked deliberately ("onboard this service"), so it ships only as a skill **directory** (Claude Code marketplace, ClawHub, folder copy) and has **no per-IDE rule file** — do not add one to the table below for it.
 
 They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, Cline, Amazon Q) SDK patterns and integration knowledge. When updating SDK code examples, framework integrations, or x402 protocol documentation, also update the matching `references/` files to keep them in sync.
 
@@ -74,9 +77,9 @@ python3 -c "print(len(open('.windsurf/rules/nevermined-router.md',encoding='utf-
 
 ### Plugin and registry distribution
 
-Both skills are also distributed as **Claude Code plugins** via `.claude-plugin/marketplace.json` at the repo root (`/plugin marketplace add nevermined-io/docs`), and to the **ClawHub** registry by `.github/workflows/publish-skill-clawhub.yml`. The install page must be updated for these surfaces too.
+All three skills are also distributed as **Claude Code plugins** via `.claude-plugin/marketplace.json` at the repo root (`/plugin marketplace add nevermined-io/docs`), and to the **ClawHub** registry by `.github/workflows/publish-skill-clawhub.yml` (one matrix leg per skill). The install page must be updated for these surfaces too.
 
-**Each skill folder is its own plugin.** `skills/<skill>/.claude-plugin/plugin.json` declares it (name, description, author, license, keywords, and `"skills": ["./"]`, which makes the folder's own `SKILL.md` the plugin's one skill), and its marketplace entry is `source: "./skills/<skill>"`. **`source` is a copy boundary, not just a lookup path**: it is the directory copied into `~/.claude/plugins/cache/<marketplace>/<plugin>/`, and it becomes that plugin's root. With `source: "./"` every plugin would carry the entire repo — `video/` and `images/` are ~94% of it — and would carry it *again* for the second plugin. Scoped to one skill folder, each plugin carries ~170 KB against ~32 MiB for the repo. Do not change it to `"./"`. Anthropic's official directory needs exactly this layout: it takes one submission per plugin folder, reads that folder's `plugin.json` and `README.md` (at least 40 words), and copies only that folder into the user's install. The plugin metadata lives in `plugin.json`; the marketplace entry keeps only `name`, `description`, `category` and `source`. `plugin.json` sets no `version` on purpose, so Claude Code and the directory update by commit and a skill change needs no manual bump.
+**Each skill folder is its own plugin.** `skills/<skill>/.claude-plugin/plugin.json` declares it (name, description, author, license, keywords, and `"skills": ["./"]`, which makes the folder's own `SKILL.md` the plugin's one skill), and its marketplace entry is `source: "./skills/<skill>"`. **`source` is a copy boundary, not just a lookup path**: it is the directory copied into `~/.claude/plugins/cache/<marketplace>/<plugin>/`, and it becomes that plugin's root. With `source: "./"` every plugin would carry the entire repo — `video/` and `images/` are ~94% of it — and would carry it *again* for each additional plugin. Scoped to one skill folder, each plugin carries ~170 KB against ~32 MiB for the repo. Do not change it to `"./"`. Anthropic's official directory needs exactly this layout: it takes one submission per plugin folder, reads that folder's `plugin.json` and `README.md` (at least 40 words), and copies only that folder into the user's install. The plugin metadata lives in `plugin.json`; the marketplace entry keeps only `name`, `description`, `category` and `source`. `plugin.json` sets no `version` on purpose, so Claude Code and the directory update by commit and a skill change needs no manual bump.
 
 ⚠️ **Do not justify this by the download size, and do not expect `marketplace add` to get smaller.** `/plugin marketplace add` materializes a **full-content snapshot of the repo's default branch** into `~/.claude/plugins/marketplaces/<name>/` — every top-level directory, no `.git` — *regardless of what `source` says* (verified against the installed `anthropics/claude-plugins-official`). So the repo lands on disk either way; what `source` controls is what each installed **plugin** copies and loads on top of that. A maintainer who adds the marketplace, watches ~32 MiB arrive anyway, and concludes "the `source` trick does nothing" would be drawing the right conclusion from the wrong claim — which is why the argument here is about plugin content, not bandwidth.
 
@@ -577,7 +580,7 @@ page once shipped You.com's org id in Baselayer's agentic-instructions link.
 ├── api-reference/            # API method reference
 ├── products/                 # Product-specific docs (Payments, Catalog, Router)
 ├── agents-guide/             # Guides written for agents
-├── skills/                   # Published AI skills (nevermined-payments, nevermined-router)
+├── skills/                   # Published AI skills (nevermined-payments, nevermined-router, nevermined-catalog-onboarding)
 └── snippets/                 # Reusable content blocks
 ```
 
