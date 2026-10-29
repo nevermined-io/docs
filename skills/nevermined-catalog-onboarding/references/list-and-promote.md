@@ -99,11 +99,12 @@ and filter to your slug:
 
 ```bash
 curl -s "$NVM_API_URL/api/v1/catalog/mine" -H "Authorization: Bearer $NVM_API_KEY" \
-  | jq '.[] | select(.slug=="<slug>") | {isListed,moderationStatus,healthStatus,invokeUrl}'
+  | jq '.[] | select(.slug=="<slug>") | {isListed,moderationStatus,healthStatus}'
 ```
 
-Target state: `isListed:true`, `moderationStatus:"live"`, `healthStatus:"operational"`,
-`invokeUrl:".../router/svc/<slug>"`.
+Target state: `isListed:true`, `moderationStatus:"live"`, `healthStatus:"operational"`. (The owner
+view does not carry `invokeUrl` — only the public projection sets it; the Router slug route is
+`.../router/svc/<slug>` regardless.)
 
 ## Router slug resolution (why the endpoint choice matters downstream)
 

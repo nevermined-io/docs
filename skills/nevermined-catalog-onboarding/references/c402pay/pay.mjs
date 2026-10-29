@@ -74,7 +74,7 @@ function pickAccept(accepts) {
 // returns the atomic amount on success.
 function assertPayable(accept) {
   if (!accept) throw new Error('no usable "exact" option with payTo+amount in the challenge')
-  if ((accept.asset || '').toLowerCase() !== USDC_BASE) throw new Error(`refusing non-USDC asset ${accept.asset} (set USDC_BASE for this chain to pay it)`)
+  if ((accept.asset || '').toLowerCase() !== USDC_BASE) throw new Error(`refusing non-USDC asset ${accept.asset} (edit the USDC_BASE + chainId constants in this file for a different chain)`)
   const amount = BigInt(accept.maxAmountRequired ?? accept.amount)
   if (amount > MAX_PAY_ATOMIC) throw new Error(`amount ${amount} exceeds cap ${MAX_PAY_ATOMIC} atomic — raise MAX_PAY_ATOMIC to allow`)
   return amount
@@ -112,7 +112,8 @@ if (mode === 'pay') {
     console.log('NOT 402 (free tier still active or error). Body head:', (await r1.text()).slice(0, 200))
     process.exit(3)
   }
-  const challenge = await r1.json()
+  const challenge = await r1.json().catch(() => null)
+  if (!challenge || !Array.isArray(challenge.accepts)) { console.error('402 without a valid x402 v1 body (no accepts[])'); process.exit(3) }
   const accept = pickAccept(challenge.accepts)
   let amount
   try { amount = assertPayable(accept) } catch (e) { console.error(e.message); process.exit(6) }
