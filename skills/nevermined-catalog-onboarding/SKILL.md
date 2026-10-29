@@ -23,8 +23,8 @@ metadata:
       - name: NVM_API_KEY
         required: true
         description: >
-          Nevermined API key for the target environment (`sandbox:` / `live:` /
-          `live-staging:`). Used to register the agent, publish/patch the listing, and
+          Nevermined API key for the target environment (`sandbox:` / `live:`).
+          Used to register the agent, publish/patch the listing, and
           drive the Router e2e. Must be a current-generation key (older keys the Router
           refuses with 403 BCK.ROUTER.0008).
       - name: WALLET_PRIVATE_KEY
@@ -73,14 +73,12 @@ routed. See `nevermined-router` → "This skill cannot help you with conventiona
 ```bash
 export NVM_API_URL="https://api.live.nevermined.app"   # live (Base mainnet, real money)
 # sandbox (Base Sepolia, test money): https://api.sandbox.nevermined.app
-# staging: append .dev to the host — https://api.live.nevermined.dev (staging_live) /
-#          https://api.sandbox.nevermined.dev (staging_sandbox). ".dev" is ALWAYS staging. Internal only.
 export NVM_API_KEY="<key for that env>"
 ```
 
-The env fixes the payment network for BOTH proofs: **live / staging_live → Base mainnet
-(chain 8453)**, **sandbox / staging_sandbox → Base Sepolia (84532)**. A merchant priced on
-the other chain is unpayable from that environment — match them.
+The env fixes the payment network for BOTH proofs: **live → Base mainnet (chain 8453)**,
+**sandbox → Base Sepolia (84532)**. A merchant priced on the other chain is unpayable from
+that environment — match them.
 
 ---
 
@@ -246,7 +244,7 @@ DID=$(curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
 
 # 2. Fund the buyer wallet (read it back LIVE; both rails PULL from it)
 WALLET=$(curl -s "$NVM_API_URL/api/v1/delegation/$DID" -H "Authorization: Bearer $NVM_API_KEY" | jq -r .providerPaymentMethodId)
-#    → send USDC to $WALLET on the env's network (live/staging_live → Base mainnet)
+#    → send USDC to $WALLET on the env's network (live → Base mainnet, sandbox → Base Sepolia)
 
 # 3. Pay BY SLUG (raw URL to a cataloged host is refused BCK.ROUTER.0014)
 curl -sX POST "$NVM_API_URL/api/v1/router/route" \

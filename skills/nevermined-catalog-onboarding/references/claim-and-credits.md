@@ -59,7 +59,7 @@ credit-eligible when it is:
 Services that miss the bar stay payable from a Delegation; they just do not show a credit price.
 Buyers spend credits through the Router / Commerce MCP exactly like a Delegation call — see the
 **`nevermined-router`** skill → credits, and
-[docs.nevermined.app/products/catalog/router/subscription](https://nevermined.ai/docs/products/catalog/router/subscription).
+[nevermined.ai/docs/products/catalog/router/subscription](https://nevermined.ai/docs/products/catalog/router/subscription).
 
 > The pricing itself is run by the Nevermined platform, not by you as the lister — you do not set or
 > trigger it. Publish/curate the listing, get it promoted, and an eligible endpoint is priced on the
