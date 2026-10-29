@@ -182,6 +182,8 @@ How the Router pays a session:
 
   You cannot report a session payment settled yourself: `POST /router/payments/{id}/settled` answers `409 BCK.ROUTER.0005`, because the channel's close is its settlement.
 
+**Gas.** The merchant decides whether the transactions that open and top up the channel are gas-sponsored: it says so with `feePayer` in its `402`. When it doesn't sponsor them, your wallet pays a small amount of gas in the channel's token, a fraction of a cent of USDC.e ($0.00004 to $0.0002 per open, measured on Tempo mainnet in October 2026). That gas is **outside your Delegation's spending cap**: the cap moves only by what the calls cost and the routing fee. On the Catalog, QuickNode sponsors the gas and Conduit does not.
+
 The same checks as on a charge apply before anything is signed — method, chain, recipient, the asset allowlist, your Delegation's recipient scope — plus a few of the channel's own: the escrow must be Tempo's channel escrow, gas must be paid in the channel's token, and the service must bill per request.
 
 ### Sessions in the Catalog
