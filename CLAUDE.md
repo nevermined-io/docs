@@ -28,10 +28,13 @@ This document provides comprehensive guidelines for AI agents to write and maint
 
 ### AI Coding Skill
 
-This repository publishes **two** Nevermined AI Skills, pointed in opposite directions:
+This repository publishes **three** Nevermined AI Skills:
 
 - `skills/nevermined-payments/` — **receiving** payments (SDK, middleware, plans, credits), 12 reference files.
 - `skills/nevermined-router/` — **spending** at external x402 / MPP services through the Nevermined Router, 5 reference files.
+- `skills/nevermined-catalog-onboarding/` — **listing** an external x402 service in the Catalog (pick the endpoint, direct-wallet proof, publish + promote, Router e2e, claiming, credit eligibility), 3 reference files + a runnable payer.
+
+The first two are **integration skills** an assistant keeps loaded while you code; the third is an **on-demand workflow** invoked deliberately ("onboard this service"), so it ships only as a skill **directory** (Claude Code marketplace, ClawHub, folder copy) and has **no per-IDE rule file** — do not add one to the table below for it.
 
 They give AI coding assistants (Claude Code, Cursor, Copilot, Codex, Windsurf, Cline, Amazon Q) SDK patterns and integration knowledge. When updating SDK code examples, framework integrations, or x402 protocol documentation, also update the matching `references/` files to keep them in sync.
 

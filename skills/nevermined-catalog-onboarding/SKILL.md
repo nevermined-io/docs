@@ -216,11 +216,13 @@ healthy x402 verdict. The monitor detects the rail in three ordered layers:
 3. **discovery manifest** — `{origin}/.well-known/x402(.json)` is a valid x402 manifest →
    `discovery={x402: manifestUrl}` (robust; immune to free-tier flakiness).
 
-Poll until live:
+Poll until live. Public catalog reads are blocked on the deployed envs (the `/catalog/services/*`
+discovery route answers `403` from outside — public discovery is the ARD surface), so poll the
+**owner view** the skill already uses above, filtered to your slug:
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/catalog/services/<slug>" \
-  | jq '{isListed,moderationStatus,healthStatus,displayPriceLabel,invokeUrl}'
+curl -s "$NVM_API_URL/api/v1/catalog/mine" -H "Authorization: Bearer $NVM_API_KEY" \
+  | jq '.[] | select(.slug=="<slug>") | {isListed,moderationStatus,healthStatus}'
 # want: isListed:true, moderationStatus:"live", healthStatus:"operational"
 ```
 
@@ -242,8 +244,11 @@ DID=$(curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
   -d '{"provider":"erc4337","currency":"usdc","spendingLimitCents":500,"durationSecs":604800}' \
   | jq -r .delegationId)
 
-# 2. Fund the buyer wallet (read it back LIVE; both rails PULL from it)
-WALLET=$(curl -s "$NVM_API_URL/api/v1/delegation/$DID" -H "Authorization: Bearer $NVM_API_KEY" | jq -r .providerPaymentMethodId)
+# 2. Fund the payer wallet the Router actually signs from. Resolve it with ?withPayer=true:
+#    in the default `sca` wallet mode the Router pulls USDC from the EOA (fundingWalletAddress),
+#    NOT from the smart-account providerPaymentMethodId — they coincide only once a wallet is
+#    migrated to EIP-7702, or for org-wallet delegations.
+WALLET=$(curl -s "$NVM_API_URL/api/v1/delegation/$DID?withPayer=true" -H "Authorization: Bearer $NVM_API_KEY" | jq -r .fundingWalletAddress)
 #    → send USDC to $WALLET on the env's network (live → Base mainnet, sandbox → Base Sepolia)
 
 # 3. Pay BY SLUG (raw URL to a cataloged host is refused BCK.ROUTER.0014)
@@ -290,7 +295,7 @@ Both flows with the exact API calls: **`references/claim-and-credits.md`**.
 
 - [ ] `targetUrl` answers a real HTTP-402 (or has a valid `.well-known/x402` manifest) — never an `/mcp` URL.
 - [ ] **Direct wallet:** paid the merchant from a raw EOA, HTTP 200 + valid result + on-chain USDC transfer to `payTo`.
-- [ ] Listing published; `GET /catalog/services/<slug>` shows `isListed:true, moderationStatus:"live", healthStatus:"operational"`.
+- [ ] Listing published; `GET /catalog/mine` (owner view) shows the slug `isListed:true, moderationStatus:"live", healthStatus:"operational"`.
 - [ ] **Router e2e:** `paid:true`, on-chain `txHash` confirmed, `amountSpentCents` moved, ledger has the entry.
 - [ ] Price / network in the listing match what both proofs actually charged.
 - [ ] Spent from a capped delegation on a throwaway budget; secrets never echoed.

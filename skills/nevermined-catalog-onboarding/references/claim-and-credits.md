@@ -33,7 +33,7 @@ curl -s "$NVM_API_URL/api/v1/catalog/listings/<id>/claim/challenge?domain=<your-
 # 3. Publish that record (a DNS TXT record, or a file under /.well-known/), then verify + adopt:
 curl -sX POST "$NVM_API_URL/api/v1/catalog/listings/<id>/claim/verify" \
   -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
-  -d '{"method":"dns","domain":"<your-domain>","orgId":"<your-org>"}'   # method: dns | well-known
+  -d '{"method":"dns-txt","domain":"<your-domain>","orgId":"<your-org>"}'   # method: dns-txt | well-known
 ```
 
 A successful `verify` adopts the listing (registers a claim agent under your org) and marks it

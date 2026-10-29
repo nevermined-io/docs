@@ -47,10 +47,11 @@ curl -sX POST "$NVM_API_URL/api/v1/catalog/listings" \
 
 ## Owner view — `GET /api/v1/catalog/mine`
 
-The **only** place the raw `targetUrl` is visible. The public and even the authed *detail*
-(`GET /catalog/services/<slug>`) return `targetUrl: null` for cataloged services — the Router
-keeps the upstream hidden (that's what `BCK.ROUTER.0014` protects). Use `/mine` to see and
-verify what you actually stored:
+The **only** place the raw `targetUrl` is visible. The *detail* route
+(`GET /catalog/services/<slug>`) is blocked with `403` from outside the deployed envs, and
+even where reachable it returns `targetUrl: null` for cataloged services — the Router keeps the
+upstream hidden (that's what `BCK.ROUTER.0014` protects). Use `/mine` to see and verify what
+you actually stored, and to poll promotion state:
 
 ```bash
 curl -s "$NVM_API_URL/api/v1/catalog/mine" -H "Authorization: Bearer $NVM_API_KEY" \
@@ -92,11 +93,13 @@ runs in three ordered, same-origin, SSRF-guarded layers (skipped for dead/5xx ho
    `targetUrl`. Verdict tag `detected-x402-manifest`. **Most robust — immune to free-tier
    flakiness**, because the persisted `discovery.x402` is a GET-able 200 manifest thereafter.
 
-Poll for live:
+Poll for live. The public `GET /catalog/services/<slug>` detail route answers `403` from
+outside the deployed envs (public discovery is the ARD surface), so poll the **owner view**
+and filter to your slug:
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/catalog/services/<slug>" \
-  | jq '{isListed,moderationStatus,healthStatus,displayPriceLabel,displayPriceSource,invokeUrl}'
+curl -s "$NVM_API_URL/api/v1/catalog/mine" -H "Authorization: Bearer $NVM_API_KEY" \
+  | jq '.[] | select(.slug=="<slug>") | {isListed,moderationStatus,healthStatus,invokeUrl}'
 ```
 
 Target state: `isListed:true`, `moderationStatus:"live"`, `healthStatus:"operational"`,
