@@ -378,9 +378,9 @@ If a service answered successfully but its result was defective, the credits are
 Credits pay **listed, live catalog endpoints that carry a rate**, on these rails:
 
 - **x402** merchants using the `exact` scheme, paid in USDC,
-- **MPP** merchants on the `tempo` method, paid in the USD stablecoin Nevermined's treasury holds there.
+- **MPP** merchants on the `tempo` method, paid in the USD stablecoin Nevermined's treasury holds there — per call (`charge`) or over a [session](/products/catalog/router/rails-mpp#sessions-in-the-catalog), where the treasury opens and closes the channel.
 
-Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or an endpoint whose result only the paying wallet can read back — a job you poll, or something you'd own at the merchant. On a service that delivers results only to the wallet that paid, credits pay just the endpoints Nevermined has reviewed as self-contained (the paid response is the whole result); the rest are refused with `params.reason: wallet_bound`. Pay all of these from a Delegation — a `wallet_bound` endpoint only from your own crypto (`erc4337`) Delegation, since a card or organization Delegation is refused there too.
+Credits don't pay MPP card (`stripe` / Shared Payment Token) merchants, a raw URL that isn't in the catalog, an endpoint without a fixed price, or an endpoint whose result only the paying wallet can read back — a job you poll, or something you'd own at the merchant. Nevermined also doesn't sell some services for credits at all, on any endpoint — Dune (`dune-mpp`) is one — and refuses them with `params.reason: credits_excluded`. On a service that delivers results only to the wallet that paid, credits pay just the endpoints Nevermined has reviewed as self-contained (the paid response is the whole result); the rest are refused with `params.reason: wallet_bound`. Pay all of these from a Delegation — a `wallet_bound` endpoint only from your own crypto (`erc4337`) Delegation, since a card or organization Delegation is refused there too.
 
 ### Who can spend your credits
 
