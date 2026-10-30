@@ -85,7 +85,7 @@ small to transfer.
 | Field | Notes |
 | --- | --- |
 | `amount` | The settlement asset's **smallest unit** — but **the scale differs per rail**, so read `assetDecimals` and never assume one. **Merchant leg only**; the fee is not in it |
-| `asset` | As persisted at mint, and it differs per rail: a symbol for x402, the token **contract address** for MPP-tempo, an ISO currency code (`usd`/`eur`) for MPP-stripe. Prefer the two fields below for display |
+| `asset` | As persisted at mint, and it differs per rail: a symbol for x402 and for an MPP `evm` charge (`protocol: mpp`, `scheme: exact`, settled on Base like x402), the token **contract address** for MPP-tempo, an ISO currency code (`usd`/`eur`) for MPP-stripe. Prefer the two fields below for display |
 | `assetSymbol` | Ticker to render for `asset`. **A value here is not proof we recognised the asset** — see below |
 | `assetDecimals` | Decimal scale of `amount` — **this is the recognition signal.** `null` means "we do not know the scale": show raw units, never a guess |
 | `merchantAddress` | Pay-to identifier: a `0x` address on the crypto rails, or a `profile_…` processor id on the card rail |
