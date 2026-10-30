@@ -23,7 +23,7 @@ The Router decodes that challenge, signs the payment, and hands back an `Authori
 | **Networks** | Tempo mainnet (chain `4217`) and Tempo Moderato, the public testnet (chain `42431`) |
 | **Assets** | Whatever the operator has allowlisted for that chain (see below) |
 
-Subscriptions and metered streams aren't supported, and a challenge advertising one is refused rather than approximated. **Sessions** (payment channels) are being rolled out — see **Sessions** below.
+Subscriptions and metered streams aren't supported, and a challenge advertising one is refused rather than approximated. **Sessions** (payment channels) are supported in production — see [Sessions](#sessions-payment-channels) below.
 
 <Note>
 **You don't have to know a service speaks MPP.** In [mode B](/products/catalog/router/how-it-works) the Router detects the protocol from the 402 itself, and the detected protocol always wins over the optional `protocol` hint in your request. Send the same `/route` call you'd send for x402.
@@ -194,10 +194,10 @@ These merchants sell only over a session:
 - **Conduit** (`conduit`, `POST tempo/`): JSON-RPC for Tempo mainnet, on the Tempo channel precompile, $0.00005 a request.
 - **Dune** (`dune-mpp`): SQL over indexed blockchain data, on Tempo's original channel escrow. Pay it from a crypto (`erc4337`) Delegation only; Nevermined credits don't pay Dune.
 
-Call a listed one like any other slug. The channel, its deposit and its close are the Router's job, not yours. A listed Conduit or QuickNode endpoint can also be paid with [Nevermined credits](/products/catalog/router/subscription): the call costs its published rate in credits, and Nevermined's treasury holds the channel.
+In production, only QuickNode's session endpoint is listed so far (see the note below); call a listed endpoint like any other slug. The channel, its deposit and its close are the Router's job, not yours. A listed Conduit or QuickNode endpoint can also be paid with [Nevermined credits](/products/catalog/router/subscription): the call costs its published rate in credits, and Nevermined's treasury holds the channel.
 
 <Note>
-In the production Catalog only QuickNode's session endpoint is listed so far. Dune and Conduit are not listed yet, and their slugs answer `404 BCK.CATALOG.0001`. Meanwhile you can pay Conduit by its URL from a crypto Delegation, which opens and closes the channel the same way:
+Dune and Conduit are not listed in the production Catalog yet, and their slugs answer `404 BCK.CATALOG.0001`. Meanwhile you can pay Conduit by its URL from a crypto Delegation, which opens and closes the channel the same way:
 
 ```bash
 curl -sX POST "$NVM_API_URL/api/v1/router/route" \
