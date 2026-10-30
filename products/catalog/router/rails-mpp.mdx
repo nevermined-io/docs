@@ -159,9 +159,9 @@ This rail is **feature-flagged off by default and sandbox-only** while the under
 
 Some MPP merchants sell only over **`intent="session"`**: a one-way payment channel instead of a payment per call. Your wallet locks a **deposit** in an on-chain escrow at the first call, and every call after that carries a signed, **cumulative** voucher rather than a transaction. The merchant can take at most the highest voucher it holds, never more than the deposit, and whatever it did not take comes back to your wallet when the channel closes.
 
-<Warning>
-Session support is **being switched on deployment by deployment.** Where it is still off, a service that offers only a session is refused with `400 BCK.ROUTER.0001`, exactly as before, and the Catalog does not list the session-only services (Dune, Conduit, QuickNode's session endpoint) there. The behaviour below is what you get once it is on.
-</Warning>
+<Note>
+Sessions are **on in Nevermined's production deployments.** On a deployment where they are off (`ROUTER_MPP_SESSION_ENABLED`, below), a service that offers only a session is refused with `400 BCK.ROUTER.0001`.
+</Note>
 
 How the Router pays a session:
 
@@ -188,13 +188,27 @@ The same checks as on a charge apply before anything is signed — method, chain
 
 ### Sessions in the Catalog
 
-These Catalog endpoints sell only over a session:
+These merchants sell only over a session:
 
-- **Dune** (`dune-mpp`): SQL over indexed blockchain data, on Tempo's original channel escrow. Pay it from a crypto (`erc4337`) Delegation only; Nevermined credits don't pay Dune.
-- **Conduit** (`conduit`, `POST tempo/`): JSON-RPC for Tempo mainnet, on the Tempo channel precompile, $0.00005 a request.
 - **QuickNode** (`quicknode-mpp`, `POST session/<network>`): JSON-RPC, on Tempo's original channel escrow, $0.00001 a request. Its other endpoints are paid per call.
+- **Conduit** (`conduit`, `POST tempo/`): JSON-RPC for Tempo mainnet, on the Tempo channel precompile, $0.00005 a request.
+- **Dune** (`dune-mpp`): SQL over indexed blockchain data, on Tempo's original channel escrow. Pay it from a crypto (`erc4337`) Delegation only; Nevermined credits don't pay Dune.
 
-Call them like any other slug. The channel, its deposit and its close are the Router's job, not yours. Conduit and QuickNode can also be paid with [Nevermined credits](/products/catalog/router/subscription): the call costs its published rate in credits, and Nevermined's treasury holds the channel.
+Call a listed one like any other slug. The channel, its deposit and its close are the Router's job, not yours. A listed Conduit or QuickNode endpoint can also be paid with [Nevermined credits](/products/catalog/router/subscription): the call costs its published rate in credits, and Nevermined's treasury holds the channel.
+
+<Note>
+In the production Catalog only QuickNode's session endpoint is listed so far. Dune and Conduit are not listed yet, and their slugs answer `404 BCK.CATALOG.0001`. Meanwhile you can pay Conduit by its URL from a crypto Delegation, which opens and closes the channel the same way:
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "delegationId": "'"$NVM_DELEGATION_ID"'", "url": "https://mpp.conduit.xyz/tempo/",
+        "method": "POST", "body": { "jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": [] },
+        "requestId": "conduit-block-1" }'
+```
+
+Credits pay only listed endpoints, so they don't pay Conduit by URL.
+</Note>
 
 A Dune query is three calls, all on one channel:
 
