@@ -23,7 +23,7 @@ The Router decodes that challenge, signs the payment, and hands back an `Authori
 | **Networks** | Tempo mainnet (chain `4217`) and Tempo Moderato, the public testnet (chain `42431`) |
 | **Assets** | Whatever the operator has allowlisted for that chain (see below) |
 
-Subscriptions and metered streams aren't supported, and a challenge advertising one is refused rather than approximated. **Sessions** (payment channels) are being rolled out — see **Sessions** below.
+Subscriptions and metered streams aren't supported, and a challenge advertising one is refused rather than approximated. **Sessions** (payment channels) are supported in production — see [Sessions](#sessions-payment-channels) below.
 
 <Note>
 **You don't have to know a service speaks MPP.** In [mode B](/products/catalog/router/how-it-works) the Router detects the protocol from the 402 itself, and the detected protocol always wins over the optional `protocol` hint in your request. Send the same `/route` call you'd send for x402.
@@ -159,9 +159,9 @@ This rail is **feature-flagged off by default and sandbox-only** while the under
 
 Some MPP merchants sell only over **`intent="session"`**: a one-way payment channel instead of a payment per call. Your wallet locks a **deposit** in an on-chain escrow at the first call, and every call after that carries a signed, **cumulative** voucher rather than a transaction. The merchant can take at most the highest voucher it holds, never more than the deposit, and whatever it did not take comes back to your wallet when the channel closes.
 
-<Warning>
-Session support is **switched off on Nevermined's deployments** until its rollout completes. While it is off, a service that offers only a session is refused with `400 BCK.ROUTER.0001`, exactly as before. The behaviour below is what you get once it is on.
-</Warning>
+<Note>
+Sessions are **on in Nevermined's production deployments.** On a deployment where they are off (`ROUTER_MPP_SESSION_ENABLED`, below), a service that offers only a session is refused with `400 BCK.ROUTER.0001`.
+</Note>
 
 How the Router pays a session:
 
@@ -182,7 +182,61 @@ How the Router pays a session:
 
   You cannot report a session payment settled yourself: `POST /router/payments/{id}/settled` answers `409 BCK.ROUTER.0005`, because the channel's close is its settlement.
 
+**Gas.** The merchant decides whether the transactions that open and top up the channel are gas-sponsored: it says so with `feePayer` in its `402`. When it doesn't sponsor them, your wallet pays a small amount of gas in the channel's token, a fraction of a cent of USDC.e ($0.00004 to $0.0002 per open, measured on Tempo mainnet in October 2026). That gas is **outside your Delegation's spending cap**: the cap moves only by what the calls cost and the routing fee. On the Catalog, QuickNode sponsors the gas and Conduit does not.
+
 The same checks as on a charge apply before anything is signed — method, chain, recipient, the asset allowlist, your Delegation's recipient scope — plus a few of the channel's own: the escrow must be Tempo's channel escrow, gas must be paid in the channel's token, and the service must bill per request.
+
+### Sessions in the Catalog
+
+These merchants sell only over a session:
+
+- **QuickNode** (`quicknode-mpp`, `POST session/<network>`): JSON-RPC, on Tempo's original channel escrow, $0.00001 a request. Its other endpoints are paid per call.
+- **Conduit** (`conduit`, `POST tempo/`): JSON-RPC for Tempo mainnet, on the Tempo channel precompile, $0.00005 a request.
+- **Dune** (`dune-mpp`): SQL over indexed blockchain data, on Tempo's original channel escrow. Pay it from a crypto (`erc4337`) Delegation only; Nevermined credits don't pay Dune.
+
+In production, only QuickNode's session endpoint is listed so far (see the note below); call a listed endpoint like any other slug. The channel, its deposit and its close are the Router's job, not yours. A listed Conduit or QuickNode endpoint can also be paid with [Nevermined credits](/products/catalog/router/subscription): the call costs its published rate in credits, and Nevermined's treasury holds the channel.
+
+<Note>
+Dune and Conduit are not listed in the production Catalog yet, and their slugs answer `404 BCK.CATALOG.0001`. Meanwhile you can pay Conduit by its URL from a crypto Delegation, which opens and closes the channel the same way:
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "delegationId": "'"$NVM_DELEGATION_ID"'", "url": "https://mpp.conduit.xyz/tempo/",
+        "method": "POST", "body": { "jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": [] },
+        "requestId": "conduit-block-1" }'
+```
+
+Credits pay only listed endpoints, so they don't pay Conduit by URL.
+</Note>
+
+A Dune query is three calls, all on one channel:
+
+```bash
+# 1. Run the query: $4.00, which opens the channel (a deposit of up to $10 is locked).
+curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "delegationId": "'"$NVM_DELEGATION_ID"'", "slug": "dune-mpp",
+        "path": "api/v1/sql/execute", "method": "POST",
+        "body": { "sql": "SELECT 1" }, "requestId": "dune-select-1" }'
+# → body.execution_id
+
+# 2. Poll its status: free (a voucher that adds nothing), repeat until is_execution_finished.
+curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "delegationId": "'"$NVM_DELEGATION_ID"'", "slug": "dune-mpp",
+        "path": "api/v1/execution/<execution_id>/status", "method": "GET",
+        "requestId": "dune-select-1-status-1" }'
+
+# 3. Fetch the results: priced by Dune per execution ($1.00 per MB of result data).
+curl -sX POST "$NVM_API_URL/api/v1/router/route" \
+  -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
+  -d '{ "delegationId": "'"$NVM_DELEGATION_ID"'", "slug": "dune-mpp",
+        "path": "api/v1/execution/<execution_id>/results", "method": "GET",
+        "requestId": "dune-select-1-results" }'
+```
+
+Your Delegation is charged $4.00 plus the results price and the routing fee, never the deposit. About 15 minutes after the last call the Router closes the channel: Dune is paid what the calls cost and the rest of the deposit returns to your wallet. Once the Router has reconciled the close, the three payment records read `Settled`. Quote a results call first (`POST /router/quote` with the same `slug` and `path`): Dune prices each execution, and quotes an execution id it does not know at $1,024.
 
 ## Operator configuration
 
