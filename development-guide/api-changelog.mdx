@@ -14,6 +14,13 @@ every supported pin keeps working. See the [versioning guide](/development-guide
 - **Floor (oldest supported version):** `1.0`
 - **Live current version:** `GET /api/v1/meta/versions`
 
+## 1.90
+
+_Changes relative to `1.84`:_
+
+- **Subscription route results (201 and 202) include creditsLeft for the caller’s credits pool, or null when the post-call balance is unavailable. Older pins retain their previous response shape.** (`response`)
+  - `POST /api/v1/router/subscription/route`
+
 ## 1.84
 
 _Changes relative to `1.70`:_
