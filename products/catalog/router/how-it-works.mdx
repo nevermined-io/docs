@@ -26,6 +26,15 @@ Every Router payment follows the same five beats, whatever protocol the merchant
 
 The only thing that changes between call modes is **who performs steps 1 and 4** — you, or the Router.
 
+To require a payment rail on a mode-B call, set `requireProtocol: "x402"` or `"mpp"`
+in `/route` or `/quote` (including commerce variants). Unlike the advisory `protocol`, this is a
+binding pin: the Router never falls back to another rail. If the service does not offer it,
+`409 BCK.ROUTER.0045` refuses the call before signing, reserving or charging. Quote and pay with
+the same pin; a `quoteId` bound to another rail is refused with `BCK.ROUTER.0033`.
+Streaming `/proxy` and `/svc` calls use `X-Router-Require-Protocol` instead. Never silently remove
+the pin to get past a refusal. Subscription payments enforce it too; subscription-credit quotes
+price the credit tariff without applying it.
+
 ## Mode B — the Router calls the merchant (recommended)
 
 You hand the Router the request you want made. It probes, detects, mints, attaches, calls, and relays the answer. One call in, one answer out; you never see the 402 and never touch a credential.

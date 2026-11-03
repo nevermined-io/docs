@@ -132,5 +132,7 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
 - `BCK.ROUTER.0044` (422) — the Router cannot collect its fee on this MPP session payment;
   `params.cause` is `org-wallet` (pay from your own wallet's delegation) or `network` (pay another
   network's service). Nothing charged; do not retry unchanged.
-
-- `BCK.ROUTER.0045` (409) — the service does not offer the rail pinned by `requireProtocol` (x402 or mpp). Nothing signed, reserved or charged. Not retryable unchanged: choose a service on your required rail, or deliberately change the pin; never drop it automatically.
+- `BCK.ROUTER.0045` (409) — the service does not offer the rail pinned by `requireProtocol`
+  (`X-Router-Require-Protocol` on `/proxy` · `/svc`; x402 or mpp). Nothing signed, reserved or
+  charged. Not retryable unchanged: choose a service on your required rail, or deliberately change
+  the pin; never drop it automatically.

@@ -42,6 +42,7 @@ You describe the request; the Router probes the merchant, **auto-detects** the p
 | `headers` | no | Forwarded to the merchant — put **its** auth here, never your `NVM_API_KEY` |
 | `body` | no | JSON, forwarded |
 | `protocol` | no | `x402`/`mpp`. **Advisory only** — see below |
+| `requireProtocol` | no | `x402`/`mpp`. **Binding** rail pin: pay only this rail; no fallback. An unavailable pin returns `409 BCK.ROUTER.0045` before signing, reserving or charging |
 | `requestId` | **yes** | Idempotency key. Non-empty, ≤ 256 chars |
 | `maxTotalCents` | no | Non-negative safe integer. Per-call ceiling on the fee-inclusive, whole-cent cap reserve; a larger quote returns `402 BCK.ROUTER.0018` before a charge or budget reserve. The Delegation cap remains the overall limit |
 | `quoteId` | no | API 1.55+: opaque 60-second binding returned by `/quote`. Send it with the quoted request unchanged to pay the sealed challenge and exact quoted total; `maxTotalCents` remains an independent ceiling |
@@ -52,6 +53,15 @@ On mode B the Router determines the protocol from the upstream 402 itself —
 `WWW-Authenticate: Payment` → `mpp`; `accepts` / `PAYMENT-REQUIRED` → `x402`. **The detected
 protocol is authoritative**: a wrong hint does not change what gets paid, and does not cause a
 failure. You can omit it entirely and send the same call for both rails.
+
+Unlike `protocol`, **`requireProtocol` binds the rail** (API v1.88.0+). If both rails are offered,
+the Router uses the pinned one; if it is unavailable, the call fails with `BCK.ROUTER.0045`.
+Read `params.requireProtocol` and `params.offered`; an empty `offered` means neither rail can be
+parsed, so choose another service. Never silently remove the pin. `/quote` and commerce variants
+honour it too: quote and pay with the same value. A `quoteId` bound to another rail is refused
+with `BCK.ROUTER.0033`; quote again on the intended rail. Subscription payments also enforce the
+pin, but subscription-credit quotes price the credit tariff without applying it. On streaming
+`/proxy` and `/svc` calls, send `X-Router-Require-Protocol: x402` (or `mpp`) instead of a body field.
 
 ### Response
 
@@ -321,6 +331,7 @@ Point your HTTP client at `/api/v1/router/proxy` and drive it with request heade
 | `X-Router-Delegation-Id` | **yes** | Your `erc4337` Delegation |
 | `X-Router-Request-Id` | **yes** | Idempotency key — same rule as mode B |
 | `X-Router-Upstream-Authorization` | no | The **merchant's** auth, forwarded as its `Authorization` |
+| `X-Router-Require-Protocol` | no | `x402` or `mpp`; binding rail pin, refused with `409 BCK.ROUTER.0045` if unavailable; never falls back |
 | `X-Router-Forward-<name>` | no | Send `<name>: <value>` upstream (see below) |
 
 ```bash

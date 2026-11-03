@@ -2218,7 +2218,7 @@
             }
           },
           "409": {
-            "description": "The `requestId` was already used — idempotency conflict (BCK.ROUTER.0002).",
+            "description": "The `requestId` was already used — idempotency conflict (BCK.ROUTER.0002). Or the service does not offer the rail pinned by `requireProtocol` (BCK.ROUTER.0045; nothing signed, reserved or charged). `params.offered` can be empty when neither rail is offered: choose another service; never silently drop the pin.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2335,7 +2335,7 @@
             }
           },
           "409": {
-            "description": "The `requestId` was already used — idempotency conflict (BCK.ROUTER.0002) — or the raw `url` targets a cataloged service and must be invoked by `slug` (BCK.ROUTER.0014, not retryable).",
+            "description": "The `requestId` was already used — idempotency conflict (BCK.ROUTER.0002) — or the raw `url` targets a cataloged service and must be invoked by `slug` (BCK.ROUTER.0014, not retryable). Or the service does not offer the rail pinned by `requireProtocol` (BCK.ROUTER.0045; nothing signed, reserved or charged). `params.offered` can be empty when neither rail is offered: choose another service; never silently drop the pin.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2471,7 +2471,7 @@
             }
           },
           "409": {
-            "description": "The target is a cataloged Nevermined service that must be addressed by its slug, not by raw URL (BCK.ROUTER.0014).",
+            "description": "The target is a cataloged Nevermined service that must be addressed by its slug, not by raw URL (BCK.ROUTER.0014). Or the service does not offer the rail pinned by `requireProtocol` (BCK.ROUTER.0045; nothing signed, reserved or charged). `params.offered` can be empty when neither rail is offered: choose another service; never silently drop the pin.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2607,7 +2607,7 @@
             }
           },
           "409": {
-            "description": "The target is a cataloged Nevermined service that must be addressed by its slug, not by raw URL (BCK.ROUTER.0014).",
+            "description": "The target is a cataloged Nevermined service that must be addressed by its slug, not by raw URL (BCK.ROUTER.0014). Or the service does not offer the rail pinned by `requireProtocol` (BCK.ROUTER.0045; nothing signed, reserved or charged). `params.offered` can be empty when neither rail is offered: choose another service; never silently drop the pin.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2887,7 +2887,7 @@
             }
           },
           "409": {
-            "description": "The merchant's live price is outside the rate's bound, in another asset or network, or could not be read as a price, or — for a service paid over an MPP session — it asked to be paid at an address Nevermined has not seen it use on this endpoint (BCK.SUBSCRIPTION_ROUTER.0004, `params.reason`, e.g. `payee_unobserved`); the MPP session payment channel with this service, shared by everyone paying with credits, is closing (BCK.ROUTER.0042, retry later with the same requestId); or the `requestId` was already used (BCK.ROUTER.0002 — from API 1.48, a retry of a finished call is answered from its retained result instead).",
+            "description": "The merchant's live price is outside the rate's bound, in another asset or network, or could not be read as a price, or — for a service paid over an MPP session — it asked to be paid at an address Nevermined has not seen it use on this endpoint (BCK.SUBSCRIPTION_ROUTER.0004, `params.reason`, e.g. `payee_unobserved`); the MPP session payment channel with this service, shared by everyone paying with credits, is closing (BCK.ROUTER.0042, retry later with the same requestId); or the `requestId` was already used (BCK.ROUTER.0002 — from API 1.48, a retry of a finished call is answered from its retained result instead). Or the service does not offer the rail pinned by `requireProtocol` (BCK.ROUTER.0045; nothing signed, reserved or charged). `params.offered` can be empty when neither rail is offered: choose another service; never silently drop the pin.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5356,6 +5356,14 @@
             "type": "string",
             "description": "Idempotency key — REQUIRED for routed payments (mode B). The Router makes the upstream call and pays automatically, so a retry after a dropped connection must not double-spend. At most one payment is minted per (caller, requestId); a duplicate returns 409 (BCK.ROUTER.0002) carrying the original paymentId, rather than paying again.",
             "example": "order-1234"
+          },
+          "requireProtocol": {
+            "type": "string",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay or quote only this rail, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Omit to auto-select (MPP first). Quote and pay with the same pin; a quoteId bound to another rail is refused with BCK.ROUTER.0033. Never silently remove the pin."
           }
         },
         "required": [
@@ -5413,6 +5421,14 @@
             "type": "string",
             "description": "Idempotency key — REQUIRED for routed payments (mode B). The Router makes the upstream call and pays automatically, so a retry after a dropped connection must not double-spend. At most one payment is minted per (caller, requestId); a duplicate returns 409 (BCK.ROUTER.0002) carrying the original paymentId, rather than paying again.",
             "example": "order-1234"
+          },
+          "requireProtocol": {
+            "type": "string",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay or quote only this rail, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Omit to auto-select (MPP first). Quote and pay with the same pin; a quoteId bound to another rail is refused with BCK.ROUTER.0033. Never silently remove the pin."
           }
         },
         "required": [
@@ -5472,6 +5488,14 @@
             "type": "string",
             "description": "The delegation you would pay with. Optional. When given, the quote prices the options that delegation would select: an organization-wallet delegation pays only in its own currency, a card delegation pays over the MPP-stripe rail, and a recipient allowlist refuses a pay-to address it would refuse. Without it, the quote prices what a personal crypto (erc4337) delegation would select. `optionSet` in the response says which was used. Either way the quote checks neither the remaining cap nor the wallet balance.",
             "example": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1"
+          },
+          "requireProtocol": {
+            "type": "string",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay or quote only this rail, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Omit to auto-select (MPP first). Quote and pay with the same pin; a quoteId bound to another rail is refused with BCK.ROUTER.0033. Never silently remove the pin."
           }
         }
       },
@@ -5527,6 +5551,14 @@
           "delegationId": {
             "type": "string",
             "description": "Must NOT be sent. The quote prices the delegation your grant is pinned to — the one the user consented to and capped. Supplying one is refused rather than ignored; use POST /api/v1/router/quote with a plain API key to price a delegation of your choice."
+          },
+          "requireProtocol": {
+            "type": "string",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay or quote only this rail, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Omit to auto-select (MPP first). Quote and pay with the same pin; a quoteId bound to another rail is refused with BCK.ROUTER.0033. Never silently remove the pin."
           }
         }
       },
@@ -6497,6 +6529,14 @@
             "maxLength": 256,
             "pattern": "\\S",
             "example": "scrape-example-com-1"
+          },
+          "requireProtocol": {
+            "type": "string",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay only on x402 or mpp, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Subscription-credit quotes price the credit tariff without applying the pin; this paid call enforces it. Never silently remove the pin."
           }
         },
         "required": [

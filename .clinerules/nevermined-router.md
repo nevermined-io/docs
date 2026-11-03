@@ -200,7 +200,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0042` (409) — the MPP session payment channel with this service is closing; no payment signed or charged. Retry later with the same `requestId`.
 - `BCK.ROUTER.0043` (503) — the MPP session payment channel with this service is busy; nothing signed or charged. Retry after a few seconds with the same `requestId`.
 - `BCK.ROUTER.0044` (422) — the Router cannot collect its fee on this MPP session payment: `params.cause` is `org-wallet` (pay from a delegation funded by your own wallet) or `network` (session fees are not collected on that network; pay another network's service). Nothing charged. Do not retry unchanged.
-- `BCK.ROUTER.0045` (409) — the service does not offer the rail pinned by `requireProtocol` (x402 or mpp). Nothing signed, reserved or charged. Not retryable unchanged: choose a service on your required rail, or deliberately change the pin; never drop it automatically.
+- `BCK.ROUTER.0045` (409) — the service does not offer the rail pinned by `requireProtocol` (`X-Router-Require-Protocol` on `/proxy` · `/svc`; x402 or mpp). Nothing signed, reserved or charged. Not retryable unchanged: choose a service on your required rail, or deliberately change the pin; never drop it automatically.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one
