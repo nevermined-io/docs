@@ -158,7 +158,7 @@ One exception to the flag, and it is the [sub-cent case](#the-routing-fee-on-a-r
 
 ### Auditing the fee leg
 
-`feeTxHash` and `feeNonce` are what make the fee movement auditable on its own, and each answers a different question — and which one anchors a given fee follows the rail: an **MPP** fee is a native transfer, keyed by `feeTxHash`; an **x402** fee is an EIP-3009 authorization, keyed by `feeNonce`.
+`feeTxHash` and `feeNonce` are what make the fee movement auditable on its own, and each answers a different question — and which one anchors a given fee follows the rail: an **MPP `tempo`** fee is a native transfer, keyed by `feeTxHash`; an **x402** fee is an EIP-3009 authorization, keyed by `feeNonce`, and so is an MPP `evm` fee, which takes the x402 path.
 
 **`feeTxHash` is not `txHash`.** `txHash` anchors the **merchant** leg; `feeTxHash` anchors the **fee** leg. They are independent movements that settle separately — one can land while the other hasn't — so reconcile them separately rather than reading either as evidence of the other. Like `txHash`, it is recorded verbatim as the settling party reported it, so [treat it as an anchor to verify](#reconciling-against-the-chain) rather than as proof, and don't assume a `0x` shape.
 
