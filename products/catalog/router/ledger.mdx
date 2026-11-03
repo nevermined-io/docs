@@ -110,7 +110,7 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 
 | Field | What it is |
 | --- | --- |
-| `asset` | The settlement asset **as persisted at mint**, which differs by rail: a symbol (`USDC`/`EURC`) on x402, the ERC-20 contract address on MPP-tempo, an ISO currency code on the card rail. Kept as-is for consumers that already parse it. |
+| `asset` | The settlement asset **as persisted at mint**, which differs by rail: a symbol (`USDC`/`EURC`) on x402 and on an MPP `evm` charge (`network` `base` or `base-sepolia`), the ERC-20 contract address on MPP-tempo, an ISO currency code on the card rail. Kept as-is for consumers that already parse it. |
 | `assetSymbol` | The ticker to display, resolved from `asset` on this row's `network`. `null` **only** when the row carries no asset, or an address we don't recognise on that chain — a symbol-shaped value is echoed as-is even when it isn't one we know, so a non-null `assetSymbol` is not proof the asset was recognised. Tickers and their **casing** vary by chain, so compare case-insensitively. |
 | `assetDecimals` | The decimal scale of `amount` for this asset, so you never have to assume one. `null` whenever the asset isn't recognised — making this, not `assetSymbol`, the field that tells you so. |
 
