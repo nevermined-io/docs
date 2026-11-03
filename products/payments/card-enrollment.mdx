@@ -143,8 +143,8 @@ Visa, Stripe, and Braintree cards share these core properties:
 |---|---|
 | `id` | Unique payment-method identifier (UUID) |
 | `userId` | Owner of the card |
-| `provider` | `visa`, `stripe`, or `braintree` |
-| `providerPaymentMethodId` | PSP-side token. Visa: `vat_…` (Agentic Token). Stripe: `pm_…`. Braintree: `paymentMethodToken`. |
+| `provider` | `visa`, `vgs` (a card enrolled through the Stripe tab), `braintree`, or `stripe` (a card enrolled before the unified card enrol) |
+| `providerPaymentMethodId` | Provider-side card reference. Visa: `vat_…` (Agentic Token). VGS: the VGS card ID (`CRD…`). Braintree: `paymentMethodToken`. Stripe: `pm_…`. |
 | `last4` | Last 4 digits of the card number (for display) |
 | `brand` | Card brand (`visa`, `mastercard`, …) |
 | `alias` | User-friendly name (e.g., "Work Visa", "Dev Card") |
@@ -179,7 +179,7 @@ The [Nevermined App](https://nevermined.app) provides a visual interface for man
 
 ### Via the API
 
-The payment-methods endpoint is heterogeneous: it lists enrolled cards across all three providers plus, when the user has a smart account configured, the ERC-4337 wallet entry that backs crypto delegations. Filter by `provider` to narrow to a single shape.
+The payment-methods endpoint is heterogeneous: it lists enrolled cards across all three providers plus, when the user has a smart account configured, the ERC-4337 wallet entry that backs crypto delegations. Filter by `provider` to narrow to a single shape: a card enrolled through the Stripe tab is `provider=vgs`, not `stripe`.
 
 | Endpoint | Method | Description |
 |---|---|---|
