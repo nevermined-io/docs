@@ -10,7 +10,7 @@ Before an agent can charge a payment card, the card must be enrolled in Nevermin
 
 Nevermined supports three enrollment providers, each available as a separate tab in the [Nevermined App](https://nevermined.app). Which provider you should enroll with depends on the plan you intend to pay for — the plan's `fiatPaymentProvider` metadata determines the required card type:
 
-- **Stripe-priced plans** require a Stripe-vaulted card.
+- **Stripe-priced plans** require a card enrolled through the Stripe tab below.
 - **Braintree-priced plans** require a Braintree-vaulted card.
 - **Visa Trusted Agent plans** require a Visa Agentic Token (enrolled through the Visa tab).
 
@@ -65,31 +65,28 @@ Nevermined supports three enrollment providers, each available as a separate tab
   <Tab title="Stripe">
     ### Stripe Enrollment
 
-    Stripe cards are captured via a VGS Collect iframe and confirmed against a Stripe SetupIntent. This is a single-step flow with no passkey requirement.
+    A card for a Stripe-priced plan is enrolled through the webapp's "Credit/debit card" form. The card is captured in a VGS Collect iframe and vaulted at VGS, not at Stripe: the plan you pay picks the provider that charges it, at charge time. This is a single-step flow with no passkey requirement.
 
     <Steps>
-      <Step title="Request a SetupIntent">
-        The webapp asks the API for a Stripe SetupIntent. The API returns the `client_secret`.
-      </Step>
       <Step title="Enter card details">
-        Enter your card number, expiry, and CVC into the VGS Collect iframe. VGS forwards the tokenized card directly to Stripe to confirm the SetupIntent and return a PaymentMethod (`pm_…`).
+        Enter your card number, expiry, and CVC into the VGS Collect iframe. VGS Collect creates the card directly at VGS and returns a card ID (`CRD…`) to the browser. The PAN and CVC never transit the Nevermined backend.
       </Step>
-      <Step title="Finalize enrollment">
-        The webapp posts the SetupIntent ID to `POST /api/v1/delegation/finalize-enrollment`. The API links the Stripe `pm_…` to the user.
+      <Step title="Enroll the card">
+        The webapp posts the card ID to `POST /api/v1/delegation/enroll`. The API provisions a network token for the card and records it under your account.
       </Step>
       <Step title="Create a delegation">
         After enrollment, create a [spending delegation](/products/payments/mandates) to define how agents can charge this card.
       </Step>
     </Steps>
 
-    #### Stripe Card Lifecycle
+    #### Card Lifecycle
 
     ```
-    SetupIntent created
+    PAN captured in VGS Collect iframe
       |
-      |-> Card confirmed (VGS Collect -> Stripe tokenization)
+      |-> VGS card created (cardId)
       |
-      |-> Enrollment finalized (linked to Nevermined account)
+      |-> Backend provisions a network token and records the card
       |
       |-> Active -> Delegations can be created
             |
@@ -195,7 +192,7 @@ The payment-methods endpoint is heterogeneous: it lists enrolled cards across al
 
 | | Visa | Stripe | Braintree |
 |---|---|---|---|
-| **Enrollment complexity** | VGS Collect capture, no passkey at enrolment | VGS Collect capture against a SetupIntent | Braintree Drop-in capture |
+| **Enrollment complexity** | VGS Collect capture, no passkey at enrolment | VGS Collect capture, no passkey at enrolment | Braintree Drop-in capture |
 | **Per-delegation auth** | WebAuthn/passkey device binding (browser-only) | API credentials only | API credentials only |
 | **Best for** | Visa Trusted Agent Protocol plans, high-security agent payments | Quick setup, developer testing, broader card support | Plans whose seller settles on Braintree (per-currency merchant accounts, OAuth Connect) |
 | **Settlement** | Stripe Connect against the seller's connected account | Stripe PaymentIntents directly | Braintree `transaction.sale` against vaulted `paymentMethodToken` |
