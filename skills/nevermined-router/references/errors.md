@@ -212,9 +212,16 @@ check tripped. Common causes, in rough order:
   looks like a broken merchant. See `bootstrap.md`.
 - **Non-allowlisted MPP asset.** Fail-closed per chain. If MPP fails with `0001` where x402 works,
   check this first — the rails are configured independently. **On a deployment where the MPP rail
-  is simply not enabled this is the expected result for _every_ MPP service**, whatever the
-  service. It says nothing about the merchant, and no amount of trying other MPP services will
-  find one that works. Switch to `protocol=x402`, or ask the operator to enable the rail.
+  is simply not enabled this is the expected result for _every_ MPP service paid over `tempo`**,
+  whatever the service, and even one that also offers x402 (the Router never falls back over its
+  own configuration). It says nothing about the merchant, and no amount of trying other Tempo-paid
+  MPP services will find one that works. For a service that also offers x402, pin
+  `requireProtocol: "x402"` (`protocol` is only a hint), or ask the operator to enable the rail.
+- **An MPP `evm` charge from a personal Delegation** (`details` names an EIP-7702 smart account).
+  Personal wallets on Nevermined can't sign `evm`. An unpinned `/route` call without a `quoteId`
+  already moves to the service's x402 offer, so you see this when pinned to `mpp`, quote-bound, in
+  mode A, or when the service offers no x402. Pin `requireProtocol: "x402"` on `/quote` and
+  `/route`, or pay with credits.
 - **Recipient outside the Delegation's scope**, when it carries an `allowedRecipients` list.
 - **Wrong Delegation provider** — a card Delegation on a stablecoin rail or vice versa.
 - **MPP `splits`** — see below.
