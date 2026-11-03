@@ -1,6 +1,6 @@
 ---
 title: "The MPP rail"
-description: "Paying Merchant Payment Protocol services through the Router — Tempo charges, receipts, and the asset allowlist."
+description: "Paying Merchant Payment Protocol services through the Router — Tempo and EVM charges, receipts, and the asset allowlist."
 icon: "credit-card"
 ---
 
@@ -18,10 +18,10 @@ The Router decodes that challenge, signs the payment, and hands back an `Authori
 
 | | Supported |
 | --- | --- |
-| **Method** | `tempo` — a native Tempo transaction pulling a Tempo stablecoin |
+| **Method** | `tempo` — a native Tempo transaction pulling a Tempo stablecoin. `evm` — an EIP-3009 stablecoin authorization on Base, used only when the challenge offers no `tempo` (see [EVM charges on Base](#evm-charges-on-base)) |
 | **Intent** | `charge` — a one-off payment for this request |
-| **Networks** | Tempo mainnet (chain `4217`) and Tempo Moderato, the public testnet (chain `42431`) |
-| **Assets** | Whatever the operator has allowlisted for that chain (see below) |
+| **Networks** | `tempo`: Tempo mainnet (chain `4217`) and Tempo Moderato, the public testnet (chain `42431`). `evm`: the Base chain your deployment funds for x402 |
+| **Assets** | `tempo`: whatever the operator has allowlisted for that chain (see below). `evm`: the tokens the x402 rail pays |
 
 Subscriptions and metered streams aren't supported, and a challenge advertising one is refused rather than approximated. **Sessions** (payment channels) are supported in production — see [Sessions](#sessions-payment-channels) below.
 
@@ -29,9 +29,21 @@ Subscriptions and metered streams aren't supported, and a challenge advertising 
 **You don't have to know a service speaks MPP.** In [mode B](/products/catalog/router/how-it-works) the Router detects the protocol from the 402 itself, and the detected protocol always wins over the optional `protocol` hint in your request. Send the same `/route` call you'd send for x402.
 </Note>
 
+## EVM charges on Base
+
+Some MPP merchants offer `method="evm"`: an EIP-3009 stablecoin authorization on Base, the same payment x402 makes, in an MPP envelope. The merchant settles it. The Router uses it only when the challenge offers no `tempo` method. A challenge offering both goes to `tempo`, and isn't retried as `evm` if its `tempo` offer can't be paid.
+
+An `evm` charge works like the [x402 rail](/products/catalog/router/rails-x402), not like the rest of this page, which describes `tempo`:
+
+- **Chain and token.** The Base chain and tokens your deployment funds for x402: Base mainnet on a live deployment, Base Sepolia on sandbox. The asset allowlist below doesn't apply.
+- **Funding.** The paying wallet needs the stablecoin the challenge names (USDC or EURC, as on x402) plus the [routing fee](/products/catalog/router/how-it-works#fund-for-the-amount-plus-the-fee), which is collected as on x402.
+- **A personal Delegation can't pay it.** An `evm` merchant verifies the payment by recovering its signer, so it needs a plain ECDSA signature. Personal wallets on Nevermined are EIP-7702 smart accounts and sign differently, so the Router refuses the call with `400 BCK.ROUTER.0001` before signing. On an unpinned mode-B call without a `quoteId`, a merchant that also offers x402 is paid over x402 instead. Mode A, a pinned call and a quote-bound call get no fallback. To quote first, pin `requireProtocol: "x402"` on both `/quote` and `/route`: a quote prices the `evm` offer without checking who will sign it, and the `quoteId` binds the call to that rail.
+- **[Catalog credits](/products/catalog/router/subscription#what-credits-can-pay) can pay it.**
+- **The record looks like x402.** The ledger row is `protocol: mpp` with `network: base` (or `base-sepolia`) and a symbol `asset`, and the `/route` response reports `settlement.scheme: "exact"`. Only the ledger's `protocol` tells the two rails apart — see [reading the asset](/products/catalog/router/ledger#reading-the-asset).
+
 ## The asset allowlist
 
-MPP challenges name their payment token by contract address, and the challenge comes from the merchant — an untrusted source. So the Router will only settle a token the operator has **explicitly allowlisted for that chain**, via `ROUTER_TEMPO_ASSETS_<chainId>`.
+`tempo` challenges name their payment token by contract address, and the challenge comes from the merchant — an untrusted source. So the Router will only settle a token the operator has **explicitly allowlisted for that chain**, via `ROUTER_TEMPO_ASSETS_<chainId>`.
 
 This is **fail-closed**: an unset or empty allowlist rejects *every* asset on that chain. A payment naming a token that isn't on the list is refused with **`400 BCK.ROUTER.0001`** before anything is signed.
 
@@ -40,11 +52,14 @@ If MPP payments fail with that code on a deployment where x402 works fine, an un
 <Warning>
   **A service appearing in the Agent Services Catalog does not mean your deployment can pay it.**
   The catalog describes services; the allowlist is a property of the deployment. Where the MPP rail
-  is not enabled, *every* MPP service is refused with `400 BCK.ROUTER.0001 … not allowlisted` while
-  x402 services pay normally — which reads like a broken merchant and is not one.
+  is not enabled, *every* MPP service paid over `tempo` is refused with `400 BCK.ROUTER.0001 … not
+  allowlisted` while x402 services pay normally — which reads like a broken merchant and is not one.
+  That includes a service that also offers x402: the Router doesn't fall back over its own
+  configuration. An `evm`-only MPP service doesn't use the allowlist.
 
-  Retrying will not help, and neither will trying a different MPP service: they all fail the same
-  way. Check the allowlist for the chain, or ask whoever operates your deployment.
+  Retrying will not help, and neither will trying a different Tempo-paid MPP service: they all fail
+  the same way. Check the allowlist for the chain, or ask whoever operates your deployment. For a
+  service that also offers x402, you can pin `requireProtocol: "x402"`.
 </Warning>
 
 | Chain | Chain id | Ledger network |
@@ -87,8 +102,9 @@ On **mainnet there is no faucet**: you have to bridge or transfer real USDC.e in
 
 The MPP handler validates the decoded challenge before it signs, and fails closed on anything it can't fully account for:
 
-- **Wrong method or intent** — anything other than `tempo` / `charge`.
-- **Unsupported chain** — a chain id outside the table above.
+- **Wrong method or intent** — a method other than `tempo` or `evm`, or an intent other than `charge` ([card-funded MPP](#card-funded-mpp) and [sessions](#sessions-payment-channels) are covered below).
+- **An `evm` charge your wallet can't sign** — see [EVM charges on Base](#evm-charges-on-base).
+- **Unsupported chain** — for `tempo`, a chain id outside the table above; for `evm`, a chain your deployment doesn't fund for x402.
 - **Malformed recipient, currency, or amount** — addresses must be valid hex; the amount must be a positive integer. A charge for `0` is not a payment: see [zero-amount charges](#zero-amount-charges-proving-you-paid).
 - **A non-allowlisted asset** — see above.
 - **Multi-recipient payouts.** A challenge that carries `splits` is refused outright.
