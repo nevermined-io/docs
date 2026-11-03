@@ -23,6 +23,7 @@ Price **one** call to a service **without paying it**: it charges nothing, signs
 | `body` | no | any | The request payload you'd send; some services price by it. |
 | `headers` | no | object | Extra headers you'd send to the vendor. |
 | `delegationId` | no | string | The delegation you'd pay with (API key only). A card or org-wallet delegation can select a different rail, and so a different price. An OAuth caller is always quoted for its grant. |
+| `requireProtocol` | no | string | Price only `x402` or `mpp`. Pass the same pin to `pay_service`; the returned `quoteId` binds that rail. If unavailable, returns `quote_failed` with `BCK.ROUTER.0045`, nothing charged. Omit to auto-select (MPP first). Subscription-credit quotes price the credit tariff without applying this pin; the paid call still enforces it. |
 | `funding` | no | string | `"subscription"` or `"delegation"`, as on `pay_service`. Omit it to get the [price in credits](#quote-in-subscription-credits) when your Nevermined credits can pay this call, and the delegation quote otherwise. |
 
 ## Returns

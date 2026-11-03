@@ -23,6 +23,7 @@ Pay for a service from your spend-capped delegation and return the vendor's resp
 | `delegationId` | no | string | Delegation to charge (API key only); defaults to your active one. An OAuth caller always spends from its grant. Feeds the derived idempotency key when `requestId` is omitted, so keep it the same across retries. |
 | `fresh` | no | boolean | Set `true` on **every poll** of an async status endpoint, **including the first**, so each poll mints a fresh idempotency key and advances. With `fresh` a retry is **not** de-duplicated and **is** charged again. Ignored when `requestId` is set. |
 | `requestId` | no | string | Idempotency key. Leave unset — a retry of the same call is de-duplicated automatically. Set a **new** value only for a genuinely separate, additional charge. |
+| `requireProtocol` | no | string | Pay only on `x402` or `mpp`; never fall back to another rail. If unavailable, returns `payment_failed` with `BCK.ROUTER.0045`, nothing charged. Omit to auto-select (MPP first). With `quoteId`, keep the quoted rail; a different rail returns `quote_mismatch`. |
 | `funding` | no | string | `"subscription"` or `"delegation"`: what pays this call. Omit it to pay with your [Nevermined credits](#pay-with-subscription-credits) when they can pay this call, and from your delegation otherwise. |
 
 <Note>
