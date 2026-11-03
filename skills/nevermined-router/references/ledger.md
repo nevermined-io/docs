@@ -96,7 +96,7 @@ small to transfer.
 ### Scale: read `assetDecimals`, never assume 6
 
 ⚠️ **On the card rail, `amount` IS cents.** MPP-stripe settles in ISO currencies at **scale 2**, so a
-$60.00 card payment is `amount: "6000"`. On x402 and MPP-tempo the stablecoins are **6-decimal**, so
+$60.00 card payment is `amount: "6000"`. On x402, MPP-tempo and MPP `evm` the stablecoins are **6-decimal**, so
 `1000` = 0.001 USDC. One rule covers both:
 
 ```

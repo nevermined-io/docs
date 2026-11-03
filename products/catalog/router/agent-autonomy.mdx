@@ -176,7 +176,9 @@ curl -sX POST "$NVM_API_URL/api/v1/router/route" \
 The agent does not know, and does not need to know, which chain it just paid on.
 
 <Warning>
-Because the Router picks the protocol in this mode, a merchant advertising **both** rails will be paid over MPP. If you're specifically verifying x402 behaviour, pin a merchant that offers only x402 — otherwise a green run can be exercising the other rail entirely. Check with `curl -sD - -o /dev/null "$URL" | grep -ci '^www-authenticate: *Payment'` — it must be `0`.
+Because the Router picks the protocol in this mode, a merchant advertising **both** rails is tried over MPP first — Tempo or `evm` — and paid over x402 only when the Router refuses its MPP challenge's terms (a method, chain or asset it doesn't pay, for example). Either rail can turn a run green, so a green run may be exercising the other rail entirely. An MPP `evm` charge settles on Base just as x402 does, so the chain won't tell you which one ran.
+
+If you're specifically verifying x402 behaviour, set `requireProtocol: "x402"` on the call. The Router then pays only x402 and never falls back; a merchant that doesn't offer it is refused with `409 BCK.ROUTER.0045` before anything is signed or charged. See [How it works](/products/catalog/router/how-it-works).
 </Warning>
 
 ## 5. Report
@@ -196,7 +198,12 @@ curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
 Both reconcile exactly against the chains: Base **−0.010000 USDC**, Tempo **−0.060029 USDC.e** (the 0.060001 payment plus 28 units of gas, which Tempo bills in the stablecoin itself).
 
 <Note>
-On the MPP rail, `network` comes back as a bare name — `"tempo"` — with no chain id, so it does **not** distinguish Tempo mainnet (`4217`) from the Moderato testnet (`42431`). That makes the `asset` address the only field that tells you which chain a payment actually settled on. The two token addresses, and why they are easy to misread, are in [the MPP rail](/products/catalog/router/rails-mpp#the-asset-allowlist).
+On the MPP rail, `network` comes back as a name rather than a chain id, and on a crypto Delegation like this one the MPP method decides both it and `asset`:
+
+- **A Tempo charge** (the row above): `network` is `tempo` for mainnet (`4217`) or `tempo-moderato` for the Moderato testnet (`42431`), and `asset` is the token's **contract address**. The token addresses differ per chain and are easy to misread — see [the MPP rail](/products/catalog/router/rails-mpp#the-asset-allowlist).
+- **An MPP `evm` charge** settles on Base exactly as x402 does: `network` is `base` (or `base-sepolia`) and `asset` is a symbol such as `USDC`.
+
+So a `base` row is not necessarily x402. Read `protocol` for the rail and `network` for the chain.
 </Note>
 
 Add `&format=csv` for a downloadable file. This is the same record whether you spent over one protocol or five.
