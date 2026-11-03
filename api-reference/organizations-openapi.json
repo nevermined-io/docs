@@ -1472,7 +1472,8 @@
     },
     "/organizations/{orgId}/billing/checkout": {
       "post": {
-        "description": "Resolves the catalog row by (tier, currency, interval) and returns a hosted Stripe Checkout URL (fiat subscription). The org id is taken from the verified session and must match the path `:orgId` (mismatch is rejected). Tier changes on a live subscription must go through /upgrade or /downgrade, not a second checkout. Requires a Nevermined API key. Requires organization admin privileges.",
+        "deprecated": true,
+        "description": "**Deprecated:** organization tiers are bought in the Nevermined app with an enrolled card; no API route replaces this one, and it will be removed in the next major API version. Resolves the catalog row by (tier, currency, interval) and returns a hosted Stripe Checkout URL (fiat subscription). The org id is taken from the verified session and must match the path `:orgId` (mismatch is rejected). Tier changes on a live subscription must go through /upgrade or /downgrade, not a second checkout. Requires a Nevermined API key. Requires organization admin privileges.",
         "operationId": "BillingController_createCheckout",
         "parameters": [
           {
