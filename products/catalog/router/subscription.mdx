@@ -15,7 +15,7 @@ You get credits in three ways:
 All your credits are [one balance](#credits), and they're spent the same way whatever their source. That changes three things for an agent:
 
 - **No wallet, no Delegation, no funding.** There's no wallet to fund and nothing on-chain for your agent to sign.
-- **A price you see before you call.** Credits follow each service's live price, with a 1-credit minimum, and the exact credits are quoted before each call.
+- **A price you can see before you call.** Credits follow each service's live price, with a 1-credit minimum. Quote any call to see its exact credits before you make it.
 - **You only pay for what's delivered.** Credits are kept only when the merchant answers with a `2xx`. Anything else and the credits come back.
 
 <Note>
@@ -272,7 +272,7 @@ Everyone else sees USD prices; quote a call (below) for its exact price in credi
 
 ## What a call costs
 
-Credits follow each service's live price, with a 1-credit minimum, and the exact credits are quoted before each call. A call costs a whole number of credits, and what it costs depends on the request: many services price by what you ask for, so a bigger request or a stronger model costs more.
+Credits follow each service's live price, with a 1-credit minimum. Quote any call to see its exact credits before you make it. A call costs a whole number of credits, and what it costs depends on the request: many services price by what you ask for, so a bigger request or a stronger model costs more.
 
 - **In the catalog and the MCP**, each endpoint credits can pay shows an **estimate** of one call, from the last price seen: `get_service`, called with your API key, shows `subscription.estimatedCreditsPerCall`. It tells you roughly what to expect, not what a given request costs.
 - **Over REST and in the MCP**, quote the exact call. Nothing is reserved or charged. The merchant is sent the request you would make, without payment, so send the same `search`, `headers` and `body` you will call with, and treat it as you would the call itself if the service acts on an unpaid request:
