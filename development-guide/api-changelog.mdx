@@ -48,8 +48,9 @@ _Changes relative to `1.70`:_
 
 _Changes relative to `1.60`:_
 
-- **Router: a payment the merchant answered with an error (HTTP 4xx/5xx on the paid call, x402 exact or MPP-tempo charge) reads deliveryStatus "not_delivered" instead of "pending" until reconciliation decides whether the merchant charged; the delegation cap reserve is held exactly as before. GET /api/v1/router/payments (JSON and CSV) and GET /api/v1/purchases carry the new value; GET /api/v1/router/delegations/&#123;id&#125; adds a not_delivered key to spentMicrosByDeliveryStatus. Clients pinned below 1.70 read "pending" for those payments and the not_delivered spend folded into pending.** (`response`)
+- **Router: a payment the merchant answered with an error (HTTP 4xx/5xx on the paid call, x402 exact or MPP-tempo charge) reads deliveryStatus "not_delivered" instead of "pending" until reconciliation decides whether the merchant charged; the delegation cap reserve is held exactly as before. GET /api/v1/router/payments (JSON and CSV) and GET /api/v1/purchases carry the new value; GET /api/v1/router/delegations/&#123;id&#125; adds a not_delivered key to spentMicrosByDeliveryStatus. Clients pinned below 1.70 read "pending" for those payments and the not_delivered spend folded into pending. GET /api/v1/router/payments/summary likewise folds countsByDeliveryStatus.not_delivered into pending below 1.70.** (`response`)
   - `GET /api/v1/router/payments`
+  - `GET /api/v1/router/payments/summary`
   - `GET /api/v1/router/delegations/:id`
   - `GET /api/v1/purchases`
 
