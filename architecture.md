@@ -264,7 +264,7 @@ docs/
 
 ---
 
-**Last Updated**: January 2026
+**Last Updated**: November 2026
 **Maintained By**: Nevermined Team
 
 ## Router seller attribution
