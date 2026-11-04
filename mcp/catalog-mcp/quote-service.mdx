@@ -56,21 +56,23 @@ The rail, the merchant amount, and the fee-inclusive total. `fee.capChargedCents
 
 ## Quote in subscription credits
 
-When your [Nevermined credits](/products/catalog/router/subscription) can pay this call — from a subscription, free credits or top-up packs — `quote_service` answers from Nevermined's rate card alone — **the service isn't contacted**, so the warning above doesn't apply:
+When your [Nevermined credits](/products/catalog/router/subscription) can pay this call — from a subscription, free credits or top-up packs — `quote_service` answers with the exact credits of this request. Credits follow each service's live price, with a 1-credit minimum, so the service is sent your request unpaid, as for a delegation quote: pass everything you would pass to `pay_service`, and the warning above applies:
 
 ```json
 {
   "funding": "subscription",
   "slug": "webscrape-pro",
   "credits": 3,
-  "tariffVersion": 2,
+  "paymentRequired": true,
+  "upstreamStatus": 402,
   "request": { "method": "POST", "path": "/scrape", "methodSource": "catalog", "catalogEndpoint": "/scrape" },
   "nextTool": "pay_service",
-  "instructions": "Nothing was charged. `credits` is the number of credits one call to this endpoint uses …"
+  "maxCredits": 3,
+  "instructions": "Nothing was charged. `credits` is the exact number of Nevermined credits this request costs now …"
 }
 ```
 
-`credits` is what one call to this endpoint costs at the current rate. There's no `quoteId` or cent total: pay with `pay_service` and the same arguments. For a subscriber in good standing, the quote doesn't check the credits left (without one, it checks that they cover the call, unless an automatic [top-up](/products/catalog/router/subscription#top-ups) would); it never checks the merchant's live price or Nevermined's treasury — `pay_service` checks those when it makes the call. `funding` follows the same rules as on [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits): omitted, a call credits can't price gets the delegation quote instead, with `fundingReason`; with `funding: "subscription"`, it is refused with the same [error names](/mcp/catalog-mcp/pay-service#refusals-when-paying-with-credits).
+`credits` is what this exact request costs now. There's no `quoteId` or cent total: pay with `pay_service`, the same arguments and the `maxCredits` this answer gives, so a call that has become dearer is refused and charges nothing. `paymentRequired: false` means the service did not ask to be paid for this request: it named no price, `credits` is `0`, and `upstreamStatus` is its answer. For a subscriber in good standing, the quote doesn't check the credits left (without one, it checks that they cover the call, unless an automatic [top-up](/products/catalog/router/subscription#top-ups) would); it never checks the merchant's live price or Nevermined's treasury — `pay_service` checks those when it makes the call. `funding` follows the same rules as on [`pay_service`](/mcp/catalog-mcp/pay-service#pay-with-subscription-credits): omitted, a call credits can't price gets the delegation quote instead, with `fundingReason`; with `funding: "subscription"`, it is refused with the same [error names](/mcp/catalog-mcp/pay-service#refusals-when-paying-with-credits).
 
 ## Refusals (all charge nothing)
 

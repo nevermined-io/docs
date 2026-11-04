@@ -2683,7 +2683,7 @@
     },
     "/router/subscription/quote": {
       "post": {
-        "description": "Credits one call to a catalog endpoint costs with your Nevermined credits — free welcome credits or a Nevermined Subscription's allowance, subscribed or not: the endpoint's current rate on Nevermined's rate card, whatever the merchant charges at the moment of the call. Rates change without notice; the rate in force when the call is made applies.\n\nAnswers from the rate card alone — the merchant is not contacted, nothing is reserved and nothing is charged. It refuses what `POST /router/subscription/route` would refuse before contacting the merchant (an ineligible or untariffed endpoint, nothing that can pay the call, credits frozen by a card dispute or an overdue renewal). For a subscriber in good standing it does NOT check the credits left; without a subscription in good standing it checks that your spendable credits cover this call, unless an automatic credit top-up would cover it. It never checks the merchant's live price or Nevermined's treasury; the route checks those when the call is made. A `url` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`).\n\nPersonal API keys only: Nevermined credits and the Nevermined Subscription belong to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. Of OAuth-minted credentials, only a `commerce` connection the user allowed to spend their Nevermined credits is accepted: another `commerce` connection is refused with `BCK.OAUTH.0037`, one acting in an organization with `BCK.OAUTH.0038`, and any other OAuth credential with `BCK.OAUTH.0030`. Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
+        "description": "Credits one call to a catalog endpoint costs with your Nevermined credits — free welcome credits or a Nevermined Subscription's allowance, subscribed or not: the exact credits of this request. Credits follow each service's live price, with a 1-credit minimum.\n\nThe merchant is sent the same unpaid request the route would send, so send the `search`, `headers` and `body` you will call with. Nothing is reserved and nothing is charged, and a quote holds nothing: send its `credits` as `maxCredits` on the route to refuse a call that has become dearer. It refuses what `POST /router/subscription/route` would refuse before anything is paid (an ineligible endpoint, a call above what one call may cost, nothing that can pay the call, credits frozen by a card dispute or an overdue renewal). For a subscriber in good standing it does NOT check the credits left; without a subscription in good standing it checks that your spendable credits cover this call, unless an automatic credit top-up would cover it. It never checks Nevermined's treasury; the route checks that when the call is made. A `url` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`).\n\nPersonal API keys only: Nevermined credits and the Nevermined Subscription belong to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. Of OAuth-minted credentials, only a `commerce` connection the user allowed to spend their Nevermined credits is accepted: another `commerce` connection is refused with `BCK.OAUTH.0037`, one acting in an organization with `BCK.OAUTH.0038`, and any other OAuth credential with `BCK.OAUTH.0030`. Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
         "operationId": "quoteSubscriptionCall",
         "parameters": [],
         "requestBody": {
@@ -6480,24 +6480,35 @@
           },
           "credits": {
             "type": "integer",
-            "description": "Credits one call to this endpoint costs: its current rate on Nevermined's rate card, whatever the merchant charges at the moment of the call.",
+            "description": "The exact credits this request costs now, from the merchant's live price with a 1-credit minimum. 0 when `paymentRequired` is false: the merchant named no price for this request, which is not a promise that the call is free. Read `upstreamStatus`.",
             "example": 3
           },
-          "tariffVersion": {
+          "paymentRequired": {
+            "type": "boolean",
+            "description": "Whether the merchant asked to be paid. False means it did not answer 402, so this request would not be paid with credits as it stands."
+          },
+          "upstreamStatus": {
             "type": "integer",
-            "description": "The tariff version that sets `credits`.",
-            "example": 2
+            "description": "The status the merchant answered the unpaid request with.",
+            "example": 402
           }
         },
         "required": [
           "slug",
           "credits",
-          "tariffVersion"
+          "paymentRequired",
+          "upstreamStatus"
         ]
       },
       "SubscriptionRouteRequestDto": {
         "type": "object",
         "properties": {
+          "maxCredits": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The most credits you accept for this call, usually the `credits` of a quote you just read. A call that would cost more is refused (`BCK.SUBSCRIPTION_ROUTER.0020`) before anything is reserved or signed, and charges nothing. It can only lower what a call may cost: the per-call limit still applies.",
+            "example": 3
+          },
           "slug": {
             "type": "string",
             "description": "Catalog slug of the service to call. Subscription credits pay catalog services only, addressed by slug; the Router resolves it to the merchant server-side.",
