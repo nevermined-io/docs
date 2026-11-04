@@ -2788,7 +2788,7 @@
     },
     "/router/subscription/route": {
       "post": {
-        "description": "Call a catalog service and pay it with your Nevermined credits (mode B) — free welcome credits, top-up credits or a Nevermined Subscription's allowance, subscribed or not. Like `POST /router/route`, but Nevermined pays the merchant from its treasury and your credits are charged the endpoint's rate. There is no Delegation, no wallet to fund and no routing fee.\n\n- **A slug, never a URL.** Address the service by `slug` (+ `path`, `search`, `method`, `headers`, `body`). A `url` or a `delegationId` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`), not ignored.\n- **`requestId` is required** (idempotency): a retry with the same id is never paid twice.\n- **Only a merchant `2xx` keeps the credits.** They are reserved before the merchant is called and kept (`Committed`) only on a `2xx`; anything else marks them for refund and they are returned (`Refunded`). Every refusal below happens before anything is reserved, signed or charged — except a 502, which can follow a payment, and a `BCK.SUBSCRIPTION_ROUTER.0009` whose `params.topUps` is `bought` (or `pending`), or a `BCK.SUBSCRIPTION_ROUTER.0015` or `0016` whose `params.topUps` is `bought`, which follows a credit pack charged to your card (`params.purchaseId` names it).\n- **Credit top-ups.** With top-ups on, a call that runs out of credits charges one never-expiring credit pack to the saved card and goes ahead; the answer then carries `topUp`. Your card was charged: tell the person you are acting for.\n- **Rails:** x402 `exact` and MPP `tempo` merchants only.\n\nFor large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}` with an `X-Router-Request-Id` header; it answers with `X-Router-Credits-Charged` and `X-Router-Credits-Status` beside the `X-Router-Payment-*` headers (plus `X-Router-Topup-Credits` and `X-Router-Topup-Amount-Usd` when the call charged a credit pack), and refuses `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id`.\n\nPersonal API keys only: Nevermined credits and the Nevermined Subscription belong to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. Of OAuth-minted credentials, only a `commerce` connection the user allowed to spend their Nevermined credits is accepted: another `commerce` connection is refused with `BCK.OAUTH.0037`, one acting in an organization with `BCK.OAUTH.0038`, and any other OAuth credential with `BCK.OAUTH.0030`. Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
+        "description": "Call a catalog service and pay it with your Nevermined credits (mode B) — free welcome credits, top-up credits or a Nevermined Subscription's allowance, subscribed or not. Like `POST /router/route`, but Nevermined pays the merchant from its treasury and your credits are charged the endpoint's rate. There is no Delegation, no wallet to fund and no routing fee.\n\n- **A slug, never a URL.** Address the service by `slug` (+ `path`, `search`, `method`, `headers`, `body`). A `url` or a `delegationId` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`), not ignored.\n- **`requestId` is required** (idempotency): a retry with the same id is never paid twice.\n- **Only a merchant `2xx` keeps the credits.** They are reserved before the merchant is called and kept (`Committed`) only on a `2xx`; anything else marks them for refund and they are returned (`Refunded`). Every refusal below happens before anything is reserved, signed or charged — except a 502, which can follow a payment, and a `BCK.SUBSCRIPTION_ROUTER.0009` whose `params.topUps` is `bought` (or `pending`), or a `BCK.SUBSCRIPTION_ROUTER.0015` or `0016` whose `params.topUps` is `bought`, which follows a credit pack charged to your card (`params.purchaseId` names it).\n- **Credit top-ups.** With top-ups on, a call that runs out of credits charges one never-expiring credit pack to the saved card and goes ahead; the answer then carries `topUp`. Your card was charged: tell the person you are acting for.\n- **Rails:** only an EIP-3009 `exact` authorization (x402, or an MPP `evm` charge), an MPP `tempo` `charge`, and an MPP `tempo` `session` where this deployment has MPP sessions turned on.\n\nFor large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}` with an `X-Router-Request-Id` header; it answers with `X-Router-Credits-Charged` and `X-Router-Credits-Status` beside the `X-Router-Payment-*` headers (plus `X-Router-Topup-Credits` and `X-Router-Topup-Amount-Usd` when the call charged a credit pack), and refuses `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id`.\n\nPersonal API keys only: Nevermined credits and the Nevermined Subscription belong to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. Of OAuth-minted credentials, only a `commerce` connection the user allowed to spend their Nevermined credits is accepted: another `commerce` connection is refused with `BCK.OAUTH.0037`, one acting in an organization with `BCK.OAUTH.0038`, and any other OAuth credential with `BCK.OAUTH.0030`. Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
         "operationId": "routeSubscriptionCall",
         "parameters": [],
         "requestBody": {
@@ -5623,7 +5623,7 @@
           },
           "asset": {
             "type": "string",
-            "description": "For x402 the asset symbol (`USDC`/`EURC`); for mpp the tempo payment token contract address (mpp carries no on-wire symbol).",
+            "description": "For x402 and an MPP `evm` charge the asset symbol (`USDC`/`EURC`); for MPP-tempo the payment token contract address (that rail carries no on-wire symbol); for MPP-stripe the ISO currency code.",
             "example": "USDC"
           },
           "network": {
@@ -5638,7 +5638,7 @@
           },
           "scheme": {
             "type": "string",
-            "description": "Ledger settlement scheme: `exact` for x402 (EIP-3009), `charge` for MPP-tempo (a native Tempo transaction), `spt` for MPP-stripe (a Shared Payment Token). Omitted (defaults to `exact`) on the x402 path.",
+            "description": "Ledger settlement scheme: `exact` for an EIP-3009 authorization — x402, and an MPP `evm` charge (protocol `mpp`, settled on Base exactly like x402) — `charge` for MPP-tempo (a native Tempo transaction), `spt` for MPP-stripe (a Shared Payment Token). Omitted (defaults to `exact`) on the x402 path.",
             "enum": [
               "exact",
               "charge",
@@ -6151,7 +6151,7 @@
               "null"
             ],
             "example": "USDC",
-            "description": "The settlement asset AS PERSISTED AT MINT, which differs per rail: a symbol for x402 (`USDC`/`EURC`), the ERC-20 contract ADDRESS from the challenge for MPP-tempo, and an ISO currency code for MPP-stripe. Prefer `assetSymbol`/`assetDecimals` below for display — they normalise all three. Kept as-is for consumers that already parse it."
+            "description": "The settlement asset AS PERSISTED AT MINT, which differs per rail: a symbol (`USDC`/`EURC`) for x402 and for an MPP `evm` charge, the ERC-20 contract ADDRESS from the challenge for MPP-tempo, and an ISO currency code for MPP-stripe — so `protocol: mpp` alone does not tell you which. Prefer `assetSymbol`/`assetDecimals` below for display — they normalise all three. Kept as-is for consumers that already parse it."
           },
           "assetSymbol": {
             "type": [
@@ -6176,7 +6176,7 @@
           },
           "merchantAddress": {
             "type": "string",
-            "description": "The merchant's pay-to identifier: a 0x address for the crypto rails (x402 / MPP-tempo), or the seller's Stripe network business profile id (profile_…) for the MPP-stripe / SPT card rail.",
+            "description": "The merchant's pay-to identifier: a 0x address for the crypto rails (x402 / MPP `evm` / MPP-tempo), or the seller's Stripe network business profile id (profile_…) for the MPP-stripe / SPT card rail.",
             "example": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C"
           },
           "txHash": {
@@ -6201,9 +6201,10 @@
               "charged_not_delivered",
               "charged_unconfirmed",
               "not_charged",
+              "not_delivered",
               "pending"
             ],
-            "description": "Buyer-visible outcome: delivered when the request settled; charged_not_delivered when it failed and the merchant charge was observed; charged_unconfirmed when the charge was observed but delivery is unconfirmed; not_charged when reconciliation proved the merchant did not charge; pending when the charge outcome is unknown. On SPT and card rails, pending is not proof of no charge.",
+            "description": "Buyer-visible outcome: delivered when the request settled; charged_not_delivered when it failed and the merchant charge was observed; charged_unconfirmed when the charge was observed but delivery is unconfirmed; not_charged when reconciliation proved the merchant did not charge; not_delivered when the merchant answered the paid call with an error (an x402 or MPP `evm` `exact` payment, or an MPP-tempo `charge`), so nothing was delivered, and no merchant charge has been observed yet: the merchant can still redeem the payment until its authorization expires, so the amount stays reserved against the delegation until reconciliation decides, after that expiry, whether it becomes not_charged or a charged_ value; pending when the charge outcome is unknown. On SPT and card rails, pending is not proof of no charge.",
             "example": "delivered"
           },
           "feeFailureReason": {
@@ -6219,7 +6220,7 @@
               "string",
               "null"
             ],
-            "description": "When on-chain reconciliation OBSERVED that the merchant redeemed this payment’s authorization — the money really left your wallet. `null` on the ordinary path (a cleanly settled payment is anchored by `txHash`), and always on the MPP rails, which carry no EIP-3009 authorization. Read it together with `status`: `status` is what you GOT, this is what you PAID — `status: Failed`/`Issued` with this set means the merchant took the money and delivered nothing. A non-null `txHash` on such a row does not mean the payment succeeded.",
+            "description": "When on-chain reconciliation OBSERVED that the merchant was really paid for this call — the money really left the paying wallet for the merchant. Reconciliation records it on every rail that settles on a chain: an EIP-3009 `exact` authorization (x402, and an MPP `evm` charge) once its nonce is consumed, an MPP-tempo `charge` once its transfer is found, and an MPP-tempo `session` call once its channel closes having captured it. On the per-call rails (x402, MPP `evm`, MPP-tempo `charge`) it is `null` on the ordinary path: a payment that settled cleanly is anchored by `txHash` and never needs this. A `session` call is the exception: its money moves only when the channel closes, so every call the close captured carries it, `Settled` ones included. A `null` is NOT, on its own, proof you were not charged: it stays `null` until reconciliation reaches a verdict, it is always `null` on the MPP-stripe card rail, which has no on-chain leg to observe, and on the other rails reconciliation can stop on a payment whose on-chain outcome it could not determine, leaving this `null`. Read it together with `status`: `status` is what you GOT, this is what you PAID — `status: Failed`/`Issued` with this set means the merchant took the money and delivered nothing, which these rails cannot prevent (the merchant collects the payment itself, so it can always collect and then error). A non-null `txHash` on such a row does not mean the payment succeeded.",
             "example": "2026-09-08T10:12:00.000Z"
           },
           "paymentId": {
@@ -6286,7 +6287,7 @@
           },
           "buyer": {
             "type": "string",
-            "description": "The buyer identity that funded the payment: the on-chain payer EOA (0x…) for the crypto rails (x402 / MPP-tempo), or the Stripe customer id (cus_…) for the MPP-stripe / SPT card rail.",
+            "description": "The buyer identity that funded the payment: the on-chain payer EOA (0x…) for the crypto rails (x402 / MPP `evm` / MPP-tempo), or the Stripe customer id (cus_…) for the MPP-stripe / SPT card rail.",
             "example": "0x8D6A5233..."
           },
           "feeAtomic": {
@@ -6335,7 +6336,7 @@
               "string",
               "null"
             ],
-            "description": "Settlement reference for the FEE leg — distinct from `txHash`, which is the MERCHANT leg’s. The two legs are independent movements that settle separately, so reconcile them separately. Reported verbatim by the facilitator (third-party text, not validated to a `0x` shape). `null` until the fee actually settles.",
+            "description": "Settlement reference for the FEE leg — distinct from `txHash`, which is the MERCHANT leg’s. The two legs are independent movements that settle separately, so reconcile them separately. **Presence does NOT mean the fee settled — check `feeStatus` for that.** On the x402 rail — which here includes an MPP `evm` charge, whose fee leg is an x402 EIP-3009 fee authorization exactly as on x402 — it is normally `null`: Nevermined relays that leg itself as an ERC-4337 UserOp, whose artifact is a userOpHash rather than a transaction hash — a different kind of reference that resolves on no block explorer — and the reconciliation that resolves the fee reads the authorization nonce on-chain, which yields a boolean and no transaction. Only a leg settled through the facilitator instead (the fallback where Nevermined cannot relay on that chain) carries a value, reported verbatim by the facilitator (third-party text, not validated to a `0x` shape) once the fee settles. On MPP-tempo it is the hash of the fee transaction Nevermined broadcasts, recorded when the transaction is SUBMITTED rather than when it is mined — so it is present while `feeStatus` is still `Submitted`, and it remains present on rows that end `Failed` or `Released` (the transaction was refused, reverted, or expired unmined). `null` when no fee applied, or before a fee leg is submitted. Do NOT poll this field to learn whether an x402 fee settled: read `feeStatus`.",
             "example": "0x9c4d6f1e..."
           },
           "feeNonce": {
@@ -6343,7 +6344,7 @@
               "string",
               "null"
             ],
-            "description": "EIP-3009 nonce of the fee leg, recorded when the leg is submitted. This is the only key that ties an on-chain transfer back to this payment: `authorizationState(buyer, feeNonce)` answers definitively whether the leg was consumed, which is how a `Submitted` fee is resolved. `null` until the leg is submitted. Not spendable on its own — the signed authorization is deliberately never stored.",
+            "description": "EIP-3009 nonce of the fee leg, recorded when the leg is submitted. **x402 rail only** — which includes an MPP `evm` charge, whose fee leg is an x402 EIP-3009 fee authorization exactly as on x402. On that rail it is the key that ties an on-chain transfer back to this payment: `authorizationState(buyer, feeNonce)` answers definitively whether the leg was consumed, which is how a `Submitted` fee is resolved. `null` until the leg is submitted, and always `null` on MPP-tempo, whose fee leg is a native transaction with no EIP-3009 nonce — there the reconciliation key is `feeTxHash` instead. Not spendable on its own — the signed authorization is deliberately never stored.",
             "example": "0x7b1e2c..."
           }
         },
