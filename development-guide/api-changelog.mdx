@@ -21,6 +21,12 @@ _Changes relative to `1.90`:_
 - **Transaction searches: POST /transactions/search-org returns the sales of the organization's plans instead of its members' plans. POST /transactions/search treats a planOwner in the caller's wallet set as the whole set, and keeps a planConsumer filter beside it instead of rewriting the search to the caller's purchases. The response shape does not change; clients below 1.91 keep the old rows.** (`response`)
   - `POST /api/v1/transactions/search`
   - `POST /api/v1/transactions/search-org`
+- **Router: completed POST /router/route and /router/commerce/route (including /with-controls) expose the merchant HTTP status in X-Upstream-Status while keeping the 201 envelope contract. GET /router/payments JSON adds upstreamBodyBytes: the decoded paid response size before JSON/text/base64 conversion, zero for an empty body, null when not measured. Clients below 1.91 keep the old header and payment shape. Pending 202 responses have no upstream status yet. Streaming relays and retained stream results keep merchant header passthrough at every pin; any X-Upstream-Status there is merchant-authored, not a Router signal. Settlement and charging rules are unchanged.** (`response`)
+  - `POST /api/v1/router/route`
+  - `POST /api/v1/router/route/with-controls`
+  - `POST /api/v1/router/commerce/route`
+  - `POST /api/v1/router/commerce/route/with-controls`
+  - `GET /api/v1/router/payments`
 
 ## 1.90
 
