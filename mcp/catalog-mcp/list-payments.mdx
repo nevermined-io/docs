@@ -38,7 +38,7 @@ An array of records. `amount` is in the asset's **smallest unit** (see `assetDec
 ```
 
 - `id` is the `paymentId` [`get_payment_result`](/mcp/catalog-mcp/get-payment-result) takes.
-- **`deliveryStatus`** is one of: `delivered` (request settled), `charged_not_delivered` (request failed and the merchant charge was observed), `charged_unconfirmed` (charge observed, delivery unconfirmed), `not_charged` (reconciliation proved no merchant charge), `not_delivered` (the merchant answered an x402, MPP `evm` or MPP-tempo `charge` payment with an error, so nothing was delivered, and no charge has been seen: the amount stays reserved until reconciliation decides, after the payment authorization expires, whether the merchant charged; it is not a charge), or `pending` (charge outcome unknown).
+- **`deliveryStatus`** is one of: `delivered` (request settled), `charged_not_delivered` (request failed and the merchant charge was observed), `charged_unconfirmed` (charge observed, delivery unconfirmed), `not_charged` (reconciliation proved no merchant charge), `not_delivered` (the merchant answered an x402, MPP `evm` or MPP-tempo `charge` payment with an error, so nothing was delivered, and no charge has been seen: on a delegation payment the amount usually stays reserved until reconciliation decides, after the payment authorization expires, whether the merchant charged; this status neither confirms nor rules out a charge), or `pending` (charge outcome unknown).
 
 <Warning>
 On the **card rail (SPT / MPP-stripe)**, `deliveryStatus: "pending"` is **not** proof of no charge. Flag `charged_not_delivered` to the user.

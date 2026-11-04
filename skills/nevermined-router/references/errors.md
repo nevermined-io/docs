@@ -218,10 +218,10 @@ check tripped. Common causes, in rough order:
   MPP services will find one that works. For a service that also offers x402, pin
   `requireProtocol: "x402"` (`protocol` is only a hint), or ask the operator to enable the rail.
 - **An MPP `evm` charge from a personal Delegation** (`details` names an EIP-7702 smart account).
-  Personal wallets on Nevermined can't sign `evm`. An unpinned `/route` call without a `quoteId`
-  already moves to the service's x402 offer, so you see this when pinned to `mpp`, quote-bound, in
-  mode A, or when the service offers no x402. Pin `requireProtocol: "x402"` on `/quote` and
-  `/route`, or pay with credits.
+  Personal wallets on Nevermined can't sign `evm`. An unpinned `/route` or `/quote` already moves
+  to the service's x402 offer, so you see this when pinned to `mpp`, in mode A, or when the service
+  offers no x402, and `/quote` refuses in the same cases as `/route`. Pay the service's x402 offer
+  if it has one, or pay with credits.
 - **Recipient outside the Delegation's scope**, when it carries an `allowedRecipients` list.
 - **Wrong Delegation provider** — a card Delegation on a stablecoin rail or vice versa.
 - **MPP `splits`** — see below.
