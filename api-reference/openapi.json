@@ -6139,15 +6139,6 @@
       "RouterPaymentRecordDto": {
         "type": "object",
         "properties": {
-          "upstreamBodyBytes": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "description": "API 1.91+: decoded buffered paid response bytes before JSON/text/base64 conversion or catalog error withholding. Zero means an empty body, including on a 2xx. Null means unmeasured: older payments, mode A, streaming, or incomplete reads the transport detects. A nonzero count does not prove a complete or useful answer. JSON only; CSV is unchanged. No change to charges or refunds. Clients pinned below 1.91 omit this field.",
-            "minimum": 0,
-            "example": 0
-          },
           "id": {
             "type": "string",
             "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
@@ -6234,6 +6225,15 @@
             ],
             "description": "Buyer-visible outcome: delivered when the request settled; charged_not_delivered when it failed and the merchant charge was observed; charged_unconfirmed when the charge was observed but delivery is unconfirmed; not_charged when reconciliation proved the merchant did not charge; not_delivered (API v1.70+; a client pinned lower reads pending) when the merchant answered the paid call with an error (an x402 or MPP `evm` `exact` payment, or an MPP-tempo `charge`), so nothing was delivered, and no merchant charge has been observed yet: the merchant can still redeem the payment until its authorization expires, and reconciliation decides, after that expiry, whether it becomes not_charged or a charged_ value; pending when the charge outcome is unknown. On a not_delivered delegation payment the amount stays reserved until reconciliation decides, except that a merchant `402` on an `exact` payment has its merchant reserve released at once when the chain shows the authorization unspent. A credits-funded payment reserves nothing against a delegation: read `creditsStatus`. On SPT and card rails, pending is not proof of no charge.",
             "example": "delivered"
+          },
+          "upstreamBodyBytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "API 1.91+: decoded buffered paid response bytes before JSON/text/base64 conversion or catalog error withholding. Zero means an empty body, including on a 2xx. Null means unmeasured, including older payments, mode A, streaming, or incomplete reads the transport detects. A nonzero count does not prove a complete or useful answer. JSON only; CSV is unchanged. No change to charges or refunds. The API omits this field for clients pinned below 1.91.",
+            "minimum": 0,
+            "example": 0
           },
           "feeFailureReason": {
             "type": [
@@ -6377,7 +6377,6 @@
           }
         },
         "required": [
-          "upstreamBodyBytes",
           "id",
           "createdAt",
           "status",
@@ -6388,6 +6387,7 @@
           "delegationId",
           "buyer",
           "deliveryStatus",
+          "upstreamBodyBytes",
           "feeFailureReason",
           "merchantSettlementObservedAt",
           "paymentId",
