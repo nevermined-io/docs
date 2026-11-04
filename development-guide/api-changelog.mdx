@@ -31,6 +31,12 @@ _Changes relative to `1.90`:_
   - `GET /api/v1/router/delegations/:id`
 - **POST /api/v1/router/subscription/quote can price a request from the merchant’s live answer: credits is then the exact cost of that request, tariffVersion is absent, and paymentRequired and upstreamStatus say what the merchant answered. Older pins keep a numeric tariffVersion, 0 when no tariff set the credits.** (`response`)
   - `POST /api/v1/router/subscription/quote`
+- **Where credits follow each call’s live price, the catalog reads publish estimatedCreditsPerCall, and an endpoint no tariff covers carries only that field. Older pins read such an endpoint as they always did, as not payable with credits; on the others estimatedCreditsPerCall is an addition, and creditsPerCall stays the tariff’s figure, which no longer prices the call. On such a deployment every pin loses the service-level subscription, since no default prices a call, and subscription on an endpoint whose last price is above the per-call limit.** (`response`)
+  - `GET /api/v1/catalog/services`
+  - `GET /api/v1/catalog/services/:slug`
+  - `POST /api/v1/ard/search`
+  - `GET /api/v1/ard/agents`
+  - `GET /api/v1/subscription/catalog/credits`
 
 ## 1.90
 
