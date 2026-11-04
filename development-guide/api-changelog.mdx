@@ -27,6 +27,8 @@ _Changes relative to `1.90`:_
   - `POST /api/v1/router/commerce/route`
   - `POST /api/v1/router/commerce/route/with-controls`
   - `GET /api/v1/router/payments`
+- **GET /router/delegations/:id?includeWalletOutflow=true separates authorizedSpendMicros from session walletOutflow: channel deposits, refunds, collected fees and receipt-backed network costs, grouped by chain and token with explicit attribution and coverage gaps. Existing cap fields retain their meaning. Older pins retain the previous response.** (`response`)
+  - `GET /api/v1/router/delegations/:id`
 
 ## 1.90
 
