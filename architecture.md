@@ -266,3 +266,7 @@ docs/
 
 **Last Updated**: January 2026
 **Maintained By**: Nevermined Team
+
+## Router seller attribution
+
+- ✅ [Buyer identity v1 contract](products/catalog/router/buyer-identity.mdx): seller verification, environment discovery, replay protection and key rotation. API release and signing configuration are separate availability gates.

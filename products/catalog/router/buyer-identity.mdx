@@ -1,0 +1,77 @@
+---
+title: "Router buyer identity"
+description: "Verify optional Router-signed buyer attribution, request bindings and replay protection with the version 1 seller contract."
+icon: "fingerprint"
+---
+
+<Warning>
+Requires the API release containing nvm-monorepo #4941 and operator-configured signing keys.
+This page does not mean signing is enabled in any environment. Until that API release, the new
+contract and JWKS paths return 404; after it, an unconfigured signer refuses disclosure with
+`BCK.ROUTER.0046` and publishes no active key. Default calls keep working without disclosure.
+</Warning>
+
+This optional attribution signal accompanies an independently validated payment. It is never
+payment authority, verified agent registration, verified person/company identity or KYC.
+
+Read each deployment's configured issuer from its public seller-contract endpoint in the table below. A disabled deployment reports no issuer.
+Pin the issuer and JWKS URL through your operator integration configuration, never through a token.
+An unconfigured deployment cannot disclose identity. The API origin alone is not an issuer promise.
+
+| Environment | API base | Public keys | Seller contract and configured issuer |
+| --- | --- | --- | --- |
+| Production live | https://api.live.nevermined.app | https://api.live.nevermined.app/api/v1/router/buyer-identity/jwks | https://api.live.nevermined.app/api/v1/router/buyer-identity |
+| Production sandbox | https://api.sandbox.nevermined.app | https://api.sandbox.nevermined.app/api/v1/router/buyer-identity/jwks | https://api.sandbox.nevermined.app/api/v1/router/buyer-identity |
+| Staging live | https://api.live.nevermined.dev | https://api.live.nevermined.dev/api/v1/router/buyer-identity/jwks | https://api.live.nevermined.dev/api/v1/router/buyer-identity |
+| Staging sandbox | https://api.sandbox.nevermined.dev | https://api.sandbox.nevermined.dev/api/v1/router/buyer-identity/jwks | https://api.sandbox.nevermined.dev/api/v1/router/buyer-identity |
+
+Set receiveBuyerIdentity to the JSON boolean true when publishing/editing your listing (including
+claimed listings). listingId below is the id in the publish/listing response. The buyer must also
+send the JSON boolean revealBuyerIdentity=true on each /route call, or the exact string true in
+X-Router-Reveal-Buyer-Identity on a streaming slug call. False or omitted means no disclosure.
+String booleans in JSON and invalid header values are refused. Only a plain-key delegation owner
+can consent; group members, OAuth credentials and subscription funding cannot. Consent refusals
+precede probes after request-id deduplication. Valid free calls and unpaid probes carry no identity.
+
+## Verify X-Router-Buyer-Identity
+
+Require alg=EdDSA, typ=nvm-buyer-identity+jwt, ver=1. Select the Ed25519 public JWK by protected-header
+kid, a SHA-256 RFC 7638 thumbprint. Ignore token-supplied key URLs. Cache this pinned JWKS for at
+most 30 seconds, refetch once on unknown kid, and reject if still unknown. Verify signature, pinned
+issuer, your upstream origin as audience, and time validity (at most 5 seconds clock leeway; reject
+future iat beyond it and lifetime above 60 seconds). Compare the request bindings below before
+accepting attribution. Reject each repeated (iss, jti) until exp plus leeway, using a shared replay
+store across your replicas. Never log the token or header. Payment verification remains mandatory.
+
+| Claim | Meaning and validation |
+| --- | --- |
+| ver | Required integer 1. Reject unknown versions. |
+| iss | Exact operator-configured issuer you pinned. |
+| aud | Exact seller upstream origin (scheme, host, port). |
+| iat / exp | Issued at the paid hop; exp=iat+60, in Unix seconds. |
+| jti | Unique single-use token id; enforce replay protection. |
+| listingId | Your catalog listing's id, not its slug. |
+| delegationId | The authenticated owner's spending delegation id. |
+| orgId | Optional organization of that delegation; no company verification implied. |
+| agentId | Optional buyer-entered agent attribution; no registry/identity verification. |
+| agentAttribution | buyer-declared, present only together with agentId. |
+| htm | Exact uppercase HTTP request method. |
+| htu | Absolute upstream origin + pathname, excluding query and fragment (RFC 9449 meaning). |
+| querySha256 | Base64url SHA-256 of the exact URL search string, including its leading ?; empty bytes if absent. |
+| bodySha256 | Base64url SHA-256 of received raw body bytes, before JSON parsing; empty bytes if absent. |
+
+Compare URL bindings against the external URL received by your gateway, not a rewritten internal
+route. Preserve query spelling/order/percent encoding. This JWT uses DPoP-style request bindings
+but is a distinct contract; a generic DPoP verifier alone does not validate it.
+
+## Rotation
+
+Operators prepublish the next public key on EVERY replica using
+ROUTER_BUYER_IDENTITY_ADDITIONAL_PUBLIC_JWKS (a JSON array of public Ed25519 JWKs), leaving the old
+signer active. Wait at least the 30-second cache lifetime. Roll the active private key, retaining
+BOTH old and new public keys on every replica throughout the roll. Keep the retiring key published
+for at least 95 seconds after the last old-key signer stops (60-second tokens + 5-second leeway +
+30-second JWKS cache). Then remove the old public key. Never put private JWK material in that array.
+
+Operators log only paymentId, listingId and jti when attaching identity to a paid hop, not the JWT
+or claim identifiers. A transport/signing failure uses the normal failed-hop ledger/fee release.
