@@ -136,5 +136,3 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
   (`X-Router-Require-Protocol` on `/proxy` · `/svc`; x402 or mpp). Nothing signed, reserved or
   charged. Not retryable unchanged: choose a service on your required rail, or deliberately change
   the pin; never drop it automatically.
-
-- `BCK.ROUTER.0046` (503) — buyer identity signer unconfigured; nothing sent or charged. Not retryable unchanged: contact the operator, or deliberately omit disclosure consent if attribution is not needed.

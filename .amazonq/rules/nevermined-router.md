@@ -213,5 +213,3 @@ all. Human-facing diagnostic text, never a contract: branch on `feeStatus`.
 `feeStatus` (`None|Accrued|Submitted|Settled|Failed|Released`) is a **separate lifecycle** from the
 payment `status`, which shares `Settled`/`Failed` — never read one for the other. A record at
 `Issued` is **not** an error — the money moved; do not retry it.
-
-- `BCK.ROUTER.0046` (503) — buyer identity signer unconfigured; nothing sent or charged. Not retryable unchanged: contact the operator, or deliberately omit disclosure consent if attribution is not needed.
