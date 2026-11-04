@@ -170,7 +170,7 @@ the fee has not moved yet. Never read one as the other, and never infer the paym
 | --- | --- |
 | `None` | No fee applied to this payment |
 | `Accrued` | Fee owed and reserved against your cap; nothing submitted anywhere, so nothing can have moved |
-| `Submitted` | Handed to the facilitator, outcome not yet known. A fee sits here for the whole round trip; **not** terminal |
+| `Submitted` | Submitted for collection, outcome not yet known. A fee sits here for the whole round trip; **not** terminal |
 | `Settled` | The fee leg landed on-chain |
 | `Failed` | Collection provably did not happen. Terminal as an *outcome* — retrying changes nothing — but the row may still advance to `Released` |
 | `Released` | The fee's cap reserve was **given back**, because collection reached a terminal not-collected state. Terminal |
@@ -182,10 +182,10 @@ charged, pending on-chain reconciliation. Reconciling budget therefore has **thr
 two: `Released` means refunded, `Failed`/`Submitted` mean still charged. Key off `Released`.
 
 **The two legs settle independently — reconcile them separately.** `txHash` anchors the merchant
-payment, `feeTxHash` the fee; neither implies the other. A `Settled` fee reconciled on-chain rather
-than reported by the facilitator has **no `feeTxHash` at all** — the chain answers "was this
-authorization consumed" with a boolean, not a transaction — so `feeNonce` is the audit key for those
-rows. A null `feeTxHash` is not evidence the fee did not settle.
+payment, `feeTxHash` the fee; neither implies the other. A `Settled` x402 or MPP `evm` fee reconciled
+on-chain rather than reported by the facilitator has **no `feeTxHash` at all** — the chain answers
+"was this authorization consumed" with a boolean, not a transaction — so `feeNonce` is the audit key
+for those rows. On MPP-tempo the key is `feeTxHash`, and `feeNonce` is always `null`. A null `feeTxHash` is not evidence the fee did not settle.
 
 **For CSV consumers:** new columns are only ever **appended** (the fee columns, `assetSymbol` /
 `assetDecimals` and `feeFailureReason` all came after the original set), so reading the original
