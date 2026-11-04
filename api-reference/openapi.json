@@ -2145,7 +2145,16 @@
         },
         "responses": {
           "201": {
-            "description": "The relayed upstream response (`status` + `body`) plus the `payment` that was made.",
+            "headers": {
+            "X-Upstream-Status": {
+              "description": "API 1.91+: merchant HTTP status for a completed call. HTTP 201 describes the Router envelope; read this header or the top-level status for merchant success. Also applies to the /with-controls alias. Absent below API 1.91 and on pending HTTP 202 responses. payment.status describes settlement.",
+              "schema": {
+                "type": "integer",
+                "example": 500
+              }
+            }
+          },
+          "description": "The relayed upstream response (`status` + `body`) plus the `payment` that was made.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2265,7 +2274,16 @@
         },
         "responses": {
           "201": {
-            "description": "Upstream response, relayed.",
+            "headers": {
+            "X-Upstream-Status": {
+              "description": "API 1.91+: merchant HTTP status for a completed call. HTTP 201 describes the Router envelope; read this header or the top-level status for merchant success. Also applies to the /with-controls alias. Absent below API 1.91 and on pending HTTP 202 responses. payment.status describes settlement.",
+              "schema": {
+                "type": "integer",
+                "example": 500
+              }
+            }
+          },
+          "description": "Upstream response, relayed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6121,7 +6139,16 @@
       "RouterPaymentRecordDto": {
         "type": "object",
         "properties": {
-          "id": {
+          "upstreamBodyBytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "API 1.91+: decoded buffered paid response bytes before JSON/text/base64 conversion or catalog error withholding. Zero means an empty body, including on a 2xx. Null means unmeasured: older payments, mode A, streaming, or incomplete reads the transport detects. A nonzero count does not prove a complete or useful answer. JSON only; CSV is unchanged. No change to charges or refunds. Clients pinned below 1.91 omit this field.",
+          "minimum": 0,
+          "example": 0
+        },
+        "id": {
             "type": "string",
             "example": "b1f9c2e4-3d5a-4c7e-9f21-6a8b0c4d2e13"
           },
@@ -6350,6 +6377,7 @@
           }
         },
         "required": [
+        "upstreamBodyBytes",
           "id",
           "createdAt",
           "status",
