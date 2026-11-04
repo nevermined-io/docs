@@ -157,8 +157,8 @@ Nevermined's routing fee is recorded on every row, on both the JSON rows and the
 | `feeBps` | Rate applied, in basis points over 10,000 (`200` = 2%). `null` on rows predating the fee |
 | `feeCents` | Cents the fee added to the cap reserve. `null` on rows predating the fee |
 | `feeStatus` | The fee leg's own lifecycle — **not** the payment `status`. `null` on rows predating the fee, so a switch over the six values below needs a `null` branch. See below |
-| `feeTxHash` | Settlement reference for the **fee** leg, distinct from `txHash`. Reported verbatim by the facilitator, so third-party text, not a validated `0x` shape. Often `null` — including on some `Settled` rows |
-| `feeNonce` | The fee leg's EIP-3009 nonce, recorded on submission. The audit key that ties an on-chain transfer back to this payment. `null` until submitted. Not spendable on its own |
+| `feeTxHash` | Settlement reference for the **fee** leg, distinct from `txHash`. On x402 and MPP `evm` it is normally `null`, `Settled` rows included: only a leg settled through the facilitator carries a value, reported verbatim, so third-party text, not a validated `0x` shape. On MPP-tempo it is the hash of the fee transaction, recorded on submission, so it is present while `feeStatus` is `Submitted` and stays on rows that end `Failed` or `Released`. Presence does **not** mean the fee settled: read `feeStatus` |
+| `feeNonce` | The fee leg's EIP-3009 nonce, recorded on submission. On x402 and MPP `evm`, the audit key that ties an on-chain transfer back to this payment. `null` until submitted, and always `null` on MPP-tempo, whose fee is a native transaction keyed by `feeTxHash`. Not spendable on its own |
 | `feeFailureReason` | Why the fee did not collect — or, on a `None` row, why one was never quoted (`fee-not-quoted: …`). Human-facing diagnostic, **not a stable contract**; branch on `feeStatus`. Whitespace is collapsed and any embedded `scheme://…` URL is published as `[url]`. `null` when no rate is configured, and while a quoted fee is still on its happy path. A non-null value does **not** on its own mean the fee went uncollected — a `Settled` row can carry one |
 
 ⚠️ **`feeStatus` is a separate lifecycle from the payment `status`, and `Settled` / `Failed` appear
@@ -170,7 +170,7 @@ the fee has not moved yet. Never read one as the other, and never infer the paym
 | --- | --- |
 | `None` | No fee applied to this payment |
 | `Accrued` | Fee owed and reserved against your cap; nothing submitted anywhere, so nothing can have moved |
-| `Submitted` | Handed to the facilitator, outcome not yet known. A fee sits here for the whole round trip; **not** terminal |
+| `Submitted` | Submitted for collection, outcome not yet known. A fee sits here for the whole round trip; **not** terminal |
 | `Settled` | The fee leg landed on-chain |
 | `Failed` | Collection provably did not happen. Terminal as an *outcome* — retrying changes nothing — but the row may still advance to `Released` |
 | `Released` | The fee's cap reserve was **given back**, because collection reached a terminal not-collected state. Terminal |
@@ -182,10 +182,10 @@ charged, pending on-chain reconciliation. Reconciling budget therefore has **thr
 two: `Released` means refunded, `Failed`/`Submitted` mean still charged. Key off `Released`.
 
 **The two legs settle independently — reconcile them separately.** `txHash` anchors the merchant
-payment, `feeTxHash` the fee; neither implies the other. A `Settled` fee reconciled on-chain rather
-than reported by the facilitator has **no `feeTxHash` at all** — the chain answers "was this
-authorization consumed" with a boolean, not a transaction — so `feeNonce` is the audit key for those
-rows. A null `feeTxHash` is not evidence the fee did not settle.
+payment, `feeTxHash` the fee; neither implies the other. A `Settled` x402 or MPP `evm` fee reconciled
+on-chain rather than reported by the facilitator has **no `feeTxHash` at all** — the chain answers
+"was this authorization consumed" with a boolean, not a transaction — so `feeNonce` is the audit key
+for those rows. On MPP-tempo the key is `feeTxHash`, and `feeNonce` is always `null`. A null `feeTxHash` is not evidence the fee did not settle.
 
 **For CSV consumers:** new columns are only ever **appended** (the fee columns, `assetSymbol` /
 `assetDecimals` and `feeFailureReason` all came after the original set), so reading the original

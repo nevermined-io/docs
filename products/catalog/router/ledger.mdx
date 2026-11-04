@@ -130,8 +130,8 @@ Three fields describe what was paid in, because the raw one isn't the same kind 
 | `feeBps` | The rate applied, in basis points over a 10,000 denominator. Pinned per row, so a later rate change never rewrites what an old payment was charged. |
 | `feeCents` | The cents this fee added to the cap reserve. Rounded **up**. |
 | `feeStatus` | The fee's own lifecycle, tracked independently of the record's `status`. |
-| `feeTxHash` | The settlement reference for the **fee** movement — e.g. `"0x9c4d6f1e…"`. `null` until the fee settles, **and permanently `null`** on rows confirmed by on-chain reconciliation (see below). Read `feeStatus`, not this field, to know whether the fee settled. |
-| `feeNonce` | The EIP-3009 nonce the fee movement was signed with — e.g. `"0x7b1e2c…"`. `null` until the fee is submitted. |
+| `feeTxHash` | The settlement reference for the **fee** movement — e.g. `"0x9c4d6f1e…"`. On an x402 or MPP `evm` fee it's normally `null`: only a fee settled through the facilitator carries a value, and one confirmed by on-chain reconciliation has no transaction to record (see below). On an MPP `tempo` fee it's the hash of the fee transaction, recorded when that transaction is submitted, so it's present while `feeStatus` is still `Submitted` and stays on rows that end `Failed` or `Released`. Read `feeStatus`, not this field, to know whether the fee settled. |
+| `feeNonce` | The EIP-3009 nonce the fee movement was signed with — e.g. `"0x7b1e2c…"`. `null` until the fee is submitted, and always `null` on an MPP `tempo` fee, a native transaction with no EIP-3009 nonce. |
 | `feeFailureReason` | Why the fee didn't collect — or, on a `None` row, why one was never quoted. Diagnostic text for a human, **not a stable contract**: branch on `feeStatus`, never on this string. `null` when no rate is configured and while a quoted fee is still on its happy path. See below. |
 
 <Warning>
@@ -160,9 +160,9 @@ One exception to the flag, and it is the [sub-cent case](#the-routing-fee-on-a-r
 
 `feeTxHash` and `feeNonce` are what make the fee movement auditable on its own, and each answers a different question — and which one anchors a given fee follows the rail: an **MPP `tempo`** fee is a native transfer, keyed by `feeTxHash`; an **x402** fee is an EIP-3009 authorization, keyed by `feeNonce`, and so is an MPP `evm` fee, which takes the x402 path.
 
-**`feeTxHash` is not `txHash`.** `txHash` anchors the **merchant** leg; `feeTxHash` anchors the **fee** leg. They are independent movements that settle separately — one can land while the other hasn't — so reconcile them separately rather than reading either as evidence of the other. Like `txHash`, it is recorded verbatim as the settling party reported it, so [treat it as an anchor to verify](#reconciling-against-the-chain) rather than as proof, and don't assume a `0x` shape.
+**`feeTxHash` is not `txHash`.** `txHash` anchors the **merchant** leg; `feeTxHash` anchors the **fee** leg. They are independent movements that settle separately — one can land while the other hasn't — so reconcile them separately rather than reading either as evidence of the other. Like `txHash`, [treat it as an anchor to verify](#reconciling-against-the-chain) rather than as proof. A value from the facilitator is recorded verbatim as the facilitator reported it, so don't assume a `0x` shape there.
 
-**`feeNonce` is the key that ties an on-chain transfer back to this payment.** EIP-3009 records every authorization under `authorizationState(payer, nonce)`, so with the nonce you can ask the chain directly whether that specific fee movement was consumed — which is exactly how a `Submitted` fee is resolved. It is **not spendable on its own**: a nonce identifies an authorization, it isn't one. The signed authorization itself is deliberately never stored.
+**`feeNonce` is the key that ties an on-chain transfer back to this payment.** EIP-3009 records every authorization under `authorizationState(payer, nonce)`, so with the nonce you can ask the chain directly whether that specific fee movement was consumed — which is exactly how a `Submitted` x402 or MPP `evm` fee is resolved. It is **not spendable on its own**: a nonce identifies an authorization, it isn't one. The signed authorization itself is deliberately never stored.
 
 <Note>
 **A `Settled` fee can carry `feeTxHash: null`, and that isn't a bug.** When the fee is confirmed by reading `authorizationState` rather than by observing the settlement, the chain answers with a boolean — consumed or not — and there is no transaction to record. On those rows `feeNonce` is the audit key; use it rather than the missing hash.
@@ -174,7 +174,7 @@ One exception to the flag, and it is the [sub-cent case](#the-routing-fee-on-a-r
 | --- | --- |
 | `None` | No fee was charged — neither an atomic fee nor a cent of cap. The normal state while no rate is configured, and also what you get when a rate *is* configured but the fee provably can't be collected on this path. Either way nothing was reserved, so there's nothing to give back later. `feeFailureReason` tells the two apart. |
 | `Accrued` | A fee was computed and reserved against the Delegation cap. Nothing has been submitted anywhere, so nothing can have moved. |
-| `Submitted` | The fee movement was submitted and its outcome isn't confirmed yet. Money **may** have moved — this is the bucket that gets reconciled against the chain, using `feeNonce`. |
+| `Submitted` | The fee movement was submitted and its outcome isn't confirmed yet. Money **may** have moved — this is the bucket that gets reconciled against the chain, using `feeNonce`, or `feeTxHash` on an MPP `tempo` fee. |
 | `Settled` | The fee movement landed on-chain. |
 | `Failed` | Collection provably did not happen. Terminal as an outcome — retrying changes nothing — but an **adjudicated** `Failed` can still advance to `Released`; one resolved by on-chain reconciliation stays charged. |
 | `Released` | The fee's share of the cap reserve, **if any**, was credited back, because collection reached a terminal not-collected state. Terminal. |
