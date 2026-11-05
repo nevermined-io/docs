@@ -29,7 +29,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.CARD_PAYMENT`](#bck-card_payment) — 21 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
-- [`BCK.CREDITS`](#bck-credits) — 16 codes
+- [`BCK.CREDITS`](#bck-credits) — 17 codes
+- [`BCK.CREDIT_RESCALE`](#bck-credit_rescale) — 7 codes
 - [`BCK.CREDIT_TOPUPS`](#bck-credit_topups) — 23 codes
 - [`BCK.DELEGATION`](#bck-delegation) — 10 codes
 - [`BCK.ENTITLEMENTS`](#bck-entitlements) — 5 codes
@@ -366,6 +367,19 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-credits-0014"></a>`BCK.CREDITS.0014` | 503 | internal | ✅ | The credits balance could not be read | Reading your credits failed on our side (see the server log). Reading charges nothing and changes nothing; retry in a moment. |
 | <a id="bck-credits-0015"></a>`BCK.CREDITS.0015` | 500 | internal | ❌ | The credit scale is not available | No credit count can be converted safely, so none is assumed. See params.reason: noRow means the deployment has lost its stored scale, notLoaded means this process has not read it yet, and noTransaction means a caller read it for a write outside a transaction. A fault on our side; no client action helps. |
 | <a id="bck-credits-0016"></a>`BCK.CREDITS.0016` | 409 | business | ❌ | This deployment has not been rescaled | The credit scale is still 1, so there is nothing to tell holders and no email was sent. Run the rescale on this deployment first, then run this again. |
+| <a id="bck-credits-0017"></a>`BCK.CREDITS.0017` | 503 | internal | ✅ | The credit scale changed during this write | The count was read at params.expectedScale and the stored scale is now params.scale, so writing it would be wrong by the difference. Nothing was written. Read the count again and retry. |
+
+## <span id="bck-credit_rescale"></span>`BCK.CREDIT_RESCALE`
+
+| Code | HTTP | Category | Retryable | Message | Hint |
+|---|---|---|---|---|---|
+| <a id="bck-credit_rescale-0001"></a>`BCK.CREDIT_RESCALE.0001` | 409 | business | ❌ | The stored credit scale is not the one this run expects | Nothing changed. params.scale is the stored scale and params.expectedScale is what the run named: usually this deployment has already been rescaled. Read the scale before running again. |
+| <a id="bck-credit_rescale-0002"></a>`BCK.CREDIT_RESCALE.0002` | 409 | internal | ❌ | A check failed, so the rescale was rolled back | Nothing changed. params.failures names each check that failed. Explain each before running again. A total moved by a concurrent writer (a notice being sent, a buyer changing a limit) clears on a re-run; anything else is a defect. |
+| <a id="bck-credit_rescale-0003"></a>`BCK.CREDIT_RESCALE.0003` | 503 | internal | ✅ | The rescale did not finish, so it was rolled back | Nothing changed. params.stage says whether it could not take its locks in time (locks), ran past its time limit (rewrite), or lost a deadlock (deadlock). Run again at a quieter moment. |
+| <a id="bck-credit_rescale-0004"></a>`BCK.CREDIT_RESCALE.0004` | 404 | business | ❌ | No rescale has run on this deployment | There is nothing to check. This deployment has no credit_rescale_runs row. |
+| <a id="bck-credit_rescale-0005"></a>`BCK.CREDIT_RESCALE.0005` | 409 | business | ❌ | This deployment has no single credits plan to rescale | Nothing changed. subscription_catalog must name exactly one credits plan; params.plans says how many it names. Bootstrap the catalog first, or resolve the extra plan. |
+| <a id="bck-credit_rescale-0006"></a>`BCK.CREDIT_RESCALE.0006` | 500 | internal | ❌ | The rescale failed, so it was rolled back | Nothing changed. A statement failed unexpectedly: see the server log for the cause. |
+| <a id="bck-credit_rescale-0007"></a>`BCK.CREDIT_RESCALE.0007` | 500 | internal | ❌ | The rescale may or may not have committed | The commit did not answer. Read the stored scale and credit_rescale_runs for params.runId before doing anything: a run that applied has its row. Running again is safe, because expectedScale refuses a second run. |
 
 ## <span id="bck-credit_topups"></span>`BCK.CREDIT_TOPUPS`
 
