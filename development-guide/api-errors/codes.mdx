@@ -29,7 +29,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.CARD_PAYMENT`](#bck-card_payment) — 21 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
-- [`BCK.CREDITS`](#bck-credits) — 14 codes
+- [`BCK.CREDITS`](#bck-credits) — 15 codes
 - [`BCK.CREDIT_TOPUPS`](#bck-credit_topups) — 23 codes
 - [`BCK.DELEGATION`](#bck-delegation) — 10 codes
 - [`BCK.ENTITLEMENTS`](#bck-entitlements) — 5 codes
@@ -364,6 +364,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-credits-0012"></a>`BCK.CREDITS.0012` | 500 | internal | ❌ | Could not persist the pending on-chain burn | The on-chain mirror worker could not record the UserOp hash of a burn it had submitted, so it rolled the whole tick back rather than lose track of the burn. The row stays pending and the next tick checks the on-chain balance before acting. Operator-facing; no client receives this code. |
 | <a id="bck-credits-0013"></a>`BCK.CREDITS.0013` | 500 | internal | ❌ | Refusing a credit lot or burn with a missing or unknown credit kind | Every lot of the Nevermined credits plan carries a credit kind (allowance, welcome, topup or sla), and a burn may only exclude those kinds. See params.reason: kindRequired means a mint or refund on the credits plan omitted its kind; unknownKind means a value outside the set was passed. A caller bug, not a runtime data issue; do not retry. |
 | <a id="bck-credits-0014"></a>`BCK.CREDITS.0014` | 503 | internal | ✅ | The credits balance could not be read | Reading your credits failed on our side (see the server log). Reading charges nothing and changes nothing; retry in a moment. |
+| <a id="bck-credits-0015"></a>`BCK.CREDITS.0015` | 500 | internal | ❌ | The credit scale is not available | No credit count can be converted safely, so none is assumed. See params.reason: noRow means the deployment has lost its stored scale, notLoaded means this process has not read it yet, and noTransaction means a caller read it for a write outside a transaction. A fault on our side; no client action helps. |
 
 ## <span id="bck-credit_topups"></span>`BCK.CREDIT_TOPUPS`
 
