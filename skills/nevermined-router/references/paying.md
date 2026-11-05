@@ -43,6 +43,7 @@ You describe the request; the Router probes the merchant, **auto-detects** the p
 | `body` | no | JSON, forwarded |
 | `protocol` | no | `x402`/`mpp`. **Advisory only** — see below |
 | `requireProtocol` | no | `x402`/`mpp`. **Binding** rail pin: pay only this rail; no fallback. An unavailable pin returns `409 BCK.ROUTER.0045` before signing, reserving or charging |
+| `validateRequestBody` | no | Opt-in body gate (default off). When `true`, a `body` that **provably** fails the endpoint's published request schema is refused `400 BCK.ROUTER.0046` before signing, reserving or charging. Only a proven mismatch refuses; a missing/unverifiable schema still pays — see below |
 | `requestId` | **yes** | Idempotency key. Non-empty, ≤ 256 chars |
 | `maxTotalCents` | no | Non-negative safe integer. Per-call ceiling on the fee-inclusive, whole-cent cap reserve; a larger quote returns `402 BCK.ROUTER.0018` before a charge or budget reserve. The Delegation cap remains the overall limit |
 | `quoteId` | no | API 1.55+: opaque 60-second binding returned by `/quote`. Send it with the quoted request unchanged to pay the sealed challenge and exact quoted total; `maxTotalCents` remains an independent ceiling |
@@ -71,6 +72,16 @@ honour it too: quote and pay with the same value. A `quoteId` bound to another r
 with `BCK.ROUTER.0033`; quote again on the intended rail. Subscription payments also enforce the
 pin, but subscription-credit quotes price the credit tariff without applying it. On streaming
 `/proxy` and `/svc` calls, send `X-Router-Require-Protocol: x402` (or `mpp`) instead of a body field.
+
+**`validateRequestBody` catches a bad body before you pay** (API v1.92.0+, default off). With it set,
+the Router checks your `body` against the endpoint's published request schema and, if the body
+*provably* fails it, refuses with `BCK.ROUTER.0046` before anything is signed, reserved or charged —
+so a call the merchant would certainly reject never costs you. It fails **open**: a missing, weak or
+unreadable schema, or any verdict short of a proven mismatch, still pays, so turning it on never
+blocks a call it cannot be sure about. `params.endpointPath` names the endpoint; fix the body to
+match its published `requestSchema`/`requestExample` (catalog service detail, or the Commerce MCP
+`get_service` result), or omit the flag. Honoured on the buffered pay routes `/route`,
+`/commerce/route` and `/router/subscription/route`.
 
 ### Response
 
