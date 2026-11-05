@@ -273,7 +273,7 @@ The Router signs payments from your wallet in response to instructions written b
 
 | Code | Status | Meaning | Retry? |
 | --- | --- | --- | --- |
-| `BCK.ROUTER.0001` | 400 | Bad input: unsupported protocol, malformed/empty challenge, no fundable option, recipient outside the Delegation's scope, non-allowlisted asset, wrong-provider Delegation, missing `delegationId`. `details` names the specific problem. Identity consent also requires a plain key, HTTPS slug target, seller opt-in and supported direct route; select refuses identity intent. | No |
+| `BCK.ROUTER.0001` | 400 | Bad input: unsupported protocol, malformed/empty challenge, no fundable option, recipient outside the Delegation's scope, non-allowlisted asset, wrong-provider Delegation, missing `delegationId`. `details` names the specific problem. Identity consent requires a plain key, HTTPS slug target, seller opt-in and supported direct route. OAuth credentials get `403 BCK.OAUTH.0030` on `/route`, `/route/with-controls`, `/proxy` and `/svc` before consent checks; consent on commerce routes gets this `0001`. Select refuses the field whenever present, even false or null, once past authentication guards. | No |
 | `BCK.ROUTER.0002` | 409 | This `requestId` already minted a payment. The original `paymentId` is in the response — usually what you wanted. | No |
 | `BCK.ROUTER.0003` | 402 | Delegation over cap, expired, exhausted, or revoked. | No — **stop** |
 | `BCK.ROUTER.0004` | 404 | No Router payment with that id belongs to you. | No |

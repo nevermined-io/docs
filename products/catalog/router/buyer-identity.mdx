@@ -32,22 +32,27 @@ refusal can mask missing configuration. A missing endpoint (404) means this API 
 
 A seller sets the JSON boolean receiveBuyerIdentity=true when publishing/editing its listing,
 including a claimed listing. The listing must have an HTTPS target. listingId below is the id in
-the publish/listing response, not the slug.
+the publish/listing response, not the slug. Only literal true opts in; false or null stores false.
+On edit, omitting receiveBuyerIdentity preserves the setting; sending null turns an existing opt-in off.
 
 The delegation owner separately sets the JSON boolean revealBuyerIdentity=true on each direct
 slug /route call (or its /route/with-controls alias), or the exact string true in
 X-Router-Reveal-Buyer-Identity on a streaming slug call. This discloses the stable delegationId
 (the same identifier across sellers), plus orgId and buyer-declared agentId when present.
 
-On those supported delegation routes, false or omitted means no disclosure and no identity-owner
-lookup. JSON non-booleans fail validation with HTTP 400; malformed streaming header values fail
-BCK.ROUTER.0001. Runtime disclosure requires a plain API key, a caller-owned delegation, an HTTPS
-slug target and seller opt-in (BCK.ROUTER.0001 or BCK.DELEGATION.0002 on ownership failure).
+On those supported delegation routes, false, null or omitted revealBuyerIdentity means no disclosure
+and no identity-owner lookup. Other JSON non-booleans fail validation with HTTP 400; malformed
+streaming header values fail BCK.ROUTER.0001. Runtime disclosure requires a plain API key, a
+caller-owned delegation, an HTTPS slug target and seller opt-in. OAuth credentials are refused by
+the guard on /route, /route/with-controls, /proxy and /svc with 403 BCK.OAUTH.0030, regardless of
+consent; disclosure consent on commerce routes is refused with BCK.ROUTER.0001. Other unsupported
+disclosure conditions use BCK.ROUTER.0001; ownership failure uses BCK.DELEGATION.0002.
 
 OAuth credentials, group members acting for another delegation owner, raw URL calls and subscription
 funding cannot disclose through this interface. Subscription route bodies/headers refuse ANY
 identity field, including false or null, with BCK.SUBSCRIPTION_ROUTER.0005. Select/autoPay requests
-also refuse identity intent with BCK.ROUTER.0001; select first, then call the direct slug route.
+refuse the identity field whenever present, even false or null, with BCK.ROUTER.0001 once past
+authentication guards; select first, then call the direct slug route.
 
 Format validation can reject before request-id deduplication. For well-formed disclosure requests,
 retained replay and request-id deduplication precede configuration/owner checks, and those checks
@@ -58,6 +63,10 @@ with capability=buyer-identity; retry only after the operator restores it, or de
 consent if attribution is not needed. Existing service-selection wiring uses the same error class.
 
 ## Verification checklist
+
+The Router sends a bare compact JWT, with no Bearer prefix, in X-Router-Buyer-Identity on the paid
+request only. Read that header at the seller; X-Router-Reveal-Buyer-Identity is the separate buyer
+consent header sent to the Router and does not carry the token.
 
 The public keys form a JSON Web Key Set (JWKS); each entry is a public JSON Web Key (JWK).
 Request bindings use Demonstrating Proof of Possession (DPoP)-style fields, but this JWT is a

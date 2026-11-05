@@ -14,7 +14,7 @@ unbound quote and service-selection request shapes.
 
 | Code | Status | Meaning | Retry? |
 | --- | --- | --- | --- |
-| `BCK.ROUTER.0001` | 400 | Bad input: unsupported protocol, malformed/empty challenge, no fundable option, recipient outside the Delegation's scope, non-allowlisted asset, wrong-provider Delegation, missing `delegationId`. **`details` names the specific problem — read it** Identity consent also requires a plain key, HTTPS slug target, seller opt-in and supported direct route; select refuses identity intent. | No |
+| `BCK.ROUTER.0001` | 400 | Bad input: unsupported protocol, malformed/empty challenge, no fundable option, recipient outside the Delegation's scope, non-allowlisted asset, wrong-provider Delegation, missing `delegationId`. **`details` names the specific problem — read it** Identity consent requires a plain key, HTTPS slug target, seller opt-in and supported direct route. OAuth credentials get `403 BCK.OAUTH.0030` on `/route`, `/route/with-controls`, `/proxy` and `/svc` before consent checks; consent on commerce routes gets this `0001`. Select refuses the field whenever present, even false or null, once past authentication guards. | No |
 | `BCK.ROUTER.0002` | 409 | This `requestId` already minted a payment. The original `paymentId` is in the response | No |
 | `BCK.ROUTER.0003` | 402 | Delegation over cap, expired, exhausted, or revoked | No — **stop** |
 | `BCK.ROUTER.0004` | 404 | No Router payment with that id belongs to you | No |
@@ -54,7 +54,9 @@ unbound quote and service-selection request shapes.
 | `BCK.ROUTER.0044` | 422 | The Router cannot collect its routing fee on this MPP **session** payment, so it refused it. A session's fee is never charged call by call: it is added up and collected later in one transfer from the paying wallet, and `params.cause` says why that cannot happen here: `org-wallet` (the payment is funded by an organization wallet, which that collection cannot draw from yet) or `network` (this deployment does not collect session fees on the service's network). Nothing was signed, reserved or charged, and no payment channel was opened. | No — `org-wallet`: pay from a delegation funded by your own wallet; `network`: pay a service on another network |
 | `BCK.ROUTER.0045` | 409 | The service does not offer the payment rail pinned by `requireProtocol` (`X-Router-Require-Protocol` on `/proxy` · `/svc`; x402 or mpp). `params.requireProtocol` names the pin and `params.offered` lists the rails offered by its payment challenge (empty when neither rail is offered: choose another service). Nothing was signed, reserved or charged. | No — choose a service that accepts your required rail, or deliberately change the pin; never drop it automatically |
 
-**Only `0006`, `0007`, `0020`, `0022`, `0028`, `0042` and `0043` are worth retrying automatically** — on the
+`0022` (500, required Router capability unavailable: service selection or buyer identity signing) is retryable only after an operator restores that capability; do not loop unchanged.
+
+**Only `0006`, `0007`, `0020`, `0028`, `0042` and `0043` are worth retrying automatically** — on the
 paying path, `0007`, `0020`, `0042` and `0043`. The rest are decisions; retrying them unchanged produces the same answer.
 
 ### Refusals that are not `BCK.ROUTER.*` at all
