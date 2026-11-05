@@ -2187,7 +2187,7 @@
             }
           },
           "400": {
-            "description": "Invalid request, no fundable option, or an upstream/402 error (BCK.ROUTER.0001); or every option advertised an EIP-712 domain its own settlement token does not sign under (BCK.ROUTER.0012); or the payment credential would overwrite a header you asked the Router to forward, with no `credentialHeader` naming where the service wants it instead (BCK.ROUTER.0021 — refused before minting, so no money moved). A request-body validation failure arrives as BCK.HTTP.400 instead.",
+            "description": "Invalid request, no fundable option, or an upstream/402 error (BCK.ROUTER.0001); or every option advertised an EIP-712 domain its own settlement token does not sign under (BCK.ROUTER.0012); or the payment credential would overwrite a header you asked the Router to forward, with no `credentialHeader` naming where the service wants it instead (BCK.ROUTER.0021 — refused before minting, so no money moved). A request-body validation failure arrives as BCK.HTTP.400 instead. With `validateRequestBody` set, a request body that provably fails the endpoint's published request schema is refused with BCK.ROUTER.0046 before anything is signed, reserved or charged (nothing billed); `params.endpointPath` names the endpoint.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2303,7 +2303,7 @@
             }
           },
           "400": {
-            "description": "Malformed request, a `delegationId` was supplied (BCK.OAUTH.0034 — it is derived from your grant), both `url` and `slug` were given (BCK.ROUTER.0001), or the payment credential would overwrite a header you asked the Router to forward and no `credentialHeader` named where the service wants it instead (BCK.ROUTER.0021 — refused before minting).",
+            "description": "Malformed request, a `delegationId` was supplied (BCK.OAUTH.0034 — it is derived from your grant), both `url` and `slug` were given (BCK.ROUTER.0001), or the payment credential would overwrite a header you asked the Router to forward and no `credentialHeader` named where the service wants it instead (BCK.ROUTER.0021 — refused before minting). With `validateRequestBody` set, a request body that provably fails the endpoint's published request schema is refused with BCK.ROUTER.0046 before anything is signed, reserved or charged (nothing billed); `params.endpointPath` names the endpoint.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2855,7 +2855,7 @@
             }
           },
           "400": {
-            "description": "Invalid request; a field a subscription call does not accept (BCK.SUBSCRIPTION_ROUTER.0005, `params.field`); the merchant asked for a rail credits do not pay (BCK.SUBSCRIPTION_ROUTER.0003, `params.rail`); or the payment credential would overwrite a header you forward, with no `credentialHeader` naming where the service wants it (BCK.ROUTER.0021).",
+            "description": "Invalid request; a field a subscription call does not accept (BCK.SUBSCRIPTION_ROUTER.0005, `params.field`); the merchant asked for a rail credits do not pay (BCK.SUBSCRIPTION_ROUTER.0003, `params.rail`); or the payment credential would overwrite a header you forward, with no `credentialHeader` naming where the service wants it (BCK.ROUTER.0021). With `validateRequestBody` set, a request body that provably fails the endpoint's published request schema is refused with BCK.ROUTER.0046 before anything is signed, reserved or charged (nothing billed); `params.endpointPath` names the endpoint.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5391,6 +5391,10 @@
               "mpp"
             ],
             "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay or quote only this rail, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Omit to auto-select (MPP first). Quote and pay with the same pin; a quoteId bound to another rail is refused with BCK.ROUTER.0033. Never silently remove the pin."
+          },
+          "validateRequestBody": {
+            "type": "boolean",
+            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route` (the Commerce MCP `pay_service` forwards it to them); the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
           }
         },
         "required": [
@@ -5456,6 +5460,10 @@
               "mpp"
             ],
             "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay or quote only this rail, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Omit to auto-select (MPP first). Quote and pay with the same pin; a quoteId bound to another rail is refused with BCK.ROUTER.0033. Never silently remove the pin."
+          },
+          "validateRequestBody": {
+            "type": "boolean",
+            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route` (the Commerce MCP `pay_service` forwards it to them); the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
           }
         },
         "required": [
@@ -6634,6 +6642,10 @@
               "mpp"
             ],
             "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay only on x402 or mpp, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Subscription-credit quotes price the credit tariff without applying the pin; this paid call enforces it. Never silently remove the pin."
+          },
+          "validateRequestBody": {
+            "type": "boolean",
+            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route` (the Commerce MCP `pay_service` forwards it to them); the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
           }
         },
         "required": [
