@@ -47,6 +47,8 @@ The `url` embeds a short-lived session token bound to the human's account. Treat
 
 **Other outcomes (no URL):** `delegation_setup_unavailable` (this deployment can't run the ceremony), `delegation_setup_failed` (the session couldn't start), `return_url_not_allowed` (drop or fix `returnUrl`), and a `human_action_required` answer with `delegationCheck: "failed"` (an existing budget couldn't be ruled out — follow its `instructions` and try `pay_service` first).
 
+The human also chooses there whether the delegation may pay services that take a refundable deposit at the first call (see [session deposits](/products/catalog/router/guardrails#session-deposits)). A delegation can't be edited, so that holds for its whole life.
+
 ## Try it
 
 **Ask your assistant:**

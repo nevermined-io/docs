@@ -52,6 +52,14 @@ The rail, the merchant amount, and the fee-inclusive total. `fee.capChargedCents
 - **`optionSet: "deployment"`** — you have no delegation yet, so this is what a personal crypto delegation *would* select; `nextTool` is `setup_delegation`. Set one up and **quote again** before paying — the delegation you create can select a different rail and price.
 - **`paymentRequired: false`** — the service didn't ask for payment for this request; `upstreamStatus` is its answer. A non-2xx usually means the `path`, `method` or `body` is wrong.
 
+- **`sessionDeposit`**, present when `settlement.scheme` is `session`, is what this call would do to your wallet on top of its price. The service is paid out of a deposit in a payment channel, and that deposit can far exceed the price of the call. It is locked, not spent, it isn't charged to your budget, and what the service doesn't use comes back when the channel closes, `idleCloseSeconds` after its last use. Tell the human before paying.
+
+  | Field | Meaning |
+  | --- | --- |
+  | `action` | `open` (this call locks a deposit), `top_up` (it locks more), `none` (your channel covers it, so no new money leaves the wallet), `closing` (the call would be refused and nothing moves; quote again once it has closed), or `null` (the channel couldn't be read, so `approxCents` is only the most it could be). |
+  | `amount` / `approxCents` | How much would leave the wallet, in the token's smallest unit and in cents. |
+  | `basis` | `sized` for this budget and wallet as they stand now, or `upper_bound`: the most it could lock. |
+
 **To pay with the quote pinned,** pass `quoteId` to [`pay_service`](/mcp/catalog-mcp/pay-service) before `expiresAt` with the exact same call arguments. The quote id fixes the challenge and the exact fee-inclusive total; keep `maxTotalCents` as an independent ceiling.
 
 ## Quote in subscription credits
@@ -81,6 +89,7 @@ When your [Nevermined credits](/products/catalog/router/subscription) can pay th
 | `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | A read the quote needs failed. | Transient — retry later. |
 | `{ "error": "quote_unavailable", "code": … }` | No quote can be made here and retrying won't change that. | Bound the price with `pay_service`'s `maxTotalCents` instead. |
 | `{ "error": "quote_failed", "code": …, "retryable": … }` | The Router refused to price, or didn't answer. | Read `code` / `message` / `retryable`; a no-answer is safe to retry. |
+| `{ "error": "quote_failed", "code": "BCK.ROUTER.0046" }` | The delegation refuses session payments, and this service sells only over a session. | Create a delegation that allows them, or use a service that charges per call. |
 | `{ "error": "credential_refused" }` | Your credential was refused. | Re-authorize. |
 
 ## Try it
