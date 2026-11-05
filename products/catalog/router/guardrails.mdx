@@ -49,7 +49,7 @@ A deposit is locked, not spent. It is not charged to your delegation's cap, and 
 
 - **Before you pay:** a quote's `sessionDeposit` says what the call would move out of the wallet. See [`quote_service`](/mcp/catalog-mcp/quote-service).
 - **Afterwards:** each channel's deposit and refund are in [`get_budget`](/mcp/catalog-mcp/get-budget) and on the Catalog tab of Purchases. A payment record only ever shows one call's price.
-- **To refuse them:** create the delegation with `allowSessionPayments: false`, or clear **Allow session payments** on the delegation form. A service that also charges per call is paid that way regardless. One that sells only over a session is refused with `409 BCK.ROUTER.0046`, and nothing moves. A delegation can't be edited, so the choice is made when you create it.
+| `BCK.ROUTER.0046` | 409 | This delegation was created with `allowSessionPayments: false` and the Router would pay the service over an MPP **session** (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged, and no channel opened. Not retryable unchanged: drop a `requireProtocol: "mpp"` pin if you set one, use a service that charges per call, or create a delegation that allows session payments. |
 
 ## Who can be paid
 

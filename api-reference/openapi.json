@@ -5142,7 +5142,7 @@
           },
           "allowSessionPayments": {
             "type": "boolean",
-            "description": "erc4337 / Router only: whether this delegation may pay services that sell over an MPP `session`, which lock a refundable deposit from the wallet at the first call. Defaults to true. Set false to refuse them: a service that also charges per call is paid that way regardless, and one that sells only over a session is refused (409 BCK.ROUTER.0046). A delegation cannot be edited, so this is fixed at creation.",
+            "description": "erc4337 / Router only: whether this delegation may pay services that sell over an MPP `session`, which lock a refundable deposit from the wallet at the first call. Defaults to true. Set false to refuse them: a service that also offers a per-call charge over Tempo is paid that way regardless, and a call that has nothing else to pay is refused (409 BCK.ROUTER.0046). A delegation cannot be edited, so this is fixed at creation.",
             "example": false
           },
           "organizationWalletId": {
@@ -6039,13 +6039,13 @@
               "none",
               "closing"
             ],
-            "description": "What the call would do to your payment channel with this merchant. `open`: you hold none, so this call opens one and locks a deposit. `top_up`: yours cannot cover this call, so it locks more. `none`: yours covers it, so no new money leaves the wallet. `closing`: the call would be refused (409 BCK.ROUTER.0042) and nothing moves, because the channel is closing or already holds all it may; quote again once it has closed. `null`: the channel could not be read, or the merchant reports one the Router has no record of, so `amount` is only a bound.",
+            "description": "What the call would do to your payment channel with this merchant. `open`: you hold none, so this call opens one and locks a deposit. `top_up`: yours cannot cover this call, so it locks more. `none`: yours covers it, so no new money leaves the wallet. `closing`: the call would be refused (409 BCK.ROUTER.0042) and nothing moves, because the channel is closing or already holds all it may; quote again once it has closed. `null`: what the call would do cannot be stated, because the channel could not be read, the wallet is an organization's, a top-up is already in flight, or the merchant reports a channel the Router has no record of; `amount` is then only a bound, and the last two the payment refuses.",
             "example": "open"
           },
           "amount": {
             "type": "string",
             "pattern": "^(0|[1-9][0-9]*)$",
-            "description": "How much of `settlement.asset` this call would move from the wallet into the channel, in atomic units. The price is paid out of this deposit, not beside it. It is locked, not spent, and it is not charged to the delegation cap; what the merchant does not take comes back when the channel closes. `0` when no new money leaves the wallet.",
+            "description": "How much of `settlement.asset` this call would move from the wallet into the channel, in atomic units. The price is paid out of this deposit, not beside it. It is locked, not spent, and it is not charged to the delegation cap; what the merchant does not take comes back when the channel closes. `0` when no new money leaves the wallet. Excludes the network fee, which the wallet pays unless the merchant sponsors it.",
             "example": "980000"
           },
           "approxCents": {
@@ -6060,7 +6060,7 @@
               "sized",
               "upper_bound"
             ],
-            "description": "How far to take `amount` at its word. `sized`: what the call would lock with the delegation cap and wallet balance as they stand now; a concurrent call or a balance change can still move it. `upper_bound`: the most it could lock, because the cap or the balance could not be applied: no `delegationId` was given, a read failed, or one of them cannot cover the call, which the payment then refuses.",
+            "description": "How far to take `amount` at its word. `sized`: what the call would lock with the delegation cap and wallet balance as they stand now; a concurrent call or a balance change can still move it. `upper_bound`: the most it could lock, because the cap or the balance could not be applied: no `delegationId` was given, the wallet is an organization's, a read failed, or one of them cannot cover the call, which the payment then refuses.",
             "example": "sized"
           },
           "idleCloseSeconds": {
@@ -6138,7 +6138,7 @@
             ]
           },
           "sessionDeposit": {
-            "description": "What the call would lock on top of its price, when the merchant is paid over an MPP `session` (`settlement.scheme` is `session`): a one-way payment channel whose deposit leaves the wallet at the first call, however small the call. Absent on every other rail.",
+            "description": "What the call would move into a deposit, when the merchant is paid over an MPP `session` (`settlement.scheme` is `session`): a one-way payment channel whose deposit leaves the wallet at the first call, however small the call, and pays for the calls out of it. Absent on every other rail.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/SessionDepositQuoteDto"
