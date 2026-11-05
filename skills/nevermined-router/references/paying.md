@@ -56,6 +56,15 @@ failure. You can omit it entirely and send the same call for both rails.
 
 Unlike `protocol`, **`requireProtocol` binds the rail** (API v1.88.0+). If both rails are offered,
 the Router uses the pinned one; if it is unavailable, the call fails with `BCK.ROUTER.0045`.
+
+**Session deposits.** When `settlement.scheme` on a quote is `session`, the call also moves a deposit
+from the wallet into a payment channel, and that deposit can far exceed the price. The quote's
+`sessionDeposit` states it (`action`, `amount`, `approxCents`, `basis`, `idleCloseSeconds`), the
+network fee not included. It is locked, not spent, it is not charged to the delegation cap, and what
+the merchant does not take comes back when the channel closes. Tell the human before paying. A
+delegation created with `allowSessionPayments: false` is refused with `409 BCK.ROUTER.0047` when
+nothing else can pay the call; a service that also charges per call over Tempo is paid that way, and
+one that also offers x402 is paid there unless the call pins `requireProtocol: "mpp"`.
 Read `params.requireProtocol` and `params.offered`; an empty `offered` means neither rail can be
 parsed, so choose another service. Never silently remove the pin. `/quote` and commerce variants
 honour it too: quote and pay with the same value. A `quoteId` bound to another rail is refused

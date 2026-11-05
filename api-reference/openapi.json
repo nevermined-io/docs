@@ -5140,6 +5140,11 @@
               "type": "string"
             }
           },
+          "allowSessionPayments": {
+            "type": "boolean",
+            "description": "erc4337 / Router only: whether this delegation may pay services that sell over an MPP `session`, which lock a refundable deposit from the wallet at the first call. Defaults to true. Set false to refuse them: a service that also offers a per-call charge over Tempo is paid that way regardless, and a call that has nothing else to pay is refused (409 BCK.ROUTER.0047). A delegation cannot be edited, so this is fixed at creation.",
+            "example": false
+          },
           "organizationWalletId": {
             "type": "string",
             "description": "erc4337 / Router only (#2230): fund this delegation from an ORGANIZATION wallet instead of the caller's own wallet. The caller must be an admin of the wallet's org. Spend is always capped by the SPENDING member's group budget (the wallet must be shared with the member's group).",
@@ -5187,6 +5192,10 @@
       "DelegationSummaryDto": {
         "type": "object",
         "properties": {
+          "allowSessionPayments": {
+            "type": "boolean",
+            "description": "erc4337 only: whether this delegation may pay services that sell over an MPP `session`, which lock a refundable deposit from the wallet at the first call. Set at creation."
+          },
           "delegationId": {
             "type": "string",
             "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
@@ -6018,6 +6027,56 @@
           "payment"
         ]
       },
+      "SessionDepositQuoteDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "open",
+              "top_up",
+              "none",
+              "closing"
+            ],
+            "description": "What the call would do to your payment channel with this merchant. `open`: you hold none, so this call opens one and locks a deposit. `top_up`: yours cannot cover this call, so it locks more. `none`: yours covers it, so no new money leaves the wallet. `closing`: the call would be refused (409 BCK.ROUTER.0042) and nothing moves, because the channel is closing or already holds all it may; quote again once it has closed. `null`: what the call would do cannot be stated, because the channel could not be read, the wallet is an organization's, a top-up is already in flight, or the merchant reports a channel the Router has no record of; `amount` is then only a bound, and the last two the payment refuses.",
+            "example": "open"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "How much of `settlement.asset` this call would move from the wallet into the channel, in atomic units. The price is paid out of this deposit, not beside it. It is locked, not spent, and it is not charged to the delegation cap; what the merchant does not take comes back when the channel closes. `0` when no new money leaves the wallet. Excludes the network fee, which the wallet pays unless the merchant sponsors it.",
+            "example": "980000"
+          },
+          "approxCents": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "`amount` in USD cents, rounded up. Tempo stablecoins are USD-pegged.",
+            "example": "98"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "sized",
+              "upper_bound"
+            ],
+            "description": "How far to take `amount` at its word. `sized`: what the call would lock with the delegation cap and wallet balance as they stand now; a concurrent call or a balance change can still move it. `upper_bound`: the most it could lock, because the cap or the balance could not be applied: no `delegationId` was given, the wallet is an organization's, a read failed, or one of them cannot cover the call, which the payment then refuses.",
+            "example": "sized"
+          },
+          "idleCloseSeconds": {
+            "type": "integer",
+            "description": "The channel closes after this many seconds without a call, and what the merchant has not taken is refunded to the wallet then. A merchant that does not cooperate adds the escrow's own grace period to that.",
+            "example": 900
+          }
+        },
+        "required": [
+          "action",
+          "amount",
+          "approxCents",
+          "basis",
+          "idleCloseSeconds"
+        ]
+      },
       "QuoteResultDto": {
         "type": "object",
         "properties": {
@@ -6075,6 +6134,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RouterFeeDto"
+              }
+            ]
+          },
+          "sessionDeposit": {
+            "description": "What the call would move into a deposit, when the merchant is paid over an MPP `session` (`settlement.scheme` is `session`): a one-way payment channel whose deposit leaves the wallet at the first call, however small the call, and pays for the calls out of it. Absent on every other rail.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionDepositQuoteDto"
               }
             ]
           }
