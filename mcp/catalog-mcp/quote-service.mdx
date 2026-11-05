@@ -89,7 +89,7 @@ When your [Nevermined credits](/products/catalog/router/subscription) can pay th
 | `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | A read the quote needs failed. | Transient — retry later. |
 | `{ "error": "quote_unavailable", "code": … }` | No quote can be made here and retrying won't change that. | Bound the price with `pay_service`'s `maxTotalCents` instead. |
 | `{ "error": "quote_failed", "code": …, "retryable": … }` | The Router refused to price, or didn't answer. | Read `code` / `message` / `retryable`; a no-answer is safe to retry. |
-| `{ "error": "quote_failed", "code": "BCK.ROUTER.0046" }` | The delegation refuses session payments, and nothing else can pay this call. | Drop a `requireProtocol: "mpp"` pin if you set one, use a service that charges per call, or create a delegation that allows them. |
+| `{ "error": "quote_failed", "code": "BCK.ROUTER.0047" }` | The delegation refuses session payments, and nothing else can pay this call. | Drop a `requireProtocol: "mpp"` pin if you set one, use a service that charges per call, or create a delegation that allows them. |
 | `{ "error": "credential_refused" }` | Your credential was refused. | Re-authorize. |
 
 ## Try it
