@@ -557,3 +557,5 @@ Some services want payment *and* an account credential. Never put `NVM_API_KEY` 
 
 Note that a service which answers **`401`/`403` instead of `402`** wants authentication, not
 payment. The Router cannot help — that service needs an account. See `discovery.md`.
+
+Identity disclosure is unsupported on subscription route calls. Any `revealBuyerIdentity` field (including `false` or `null`) or `X-Router-Reveal-Buyer-Identity` header is refused with `BCK.SUBSCRIPTION_ROUTER.0005` rather than silently ignored. Omit them on subscription routes.
