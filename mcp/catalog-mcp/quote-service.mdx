@@ -56,8 +56,8 @@ The rail, the merchant amount, and the fee-inclusive total. `fee.capChargedCents
 
   | Field | Meaning |
   | --- | --- |
-  | `action` | `open` (this call locks a deposit), `top_up` (it locks more), `none` (your channel covers it, so no new money leaves the wallet), `closing` (the call would be refused and nothing moves; quote again once it has closed), or `null` (the channel couldn't be read, so `approxCents` is only the most it could be). |
-  | `amount` / `approxCents` | How much would leave the wallet, in the token's smallest unit and in cents. |
+  | `action` | `open` (this call locks a deposit), `top_up` (it locks more), `none` (your channel covers it, so no new money leaves the wallet), `closing` (the call would be refused and nothing moves; quote again once it has closed), or `null` (what the call would do couldn't be stated, and `pay_service` may refuse it, so `approxCents` is only the most it could be). |
+  | `amount` / `approxCents` | How much would move into the deposit, in the token's smallest unit and in cents, the network fee not included. |
   | `basis` | `sized` for this budget and wallet as they stand now, or `upper_bound`: the most it could lock. |
 
 **To pay with the quote pinned,** pass `quoteId` to [`pay_service`](/mcp/catalog-mcp/pay-service) before `expiresAt` with the exact same call arguments. The quote id fixes the challenge and the exact fee-inclusive total; keep `maxTotalCents` as an independent ceiling.
@@ -89,7 +89,7 @@ When your [Nevermined credits](/products/catalog/router/subscription) can pay th
 | `{ "error": "catalog_unavailable" }` / `"delegation_lookup_failed"` | A read the quote needs failed. | Transient — retry later. |
 | `{ "error": "quote_unavailable", "code": … }` | No quote can be made here and retrying won't change that. | Bound the price with `pay_service`'s `maxTotalCents` instead. |
 | `{ "error": "quote_failed", "code": …, "retryable": … }` | The Router refused to price, or didn't answer. | Read `code` / `message` / `retryable`; a no-answer is safe to retry. |
-| `{ "error": "quote_failed", "code": "BCK.ROUTER.0046" }` | The delegation refuses session payments, and this service sells only over a session. | Create a delegation that allows them, or use a service that charges per call. |
+| `{ "error": "quote_failed", "code": "BCK.ROUTER.0046" }` | The delegation refuses session payments, and nothing else can pay this call. | Drop a `requireProtocol: "mpp"` pin if you set one, use a service that charges per call, or create a delegation that allows them. |
 | `{ "error": "credential_refused" }` | Your credential was refused. | Re-authorize. |
 
 ## Try it
