@@ -136,4 +136,4 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
   (`X-Router-Require-Protocol` on `/proxy` · `/svc`; x402 or mpp). Nothing signed, reserved or
   charged. Not retryable unchanged: choose a service on your required rail, or deliberately change
   the pin; never drop it automatically.
-- `BCK.ROUTER.0047` (409) — this delegation was created with `allowSessionPayments: false` and the Router would pay the service over an MPP session (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged. Not retryable unchanged: drop a `requireProtocol: "mpp"` pin if you set one, use a service that charges per call, or create a delegation that allows session payments.
+- `BCK.ROUTER.0047` (409) — this delegation was created with `allowSessionPayments: false` and the Router would pay the service over an MPP session (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged. Not retryable unchanged: use a service that charges per call, or report to the human, who can deliberately drop a `requireProtocol: "mpp"` pin or create a delegation that allows session payments.
