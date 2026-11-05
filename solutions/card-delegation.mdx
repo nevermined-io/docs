@@ -40,9 +40,9 @@ The fastest path for end-users and the natural fit when your users are already a
     In the Nevermined App, navigate to **Settings > Payment Methods**. This is the dashboard for every card you have enrolled and every active delegation.
   </Step>
   <Step title="Enroll a card">
-    Click **Enroll card** and pick a provider tab: **Stripe**, **Braintree**, or **Visa**. Card data is captured in a PCI-compliant iframe and tokenized before submission — Nevermined never stores the raw card number. The provider must match the plan you intend to pay — [check it first with `resolveNetwork()` / `resolve_network()`](/products/payments/card-enrollment#choosing-a-provider).
+    Click **Add payment method** and fill in the card form. Where it is offered, Visa Agentic is an option on that form. Card data is captured in a PCI-compliant iframe and tokenized before submission — Nevermined never stores the raw card number. The plan you pay picks the provider — [check it with `resolveNetwork()` / `resolve_network()`](/products/payments/card-enrollment#choosing-a-provider).
 
-    See [Card Enrollment](/products/payments/card-enrollment) for the per-provider differences (Visa requires a passkey or OTP, Braintree supports PayPal alongside cards, Stripe needs 3DS where the issuer requires it).
+    See [Card Enrollment](/products/payments/card-enrollment) for the differences between the card paths (Visa requires a passkey or OTP).
   </Step>
   <Step title="Create a delegation">
     On the enrolled card row, click **Delegate**. Set:
@@ -94,9 +94,8 @@ Agent / CLI            Nevermined API          Embed app (browser)    Local call
  │   ?sessionToken=…&returnUrl=…&state=<rand>&provider=stripe              │
  │────────────────────────────────────────────────▶│ chromeless page:    │
  │                          │                     │ - validate session    │
- │                          │                     │ - enroll card (Stripe │
- │                          │                     │   Elements / VGS /    │
- │                          │                     │   Braintree Drop-in)  │
+ │                          │                     │ - enroll card         │
+ │                          │                     │   (VGS Collect)       │
  │                          │                     │ - create delegation   │
  │                          │                     │ - redirect to         │
  │                          │                     │   returnUrl + ids +   │

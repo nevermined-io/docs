@@ -23,7 +23,7 @@ How agents pay with your real card, within limits you control.
 </Accordion>
 
 <Accordion title="How is this different from issuing a prepaid card for my agent?">
-  Card Delegation uses your real credit or debit card, not a separate prepaid balance. At enrollment, the card number is tokenized by a PCI-compliant vault (VGS Collect for Visa and Stripe; Braintree Drop-in for Braintree). Nevermined never sees or stores the raw PAN. What the agent receives is a scoped delegation that encodes identity, spending limits, and (for Visa) the device that approved it. The actual charge still runs on existing card rails, so it appears on your normal statement. No prefunding, no separate balance to manage.
+  Card Delegation uses your real credit or debit card, not a separate prepaid balance. At enrollment, the card number is tokenized by a PCI-compliant vault (VGS Collect). Nevermined never sees or stores the raw PAN. What the agent receives is a scoped delegation that encodes identity, spending limits, and (for Visa) the device that approved it. The actual charge still runs on existing card rails, so it appears on your normal statement. No prefunding, no separate balance to manage.
 </Accordion>
 
 <Accordion title="What happens if an agent tries to exceed the delegation?">
@@ -42,8 +42,8 @@ How agents pay with your real card, within limits you control.
   From the agent's perspective, nothing changes. It sends the same x402 payment header either way. The difference is in how settlement runs under the hood:
 
   - **Visa path** — Your card is tokenized as a Visa Agentic Token via the VGS Credential Management Platform. Each delegation is bound to your device with a one-time WebAuthn/passkey ceremony enforced by Visa VTS. Settlement runs through Stripe Connect against the seller's connected account.
-  - **Stripe path** — Your card is tokenized by Stripe, and settlement runs through Stripe PaymentIntents directly. The seller connects their Stripe account when they enroll with Nevermined.
-  - **Braintree path** — Your card is vaulted as a Braintree `paymentMethodToken`, and settlement runs through `transaction.sale` against the seller's per-currency OAuth-connected Braintree merchant account.
+  - **Stripe path** — Your card is enrolled through VGS, and settlement runs through Stripe PaymentIntents directly. The seller connects their Stripe account when they enroll with Nevermined.
+  - **Braintree path** — Your card is enrolled through VGS, and settlement runs through `transaction.sale`, with the card's network token, against the seller's per-currency OAuth-connected Braintree merchant account.
 
   In all three cases, sellers enroll with Nevermined to accept agent payments. Nevermined handles the x402 protocol, agent authentication, delegation enforcement, and settlement on their behalf.
 </Accordion>
@@ -53,7 +53,7 @@ How agents pay with your real card, within limits you control.
 Independent audits, and where to read them.
 
 <Accordion title="What security and compliance standards does Card Delegation meet?">
-  Card data is captured via a PCI-compliant vault (VGS Collect for Visa / Stripe, Braintree Drop-in for Braintree) and tokenized before it enters the system. Nevermined holds ISO/IEC 27001:2022 certification and a SOC 2 Type II report, and operates at PCI SAQ-D level. For Visa, Strong Customer Authentication via WebAuthn/passkey (or email OTP fallback) is enforced **per delegation** by Visa VTS. Every transaction is logged with agent ID, amount, merchant, and timestamp for full auditability. See [Certifications](/products/payments/certifications) for the full picture.
+  Card data is captured via a PCI-compliant vault (VGS Collect) and tokenized before it enters the system. Nevermined holds ISO/IEC 27001:2022 certification and a SOC 2 Type II report, and operates at PCI SAQ-D level. For Visa, Strong Customer Authentication via WebAuthn/passkey (or email OTP fallback) is enforced **per delegation** by Visa VTS. Every transaction is logged with agent ID, amount, merchant, and timestamp for full auditability. See [Certifications](/products/payments/certifications) for the full picture.
 </Accordion>
 
 <Accordion title="Is Nevermined SOC 2 and ISO 27001 certified?">

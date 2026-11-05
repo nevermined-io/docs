@@ -60,7 +60,7 @@ Do the work yourself: mint an embedded session with my API key, host a one-shot 
       &provider=stripe
     ```
 
-    Generate `state` as an unguessable nonce. Use `provider=stripe` (or `braintree` / `visa`) to match the card type the target plan accepts.
+    Generate `state` as an unguessable nonce. `provider` only affects the Visa Agentic option: `provider=visa` starts it ticked, where it is offered. Any other value enrolls a plain card, which pays Stripe-priced and Braintree-priced plans.
   </Step>
 
   <Step title="Receive the delegation">

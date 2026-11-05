@@ -1,6 +1,6 @@
 ---
 title: "Card Enrollment"
-description: "Enroll Visa, Stripe, or Braintree payment cards into Nevermined with PCI-compliant tokenization."
+description: "Enroll a payment card into Nevermined with PCI-compliant tokenization."
 icon: "id-card"
 ---
 
@@ -8,11 +8,10 @@ icon: "id-card"
 
 Before an agent can charge a payment card, the card must be enrolled in Nevermined. Enrollment tokenizes the card data (Nevermined never stores raw card numbers) and registers the card with the provider so future delegations can authorize off-session charges.
 
-Nevermined supports three enrollment providers, each available as a separate tab in the [Nevermined App](https://nevermined.app). Which provider you should enroll with depends on the plan you intend to pay for — the plan's `fiatPaymentProvider` metadata determines the required card type:
+The [Nevermined App](https://nevermined.app) has one card form, and it captures every card through VGS. You don't choose a provider to pay a Stripe-priced or a Braintree-priced plan: the plan's `fiatPaymentProvider` metadata picks the provider that charges the card, at charge time.
 
-- **Stripe-priced plans** require a card enrolled through the Stripe tab below.
-- **Braintree-priced plans** require a Braintree-vaulted card.
-- **Visa Trusted Agent plans** require a Visa Agentic Token (enrolled through the Visa tab).
+- **Stripe-priced plans** and **Braintree-priced plans** are paid with a card enrolled through the credit/debit card form.
+- **Visa Trusted Agent plans** require a Visa Agentic Token (enrolled through the Visa Agentic option on the same form, where it is offered).
 
 ## Enrollment Paths
 
@@ -62,10 +61,10 @@ Nevermined supports three enrollment providers, each available as a separate tab
       Visa enrollment is only reachable from the Nevermined webapp. The `/api/v1/delegation/enroll-visa` endpoint expects a CMP `cardId` produced by VGS Collect in the browser; it cannot be driven from a server-side SDK or curl call.
     </Note>
   </Tab>
-  <Tab title="Stripe">
-    ### Stripe Enrollment
+  <Tab title="Credit/debit card">
+    ### Credit/debit card enrollment
 
-    A card for a Stripe-priced plan is enrolled through the webapp's "Credit/debit card" form. The card is captured in a VGS Collect iframe and vaulted at VGS, not at Stripe: the plan you pay picks the provider that charges it, at charge time. This is a single-step flow with no passkey requirement.
+    A card for a Stripe-priced or a Braintree-priced plan is enrolled through the webapp's "Credit/debit card" form. The card is captured in a VGS Collect iframe and vaulted at VGS, not at Stripe or Braintree: the plan you pay picks the provider that charges it, at charge time. This is a single-step flow with no passkey requirement.
 
     <Steps>
       <Step title="Enter card details">
@@ -92,58 +91,22 @@ Nevermined supports three enrollment providers, each available as a separate tab
             |
             |-> Removed (card and all delegations revoked)
     ```
-  </Tab>
-  <Tab title="Braintree">
-    ### Braintree Enrollment
-
-    Braintree cards are captured via the Braintree Drop-in (or hosted fields) and exchanged for a vaulted `paymentMethodToken`. The flow is similar to Stripe — no passkey is required — but uses Braintree's tokenization and vaulting primitives so the token can be charged by the seller's OAuth-connected Braintree merchant at settlement time.
-
-    <Steps>
-      <Step title="Request a client token">
-        The Nevermined webapp requests a short-lived **Braintree client token** from the facilitator. The client token authorizes the in-browser Drop-in / hosted fields to talk directly to Braintree.
-      </Step>
-      <Step title="Enter card details">
-        Enter your card number, expiry, and CVC into the Braintree Drop-in. Card data goes directly to Braintree and never touches the Nevermined backend. Drop-in returns a single-use **payment-method nonce** to the browser.
-      </Step>
-      <Step title="Vault the card">
-        The browser submits the nonce to `POST /api/v1/delegation/enroll-braintree`. The facilitator looks up (or creates) your Braintree customer record and exchanges the nonce for a permanent **`paymentMethodToken`** by vaulting the card with `verifyCard: true`. From this point on, Nevermined only ever stores the token — never raw card data.
-      </Step>
-      <Step title="Create a delegation">
-        After enrollment, create a [spending delegation](/products/payments/mandates) backed by the vaulted Braintree token. The delegation can then settle x402 charges against any Braintree-priced plan in the supported currency.
-      </Step>
-    </Steps>
-
-    #### Braintree Card Lifecycle
-
-    ```
-    Client token requested
-      |
-      |-> Card details captured (Braintree Drop-in tokenization)
-      |
-      |-> Nonce returned to browser (single-use)
-      |
-      |-> Card vaulted (paymentMethodToken issued, verifyCard pass)
-      |
-      |-> Active -> Delegations can be created
-            |
-            |-> Removed (card and all delegations revoked)
-    ```
 
     <Note>
-      A Braintree-vaulted card can only be charged for plans whose seller has a Braintree merchant account in the card's transaction currency. See [Braintree onboarding](/products/payments/braintree-onboarding) for the seller-side per-currency requirements.
+      A Braintree-priced plan can only be charged when its seller has a Braintree merchant account in the plan's currency. See [Braintree onboarding](/products/payments/braintree-onboarding) for the seller-side per-currency requirements.
     </Note>
   </Tab>
 </Tabs>
 
 ## Card Properties
 
-Visa, Stripe, and Braintree cards share these core properties:
+All enrolled cards share these core properties:
 
 | Property | Description |
 |---|---|
 | `id` | Unique payment-method identifier (UUID) |
 | `userId` | Owner of the card |
-| `provider` | `visa`, `vgs` (a card enrolled through the Stripe tab), `braintree`, or `stripe` (a card enrolled before the unified card enrol) |
+| `provider` | `visa`, `vgs` (a card enrolled through the credit/debit card form), or `braintree` / `stripe` (a card enrolled outside that form) |
 | `providerPaymentMethodId` | Provider-side card reference. Visa: `vat_…` (Agentic Token). VGS: the VGS card ID (`CRD…`). Braintree: `paymentMethodToken`. Stripe: `pm_…`. |
 | `last4` | Last 4 digits of the card number (for display) |
 | `brand` | Card brand (`visa`, `mastercard`, …) |
@@ -153,7 +116,7 @@ Visa, Stripe, and Braintree cards share these core properties:
 
 ## Spending Ceiling
 
-Every card has a **spending ceiling** — a cumulative limit on the total amount allocated to active delegations. This prevents over-allocation and provides a safety net. Visa, Stripe, and Braintree cards enforce the same ceiling.
+Every card has a **spending ceiling** — a cumulative limit on the total amount allocated to active delegations. This prevents over-allocation and provides a safety net. All enrolled cards enforce the same ceiling.
 
 For example, if your card has a $10.00 ceiling:
 - Delegation A: $5.00
@@ -170,7 +133,7 @@ When you create or update a delegation, Nevermined validates that the total allo
 
 ### Via the Nevermined App
 
-The [Nevermined App](https://nevermined.app) provides a visual interface for managing your enrolled cards. Visa, Stripe, and Braintree cards appear in separate tabs:
+The [Nevermined App](https://nevermined.app) provides a visual interface for managing your enrolled cards. All your cards appear in one list:
 
 - View all enrolled cards with their status and spending ceiling
 - See active delegations per card with remaining capacity
@@ -179,7 +142,7 @@ The [Nevermined App](https://nevermined.app) provides a visual interface for man
 
 ### Via the API
 
-The payment-methods endpoint is heterogeneous: it lists enrolled cards across all three providers plus, when the user has a smart account configured, the ERC-4337 wallet entry that backs crypto delegations. Filter by `provider` to narrow to a single shape: a card enrolled through the Stripe tab is `provider=vgs`, not `stripe`.
+The payment-methods endpoint is heterogeneous: it lists enrolled cards across all providers plus, when the user has a smart account configured, the ERC-4337 wallet entry that backs crypto delegations. Filter by `provider` to narrow to a single shape: a card enrolled through the credit/debit card form is `provider=vgs`, not `stripe` or `braintree`.
 
 | Endpoint | Method | Description |
 |---|---|---|
@@ -190,16 +153,16 @@ The payment-methods endpoint is heterogeneous: it lists enrolled cards across al
 
 ## Choosing a Provider
 
-| | Visa | Stripe | Braintree |
-|---|---|---|---|
-| **Enrollment complexity** | VGS Collect capture, no passkey at enrolment | VGS Collect capture, no passkey at enrolment | Braintree Drop-in capture |
-| **Per-delegation auth** | WebAuthn/passkey device binding (browser-only) | API credentials only | API credentials only |
-| **Best for** | Visa Trusted Agent Protocol plans, high-security agent payments | Quick setup, developer testing, broader card support | Plans whose seller settles on Braintree (per-currency merchant accounts, OAuth Connect) |
-| **Settlement** | Stripe Connect against the seller's connected account | Stripe PaymentIntents directly | Braintree `transaction.sale` against vaulted `paymentMethodToken` |
+| | Visa | Credit/debit card |
+|---|---|---|
+| **Enrollment complexity** | VGS Collect capture, no passkey at enrolment | VGS Collect capture, no passkey at enrolment |
+| **Per-delegation auth** | WebAuthn/passkey device binding (browser-only) | API credentials only |
+| **Best for** | Visa Trusted Agent Protocol plans, high-security agent payments | Stripe-priced and Braintree-priced plans, quick setup, developer testing, broader card support |
+| **Settlement** | Stripe Connect against the seller's connected account | Set by the plan: Stripe PaymentIntents directly, or Braintree `transaction.sale` with the card's network token on the seller's OAuth-connected merchant account |
 
-All three providers support the same spending controls (ceilings, usage limits, expiration) and API key linking. The right enrollment provider for a given plan is determined by the plan's `fiatPaymentProvider` metadata: a Braintree-priced plan can only be paid by a Braintree-vaulted card; a Visa Trusted Agent plan can only be paid by a Visa Agentic Token.
+Both support the same spending controls (ceilings, usage limits, expiration) and API key linking. The plan's `fiatPaymentProvider` metadata decides how a credit/debit card settles, so the same card can pay a Stripe-priced and a Braintree-priced plan. A Visa Trusted Agent plan can only be paid by a Visa Agentic Token.
 
-Don't guess — read the plan's provider before you enroll. `resolveNetwork()` / `resolve_network()` returns the plan's card provider (`stripe`, `braintree`, or `visa`), or `undefined`/`None` for a crypto plan:
+To see which provider a plan settles on, read it from the plan. `resolveNetwork()` / `resolve_network()` returns the plan's card provider (`stripe`, `braintree`, or `visa`), or `undefined`/`None` for a crypto plan:
 
 <Tabs>
   <Tab title="TypeScript">
@@ -220,7 +183,7 @@ Don't guess — read the plan's provider before you enroll. `resolveNetwork()` /
   </Tab>
 </Tabs>
 
-Enroll with that provider, then [create a delegation](/products/payments/mandates) from the enrolled card. If `resolveNetwork` returns nothing, the plan is crypto — fund a smart account instead of enrolling a card.
+For `stripe` or `braintree`, enroll through the credit/debit card form. For `visa`, enroll a Visa Agentic Token. Then [create a delegation](/products/payments/mandates) from the enrolled card. If `resolveNetwork` returns nothing, the plan is crypto — fund a smart account instead of enrolling a card.
 
 ## What's Next?
 

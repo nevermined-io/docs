@@ -6,11 +6,11 @@ icon: "store"
 
 ## Overview
 
-Nevermined supports **Braintree** as a fiat settlement provider alongside Stripe. Sellers who connect a Braintree merchant account can price their plans in Braintree-supported currencies and receive funds directly into their own Braintree gateway, while Nevermined collects the platform fee on the same card transaction.
+Nevermined supports **Braintree** as a fiat settlement provider alongside Stripe. Sellers who connect a Braintree merchant account can price their plans in Braintree-supported currencies and receive funds directly into their own Braintree gateway.
 
 This page covers the seller-side setup: connecting your Braintree account, configuring per-currency merchant accounts, and what to expect at plan creation and settlement time.
 
-If you only need to *pay* for a Braintree-priced plan as a buyer, see [Card Enrollment → Braintree](/products/payments/card-enrollment) instead.
+If you only need to *pay* for a Braintree-priced plan as a buyer, see [Card Enrollment](/products/payments/card-enrollment) instead.
 
 ## Why Braintree?
 
@@ -108,19 +108,12 @@ The plan-creation form in the Nevermined App enforces this client-side too: when
 
 ## Settlement Model
 
-Once a plan is live, Nevermined settles each fiat charge with a **two-transaction split** on the buyer's vaulted card:
+Once a plan is live, Nevermined settles each fiat charge with **one `transaction.sale`** for the whole price. It runs on your OAuth-connected gateway, against your per-currency child merchant account that matches the plan's currency. The sale carries the network token of the buyer's enrolled card. Nevermined collects no platform fee on this rail.
 
-1. **Platform fee** is charged on Nevermined's own Braintree gateway, against Nevermined's per-currency platform merchant account.
-2. **Merchant share** is charged on your OAuth-connected gateway, against your per-currency child merchant account that matches the plan's currency.
+This applies to both:
 
-If the merchant leg fails after the platform fee has been collected, Nevermined automatically voids the platform transaction so you never end up paying a fee for a charge the buyer didn't complete.
-
-This split applies to both:
-
-- One-time **subscription checkouts** through the Nevermined App's Braintree Drop-in.
+- One-time **subscription checkouts** in the Nevermined App, paid with an enrolled card.
 - Per-request **x402 settlements** for credit top-ups when a buyer's balance is insufficient (see [the x402 card-delegation spec](/specs/x402-card-delegation) for the protocol-level details).
-
-For very small charges where the platform fee would round to zero or negative, Nevermined falls back to a single merchant transaction with no fee collected — preserving correctness over revenue.
 
 ## Limitations
 
@@ -140,9 +133,9 @@ For very small charges where the platform fee would round to zero or negative, N
 
 <CardGroup cols={2}>
   <Card title="Card Enrollment (Buyer-Side)" icon="id-card" href="/products/payments/card-enrollment">
-    How buyers vault a Braintree card before purchasing your plans.
+    How buyers enroll a card before purchasing your plans.
   </Card>
   <Card title="x402 Card Delegation Spec" icon="key" href="/specs/x402-card-delegation">
-    Protocol-level details for per-request fiat settlement, including the two-transaction split.
+    Protocol-level details for per-request fiat settlement.
   </Card>
 </CardGroup>
