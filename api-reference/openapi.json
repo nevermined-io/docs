@@ -5394,7 +5394,7 @@
           },
           "validateRequestBody": {
             "type": "boolean",
-            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route`. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
+            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route` (the Commerce MCP `pay_service` forwards it to them); the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
           }
         },
         "required": [
@@ -5463,7 +5463,7 @@
           },
           "validateRequestBody": {
             "type": "boolean",
-            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route`. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
+            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route` (the Commerce MCP `pay_service` forwards it to them); the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
           }
         },
         "required": [
@@ -6645,7 +6645,7 @@
           },
           "validateRequestBody": {
             "type": "boolean",
-            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route`. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
+            "description": "Opt-in request-body gate (default off). When `true`, a request `body` that provably fails the endpoint's published request schema is refused with 400 BCK.ROUTER.0046 before anything is signed, reserved or charged, so you are not billed for a call the merchant would reject. Only a provably-invalid body is refused; a missing or unverifiable schema still pays (fail-open). Honoured on the buffered pay routes `/router/route`, `/router/commerce/route` and `/router/subscription/route` (the Commerce MCP `pay_service` forwards it to them); the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. Fix the body to match the endpoint's published `requestSchema` (catalog service detail, or Commerce MCP `get_service`), or omit the flag."
           }
         },
         "required": [

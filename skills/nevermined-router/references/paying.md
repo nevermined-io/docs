@@ -81,7 +81,8 @@ unreadable schema, or any verdict short of a proven mismatch, still pays, so tur
 blocks a call it cannot be sure about. `params.endpointPath` names the endpoint; fix the body to
 match its published `requestSchema`/`requestExample` (catalog service detail, or the Commerce MCP
 `get_service` result), or omit the flag. Honoured on the buffered pay routes `/route`,
-`/commerce/route` and `/router/subscription/route`.
+`/commerce/route` and `/router/subscription/route`, and the Commerce MCP `pay_service` forwards it to
+them; the streaming `/proxy` and `/svc` surfaces do not apply it.
 
 ### Response
 
