@@ -29,7 +29,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.CARD_PAYMENT`](#bck-card_payment) — 21 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
-- [`BCK.CREDITS`](#bck-credits) — 15 codes
+- [`BCK.CREDITS`](#bck-credits) — 16 codes
 - [`BCK.CREDIT_TOPUPS`](#bck-credit_topups) — 23 codes
 - [`BCK.DELEGATION`](#bck-delegation) — 10 codes
 - [`BCK.ENTITLEMENTS`](#bck-entitlements) — 5 codes
@@ -365,6 +365,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-credits-0013"></a>`BCK.CREDITS.0013` | 500 | internal | ❌ | Refusing a credit lot or burn with a missing or unknown credit kind | Every lot of the Nevermined credits plan carries a credit kind (allowance, welcome, topup or sla), and a burn may only exclude those kinds. See params.reason: kindRequired means a mint or refund on the credits plan omitted its kind; unknownKind means a value outside the set was passed. A caller bug, not a runtime data issue; do not retry. |
 | <a id="bck-credits-0014"></a>`BCK.CREDITS.0014` | 503 | internal | ✅ | The credits balance could not be read | Reading your credits failed on our side (see the server log). Reading charges nothing and changes nothing; retry in a moment. |
 | <a id="bck-credits-0015"></a>`BCK.CREDITS.0015` | 500 | internal | ❌ | The credit scale is not available | No credit count can be converted safely, so none is assumed. See params.reason: noRow means the deployment has lost its stored scale, notLoaded means this process has not read it yet, and noTransaction means a caller read it for a write outside a transaction. A fault on our side; no client action helps. |
+| <a id="bck-credits-0016"></a>`BCK.CREDITS.0016` | 409 | business | ❌ | This deployment has not been rescaled | The credit scale is still 1, so there is nothing to tell holders and no email was sent. Run the rescale on this deployment first, then run this again. |
 
 ## <span id="bck-credit_topups"></span>`BCK.CREDIT_TOPUPS`
 
@@ -511,7 +512,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-notif-0005"></a>`BCK.NOTIF.0005` | 500 | integration | — | Error deleting notification | Inspect the underlying error in logs. Notification deletion failed — usually a DB-layer error. |
 | <a id="bck-notif-0006"></a>`BCK.NOTIF.0006` | 404 | integration | — | Error searching for notifications filtered by receiver | Verify the receiver address. Empty result sets surface as 404 by design. |
 | <a id="bck-notif-0007"></a>`BCK.NOTIF.0007` | 500 | integration | — | Resend API Key or Email Sender not set | Configure `RESEND_API_KEY` and `EMAIL_SENDER` in the deployment env. Email notifications are disabled until both are present. |
-| <a id="bck-notif-0008"></a>`BCK.NOTIF.0008` | 500 | integration | — | Error sending email notification | Inspect Resend dashboard logs for the sender/recipient in params. Common causes: invalid recipient address, domain not verified, or quota exhaustion. |
+| <a id="bck-notif-0008"></a>`BCK.NOTIF.0008` | 500 | integration | — | Error sending email notification | params.receiver names who the email was for, usually a user or organization id rather than an address, so resolve it to an address before searching the Resend dashboard logs. Common causes: invalid recipient address, domain not verified, or quota exhaustion. |
 | <a id="bck-notif-0009"></a>`BCK.NOTIF.0009` | 403 | business | ❌ | The user doesnt own this notification | Notifications are scoped to a single recipient; only the owner can act on them. Re-authenticating as the same caller will not help. |
 
 ## <span id="bck-oauth"></span>`BCK.OAUTH`
