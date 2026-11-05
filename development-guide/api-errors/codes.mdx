@@ -26,7 +26,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.BILLING`](#bck-billing) — 27 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 21 codes
 - [`BCK.BUDGETS`](#bck-budgets) — 6 codes
-- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 20 codes
+- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 21 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
 - [`BCK.CREDITS`](#bck-credits) — 14 codes
@@ -237,7 +237,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-card_payment-0004"></a>`BCK.CARD_PAYMENT.0004` | 502 | integration | ❌ | The outcome of the enrolled-card payment is unknown | The payment processor did not confirm the outcome, and the card may have been charged. Do not retry: the purchase completes, or fails, once the processor reports it. On a card change, send the same card with params.intentId to read where its payment stands. |
 | <a id="bck-card_payment-0005"></a>`BCK.CARD_PAYMENT.0005` | 409 | business | ❌ | Paying with an enrolled card is not available for this purchase | Paying this purchase (params.purpose) with a card enrolled with Nevermined is turned off on this deployment. GET /api/v1/payment-methods/chargeable answers enabled: false for it. |
 | <a id="bck-card_payment-0006"></a>`BCK.CARD_PAYMENT.0006` | 503 | internal | ✅ | The enrolled cards could not be read | Reading the caller’s enrolled cards failed, so it is not known which can pay. Nothing was charged and no card was judged unusable. Retry shortly. |
-| <a id="bck-card_payment-0007"></a>`BCK.CARD_PAYMENT.0007` | 409 | business | ❌ | An earlier payment for this purchase was made or is under way | An earlier attempt at the same purchase (params.subscriptionId), paid with an enrolled card, was charged or its payment is still being processed, so this one was refused and nothing was charged. Wait for that purchase to complete instead of paying again. |
+| <a id="bck-card_payment-0007"></a>`BCK.CARD_PAYMENT.0007` | 409 | business | ❌ | An earlier payment for this purchase was made or is under way | An earlier attempt at the same purchase (params.subscriptionId) was charged or its payment is still being processed, so this one was refused and nothing was charged for it. Do not pay again. For a one-off plan (params.paymentIntentId) the same holds until a few minutes after that purchase was delivered. |
 | <a id="bck-card_payment-0008"></a>`BCK.CARD_PAYMENT.0008` | 400 | validation | ❌ | The organization tier purchase does not say which organization it is for | Paying an organization tier (params.planId) with an enrolled card needs orgId (the organization to upgrade) or intent: create without orgId (a new organization). Nothing was charged. |
 | <a id="bck-card_payment-0009"></a>`BCK.CARD_PAYMENT.0009` | 503 | internal | ✅ | What the enrolled card pays for could not be read | Reading the subscriptions and credit top-ups the card pays for failed, so the card was not revoked. Retry shortly, or revoke it anyway with confirm=true. |
 | <a id="bck-card_payment-0010"></a>`BCK.CARD_PAYMENT.0010` | 409 | business | ❌ | The card pays for a subscription, an organization tier or credit top-ups | params.pays lists what the card pays for (purpose, and orgId/orgName for an org tier). Nothing was revoked. Revoking it pauses automatic credit top-ups, but a subscription or org tier keeps renewing on the card saved at Stripe until it is cancelled or paid with another card. Send confirm=true to revoke it anyway. |
@@ -251,6 +251,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-card_payment-0018"></a>`BCK.CARD_PAYMENT.0018` | 422 | business | ❌ | The enrolled card needs to be reactivated by its holder | The card has no active network token any more, so it cannot pay. Nothing was charged. Its holder reactivates it from Payment Methods in the Nevermined app; until then, use another card. To the cardholder, params.paymentMethodId names the card; an x402 settle names none. |
 | <a id="bck-card_payment-0019"></a>`BCK.CARD_PAYMENT.0019` | 403 | auth | ❌ | Only the cardholder can reactivate the card | A card is reactivated by its holder, signed in to the Nevermined app. An API key or an OAuth-minted credential cannot do it. |
 | <a id="bck-card_payment-0020"></a>`BCK.CARD_PAYMENT.0020` | 500 | internal | ❌ | The card could not be reactivated because of a fault on our side | The card vault refused the request for a reason that is not the card (a configuration fault on our side). Nothing was charged. Contact support. |
+| <a id="bck-card_payment-0021"></a>`BCK.CARD_PAYMENT.0021` | 409 | business | ✅ | Another card purchase by the caller is still being paid | Another of the caller’s card purchases held the per-user lock past its timeout, so this one stopped before doing anything. Nothing was charged for it. Retry once the other purchase has finished. |
 
 ## <span id="bck-catalog"></span>`BCK.CATALOG`
 
@@ -866,7 +867,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-stripe-0043"></a>`BCK.STRIPE.0043` | 400 | validation | ❌ | The billing address cannot be used to calculate tax | Stripe could not resolve a tax location from the billing address (see params.country). Check the country and, for the United States or Canada, the postal code, then try again. Nothing was charged. |
 | <a id="bck-stripe-0044"></a>`BCK.STRIPE.0044` | 400 | validation | ❌ | The tax ID is not valid | Stripe refused the tax ID for its type (see params.taxIdType) — usually a format that does not match the country. Correct it, or leave the tax ID empty to continue without one. Nothing was charged. |
 | <a id="bck-stripe-0045"></a>`BCK.STRIPE.0045` | 409 | business | ❌ | Your organization already has an active subscription | This organization-tier checkout did not say which organization to apply to, and your current organization already has an active subscription. To create a NEW organization, use "Create new organization"; to change this organization's tier, go to Organization → Billing. Nothing was charged. |
-| <a id="bck-stripe-0046"></a>`BCK.STRIPE.0046` | 503 | integration | ✅ | Stripe could not be reached to start the payment | Paying an organization tier with an enrolled card, a call to Stripe failed transiently (network, Stripe 5xx or rate limit) before the card was charged. Nothing was charged. Retry shortly. |
+| <a id="bck-stripe-0046"></a>`BCK.STRIPE.0046` | 503 | integration | ✅ | Stripe could not be reached to start the payment | A call to Stripe failed transiently (network, Stripe 5xx or rate limit) before the card was charged. Nothing was charged. Retry shortly. If it keeps failing, contact support. |
 
 ## <span id="bck-stripe-connect"></span>`BCK.STRIPE.CONNECT`
 
