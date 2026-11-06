@@ -334,7 +334,7 @@ const usdtConfig = getERC20PriceConfig(
 
 ### Fiat (Stripe, Braintree, or Visa)
 
-Accept credit card payments via Stripe, Braintree, or the Visa Trusted Agent Protocol. The active provider is selected per plan via the seller's `fiatPaymentProvider` metadata at registration time; all three providers settle x402 charges through the same `nvm:card-delegation` scheme. Visa delegations add a per-delegation WebAuthn/passkey approval enforced by Visa VTS and settle through Stripe Connect — see the [Visa subsection](/products/payments/card-enrollment) on the card enrollment page.
+Accept credit card payments via Stripe, Braintree, or the Visa Trusted Agent Protocol. The seller's `fiatPaymentProvider` metadata (`stripe` or `braintree`) selects the provider per plan at registration time; all three settle x402 charges through the same `nvm:card-delegation` scheme. Visa delegations add a per-delegation WebAuthn/passkey approval enforced by Visa VTS and settle through Stripe Connect — see the [Visa subsection](/products/payments/card-enrollment) on the card enrollment page.
 
 ```typescript
 const fiatConfig = await payments.plans.getFiatPriceConfig({
@@ -343,7 +343,7 @@ const fiatConfig = await payments.plans.getFiatPriceConfig({
 })
 
 // One-time fiat purchase via the SDK (Stripe-priced plans only):
-const { result } = await payments.plans.orderFiatPlan(planId)
+const paymentIntent = await payments.plans.orderFiatPlan(planId)
 ```
 
 <Note>

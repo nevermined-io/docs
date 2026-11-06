@@ -120,7 +120,7 @@ All enrolled cards share these core properties:
 The [Nevermined App](https://nevermined.app) provides a visual interface for managing your enrolled cards. All your cards appear in one list:
 
 - View all enrolled cards with their status
-- See active delegations per card with remaining capacity
+- See active delegations per card with remaining budget
 - View transaction history for each card
 - Deactivate or remove cards
 
@@ -144,9 +144,9 @@ The payment-methods endpoint is heterogeneous: it lists enrolled cards across al
 | **Best for** | Visa Trusted Agent Protocol plans, high-security agent payments | Stripe-priced and Braintree-priced plans, quick setup, developer testing, broader card support |
 | **Settlement** | Stripe Connect against the seller's connected account | Set by the plan: Stripe PaymentIntents directly, or a Braintree sale with the card's network token on the seller's OAuth-connected merchant account |
 
-Both support the same spending controls (ceilings, usage limits, expiration) and API key linking. The plan's `fiatPaymentProvider` metadata decides how a credit/debit card settles, so the same card can pay a Stripe-priced and a Braintree-priced plan. A Visa Trusted Agent plan can only be paid by a Visa Agentic Token.
+Both support the same spending controls (spending limits, usage limits, expiration) and API key linking. The plan's `fiatPaymentProvider` metadata decides how a credit/debit card settles, so the same card can pay a Stripe-priced and a Braintree-priced plan. A Visa Trusted Agent plan can only be paid by a Visa Agentic Token.
 
-To see which provider a plan settles on, read it from the plan. `resolveNetwork()` / `resolve_network()` returns the plan's card provider (`stripe`, `braintree`, or `visa`), or `undefined`/`None` for a crypto plan:
+To see which provider a plan settles on, read it from the plan. `resolveNetwork()` / `resolve_network()` returns the plan's card provider (`stripe` or `braintree`), or `undefined`/`None` if the plan sets no `fiatPaymentProvider`:
 
 <Tabs>
   <Tab title="TypeScript">
