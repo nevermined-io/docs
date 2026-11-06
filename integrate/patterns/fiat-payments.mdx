@@ -151,7 +151,7 @@ Card data never reaches Nevermined servers. Depending on the provider:
 When a user pays with a card, Nevermined routes the revenue to the builder's connected account on the appropriate PSP:
 
 - **Stripe & Visa** — via Stripe Connect (`transfer_data.destination`). Fees are deducted automatically before the payout reaches the builder. Visa delegations always settle through the seller's Stripe Connect account.
-- **Braintree** — via two `transaction.sale` calls: one against the platform's per-currency `merchantAccountId` for the platform fee, one against the seller's OAuth-connected merchant account for the seller share.
+- **Braintree** — via one `transaction.sale` for the whole price, against the seller's OAuth-connected merchant account in the plan's currency.
 
 You receive funds directly in your PSP account — no manual transfers or reconciliation needed.
 

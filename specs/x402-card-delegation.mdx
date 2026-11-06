@@ -89,12 +89,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 | **Consumer Prompt** | Human-readable approval text shown during Visa device binding. Forwarded verbatim to VGS `POST /intents`. Limited to 500 characters. |
 | **SetupIntent** | A Stripe object used to collect and confirm a customer's payment method for future off-session charges, without immediately charging the card. |
 | **PaymentIntent** | A Stripe object representing the intent to collect a payment. Used during settlement to charge the delegated card. |
-| **Payment Method Nonce** | A single-use Braintree token returned by the Braintree Drop-in / hosted fields once the buyer enters card details. The facilitator exchanges the nonce for a permanent `paymentMethodToken` by vaulting the card. |
 | **Payment Method Token** | A permanent Braintree handle that identifies a vaulted card. Used at settlement time as the equivalent of Stripe's `pm_...` ID. |
 | **Off-session payment** | A PSP-side payment executed without the cardholder being actively present, using a previously saved payment method. |
 | **Connected Account** | A merchant-owned PSP account (Stripe Connected Account or Braintree OAuth-connected merchant) that receives funds from settlements. |
 | **Spending Limit** | The maximum amount (in cents) that can be charged against a delegation over its lifetime. |
-| **VGS (Very Good Security)** | A PCI-compliant proxy service used to tokenize and vault sensitive card data before it reaches the facilitator. Used for the Stripe enrollment path; the Braintree path performs equivalent in-browser tokenization via the Braintree Drop-in / hosted fields. |
+| **VGS (Very Good Security)** | A PCI-compliant proxy service used to tokenize and vault sensitive card data before it reaches the facilitator. Used for card enrollment on both the Stripe and Braintree paths. |
 
 ## 3. Extension Structure
 
@@ -960,9 +959,8 @@ For Braintree-backed plans, this extension uses:
 
 | Feature | Purpose |
 |---------|---------|
-| Drop-in / hosted fields | PCI-compliant in-browser card capture; returns a single-use payment-method nonce |
-| Vaulted payment methods | Exchange the nonce for a permanent `paymentMethodToken` via `paymentMethod.create` |
-| `transaction.sale` | Charge a vaulted payment method off-session at settlement time |
+| VGS-enrolled network token | The card is enrolled once through VGS Collect. Braintree receives its network token at charge time; the card is not vaulted on Braintree |
+| `transaction.sale` | Charge the network token, with a fresh cryptogram, on the seller's gateway at settlement time |
 | OAuth Connect (Braintree Auth) | Onboard merchants and discover their per-currency child merchant accounts |
 | Per-currency merchant accounts | Route each charge to a `merchantAccountId` whose `currencyIsoCode` matches the plan currency |
 
@@ -986,7 +984,7 @@ Card enrolment and delegation creation for Visa are both **browser-only** becaus
 Card enrollment flows MUST tokenize card data in the browser before any data reaches Nevermined infrastructure:
 
 - **Stripe path**: card details are collected in a VGS (Very Good Security) Collect iframe and tokenized by VGS before being forwarded to Stripe. The facilitator only ever sees Stripe-issued tokens (SetupIntent IDs, PaymentMethod IDs).
-- **Braintree path**: card details are collected by the Braintree Drop-in or hosted fields, which post directly to Braintree and return a single-use payment-method nonce. The facilitator exchanges the nonce for a permanent `paymentMethodToken` via the server-side Braintree SDK; raw card data never reaches Nevermined infrastructure.
+- **Braintree path**: the same VGS Collect capture as the Stripe path, so one enrolled card can pay on either PSP. At settlement the facilitator sends Braintree the card's network token and a single-use cryptogram; raw card data never reaches Nevermined infrastructure.
 - **Visa path**: card details are collected in a VGS Collect iframe whose `form.createCard()` posts the tokenized card directly to CMP via VGS-internal routing. The browser receives a CMP `cardId`; the facilitator then enrolls that card as an Agentic Token. No PAN reaches Nevermined infrastructure on the enrolment path.
 
 All three paths satisfy the requirement that raw card numbers, CVVs, and expiry dates never transit the facilitator.
@@ -996,7 +994,7 @@ All three paths satisfy the requirement that raw card numbers, CVVs, and expiry 
 When merchants (server operators) have a connected PSP account, the facilitator routes settlement funds to that account:
 
 - **Stripe**: merchants complete Stripe Connect onboarding. Direct charges use `transfer_data.destination`; the facilitator MAY deduct a platform fee using `application_fee_amount`. The destination account is resolved by the facilitator from the plan-owning organization, else the plan owner's profile, at settlement time; it is not carried in the JWT.
-- **Braintree**: merchants complete OAuth Connect (Braintree Auth) authorization, granting the platform scoped access to their gateway. The facilitator builds a merchant-scoped `BraintreeGateway` per request and charges the merchant share on the merchant's connected account, using a child `merchantAccountId` whose currency matches the plan. The platform fee is charged separately on the platform's own gateway against a platform-side per-currency `merchantAccountId`.
+- **Braintree**: merchants complete OAuth Connect (Braintree Auth) authorization, granting the platform scoped access to their gateway. The facilitator builds a merchant-scoped `BraintreeGateway` per request and charges the whole price in one sale on the merchant's connected account, using a child `merchantAccountId` whose currency matches the plan.
 
 ### 9.6 Idempotency
 
@@ -1009,7 +1007,6 @@ Implementations SHOULD pass an idempotency key when creating Stripe PaymentInten
 - [Stripe SetupIntents API](https://docs.stripe.com/api/setup_intents)
 - [Stripe Connect](https://docs.stripe.com/connect)
 - [Stripe Off-session Payments](https://docs.stripe.com/payments/save-and-reuse)
-- [Braintree Drop-in UI](https://developer.paypal.com/braintree/docs/guides/drop-in/overview)
 - [Braintree Vault](https://developer.paypal.com/braintree/docs/guides/payment-methods)
 - [Braintree OAuth Connect (Braintree Auth)](https://developer.paypal.com/braintree/docs/guides/extend/oauth/overview)
 - [VGS (Very Good Security)](https://www.verygoodsecurity.com/)
