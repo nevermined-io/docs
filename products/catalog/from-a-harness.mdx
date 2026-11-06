@@ -99,7 +99,7 @@ The response carries the `delegationId` every paid call names (`X-Router-Delegat
 - **Count transactions for a retry.** `maxTransactions` counts every paid attempt, including one the service then refuses, so set it above the number of calls you plan — or omit it and let the cap bound the spend. A transaction limit of exactly the planned calls can't recover from one bad result.
 - **Reuse before you create.** `GET /api/v1/delegation?accessible=true` lists the *Active* delegations your key can spend; reuse one with enough budget left.
 - **Ask a human only when** creating it answers `403 BCK.OAUTH.0030` (your key was minted by OAuth — you need a plain key) or `412` with `"error": "consent_required"` (the account must accept updated terms in the app). Any other refusal here (a `401` for an invalid or expired key, for example): stop and report the exact error to the user.
-- **Never create another delegation to get past a cap or budget refusal** (`402 BCK.ROUTER.0003`, even though its hint suggests creating one): report it and stop. The cap is the user's decision.
+- **Never create another delegation to get past a cap or budget refusal** (`402 BCK.ROUTER.0003`): report it and stop. The cap is the user's decision.
 
 A human *can* set the cap instead — in the app (Payment Methods → Delegate), or through the Catalog MCP's `setup_delegation` tool, which returns a link for them to approve — but neither is required.
 
