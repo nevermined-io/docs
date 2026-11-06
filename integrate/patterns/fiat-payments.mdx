@@ -83,7 +83,7 @@ Nevermined supports three card rails, all consumed through the unified `nvm:card
 
 - **Visa** — Cards tokenized as Visa Agentic Tokens via the VGS Credential Management Platform. Each delegation requires a per-delegation WebAuthn/passkey device-binding ceremony enforced by Visa VTS. Settlement runs through Stripe Connect.
 - **Stripe** — Cards captured via VGS Collect, vaulted at VGS and given a network token. Settlement runs through Stripe PaymentIntents.
-- **Braintree** — The same card enrollment as Stripe. The plan picks the rail at charge time. Settlement runs through `transaction.sale`, with the card's network token, against an OAuth-connected seller merchant account.
+- **Braintree** — The same card enrollment as Stripe. The plan picks the rail at charge time. Settlement is one sale, with the card's network token, against an OAuth-connected seller merchant account.
 
 <Steps>
   <Step title="Card Enrollment">
@@ -142,7 +142,7 @@ Card data never reaches Nevermined servers. Depending on the provider:
 - **Stripe and Braintree paths** — PAN is captured in a VGS Collect iframe and goes directly to VGS, which returns a card ID (`CRD…`). The API provisions a network token for that card. The plan picks Stripe or Braintree at charge time.
 
 <Note>
-**Nevermined is PCI compliant** (PCI SAQ D level) and holds ISO 27001 and SOC 2 Type II certifications. Strong Customer Authentication is enforced per-delegation for Visa (WebAuthn/passkey, with email OTP fallback) and at enrollment for Stripe and Braintree (3DS where the issuer requires it). See the [Payments FAQ](/products/payments/faq) for full security details.
+**Nevermined is PCI compliant** (PCI SAQ D level) and holds ISO 27001 and SOC 2 Type II certifications. Strong Customer Authentication is enforced per-delegation for Visa (WebAuthn/passkey, with email OTP fallback). See the [Payments FAQ](/products/payments/faq) for full security details.
 </Note>
 
 
@@ -151,7 +151,7 @@ Card data never reaches Nevermined servers. Depending on the provider:
 When a user pays with a card, Nevermined routes the revenue to the builder's connected account on the appropriate PSP:
 
 - **Stripe & Visa** — via Stripe Connect (`transfer_data.destination`). Fees are deducted automatically before the payout reaches the builder. Visa delegations always settle through the seller's Stripe Connect account.
-- **Braintree** — via one `transaction.sale` for the whole price, against the seller's OAuth-connected merchant account in the plan's currency.
+- **Braintree** — via one sale for the whole price, against the seller's OAuth-connected merchant account in the plan's currency.
 
 You receive funds directly in your PSP account — no manual transfers or reconciliation needed.
 
@@ -162,7 +162,7 @@ You receive funds directly in your PSP account — no manual transfers or reconc
 | Nevermined fee | 2% of the transaction amount |
 | PSP processing fee | Stripe / Braintree fixed fee + % per transaction (varies by currency/region; see PSP pricing) |
 | Supported currencies | USD, EUR |
-| Settlement | Stripe PaymentIntents (Stripe + Visa) or Braintree `transaction.sale` (Braintree) to seller's connected account |
+| Settlement | Stripe PaymentIntents (Stripe + Visa) or one Braintree sale (Braintree) to seller's connected account |
 
 <Warning>
 Fiat payments carry higher fees than stablecoin payments (2% + Stripe fees vs. 1% flat). For high-volume or high-value use cases, consider [stablecoin payments](/integrate/patterns/stablecoin-payments) to reduce costs.

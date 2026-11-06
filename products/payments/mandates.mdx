@@ -171,18 +171,6 @@ All delegations enforce multiple layers of spending control:
 
 After `createdAt + durationSecs`, the delegation transitions to `Expired` regardless of remaining budget or usage.
 
-### Card Spending Ceiling
-
-Each card has a cumulative spending ceiling (default $10.00). The sum of `spendingLimitCents` across all active delegations on a card can't exceed this ceiling.
-
-**Example:**
-
-| Card Ceiling | Delegation A | Delegation B | Remaining |
-|---|---|---|---|
-| $10.00 | $5.00 | $3.00 | $2.00 |
-
-If you try to create a third delegation for $3.00, it will be rejected because only $2.00 of ceiling remains.
-
 ## Updating a Delegation
 
 Delegations are not updated in place. To change the limit, duration, or any other parameter, revoke the existing one and create a new one. For Visa, this requires a fresh device-binding ceremony.

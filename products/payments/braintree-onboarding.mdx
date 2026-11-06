@@ -18,7 +18,7 @@ Use Braintree when:
 
 - You already operate on Braintree and want funds to land directly in your existing gateway.
 - You need merchant-of-record relationships under your own underwriting agreements (per currency).
-- You want a uniform `transaction.sale` settlement on both subscription checkout and per-request x402 charges, without holding a Stripe Connected Account.
+- You want a uniform settlement on both subscription checkout and per-request x402 charges, without holding a Stripe Connected Account.
 
 Stripe remains the right choice when you want the simplest onboarding (Stripe Connect express) and don't have a multi-currency requirement that maps cleanly to Braintree's child merchant account model.
 
@@ -108,7 +108,7 @@ The plan-creation form in the Nevermined App enforces this client-side too: when
 
 ## Settlement Model
 
-Once a plan is live, Nevermined settles each fiat charge with **one `transaction.sale`** for the whole price. It runs on your OAuth-connected gateway, against your per-currency child merchant account that matches the plan's currency. The sale carries the network token of the buyer's enrolled card.
+Once a plan is live, Nevermined settles each fiat charge with **one sale** for the whole price. It runs on your OAuth-connected gateway, against your per-currency child merchant account that matches the plan's currency. The sale carries the network token of the buyer's enrolled card.
 
 This applies to both:
 

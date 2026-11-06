@@ -112,22 +112,6 @@ All enrolled cards share these core properties:
 | `brand` | Card brand (`visa`, `mastercard`, …) |
 | `alias` | User-friendly name (e.g., "Work Visa", "Dev Card") |
 | `status` | `active` or `inactive` |
-| `spendingCeiling` | Maximum total amount that can be allocated across all active delegations on this card (default: $10.00) |
-
-## Spending Ceiling
-
-Every card has a **spending ceiling** — a cumulative limit on the total amount allocated to active delegations. This prevents over-allocation and provides a safety net. All enrolled cards enforce the same ceiling.
-
-For example, if your card has a $10.00 ceiling:
-- Delegation A: $5.00
-- Delegation B: $3.00
-- Remaining capacity: $2.00
-
-<Note>
-The default spending ceiling is $10.00 during the pilot phase. Contact the Nevermined team if you need a higher limit.
-</Note>
-
-When you create or update a delegation, Nevermined validates that the total allocated amount across all active delegations on the card doesn't exceed the ceiling. If it would, the request is rejected with a clear error showing the remaining capacity.
 
 ## Managing Cards
 
@@ -135,7 +119,7 @@ When you create or update a delegation, Nevermined validates that the total allo
 
 The [Nevermined App](https://nevermined.app) provides a visual interface for managing your enrolled cards. All your cards appear in one list:
 
-- View all enrolled cards with their status and spending ceiling
+- View all enrolled cards with their status
 - See active delegations per card with remaining capacity
 - View transaction history for each card
 - Deactivate or remove cards
@@ -158,7 +142,7 @@ The payment-methods endpoint is heterogeneous: it lists enrolled cards across al
 | **Enrollment complexity** | VGS Collect capture, no passkey at enrolment | VGS Collect capture, no passkey at enrolment |
 | **Per-delegation auth** | WebAuthn/passkey device binding (browser-only) | API credentials only |
 | **Best for** | Visa Trusted Agent Protocol plans, high-security agent payments | Stripe-priced and Braintree-priced plans, quick setup, developer testing, broader card support |
-| **Settlement** | Stripe Connect against the seller's connected account | Set by the plan: Stripe PaymentIntents directly, or Braintree `transaction.sale` with the card's network token on the seller's OAuth-connected merchant account |
+| **Settlement** | Stripe Connect against the seller's connected account | Set by the plan: Stripe PaymentIntents directly, or a Braintree sale with the card's network token on the seller's OAuth-connected merchant account |
 
 Both support the same spending controls (ceilings, usage limits, expiration) and API key linking. The plan's `fiatPaymentProvider` metadata decides how a credit/debit card settles, so the same card can pay a Stripe-priced and a Braintree-priced plan. A Visa Trusted Agent plan can only be paid by a Visa Agentic Token.
 
@@ -170,7 +154,7 @@ To see which provider a plan settles on, read it from the plan. `resolveNetwork(
     import { resolveNetwork } from '@nevermined-io/payments'
 
     const provider = await resolveNetwork(payments, planId)
-    // 'stripe' | 'braintree' | 'visa' for fiat plans; undefined for crypto plans
+    // 'stripe' | 'braintree' for a fiat plan that sets fiatPaymentProvider; otherwise undefined
     ```
   </Tab>
   <Tab title="Python">
@@ -178,12 +162,12 @@ To see which provider a plan settles on, read it from the plan. `resolveNetwork(
     from payments_py.x402.resolve_scheme import resolve_network
 
     provider = resolve_network(payments, plan_id)
-    # 'stripe' | 'braintree' | 'visa' for fiat plans; None for crypto plans
+    # 'stripe' | 'braintree' for a fiat plan that sets fiatPaymentProvider; otherwise None
     ```
   </Tab>
 </Tabs>
 
-For `stripe` or `braintree`, enroll through the credit/debit card form. For `visa`, enroll a Visa Agentic Token. Then [create a delegation](/products/payments/mandates) from the enrolled card. If `resolveNetwork` returns nothing, the plan is crypto — fund a smart account instead of enrolling a card.
+For `stripe` or `braintree`, enroll through the credit/debit card form, then [create a delegation](/products/payments/mandates) from the enrolled card. If `resolveNetwork` returns nothing, the plan sets no `fiatPaymentProvider`: it is a crypto plan, or a fiat plan registered without one.
 
 ## What's Next?
 

@@ -13,7 +13,7 @@ How agents pay with your real card, within limits you control.
 </Accordion>
 
 <Accordion title="Can agents charge my card without my approval?">
-  Only within the limits you set. When you create a delegation, you define a lifetime spending limit, maximum number of transactions, and duration. A per-card spending ceiling applies across all active delegations. The agent can only charge within these bounds, and you can revoke a delegation at any time. Visa delegations additionally require a one-time WebAuthn/passkey approval bound to those exact limits.
+  Only within the limits you set. When you create a delegation, you define a lifetime spending limit, maximum number of transactions, and duration. The agent can only charge within these bounds, and you can revoke a delegation at any time. Visa delegations additionally require a one-time WebAuthn/passkey approval bound to those exact limits.
 </Accordion>
 
 <Accordion title="Do I need a crypto wallet?">
@@ -43,7 +43,7 @@ How agents pay with your real card, within limits you control.
 
   - **Visa path** — Your card is tokenized as a Visa Agentic Token via the VGS Credential Management Platform. Each delegation is bound to your device with a one-time WebAuthn/passkey ceremony enforced by Visa VTS. Settlement runs through Stripe Connect against the seller's connected account.
   - **Stripe path** — Your card is enrolled through VGS, and settlement runs through Stripe PaymentIntents directly. The seller connects their Stripe account when they enroll with Nevermined.
-  - **Braintree path** — Your card is enrolled through VGS, and settlement runs through `transaction.sale`, with the card's network token, against the seller's per-currency OAuth-connected Braintree merchant account.
+  - **Braintree path** — Your card is enrolled through VGS, and settlement is one sale, with the card's network token, against the seller's per-currency OAuth-connected Braintree merchant account.
 
   In all three cases, sellers enroll with Nevermined to accept agent payments. Nevermined handles the x402 protocol, agent authentication, delegation enforcement, and settlement on their behalf.
 </Accordion>
@@ -156,14 +156,10 @@ Settlement through Visa's Trusted Agent Protocol.
 
 ## Limits & Seller Onboarding
 
-Pilot ceilings, increased limits, and accepting agent payments.
+Spending limits and accepting agent payments.
 
 <Accordion title="What are the current spending limits?">
-  During the pilot, each enrolled card has a $10.00 cumulative ceiling across all active delegations. This applies to all three networks independently. Individual delegation amounts are validated against the remaining ceiling at creation time.
-</Accordion>
-
-<Accordion title="Can I get higher limits?">
-  Yes. The $10 ceiling is a pilot default. Contact the Nevermined team to request increased limits for your account.
+  Each delegation has the spending limit, transaction limit and duration you set when you create it.
 </Accordion>
 
 <Accordion title="How do I onboard as a seller?">
