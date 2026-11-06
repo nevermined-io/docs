@@ -159,13 +159,13 @@ You receive funds directly in your PSP account — no manual transfers or reconc
 
 | Item | Cost |
 |------|------|
-| Nevermined fee | 2% of the transaction amount |
+| Nevermined fee | 2% of the transaction amount on Stripe and Visa. On Braintree, no fee is taken from the sale; fees are agreed directly with Nevermined. |
 | PSP processing fee | Stripe / Braintree fixed fee + % per transaction (varies by currency/region; see PSP pricing) |
 | Supported currencies | USD, EUR |
 | Settlement | Stripe PaymentIntents (Stripe + Visa) or one Braintree sale (Braintree) to seller's connected account |
 
 <Warning>
-Fiat payments carry higher fees than stablecoin payments (2% + Stripe fees vs. 1% flat). For high-volume or high-value use cases, consider [stablecoin payments](/integrate/patterns/stablecoin-payments) to reduce costs.
+Stripe and Visa payments carry higher fees than stablecoin payments (2% + Stripe fees vs. 1% flat). For high-volume or high-value use cases, consider [stablecoin payments](/integrate/patterns/stablecoin-payments) to reduce costs.
 </Warning>
 
 ## Supported Plan Types
