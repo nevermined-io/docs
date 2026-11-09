@@ -234,7 +234,7 @@ The `token` field contains a signed JWT with the following claims:
 | `exp` | `number` | Yes | Expiration timestamp (Unix epoch seconds). |
 | `nvm.delegationId` | `string` | Yes | Unique delegation identifier (UUID). MUST match the `jti` claim. |
 | `nvm.provider` | `string` | Yes | Payment provider identifier. MUST be `"vgs"`, `"stripe"`, `"braintree"`, `"visa"`, or `"erc4337"`. `"vgs"` is a card enrolled through VGS (Section 4.2, Phase 0), charged through the PSP the plan selects. |
-| `nvm.providerCustomerId` | `string` | Yes | PSP-side customer identifier. For Stripe, the Customer ID (e.g., `"cus_PaBcDeFgHiJk"`). For Braintree, the customer ID derived from the buyer's userId. For Visa, the CMP cardholder identifier. |
+| `nvm.providerCustomerId` | `string` | Yes | PSP-side customer identifier. For Stripe, the Customer ID (e.g., `"cus_PaBcDeFgHiJk"`). For Braintree, the customer ID derived from the buyer's userId. For Visa, the CMP cardholder identifier. For `vgs`, empty: the card has no PSP-side customer. |
 | `nvm.providerPaymentMethodId` | `string` | Yes | Payment method handle for the enrolled card. For `vgs`, the VGS card ID (e.g., `"CRDrX94aaaJz7oTFy2i13964k"`). For Stripe, the PaymentMethod ID (e.g., `"pm_1AbCdEfGhIjKlM"`). For Braintree, the `paymentMethodToken` of a card vaulted before enrollment moved to VGS. For Visa, the Agentic Token (e.g., `"vat_01HXYZABCDEF"`). |
 | `nvm.vgsIntentId` | `string` | No | Visa-only: identifier of the VGS `POST /intents` mandate provisioned at delegation create time. Required for settlement to call `enroll-cryptogram` against the right intent. |
 | `nvm.spendingLimitCents` | `number` | Yes | Maximum amount in cents that can be charged over the delegation lifetime. |
@@ -278,21 +278,27 @@ sequenceDiagram
   %% ACTORS
   actor client as Client
   participant facilitator as Facilitator (Nevermined API)
-  participant vgs as VGS Proxy
+  participant vgs as VGS (Collect / CMP)
   participant psp as PSP (Stripe, Braintree, ..)
   participant server as Server (AI Agent)
 
   %% PHASE 0: CARD ENROLLMENT
   rect rgb(240, 248, 255)
     note over client,vgs: Phase 0: Card Enrollment
-    client->>facilitator: GET /delegation/enroll-session
-    facilitator-->>client: enrollSessionToken
+    client->>facilitator: GET /fiat/visa/collect-token<br/>GET /delegation/enroll-session
+    facilitator-->>client: access_token, enrollSessionToken
 
     note over vgs: PAN captured by VGS Collect directly (PCI Compliant)
-    client->>vgs: Submit card details (VGS Collect createCard)
+    client->>vgs: Submit card details (VGS Collect createCard, access_token)
     vgs-->>client: cardId (CRD…)
 
-    client->>facilitator: POST /delegation/enroll<br/>cardId, enrollSessionToken
+    opt 3-D Secure required
+      client->>facilitator: POST /delegation/enroll/3ds/*<br/>cardId, enrollSessionToken
+      facilitator->>vgs: Authenticate cardholder
+      facilitator-->>client: threeDs (xid, merchantTransactionId)
+    end
+
+    client->>facilitator: POST /delegation/enroll<br/>cardId, enrollSessionToken, threeDs?
     facilitator->>vgs: Provision network token for cardId
     vgs-->>facilitator: Network token
     facilitator->>facilitator: Store card (provider: vgs)
@@ -372,9 +378,15 @@ The following steps detail the complete payment and execution flow. Steps are gr
 
 #### Phase 0: Card Enrollment (Steps 1-8)
 
-Card enrollment is a one-time process that securely saves a client's card for future use. The card is vaulted at VGS (Very Good Security), not at a PSP: the plan being paid picks the PSP that charges it, at charge time. This is the flow of the "Credit/debit card" form in the Nevermined App; Visa delegations enrol through `POST /api/v1/delegation/enroll-visa` instead (see Section 3.4).
+Card enrollment is a one-time process that securely saves a client's card for future use. The card is vaulted at VGS (Very Good Security), not at a PSP: the plan being paid picks the PSP that charges it, at charge time. This is the flow of the "Credit/debit card" form in the Nevermined App; Visa cards enrol through `POST /api/v1/delegation/enroll-visa` instead (see Sections 9.3 and 9.4).
 
-**Step 1.** Client requests a short-lived enrollment session token from the facilitator.
+**Step 1.** Client requests, from the facilitator, a VGS Collect access token and a short-lived enrollment session token. Both are requested before the card is created at VGS, so a failure here cannot leave a card at VGS with no payment method.
+
+```http
+GET /api/v1/fiat/visa/collect-token HTTP/1.1
+Host: facilitator.example.com
+Authorization: Bearer <user-auth-token>
+```
 
 ```http
 GET /api/v1/delegation/enroll-session HTTP/1.1
@@ -382,13 +394,13 @@ Host: facilitator.example.com
 Authorization: Bearer <user-auth-token>
 ```
 
-**Step 2.** Facilitator returns the `enrollSessionToken` the enrollment request in Step 6 must carry.
+**Step 2.** Facilitator returns the VGS Collect `access_token` and the `enrollSessionToken`. Every enrollment call in Steps 5 and 6 carries the `enrollSessionToken`.
 
-**Step 3.** Client captures the card number, expiry, and CVC in a VGS Collect iframe. VGS Collect creates the card directly at VGS (`form.createCard()`), so the card data never reaches any Nevermined infrastructure, ensuring PCI compliance.
+**Step 3.** Client captures the card number, expiry, and CVC in a VGS Collect iframe. VGS Collect creates the card directly at VGS (`form.createCard({ auth: access_token, … })`), so the card data never reaches any Nevermined infrastructure, ensuring PCI compliance.
 
 **Step 4.** VGS returns the card ID (`CRD…`) to the client.
 
-**Step 5.** Where the facilitator requires 3-D Secure, the client authenticates the cardholder for that card through `POST /api/v1/delegation/enroll/3ds/initialize`, `/enroll/3ds/authenticate` and `/enroll/3ds/status`, and keeps the resulting transaction ids for Step 6. Otherwise `initialize` answers `required: false` and the client goes straight to Step 6.
+**Step 5.** Client calls `POST /api/v1/delegation/enroll/3ds/initialize` with the `cardId` and `enrollSessionToken`. If it answers `required: false`, the client goes straight to Step 6. Otherwise the facilitator requires 3-D Secure: the client authenticates the cardholder through `/enroll/3ds/authenticate` and polls `/enroll/3ds/status`, each call carrying the `cardId`, the `enrollSessionToken` and the transaction's `threeDs: { xid, merchantTransactionId }`, and sends that same `threeDs` in Step 6.
 
 **Step 6.** Client sends the card ID to the facilitator to enroll the card.
 
@@ -401,13 +413,16 @@ Content-Type: application/json
 {
   "cardId": "CRDrX94aaaJz7oTFy2i13964k",
   "enrollSessionToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "alias": "My Card"
+  "alias": "My Card",
+  "threeDs": { "xid": "…", "merchantTransactionId": "…" }
 }
 ```
 
+`threeDs` is required when `initialize` answered `required: true`, and omitted otherwise.
+
 **Step 7.** Facilitator provisions a network token for the card at VGS (re-reading the 3-D Secure outcome from VGS when Step 5 ran) and records the card under the client's account with provider `vgs`.
 
-**Step 8.** Facilitator confirms enrollment, returning the payment-method id (`paymentMethodId`), the card ID as `providerPaymentMethodId`, and the card's `status`. The card ID is what Step 9 passes as `providerPaymentMethodId` with `provider: 'vgs'`.
+**Step 8.** Facilitator confirms enrollment, returning `paymentMethodId`, `providerPaymentMethodId`, `status` and `outcome` (`created`, `matched` or `reactivated`: enrolling a card already on the account reuses its record, and reactivates it if it was removed). `paymentMethodId` is the facilitator's internal record id; everything downstream uses the card ID, `providerPaymentMethodId` (`CRD…`). That is what Step 9 passes as `providerPaymentMethodId` with `provider: 'vgs'`, and the `id` the payment-methods list returns for the card.
 
 <Note>
 Card enrollment only needs to happen once per payment method. A single enrolled card can back multiple delegations with different spending limits and expiry times.
@@ -417,9 +432,9 @@ Card enrollment only needs to happen once per payment method. A single enrolled 
 
 #### Phase 1: Delegation Creation (Steps 9-12)
 
-**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'vgs'` for a card enrolled in Phase 0, `'stripe'`, `'braintree'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt`, `assuranceData`, and `planId` (see Section 3.4); both extras are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
+**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'vgs'` for a card enrolled in Phase 0, `'stripe'`, `'braintree'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt` and `assuranceData` (see Section 3.4); both are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
 
-The supported flow is **create-first**: create the delegation with `createDelegation`, then request the access token by passing only its `delegationId` (shown below). Inline create-on-the-fly (passing creation fields in `delegationConfig` to `getX402AccessToken` instead of a `delegationId`) is **deprecated** and emits a runtime deprecation warning; it remains reachable for backward compatibility but should not be used in new integrations. `provider` and `currency` are required on `createDelegation` (no silent default); a delegation is plan-agnostic unless `planId` is supplied (Visa always requires `planId`).
+The supported flow is **create-first**: create the delegation with `createDelegation`, then request the access token by passing only its `delegationId` (shown below). Inline create-on-the-fly (passing creation fields in `delegationConfig` to `getX402AccessToken` instead of a `delegationId`) is **deprecated** and emits a runtime deprecation warning; it remains reachable for backward compatibility but should not be used in new integrations. `provider` and `currency` are required on `createDelegation` (no silent default); a delegation is plan-agnostic unless `planId` is supplied, for every provider.
 
 **Using the `createDelegation` API directly:**
 
@@ -454,7 +469,7 @@ For Braintree-priced plans, a card vaulted before enrollment moved to VGS uses t
 }
 ```
 
-For Visa Trusted Agent Protocol plans, the same payload uses `provider: "visa"`, the Visa Agentic Token (`vat_…`) as `providerPaymentMethodId`, a mandatory `planId`, and the two device-binding extras produced by the browser ceremony:
+For Visa Trusted Agent Protocol plans, the same payload uses `provider: "visa"`, the Visa Agentic Token (`vat_…`) as `providerPaymentMethodId`, an optional `planId`, and the two device-binding extras produced by the browser ceremony:
 
 ```json
 {
