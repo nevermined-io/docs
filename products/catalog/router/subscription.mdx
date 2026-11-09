@@ -35,10 +35,10 @@ A new Nevermined account that signs up with a verified email gets **200,000 free
 - **They expire 30 days after they're added.** Unused free credits are lost when they expire. They aren't refunded or replaced, and credits returned for an undelivered call aren't restored if they've expired by then. A reminder email goes out 5 days before they expire, if you still have some.
 - **One balance.** If you also subscribe, your free credits and your monthly allowance are one balance, spent earliest expiry first. See [Credits](#credits).
 
-Free credits are a promotional offer, available while the offer lasts. Nevermined may remove unused free credits obtained or used in breach of its terms, for example by opening more than one account. To check whether the offer is open, and what it grants, read the public offer. It needs no API key:
+Free credits are a promotional offer, available while the offer lasts. Nevermined may remove unused free credits obtained or used in breach of its terms, for example by opening more than one account. To check whether the offer is open, and what it grants, read the public offer. It needs no API key, so send the API version you read credits at: without a key or a header, it answers as version 1.0, in the [credit's old size](#the-size-of-a-credit).
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/credits/welcome/offer"
+curl -s "$NVM_API_URL/api/v1/credits/welcome/offer" -H "Nevermined-Version: 1.94"
 ```
 
 ```json
@@ -188,13 +188,6 @@ All the credits your account holds are **one balance**, whether they're free cre
 - **A card dispute freezes everything.** While a card payment you made to Nevermined — for the subscription or for a top-up pack — is disputed with your card issuer, none of your credits can be spent, and top-ups stop.
 - **They are not money.** Credits have no cash value, can't be cashed out, and can't be transferred to another account.
 
-### The size of a credit
-
-Nevermined credits were made 100 times smaller, so a call can be priced closer to what the service charges. Every count was multiplied by 100 on the day of the change, at the same prices: the subscription is still USD 20 a month, now for 2,000,000 credits, and a pack is still USD 10, now for 1,000,000. Balances, allowances and past calls in the ledger were multiplied in place, with their expiry dates unchanged, and each holder on Live got an email that day. What your credits pay for didn't change.
-
-- **An API key pinned below 1.94 keeps the old size.** The API divides the credit counts it sends that key and multiplies the ones it receives (`maxCredits`, `forCallCredits`, daily and monthly credit limits), so an integration written for the old numbers keeps working. Prices and amounts spent round up, and balances and limits round down. To read the current size, move the key's pin to 1.94 or later, or send `Nevermined-Version: 1.94`. Error `params` are always in the current size. See the [API changelog](/development-guide/api-changelog#1-94).
-- **The catalog and ARD reads ignore your key's pin.** Send `Nevermined-Version: 1.94` or later on `GET /api/v1/catalog/services`, `GET /api/v1/catalog/services/{slug}`, `POST /api/v1/ard/search` and `GET /api/v1/ard/agents`. Without the header they answer as version 1.0, and below 1.91 no endpoint reads as payable with credits there. `GET /api/v1/subscription/catalog/credits` follows your key's pin: below 1.91 it lists no service.
-
 Check your credits at any time, subscribed or not — it charges nothing:
 
 ```bash
@@ -264,6 +257,14 @@ curl -s "$NVM_API_URL/api/v1/router/subscription/balance" \
 ```
 
 `creditsLeft` counts your whole balance, free credits included, frozen or not. `spendable` is about the subscription only: `true` while it's `active` or `trialing` and not `suspended` by a card dispute on its payments, `false` otherwise. An overdue subscription (`past_due` or `unpaid`) freezes only its allowance, so your free and top-up credits can still pay a call then. And a dispute on another payment you made to Nevermined freezes every credit while this still reads `true`. Read `spendable` on [`GET /api/v1/credits/balance`](#credits) for what can pay right now. `subscribed: false` carries no other field. Called in an organization you're a member of, it reads that organization's subscription, never yours; organizations can no longer subscribe, so that's normally `subscribed: false`.
+
+### The size of a credit
+
+Nevermined credits were made 100 times smaller, so a call can be priced closer to what the service charges. Every count was multiplied by 100 on the day of the change, at the same prices: the subscription is still USD 20 a month, now for 2,000,000 credits, and a pack is still USD 10, now for 1,000,000. Balances, allowances and past calls in the ledger were multiplied in place, with their expiry dates unchanged, and holders on Live were emailed about the change. What your credits pay for didn't change.
+
+- **An API key pinned below 1.94 keeps the old size.** The API divides the credit counts it sends that key and multiplies the ones it receives (`maxCredits`, `forCallCredits`, daily and monthly credit limits), so an integration written for the old numbers keeps working. Prices and amounts spent round up, and balances and limits round down. To read the current size, move the key's pin to 1.94 or later, or send `Nevermined-Version: 1.94`. Error `params` are always in the current size. See the [API changelog](/development-guide/api-changelog#1-94).
+- **Some reads take no API key, or ignore its pin.** Send `Nevermined-Version: 1.94` or later on `POST /api/v1/ard/search` and `GET /api/v1/ard/agents`, which never read your key's pin, and on the keyless `GET /api/v1/credits/welcome/offer` and `GET /api/v1/subscription/plans`. Without the header they answer as version 1.0: in the old size, and on the ARD reads with no endpoint payable with credits. `GET /api/v1/subscription/catalog/credits` follows your key's pin, and lists no service below 1.91.
+- **Some counts are always the current size**, whatever your pin: error `params`, the top-up consent wording, and the `/api/v1/transactions` reads. The [Catalog MCP](/mcp/catalog-mcp/overview) always reads and sends the current size.
 
 ### In the catalog
 

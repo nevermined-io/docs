@@ -3102,7 +3102,7 @@
     },
     "/credits/welcome/offer": {
       "get": {
-        "description": "The free welcome credits a new account is granted when it signs up with a verified email, and how many days they last. `offer` is `null` while the offer is closed. A non-null offer says what the offer grants, not that a particular sign-up right now will be granted. No authentication; the answer is the same for every caller and may be cached for 5 minutes.",
+        "description": "The free welcome credits a new account is granted when it signs up with a verified email, and how many days they last. `offer` is `null` while the offer is closed. A non-null offer says what the offer grants, not that a particular sign-up right now will be granted. No authentication, and cacheable for 5 minutes. `credits` follows the `Nevermined-Version` header: without it the request answers as version 1.0, which reads the credit's old size (API changelog, 1.94).",
         "operationId": "getWelcomeCreditsOffer",
         "parameters": [],
         "security": [],

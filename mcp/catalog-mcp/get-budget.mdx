@@ -64,7 +64,7 @@ With a personal API key, the result also carries your [Nevermined credits](/prod
 ```
 
 - `credits` is your balance as [`GET /api/v1/credits/balance`](/api-reference/router/credits-balance) reports it: `spendable` is what can pay a call now, and `parts` lists the credits left by kind (`welcome` for free credits, `allowance` for a subscription's monthly allowance, `topup` for top-up credits) and expiry, with any freeze. `creditsMessage` says the same in a sentence. Relay it as it stands.
-- `subscription` is your Nevermined Subscription, with `subscriptionMessage` to relay as it stands. It's `{ "subscribed": false }` when you don't subscribe. A subscriber sees the plan, the reset date and `creditsLeft`. For a subscriber, `subscriptionMessage` names the monthly allowance and when it resets, then the credits left, free and top-up credits included. What it says about credits not carrying over, or about the subscription ending after a cancellation, is about the allowance only, so relay `creditsMessage` for what each part is and when it expires:
+- `subscription` is your Nevermined Subscription, with `subscriptionMessage` to relay as it stands. It's `{ "subscribed": false }` when you don't subscribe. A subscriber sees the plan, the reset date and `creditsLeft`. For a subscriber, `subscriptionMessage` names the monthly allowance and when it resets, then describes your credits part by part, as `creditsMessage` does. What it says about credits not carrying over, or about the subscription ending after a cancellation, is about the allowance only. When your balance couldn't be read, it gives one total instead, free and top-up credits included:
 
 ```json
 {
@@ -78,7 +78,7 @@ With a personal API key, the result also carries your [Nevermined credits](/prod
     "suspended": false,
     "plan": { "catalogId": "3f2b…", "planKey": "standard", "creditsPerCycle": "2000000" }
   },
-  "subscriptionMessage": "Nevermined Subscription (standard), 2,000,000 credits a month: the allowance resets on 2026-10-30, and the allowance credits left then do not carry over. 124,000 credits are left in all, counting any welcome, top-up or service credits as well as the allowance."
+  "subscriptionMessage": "Nevermined Subscription (standard), 2,000,000 credits a month: the allowance resets on 2026-10-30, and the allowance credits left then do not carry over. You have 124,000 credits. 124,000 subscription allowance credits expire on 2026-10-30."
 }
 ```
 

@@ -106,7 +106,7 @@ payments = Payments(
 
 ## Reads that ignore your key's pin
 
-The catalog and ARD discovery reads (`GET /api/v1/catalog/services`, `GET /api/v1/catalog/services/{slug}`, `POST /api/v1/ard/search` and `GET /api/v1/ard/agents`) answer anonymous and keyed callers alike, and never read the pin stored on your key. Send `Nevermined-Version` on them, or they answer as the `1.0` floor. For [Nevermined credits](/products/catalog/router/subscription) that matters twice: below `1.91` no endpoint reads as payable with credits on these routes, and below `1.94` a credit count reads in the [credit's old size](/products/catalog/router/subscription#the-size-of-a-credit). Every change is listed in the [API changelog](/development-guide/api-changelog).
+The ARD discovery reads (`POST /api/v1/ard/search` and `GET /api/v1/ard/agents`) accept both anonymous and keyed callers, and never read the pin stored on your key. Send `Nevermined-Version` on them, or they answer as the `1.0` floor, like any request with no key (for example `GET /api/v1/credits/welcome/offer` and `GET /api/v1/subscription/plans`). For [Nevermined credits](/products/catalog/router/subscription) that matters twice: below `1.91` no endpoint reads as payable with credits on the ARD reads, and below `1.94` a credit count reads in the [credit's old size](/products/catalog/router/subscription#the-size-of-a-credit). Every change is listed in the [API changelog](/development-guide/api-changelog).
 
 ## Upgrading your pin
 
