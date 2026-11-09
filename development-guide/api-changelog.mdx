@@ -18,13 +18,16 @@ every supported pin keeps working. See the [versioning guide](/development-guide
 
 _Changes relative to `1.91`:_
 
-- **Nevermined credits (subscription, welcome and top-up credits, never a plan's own) get 100 times smaller on the day a deployment moves to credit scale 100. Every count of them then reads 100 times larger, and a balance or a pack is worth the same in dollars. A pin at 1.94 or later sees that jump with no version change, so handle the larger counts before moving a key to it. A pin below 1.94 keeps the previous size on these routes, in both directions: prices and amounts spent or refunded round up with no minimum (0 stays 0), balances, limits and grants round down, and maxCredits, dailyLimitCredits and forCallCredits are multiplied on the way in, forCallCredits up to its limit of 1000000. That also covers the creditsCharged column of the GET /api/v1/router/payments CSV and the X-Router-Credits-Charged, X-Router-Topup-Credits and X-Router-Max-Credits headers of /api/v1/router/subscription/svc. The catalog and ARD reads do not read a key's pin, so send Nevermined-Version: 1.94 there for the current size. Error params and the top-up consent wording are in the current size on every pin. So are the /api/v1/transactions reads, including the CreditMint and CreditBurn rows they list for the credits plan.** (`request+response`)
+- **Nevermined credits (subscription, welcome and top-up credits, never a plan's own) get 100 times smaller on the day a deployment moves to credit scale 100. Every count of them then reads 100 times larger, and a balance or a pack is worth the same in dollars. A pin at 1.94 or later sees that jump with no version change, so handle the larger counts before moving a key to it. A pin below 1.94 keeps the previous size on these routes, in both directions: prices and amounts spent or refunded round up with no minimum (0 stays 0), balances, limits and grants round down, and maxCredits, dailyLimitCredits, monthlyLimitCredits, commerce_credit_daily_limit and forCallCredits are multiplied on the way in, forCallCredits up to its limit of 1000000. That also covers the creditsCharged column of the GET /api/v1/router/payments CSV and the X-Router-Credits-Charged, X-Router-Topup-Credits and X-Router-Max-Credits headers of /api/v1/router/subscription/svc. The catalog and ARD reads do not read a key's pin, so send Nevermined-Version: 1.94 there for the current size. Error params and the top-up consent wording are in the current size on every pin. So are the /api/v1/transactions reads, including the CreditMint and CreditBurn rows they list for the credits plan.** (`request+response`)
   - `GET /api/v1/credits/balance`
   - `GET /api/v1/router/subscription/balance`
   - `GET /api/v1/subscription/account`
   - `GET /api/v1/subscription/plans`
   - `GET /api/v1/router/subscription/credit-budget`
   - `PUT /api/v1/router/subscription/credit-budget`
+  - `PUT /api/v1/router/subscription/credit-budget/connections/:bindingId`
+  - `GET /oauth/bindings`
+  - `POST /oauth/authorize`
   - `GET /api/v1/subscription/catalog/credits`
   - `GET /api/v1/catalog/services`
   - `GET /api/v1/catalog/services/:slug`
