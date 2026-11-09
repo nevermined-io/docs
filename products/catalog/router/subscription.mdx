@@ -179,7 +179,7 @@ In the [Nevermined App](https://nevermined.app), open **Catalog Subscription** i
 
 ## Credits
 
-All the credits your account holds are **one balance**, whether they're free credits, top-up credits or your subscription's monthly allowance. A call costs its rate whatever the source, and **the credits that expire soonest are spent first**.
+All the credits your account holds are **one balance**, whether they're free credits, top-up credits or your subscription's monthly allowance. A call costs the same credits whatever the source, and **the credits that expire soonest are spent first**.
 
 - **One allowance per billing period.** Your plan includes a monthly allowance of 20,000 credits, available once each monthly invoice is paid. Changes to the price or the monthly allowance are announced in advance, and you can cancel before they apply.
 - **The allowance expires at the end of the period.** Unused allowance credits don't roll over; your allowance resets when the next period's invoice is paid. Free credits expire 30 days after they're added, whatever your billing period.
@@ -349,7 +349,7 @@ What's different from the Delegation route:
 - **A slug, never a URL.** Credits pay listed catalog services only, so the request names a `slug` (plus `path`, `method`, `search`, `headers`, `body`). A `url` or a `delegationId` is **refused** (`400 BCK.SUBSCRIPTION_ROUTER.0005`), not ignored, so a request that meant something else is never paid with credits.
 - **`requestId` is required**, as on every mode-B call: a retry with the same id is never paid twice — see [Paying twice](/products/catalog/router/guardrails#paying-twice).
 - **Nothing to sign or fund.** Nevermined pays the merchant and never hands you a payment credential — there is no subscription equivalent of [minting a credential](/api-reference/router/mint-payment-credential).
-- **No routing fee.** A subscription call costs its rate and nothing else.
+- **No routing fee.** A subscription call costs its credits and nothing else.
 - **Long calls** behave as on the Delegation route: past the synchronous wait you get `202` with a `resultUrl` to poll, and the credits stay `Reserved` until the call ends.
 - **A top-up shows on the call that charged it.** When this call ran out of credits and, with [top-ups](#top-ups) on, charged a pack to cover itself, the response — the result, or the `202` — also carries `topUp`: the credits the pack added and its price before tax. Your card was charged, so tell the person you're acting for.
 
@@ -385,7 +385,7 @@ If a service answered successfully but its result was defective, the credits are
 
 ## What credits can pay
 
-Credits pay **listed, live catalog endpoints that carry a rate**, on these rails:
+Credits pay **listed, live catalog endpoints that accept credits**, on these rails:
 
 - **x402** merchants using the `exact` scheme, paid in USDC,
 - **MPP** merchants on the `tempo` method, paid in the USD stablecoin Nevermined's treasury holds there — per call (`charge`) or over a [session](/products/catalog/router/rails-mpp#sessions-in-the-catalog), where the treasury opens and closes the channel,
@@ -456,7 +456,7 @@ Calls paid with credits land on the same [payment ledger](/products/catalog/rout
 | Field | On a credits call | On a Delegation call |
 | --- | --- | --- |
 | `fundingSource` | `subscription` | `delegation` |
-| `creditsCharged` | The call's rate, in credits — kept when the credits are refunded, so count it only when `creditsStatus` is `Committed` | `null` |
+| `creditsCharged` | The call's credits — kept when the credits are refunded, so count it only when `creditsStatus` is `Committed` | `null` |
 | `creditsStatus` | `Committed`, `Reserved` or `Refunded` | `null` |
 
 `delegationId` is `null` on a credits call, and `feeBps` is `0`: there is no routing fee. To read one call's final state, look it up by the `requestId` you sent:

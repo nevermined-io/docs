@@ -2699,7 +2699,10 @@
                   "value": {
                     "slug": "webscrape-pro",
                     "path": "scrape",
-                    "method": "POST"
+                    "method": "POST",
+                    "body": {
+                      "url": "https://example.com"
+                    }
                   }
                 }
               }
@@ -2708,7 +2711,7 @@
         },
         "responses": {
           "201": {
-            "description": "The credits one call to this endpoint costs, and the tariff version that sets it.",
+            "description": "The exact credits this request costs now, whether the merchant asked to be paid, and the status it answered the unpaid request with.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2806,7 +2809,7 @@
     },
     "/router/subscription/route": {
       "post": {
-        "description": "Call a catalog service and pay it with your Nevermined credits (mode B) — free welcome credits, top-up credits or a Nevermined Subscription's allowance, subscribed or not. Like `POST /router/route`, but Nevermined pays the merchant from its treasury and your credits are charged the endpoint's rate. There is no Delegation, no wallet to fund and no routing fee.\n\n- **A slug, never a URL.** Address the service by `slug` (+ `path`, `search`, `method`, `headers`, `body`). A `url` or a `delegationId` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`), not ignored.\n- **`requestId` is required** (idempotency): a retry with the same id is never paid twice.\n- **Only a merchant `2xx` keeps the credits.** They are reserved before the merchant is called and kept (`Committed`) only on a `2xx`; anything else marks them for refund and they are returned (`Refunded`). Every refusal below happens before anything is reserved, signed or charged — except a 502, which can follow a payment, and a `BCK.SUBSCRIPTION_ROUTER.0009` whose `params.topUps` is `bought` (or `pending`), or a `BCK.SUBSCRIPTION_ROUTER.0015` or `0016` whose `params.topUps` is `bought`, which follows a credit pack charged to your card (`params.purchaseId` names it).\n- **Credit top-ups.** With top-ups on, a call that runs out of credits charges one never-expiring credit pack to the saved card and goes ahead; the answer then carries `topUp`. Your card was charged: tell the person you are acting for.\n- **Rails:** only an EIP-3009 `exact` authorization (x402, or an MPP `evm` charge), an MPP `tempo` `charge`, and an MPP `tempo` `session` where this deployment has MPP sessions turned on.\n\nFor large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}` with an `X-Router-Request-Id` header; it answers with `X-Router-Credits-Charged` and `X-Router-Credits-Status` beside the `X-Router-Payment-*` headers (plus `X-Router-Topup-Credits` and `X-Router-Topup-Amount-Usd` when the call charged a credit pack), and refuses `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id`.\n\nPersonal API keys only: Nevermined credits and the Nevermined Subscription belong to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. Of OAuth-minted credentials, only a `commerce` connection the user allowed to spend their Nevermined credits is accepted: another `commerce` connection is refused with `BCK.OAUTH.0037`, one acting in an organization with `BCK.OAUTH.0038`, and any other OAuth credential with `BCK.OAUTH.0030`. Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
+        "description": "Call a catalog service and pay it with your Nevermined credits (mode B) — free welcome credits, top-up credits or a Nevermined Subscription's allowance, subscribed or not. Like `POST /router/route`, but Nevermined pays the merchant from its treasury and your credits are charged this request's live price, with a 1-credit minimum. There is no Delegation, no wallet to fund and no routing fee.\n\n- **A slug, never a URL.** Address the service by `slug` (+ `path`, `search`, `method`, `headers`, `body`). A `url` or a `delegationId` is refused (`BCK.SUBSCRIPTION_ROUTER.0005`), not ignored.\n- **`requestId` is required** (idempotency): a retry with the same id is never paid twice.\n- **Only a merchant `2xx` keeps the credits.** They are reserved before the merchant is called and kept (`Committed`) only on a `2xx`; anything else marks them for refund and they are returned (`Refunded`). Every refusal below happens before anything is reserved, signed or charged — except a 502, which can follow a payment, and a `BCK.SUBSCRIPTION_ROUTER.0009` whose `params.topUps` is `bought` (or `pending`), or a `BCK.SUBSCRIPTION_ROUTER.0015` or `0016` whose `params.topUps` is `bought`, which follows a credit pack charged to your card (`params.purchaseId` names it).\n- **Credit top-ups.** With top-ups on, a call that runs out of credits charges one never-expiring credit pack to the saved card and goes ahead; the answer then carries `topUp`. Your card was charged: tell the person you are acting for.\n- **Rails:** only an EIP-3009 `exact` authorization (x402, or an MPP `evm` charge), an MPP `tempo` `charge`, and an MPP `tempo` `session` where this deployment has MPP sessions turned on.\n\nFor large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}` with an `X-Router-Request-Id` header; it answers with `X-Router-Credits-Charged` and `X-Router-Credits-Status` beside the `X-Router-Payment-*` headers (plus `X-Router-Topup-Credits` and `X-Router-Topup-Amount-Usd` when the call charged a credit pack), and refuses `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id`.\n\nPersonal API keys only: Nevermined credits and the Nevermined Subscription belong to a personal account, so call with a key that carries no organization tag and without `X-Current-Org-Id`. Of OAuth-minted credentials, only a `commerce` connection the user allowed to spend their Nevermined credits is accepted: another `commerce` connection is refused with `BCK.OAUTH.0037`, one acting in an organization with `BCK.OAUTH.0038`, and any other OAuth credential with `BCK.OAUTH.0030`. Where the subscription is not available — on this deployment or to this account — it answers 404 `BCK.SUBSCRIPTION_ACCESS.0001`.",
         "operationId": "routeSubscriptionCall",
         "parameters": [],
         "requestBody": {
@@ -6547,6 +6550,36 @@
             ],
             "default": "GET",
             "description": "HTTP method of the call to price."
+          },
+          "search": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Query string without the leading `?`, as you will send it on the call. With live pricing the merchant prices this exact request.",
+            "example": "q=nevermined&limit=1"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Headers you will forward to the merchant (e.g. its own auth). The quote sends them with the unpaid request. Optional."
+          },
+          "body": {
+            "description": "Request body you will send (JSON). Many services price by the request, so send the same body as the call. Optional."
+          },
+          "credentialHeader": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Header the payment credential rides in on the paid hop, when the merchant needs its own `Authorization` too (a separate `Payment` header is the common one). Send the same value as on the call. Do not set it by default.",
+            "example": "Payment"
+          },
+          "requireProtocol": {
+            "type": "string",
+            "enum": [
+              "x402",
+              "mpp"
+            ],
+            "description": "Binding payment-rail pin: the quote prices the rail the call would pay on, with no fallback. If unavailable, 409 BCK.ROUTER.0045. Quote and pay with the same pin."
           }
         },
         "required": [
@@ -6660,7 +6693,7 @@
               "x402",
               "mpp"
             ],
-            "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay only on x402 or mpp, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. Subscription-credit quotes price the credit tariff without applying the pin; this paid call enforces it. Never silently remove the pin."
+            "description": "Binding payment-rail pin (API v1.88.0+), unlike advisory `protocol`. Pay only on x402 or mpp, with no fallback. If unavailable, return 409 BCK.ROUTER.0045 before signing, reserving or charging. A subscription-credit quote prices the rail this pin names, so quote and pay with the same pin. Never silently remove the pin."
           },
           "validateRequestBody": {
             "type": "boolean",
