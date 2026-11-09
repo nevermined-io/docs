@@ -15,7 +15,7 @@ You get credits in three ways:
 All your credits are [one balance](#credits), and they're spent the same way whatever their source. That changes three things for an agent:
 
 - **No wallet, no Delegation, no funding.** There's no wallet to fund and nothing on-chain for your agent to sign.
-- **A price you see before you call.** Each endpoint has a **rate** on Nevermined's rate card — credits per call — and the rate shown when you call is what the call costs, whatever the merchant charges at that moment (up to the rate's bound).
+- **A price you can see before you call.** Credits follow each service's live price, with a 1-credit minimum. Quote any call to see its exact credits before you make it.
 - **You only pay for what's delivered.** Credits are kept only when the merchant answers with a `2xx`. Anything else and the credits come back.
 
 <Note>
@@ -179,7 +179,7 @@ In the [Nevermined App](https://nevermined.app), open **Catalog Subscription** i
 
 ## Credits
 
-All the credits your account holds are **one balance**, whether they're free credits, top-up credits or your subscription's monthly allowance. A call costs its rate whatever the source, and **the credits that expire soonest are spent first**.
+All the credits your account holds are **one balance**, whether they're free credits, top-up credits or your subscription's monthly allowance. A call costs the same credits whatever the source, and **the credits that expire soonest are spent first**.
 
 - **One allowance per billing period.** Your plan includes a monthly allowance of 20,000 credits, available once each monthly invoice is paid. Changes to the price or the monthly allowance are announced in advance, and you can cancel before they apply.
 - **The allowance expires at the end of the period.** Unused allowance credits don't roll over; your allowance resets when the next period's invoice is paid. Free credits expire 30 days after they're added, whatever your billing period.
@@ -265,39 +265,49 @@ Signed in, the catalog shows your credits in the account menu under **Credits**,
 When your credits can pay a call, the catalog shows service prices **in credits** instead of USD:
 
 - a service card priced like **15 credits**, or **from 15 credits** when its endpoints differ;
-- on a service's page, the credits one call costs and how many credits you have left, with each endpoint priced in credits — or marked **Budget only** when credits can't pay it (**Own crypto wallet only** on a service that sells only to the payer's own crypto wallet);
+- on a service's page, an estimate of the credits one call costs and how many credits you have left, with each endpoint priced in credits — or marked **Budget only** when credits can't pay it (**Own crypto wallet only** on a service that sells only to the payer's own crypto wallet);
 - a switch on the services page, **Pay with your budget instead**, that turns the prices back into USD.
 
-Everyone else sees USD prices; quote a call (below) for its price in credits.
+Everyone else sees USD prices; quote a call (below) for its exact price in credits.
 
-## The rate card: what a call costs
+## What a call costs
 
-Every endpoint that credits can pay has a **rate**: the number of credits one call costs. The rate shown when you make the call is what that call costs — the merchant's price at that moment doesn't change it. (The API calls a rate's version `tariffVersion`.)
+Credits follow each service's live price, with a 1-credit minimum. Quote any call to see its exact credits before you make it. A call costs a whole number of credits, and what it costs depends on the request: many services price by what you ask for, so a bigger request or a stronger model costs more.
 
-- **In the MCP**, `get_service` called with your API key shows `subscription.creditsPerCall` (and the `tariffVersion`) on each endpoint that credits can pay.
-- **Over REST**, quote the exact call. Nothing is reserved or charged, and the merchant isn't contacted:
+- **In the catalog and the MCP**, each endpoint credits can pay shows an **estimate** of one call, from the last price seen: `get_service`, called with your API key, shows `subscription.estimatedCreditsPerCall`. It tells you roughly what to expect, not what a given request costs.
+- **Over REST and in the MCP**, quote the exact call. Nothing is reserved or charged. The merchant is sent the request you would make, without payment, so send the same `search`, `headers` and `body` you will call with, and treat it as you would the call itself if the service acts on an unpaid request:
 
 ```bash
 curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/quote" \
   -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
-  -d '{ "slug": "webscrape-pro", "path": "scrape", "method": "POST" }'
+  -d '{ "slug": "webscrape-pro", "path": "scrape", "method": "POST", "body": { "url": "https://example.com" } }'
 ```
 
 ```json
-{ "slug": "webscrape-pro", "credits": 3, "tariffVersion": 2 }
+{ "slug": "webscrape-pro", "credits": 3, "paymentRequired": true, "upstreamStatus": 402 }
 ```
 
-A quote refuses what the call would refuse before contacting the merchant (see [When a call is refused](#when-a-call-is-refused)). It never checks the merchant's live price or Nevermined's treasury, and for a subscriber in good standing it doesn't check how many credits are left — those are checked when the call is made. Without a subscription in good standing, it refuses a call your spendable credits can't cover (`0002`, or `0016` when only a frozen allowance would), unless an automatic top-up would cover it.
+`credits` is what this exact request costs now. `paymentRequired: false` means the service did not ask to be paid for this request, so it named no price and `credits` is `0`, which does not make the call free: read `upstreamStatus`. A `2xx` means the service answered for free; a `400` or `422` usually means the request is not what the endpoint expects.
 
-### How a rate is set
+A quote refuses what the call would refuse before anything is paid (see [When a call is refused](#when-a-call-is-refused)). It doesn't check Nevermined's treasury, and for a subscriber in good standing it doesn't check how many credits are left: those are checked when the call is made. Without a subscription in good standing, it refuses a call your spendable credits can't cover (`0002`, or `0016` when only a frozen allowance would), unless an automatic top-up would cover it.
 
-Nevermined prices each endpoint from the merchant's own price. It takes what the merchant charges for a call, applies a markup, converts the result to credits at a nominal value per credit, and rounds **up** to the next step of a fixed scale of credit amounts — so every rate is a whole number of credits on that scale. Nevermined re-prices endpoints regularly as merchant prices move; between two pricings, the stored rate is what every call costs.
+### Hold a call to its quote
 
-Each rate also bounds what Nevermined will pay the merchant. If the merchant's live price rises above that bound, the call is refused before anything is paid (`BCK.SUBSCRIPTION_ROUTER.0004`), and the endpoint is flagged for re-pricing.
+A quote holds nothing: the service's price can move before you call. To make sure a call doesn't cost more than you were quoted, send the quote's `credits` as `maxCredits` on the call:
 
-A subscription call carries **no Router fee**: the rate is the whole cost.
+```json
+{ "slug": "webscrape-pro", "path": "scrape", "method": "POST", "requestId": "…", "maxCredits": 3 }
+```
 
-**The rate card is live.** It covers every catalog endpoint that credits can pay, and those services' own prices move all the time, so rates — and the markup, credit value and scale behind them — change, up or down, as soon as Nevermined updates them, without notice. Quote before you call when the cost matters; the rate in force at the time of the call is what you pay.
+A call that would cost more is refused with `409 BCK.SUBSCRIPTION_ROUTER.0020` before anything is reserved or signed, and charges nothing. Quote it again and decide. On `/api/v1/router/subscription/svc/<slug>`, send it as the `X-Router-Max-Credits` header. The Catalog MCP's `quote_service` hands you the value to pass to `pay_service`.
+
+`maxCredits` is optional, and it can only lower what a call may cost.
+
+### The most one call may cost
+
+One call may cost only so many credits, the same for everyone. Above that the call is refused with `409 BCK.SUBSCRIPTION_ROUTER.0019` before anything is reserved or signed: `params.credits` is what it would cost and `params.limit` the most one call may. Where a service prices by the request, a smaller request may fit; otherwise pay that endpoint from a Delegation. An endpoint whose last price is above the limit shows no estimate and reads **Budget only**.
+
+A subscription call carries **no Router fee**: the credits are the whole cost.
 
 ## Pay a call with credits
 
@@ -339,7 +349,7 @@ What's different from the Delegation route:
 - **A slug, never a URL.** Credits pay listed catalog services only, so the request names a `slug` (plus `path`, `method`, `search`, `headers`, `body`). A `url` or a `delegationId` is **refused** (`400 BCK.SUBSCRIPTION_ROUTER.0005`), not ignored, so a request that meant something else is never paid with credits.
 - **`requestId` is required**, as on every mode-B call: a retry with the same id is never paid twice — see [Paying twice](/products/catalog/router/guardrails#paying-twice).
 - **Nothing to sign or fund.** Nevermined pays the merchant and never hands you a payment credential — there is no subscription equivalent of [minting a credential](/api-reference/router/mint-payment-credential).
-- **No routing fee.** A subscription call costs its rate and nothing else.
+- **No routing fee.** A subscription call costs its credits and nothing else.
 - **Long calls** behave as on the Delegation route: past the synchronous wait you get `202` with a `resultUrl` to poll, and the credits stay `Reserved` until the call ends.
 - **A top-up shows on the call that charged it.** When this call ran out of credits and, with [top-ups](#top-ups) on, charged a pack to cover itself, the response — the result, or the `202` — also carries `topUp`: the credits the pack added and its price before tax. Your card was charged, so tell the person you're acting for.
 
@@ -375,7 +385,7 @@ If a service answered successfully but its result was defective, the credits are
 
 ## What credits can pay
 
-Credits pay **listed, live catalog endpoints that carry a rate**, on these rails:
+Credits pay **listed, live catalog endpoints that accept credits**, on these rails:
 
 - **x402** merchants using the `exact` scheme, paid in USDC,
 - **MPP** merchants on the `tempo` method, paid in the USD stablecoin Nevermined's treasury holds there — per call (`charge`) or over a [session](/products/catalog/router/rails-mpp#sessions-in-the-catalog), where the treasury opens and closes the channel,
@@ -392,7 +402,7 @@ Any other kind of OAuth credential is refused with `403 BCK.OAUTH.0030`. An OAut
 
 ### No spending limits beyond your credits
 
-Credits have no spending limit beyond your balance — no daily, per-service or pace cap. The Router's usual per-service rate limit and concurrency limit still apply (`429`). A call can also be refused when Nevermined's treasury can't pay right now — most often because its float is low (`503 BCK.SUBSCRIPTION_TREASURY.0003`, retryable). Nothing is charged; retry later.
+Beyond your balance, credits are limited by [the most one call may cost](#the-most-one-call-may-cost) and by any daily limit you set yourself, with no per-service or pace cap. The Router's usual per-service rate limit and concurrency limit still apply (`429`). A call can also be refused when Nevermined's treasury can't pay right now — most often because its float is low (`503 BCK.SUBSCRIPTION_TREASURY.0003`, retryable). Nothing is charged; retry later.
 
 ## When a call is refused
 
@@ -400,15 +410,17 @@ Branch on `code`. None of these spent or reserved any credit, and none charged a
 
 | Code | Status | What it means | What to do |
 | --- | --- | --- | --- |
-| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with credits — `params.reason` says why (`no_active_tariff` — no rate yet, `price_variable`, `unhealthy`, `wallet_bound`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation — for `wallet_bound`, your own crypto (`erc4337`) Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0001` | 403 | This endpoint can't be paid with credits — `params.reason` says why (`unhealthy`, `wallet_bound`, `endpoint_unresolved`, …). | Quote another endpoint, or pay this one from a Delegation — for `wallet_bound`, your own crypto (`erc4337`) Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0002` | 402 | Nothing to pay this call with: no subscription in good standing (none bought, ended or past due), and no credits — or not enough for this call — that can be spent, with no top-up that would cover it: top-ups off, paused, at this month's limit or still charging a pack. Also the answer when you call in an organization you're a member of. | Subscribe, turn on [top-ups](#top-ups) — or resume them or raise their limit in the [Top-ups panel](#manage-top-ups) — settle the open invoice, pick a cheaper endpoint, pay from a Delegation, or call with a personal API key and no `X-Current-Org-Id`. |
 | `BCK.SUBSCRIPTION_ROUTER.0003` | 400 | The merchant asked for a rail credits don't pay (`params.rail`). | Pay from a Delegation. |
-| `BCK.SUBSCRIPTION_ROUTER.0004` | 409 | The merchant's live price is outside the rate's bound, or in another asset or network — or, for a service paid over an MPP **session**, it asked to be paid at an address Nevermined has not yet seen it use for this endpoint (`payee_unobserved`). `params.reason` says which. | Retry later, or pay from a Delegation. A `payee_unobserved` call stays refused until Nevermined has seen that address on this endpoint, so pay it from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0004` | 409 | The merchant's price can't be read in dollars: a malformed amount, or an asset that isn't a USD stablecoin — or, for a service paid over an MPP **session**, it asked to be paid at an address Nevermined has not yet seen it use for this endpoint (`payee_unobserved`). `params.reason` says which. | Retry later, or pay from a Delegation. A `payee_unobserved` call stays refused until Nevermined has seen that address on this endpoint, so pay it from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0005` | 400 | A field that only makes sense elsewhere (`url`, `delegationId`, a target header) — `params.field`. Also refuses any revealBuyerIdentity field (even false/null) or X-Router-Reveal-Buyer-Identity header. | Address the service by `slug` only. |
 | `BCK.SUBSCRIPTION_ROUTER.0007` | 400 | Mode A (`POST /router/payments`) can't be funded by a subscription — you sent it `fundingSource: "subscription"` or a `subscriptionId`. | Use the subscription route. |
 | `BCK.SUBSCRIPTION_ROUTER.0009` | 402 | Not enough credits left for this call (`params.credits` is its cost). Mostly what a subscriber in good standing, or an account whose top-ups would charge a pack, gets: otherwise the quote usually refuses a call your credits can't cover with `0002`. With top-ups on, `params.topUps` says why no pack covered the call — see [the table below](#when-no-top-up-covers-the-call). | Pick a cheaper endpoint, turn on [top-ups](#top-ups), or pay from a Delegation. A subscriber's allowance comes back next period. |
 | `BCK.SUBSCRIPTION_ROUTER.0015` | 402 | All your credits are frozen: a card payment you made to Nevermined is disputed, or a dispute was decided in the cardholder's favour. With `params.topUps: "bought"`, this call charged a pack before the dispute froze it, and that pack's credits are frozen with the rest. | Withdraw the dispute with your card issuer, or contact Nevermined support. Until then, pay from a Delegation. |
 | `BCK.SUBSCRIPTION_ROUTER.0016` | 402 | Your subscription's renewal payment is overdue, so its allowance is frozen, and your other credits don't cover this call (`params.credits` is its cost). With `params.topUps: "bought"`, this call charged a pack, but other calls spent its credits first. | Update your card on the subscription page so the invoice is paid, or pay from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0019` | 409 | This request would cost more credits than one call may (`params.credits`, `params.limit`). | Send a smaller request where the service prices by the request, or pay from a Delegation. |
+| `BCK.SUBSCRIPTION_ROUTER.0020` | 409 | This request would cost more than the `maxCredits` you sent (`params.credits`, `params.maxCredits`). | Quote it again and decide whether to pay at that price. |
 | `BCK.SUBSCRIPTION_TREASURY.0002` | 422 | The merchant wants to be paid in an asset Nevermined's treasury doesn't pay in. | Pay from a Delegation. |
 | `BCK.SUBSCRIPTION_TREASURY.0003` | 503 | Nevermined's treasury float can't cover this payment right now. | Retry later (`retryable: true`). |
 | `BCK.SUBSCRIPTION_TREASURY.0008` | 403 | Nevermined's treasury can't pay this merchant. | Pay another service. |
@@ -444,7 +456,7 @@ Calls paid with credits land on the same [payment ledger](/products/catalog/rout
 | Field | On a credits call | On a Delegation call |
 | --- | --- | --- |
 | `fundingSource` | `subscription` | `delegation` |
-| `creditsCharged` | The call's rate, in credits — kept when the credits are refunded, so count it only when `creditsStatus` is `Committed` | `null` |
+| `creditsCharged` | The call's credits — kept when the credits are refunded, so count it only when `creditsStatus` is `Committed` | `null` |
 | `creditsStatus` | `Committed`, `Reserved` or `Refunded` | `null` |
 
 `delegationId` is `null` on a credits call, and `feeBps` is `0`: there is no routing fee. To read one call's final state, look it up by the `requestId` you sent:
