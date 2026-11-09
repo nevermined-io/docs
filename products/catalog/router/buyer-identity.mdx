@@ -1,0 +1,139 @@
+---
+title: "Router buyer identity"
+description: "Verify optional Router-signed buyer attribution, request bindings and replay protection with the version 1 seller contract."
+icon: "fingerprint"
+---
+
+<Warning>
+Availability depends on the API deployment and operator signing configuration. Check its public
+seller-contract endpoint: it must answer and report a configured issuer. A 404 means the API does
+not support this interface. An absent issuer means signing is disabled; earlier validation refusals
+can mask missing configuration, so an individual call's error is not an availability check.
+</Warning>
+
+{/* BEGIN generated buyer identity contract; edit the API source and run workspace-scripts:buyer-identity-docs --write */}
+
+Buyer identity is optional attribution carried in a signed JSON Web Token (JWT). It is not payment
+authority, verified agent registration, or verified person/company identity (know your customer, KYC).
+No claim binds this token to a payment: its presence shows neither that this request paid nor that
+a payment settled. Verify payment independently.
+
+Read the configured issuer from the seller-contract endpoint for the deployment you use.
+Pin the issuer and public-key endpoint out of band, never through a token. The seller-contract
+endpoint reporting a configured issuer is the reliable availability check; an earlier validation
+refusal can mask missing configuration. A missing endpoint (404) means this API lacks the interface.
+
+| Environment | API base | Public keys | Seller contract and configured issuer |
+| --- | --- | --- | --- |
+| live | https://api.live.nevermined.app | https://api.live.nevermined.app/api/v1/router/buyer-identity/jwks | https://api.live.nevermined.app/api/v1/router/buyer-identity |
+| sandbox | https://api.sandbox.nevermined.app | https://api.sandbox.nevermined.app/api/v1/router/buyer-identity/jwks | https://api.sandbox.nevermined.app/api/v1/router/buyer-identity |
+
+## Consent and supported calls
+
+A seller sets the JSON boolean receiveBuyerIdentity=true when publishing/editing its listing,
+including a claimed listing. The listing must have an HTTPS target. listingId below is the id in
+the publish/listing response, not the slug. Only literal true opts in; false or null stores false.
+On edit, omitting receiveBuyerIdentity preserves the setting; sending null turns an existing opt-in off.
+
+The delegation owner separately sets the JSON boolean revealBuyerIdentity=true on each direct
+slug /route call (or its /route/with-controls alias), or the exact string true in
+X-Router-Reveal-Buyer-Identity on a streaming slug call. This discloses the stable delegationId
+(the same identifier across sellers), plus orgId and buyer-declared agentId when present.
+
+On those supported delegation routes, false, null or omitted revealBuyerIdentity means no disclosure
+and no identity-owner lookup. Other JSON non-booleans fail validation with HTTP 400; malformed
+streaming header values fail BCK.ROUTER.0001. Runtime disclosure requires a plain API key, a
+caller-owned delegation, an HTTPS slug target and seller opt-in. OAuth credentials are refused by
+the guard on /route, /route/with-controls, /proxy and /svc with 403 BCK.OAUTH.0030, regardless of
+consent; disclosure consent on commerce routes is refused with BCK.ROUTER.0001. Other unsupported
+disclosure conditions use BCK.ROUTER.0001; ownership failure uses BCK.DELEGATION.0002.
+
+OAuth credentials, group members acting for another delegation owner, raw URL calls and subscription
+funding cannot disclose through this interface. Subscription route bodies/headers refuse ANY
+identity field, including false or null, with BCK.SUBSCRIPTION_ROUTER.0005. Select/autoPay requests
+refuse the identity field whenever present, even false or null, with BCK.ROUTER.0001 once past
+authentication guards; select first, then call the direct slug route.
+
+Format validation can reject before request-id deduplication. For well-formed disclosure requests,
+retained replay and request-id deduplication precede configuration/owner checks, and those checks
+precede all merchant requests and free-quota consumption. Explicit consent performs that owner
+lookup even if the merchant later answers free. Probes and free responses never carry identity.
+An unavailable identity capability is the internal configuration error BCK.ROUTER.0022 (500),
+with capability=buyer-identity; retry only after the operator restores it, or deliberately omit
+consent if attribution is not needed. Existing service-selection wiring uses the same error class.
+
+## Verification checklist
+
+The Router sends a bare compact JWT, with no Bearer prefix, in X-Router-Buyer-Identity on the paid
+request only. Read that header at the seller; X-Router-Reveal-Buyer-Identity is the separate buyer
+consent header sent to the Router and does not carry the token.
+
+The public keys form a JSON Web Key Set (JWKS); each entry is a public JSON Web Key (JWK).
+Request bindings use Demonstrating Proof of Possession (DPoP)-style fields, but this JWT is a
+distinct contract: a generic DPoP verifier alone is insufficient.
+
+1. Require the protected JWT header alg=EdDSA and typ=nvm-buyer-identity+jwt, with a string kid.
+   Select that Ed25519 public JWK from your PINNED JWKS URL by kid (a SHA-256 RFC 7638 thumbprint).
+   Ignore token-supplied key URLs. Cache keys for at most 30 seconds; refetch once on unknown kid.
+2. Verify the signature. Require payload claim ver to be the integer 1, and iss to equal the issuer
+   you pinned out of band. Reject unsupported versions and missing required claims as attribution.
+3. Reconstruct the external URL using the WHATWG URL Standard (for example JavaScript new URL).
+   Require aud to equal its serialized origin: lowercase host, no default HTTPS :443 port, but
+   retain a non-default port such as :8443. Require htm to equal the uppercase received method.
+4. Require listingId to identify a listing YOU own that serves this external URL. Do not accept
+   a different listing merely because it shares your origin and path.
+5. Require htu to equal that URL's serialized origin + pathname (no query or fragment).
+   Require querySha256 to hash its WHATWG search value, including the leading ? when nonempty.
+   A bare trailing ? has an EMPTY search value and hashes empty bytes. Preserve serialized query
+   order and percent encoding; do not parse/rebuild it with a query-parameter map.
+6. Require bodySha256 to equal the base64url SHA-256 of received raw body bytes before JSON parsing,
+   or empty bytes when absent. Compare against the external URL before gateway rewrites.
+7. Verify exp/iat time validity with at most 5 seconds clock leeway, rejecting future iat beyond
+   that leeway and a lifetime above 60 seconds. Tokens are issued at the paid hop, not at consent.
+8. Enforce one-use (iss, jti) in a shared replay store across your replicas until exp + leeway.
+   Replays, absent headers, unknown keys, JWKS outages and replay-store outages produce NO
+   attribution. Fail closed for attribution; never infer or reuse claims you cannot verify.
+
+A failed identity check discards attribution, not a successfully verified payment. Whether to serve
+the request is decided by payment verification alone under this optional contract. If you deliberately
+require identity, document that separate requirement before purchase; this contract does not require
+sellers to deny an already-paid request for optional attribution failures. Never log the JWT/header.
+
+| Payload claim | Meaning and validation |
+| --- | --- |
+| ver | Required integer 1; unsupported versions provide no attribution. |
+| iss | Exact operator-configured issuer you pinned. |
+| aud | WHATWG serialized seller origin, with normalized host and port. |
+| iat / exp | Unix seconds; exp=iat+60. Check time validity with at most 5 seconds leeway. |
+| jti | Unique single-use token id; enforce shared replay protection. |
+| listingId | Your listing's id; it must be owned by you and serve this URL. |
+| delegationId | Stable authenticated-owner delegation id, shared across consenting seller calls. |
+| orgId | Optional organization of that delegation; no company verification implied. |
+| agentId | Optional buyer-entered attribution; no registry or identity verification. |
+| agentAttribution | buyer-declared, present only together with agentId. |
+| htm | Uppercase received HTTP method. |
+| htu | WHATWG serialized origin + pathname, excluding query and fragment. |
+| querySha256 | Base64url SHA-256 of WHATWG URL.search; empty for absent query or a bare ?. |
+| bodySha256 | Base64url SHA-256 of raw request body bytes, empty when absent. |
+
+## Rotation and operations
+
+Operators prepublish the next public key on EVERY replica using
+ROUTER_BUYER_IDENTITY_ADDITIONAL_PUBLIC_JWKS (a JSON array of public Ed25519 JWKs), leaving the old
+signer active. Wait at least the 30-second JWKS cache lifetime before changing active signers.
+
+Roll the active private key, retaining BOTH old and new public keys on every replica throughout
+the roll. Keep the retiring key at least 95 seconds after the last old-key signer stops (60-second
+tokens + 5-second leeway + 30-second cache), then remove it. Never put private JWKs in that array.
+
+Operators log paymentId, listingId and jti only after a paid hop has answered. They exclude the JWT,
+request body and the sensitive delegationId, orgId and agentId claims. This HTTP-answer record does
+not assert payment settlement. Signing or transport failures use failed-hop bookkeeping/fee release;
+a signer that failed before sending is marked not-sent for payment-channel reconciliation.
+
+## Related guidance
+
+- [Router guardrails](https://nevermined.ai/docs/products/catalog/router/guardrails)
+- [Subscription funding](https://nevermined.ai/docs/products/catalog/router/subscription)
+
+{/* END generated buyer identity contract */}

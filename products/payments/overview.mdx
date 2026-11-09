@@ -57,7 +57,7 @@ Manage everything at [nevermined.app](https://nevermined.app).
 
 <Steps>
   <Step title="Enroll a card">
-    Add a Visa, Stripe, or Braintree card at [nevermined.app](https://nevermined.app). Card data is tokenized in the browser by the provider's PCI-compliant capture (VGS Collect for Visa and Stripe, Braintree Drop-in for Braintree). Nevermined never stores raw card numbers.
+    Add a card at [nevermined.app](https://nevermined.app). Card data is tokenized in the browser by a PCI-compliant capture (VGS Collect). Nevermined never stores raw card numbers.
   </Step>
   <Step title="Create a delegation">
     Set the spending limit, duration, and (optionally) max transactions. Visa delegations also require a per-delegation passkey approval that binds the limits to your device. Optionally link the delegation to a specific API key for automatic routing.
@@ -94,10 +94,10 @@ All three providers share the same `nvm:card-delegation` x402 scheme and the sam
     PAN tokenized by VGS Credential Management Platform (CMP) into a Visa Agentic Token. Each delegation requires a one-time WebAuthn/passkey device-binding ceremony enforced by Visa VTS. Settlement runs through Stripe Connect against the seller's connected account.
   </Card>
   <Card title="Stripe" icon="stripe">
-    Card captured via VGS Collect and confirmed against a Stripe SetupIntent. No passkey. Settlement runs through Stripe PaymentIntents directly.
+    Card captured via VGS Collect and given a network token. No passkey. Settlement runs through Stripe PaymentIntents directly.
   </Card>
   <Card title="Braintree" icon="paypal">
-    Card captured via Braintree Drop-in, exchanged for a vaulted `paymentMethodToken`. Settlement runs through `transaction.sale` against the seller's per-currency OAuth-connected Braintree merchant account.
+    The same card enrollment as Stripe. Settlement is one sale, with the card's network token, against the seller's per-currency OAuth-connected Braintree merchant account.
   </Card>
 </CardGroup>
 
@@ -112,7 +112,6 @@ The Visa Agentic Tokens flow replaces the earlier VTS/VIC + mandate endpoints. T
 | **Delegation** | A scoped spending authorization on an enrolled card. Defines the spending limit, max transactions, and expiration. Same concept across Visa, Stripe, and Braintree. |
 | **Visa Agentic Token** | The CMP-issued identifier (`vat_…`) that replaces the real PAN. Stored as the delegation's `providerPaymentMethodId` for Visa cards. |
 | **Device binding** | A per-delegation WebAuthn/passkey ceremony required by Visa VTS. Produces a single-use `assuranceData` blob bound to the spending limit, duration, and merchant context. Browser-only. |
-| **Spending Ceiling** | Per-card cumulative limit across all active delegations (default $10.00). |
 | **API Key Linking** | Link a delegation to a specific API key so agents automatically use the right one. |
 | **x402 Token** | Payment token used in the `payment-signature` HTTP header (`nvm:card-delegation` scheme). |
 

@@ -155,8 +155,8 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0002` (409) — `requestId` already used; the original `paymentId` is in the response.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; `details` names it.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
-- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429, too many concurrent), `0020` (5xx/429), `0022` (500,
-  selection not wired), `0028` (503, quote), `0042` (409, closing payment channel) and `0043` (503, busy payment channel) are **retryable** — on the paying path, `0007`, `0020`, `0042` and `0043`. Everything else is a decision — retrying
+- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429, too many concurrent), `0020` (5xx/429), `0022` (500, required capability unavailable: service selection or buyer identity signing;
+  retry only after operator repair, never loop unchanged), `0028` (503, quote), `0042` (409, closing payment channel) and `0043` (503, busy payment channel) are **retryable** — on the paying path, `0007`, `0020`, `0042` and `0043`. Everything else is a decision — retrying
   unchanged gives the same answer.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry it:** a credential was already minted and
   no record was written, so `requestId` will not suppress the retry. Report it.
@@ -201,6 +201,8 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0043` (503) — the MPP session payment channel with this service is busy; nothing signed or charged. Retry after a few seconds with the same `requestId`.
 - `BCK.ROUTER.0044` (422) — the Router cannot collect its fee on this MPP session payment: `params.cause` is `org-wallet` (pay from a delegation funded by your own wallet) or `network` (session fees are not collected on that network; pay another network's service). Nothing charged. Do not retry unchanged.
 - `BCK.ROUTER.0045` (409) — the service does not offer the rail pinned by `requireProtocol` (`X-Router-Require-Protocol` on `/proxy` · `/svc`; x402 or mpp). Nothing signed, reserved or charged. Not retryable unchanged: choose a service on your required rail, or deliberately change the pin; never drop it automatically.
+- `BCK.ROUTER.0046` (400) — you set `validateRequestBody` (opt-in) and the request body provably fails the endpoint's published request schema; the Router refused before anything was signed, reserved or charged (`params.endpointPath`). Without the flag the call is never refused on this basis. It is read on `/route`, `/commerce/route` (and their `/with-controls` variants) and `/router/subscription/route`, and the Commerce MCP `pay_service` forwards it to them; the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. Not retryable unchanged: fix the body to match the endpoint's published schema/example (catalog `requestSchema`/`requestExample`, or the Commerce MCP `get_service`), or drop `validateRequestBody`.
+- `BCK.ROUTER.0047` (409) — this delegation was created with `allowSessionPayments: false` and the Router would pay the service over an MPP session (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged. Not retryable unchanged: use a service that charges per call, or report to the human, who can deliberately drop a `requireProtocol: "mpp"` pin or create a delegation that allows session payments. An app connected over OAuth holds its delegation through its grant, so they disconnect the app in Nevermined and reconnect it with session payments allowed instead.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one

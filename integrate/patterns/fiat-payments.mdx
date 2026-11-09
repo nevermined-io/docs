@@ -79,15 +79,15 @@ Both one-time and recurring plan purchases are supported. For recurring plans, S
 
 Fully autonomous agent-to-agent payments in fiat are enabled through [card delegation](/products/payments/overview). This allows an agent to charge a user's card on-demand, without the user needing to pre-purchase credits. Instead of buying credits upfront, the user enrolls a card and creates a spending delegation with defined limits.
 
-Nevermined supports three card enrollment providers, all consumed through the unified `nvm:card-delegation` x402 scheme:
+Nevermined supports three card rails, all consumed through the unified `nvm:card-delegation` x402 scheme:
 
 - **Visa** — Cards tokenized as Visa Agentic Tokens via the VGS Credential Management Platform. Each delegation requires a per-delegation WebAuthn/passkey device-binding ceremony enforced by Visa VTS. Settlement runs through Stripe Connect.
-- **Stripe** — Cards captured via VGS Collect, confirmed against a Stripe SetupIntent, vaulted as `pm_…`. Settlement runs through Stripe PaymentIntents.
-- **Braintree** — Cards captured via Braintree Drop-in, vaulted as a `paymentMethodToken`. Settlement runs through `transaction.sale` against an OAuth-connected seller merchant account.
+- **Stripe** — Cards captured via VGS Collect, vaulted at VGS and given a network token. Settlement runs through Stripe PaymentIntents.
+- **Braintree** — The same card enrollment as Stripe. The plan picks the rail at charge time. Settlement is one sale, with the card's network token, against an OAuth-connected seller merchant account.
 
 <Steps>
   <Step title="Card Enrollment">
-    The user enrolls a card via the [Nevermined App](https://nevermined.app). Card data is tokenized by the provider (VGS Collect for Visa and Stripe; Braintree Drop-in for Braintree) and Nevermined never stores raw card numbers. See [Card Enrollment](/products/payments/card-enrollment) for the full flow.
+    The user enrolls a card via the [Nevermined App](https://nevermined.app). Card data is tokenized by VGS Collect and Nevermined never stores raw card numbers. See [Card Enrollment](/products/payments/card-enrollment) for the full flow.
   </Step>
 
   <Step title="Create a spending delegation">
@@ -139,11 +139,10 @@ Once a delegation leaves the **Active** state, a new one must be created to cont
 Card data never reaches Nevermined servers. Depending on the provider:
 
 - **Visa path** — PAN is captured in a VGS Collect iframe and posted directly to the VGS Credential Management Platform via VGS-internal routing. CMP issues a Visa Agentic Token (`vat_…`) that replaces the PAN. Each delegation is bound to the cardholder's device via a WebAuthn/passkey ceremony enforced by Visa VTS, producing a single-use `assuranceData` blob.
-- **Stripe path** — PAN is captured in a VGS Collect iframe and forwarded directly to Stripe to confirm a SetupIntent. Stripe vaults the card as a `pm_…` PaymentMethod.
-- **Braintree path** — PAN is captured by the Braintree Drop-in / hosted fields, which post directly to Braintree and return a single-use nonce. The facilitator vaults the nonce as a permanent `paymentMethodToken`.
+- **Stripe and Braintree paths** — PAN is captured in a VGS Collect iframe and goes directly to VGS, which returns a card ID (`CRD…`). The API provisions a network token for that card. The plan picks Stripe or Braintree at charge time.
 
 <Note>
-**Nevermined is PCI compliant** (PCI SAQ D level) and holds ISO 27001 and SOC 2 Type II certifications. Strong Customer Authentication is enforced per-delegation for Visa (WebAuthn/passkey, with email OTP fallback) and at enrollment for Stripe and Braintree (3DS where the issuer requires it). See the [Payments FAQ](/products/payments/faq) for full security details.
+**Nevermined is PCI compliant** (PCI SAQ D level) and holds ISO 27001 and SOC 2 Type II certifications. Strong Customer Authentication is enforced per-delegation for Visa (WebAuthn/passkey, with email OTP fallback). See the [Payments FAQ](/products/payments/faq) for full security details.
 </Note>
 
 
@@ -152,7 +151,7 @@ Card data never reaches Nevermined servers. Depending on the provider:
 When a user pays with a card, Nevermined routes the revenue to the builder's connected account on the appropriate PSP:
 
 - **Stripe & Visa** — via Stripe Connect (`transfer_data.destination`). Fees are deducted automatically before the payout reaches the builder. Visa delegations always settle through the seller's Stripe Connect account.
-- **Braintree** — via two `transaction.sale` calls: one against the platform's per-currency `merchantAccountId` for the platform fee, one against the seller's OAuth-connected merchant account for the seller share.
+- **Braintree** — via one sale for the whole price, against the seller's OAuth-connected merchant account in the plan's currency.
 
 You receive funds directly in your PSP account — no manual transfers or reconciliation needed.
 
@@ -160,13 +159,13 @@ You receive funds directly in your PSP account — no manual transfers or reconc
 
 | Item | Cost |
 |------|------|
-| Nevermined fee | 2% of the transaction amount |
+| Nevermined fee | 2% of the transaction amount on Stripe and Visa. On Braintree, no fee is taken from the sale; fees are agreed directly with Nevermined. |
 | PSP processing fee | Stripe / Braintree fixed fee + % per transaction (varies by currency/region; see PSP pricing) |
 | Supported currencies | USD, EUR |
-| Settlement | Stripe PaymentIntents (Stripe + Visa) or Braintree `transaction.sale` (Braintree) to seller's connected account |
+| Settlement | Stripe PaymentIntents (Stripe + Visa) or one Braintree sale (Braintree) to seller's connected account |
 
 <Warning>
-Fiat payments carry higher fees than stablecoin payments (2% + Stripe fees vs. 1% flat). For high-volume or high-value use cases, consider [stablecoin payments](/integrate/patterns/stablecoin-payments) to reduce costs.
+Stripe and Visa payments carry higher fees than stablecoin payments (2% + Stripe fees vs. 1% flat). For high-volume or high-value use cases, consider [stablecoin payments](/integrate/patterns/stablecoin-payments) to reduce costs.
 </Warning>
 
 ## Supported Plan Types
