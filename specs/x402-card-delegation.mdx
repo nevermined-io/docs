@@ -254,7 +254,7 @@ For `provider: 'visa'` delegations, the Visa Trusted Agent Protocol imposes two 
 |-------|------|----------|-------------|
 | `consumerPrompt` | `string` | Yes | Human-readable approval text shown during device binding (≤ 500 characters). Forwarded verbatim to VGS `POST /intents` and rendered in the cardholder's VTS-embedded approval iframe. |
 | `assuranceData` | `unknown` (typically an array) | Yes | Opaque payload produced by the VGS Agentic Auth browser SDK after the WebAuthn/passkey ceremony completes. Treated as opaque end-to-end and forwarded as-is to VGS. Size capped at 64 KiB at the DTO layer. |
-| `planId` | `string` | Yes | Visa delegations MUST bind to a single plan seller (`BCK.VISA.0015`). |
+| `planId` | `string` | No | Optional, as for every provider. When sent, it MUST be a string and restricts the delegation to that plan. |
 
 The facilitator MUST reject `provider: 'visa'` requests that are missing either `consumerPrompt` or `assuranceData` with `BCK.VISA.0014` (HTTP 400). The facilitator MUST also reject Visa delegations whose plan seller has not completed Stripe Connect onboarding with `BCK.VISA.0016`, because Visa settlements route through Stripe Connect.
 
@@ -292,10 +292,13 @@ sequenceDiagram
     client->>vgs: Submit card details (VGS Collect createCard, access_token)
     vgs-->>client: cardId (CRD…)
 
-    opt 3-D Secure required
-      client->>facilitator: POST /delegation/enroll/3ds/*<br/>cardId, enrollSessionToken
+    client->>facilitator: POST /delegation/enroll/3ds/initialize<br/>cardId, enrollSessionToken
+    facilitator-->>client: required, threeDs?
+
+    opt required: true
+      client->>facilitator: POST /delegation/enroll/3ds/authenticate, /status<br/>cardId, enrollSessionToken, threeDs
       facilitator->>vgs: Authenticate cardholder
-      facilitator-->>client: threeDs (xid, merchantTransactionId)
+      facilitator-->>client: challenge / pending
     end
 
     client->>facilitator: POST /delegation/enroll<br/>cardId, enrollSessionToken, threeDs?
@@ -380,7 +383,7 @@ The following steps detail the complete payment and execution flow. Steps are gr
 
 Card enrollment is a one-time process that securely saves a client's card for future use. The card is vaulted at VGS (Very Good Security), not at a PSP: the plan being paid picks the PSP that charges it, at charge time. This is the flow of the "Credit/debit card" form in the Nevermined App; Visa cards enrol through `POST /api/v1/delegation/enroll-visa` instead (see Sections 9.3 and 9.4).
 
-**Step 1.** Client requests, from the facilitator, a VGS Collect access token and a short-lived enrollment session token. Both are requested before the card is created at VGS, so a failure here cannot leave a card at VGS with no payment method.
+**Step 1.** Client requests, from the facilitator, a VGS Collect access token and an enrollment session token. The session token is valid for 10 minutes, and Steps 3 to 6 must complete within it. Both are requested before the card is created at VGS, so a failure here cannot leave a card at VGS with no payment method.
 
 ```http
 GET /api/v1/fiat/visa/collect-token HTTP/1.1
@@ -400,7 +403,7 @@ Authorization: Bearer <user-auth-token>
 
 **Step 4.** VGS returns the card ID (`CRD…`) to the client.
 
-**Step 5.** Client calls `POST /api/v1/delegation/enroll/3ds/initialize` with the `cardId` and `enrollSessionToken`. If it answers `required: false`, the client goes straight to Step 6. Otherwise the facilitator requires 3-D Secure: the client authenticates the cardholder through `/enroll/3ds/authenticate` and polls `/enroll/3ds/status`, each call carrying the `cardId`, the `enrollSessionToken` and the transaction's `threeDs: { xid, merchantTransactionId }`, and sends that same `threeDs` in Step 6.
+**Step 5.** Client calls `POST /api/v1/delegation/enroll/3ds/initialize` with the `cardId` and `enrollSessionToken`. If it answers `required: false`, the client goes straight to Step 6. Otherwise the facilitator requires 3-D Secure, and `initialize` also returns the transaction's `threeDs: { xid, merchantTransactionId }`. The client authenticates the cardholder through `/enroll/3ds/authenticate`, which additionally takes `browserInfo` (`javaEnabled`, `javascriptEnabled`, `colorDepth`, `screenWidth`, `screenHeight`, `tz`), a `redirectUrl` and an optional `language`, and polls `/enroll/3ds/status` until the challenge completes. Each call carries the `cardId`, the `enrollSessionToken` and that `threeDs`, and the client sends the same `threeDs` in Step 6.
 
 **Step 6.** Client sends the card ID to the facilitator to enroll the card.
 
