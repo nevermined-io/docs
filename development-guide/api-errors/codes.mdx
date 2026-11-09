@@ -30,7 +30,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
 - [`BCK.CREDITS`](#bck-credits) — 17 codes
-- [`BCK.CREDIT_RESCALE`](#bck-credit_rescale) — 7 codes
+- [`BCK.CREDIT_RESCALE`](#bck-credit_rescale) — 8 codes
 - [`BCK.CREDIT_TOPUPS`](#bck-credit_topups) — 23 codes
 - [`BCK.DELEGATION`](#bck-delegation) — 10 codes
 - [`BCK.ENTITLEMENTS`](#bck-entitlements) — 5 codes
@@ -60,10 +60,10 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 12 codes
 - [`BCK.SUBSCRIPTION_ACCESS`](#bck-subscription_access) — 1 code
 - [`BCK.SUBSCRIPTION_BILLING`](#bck-subscription_billing) — 19 codes
-- [`BCK.SUBSCRIPTION_CATALOG`](#bck-subscription_catalog) — 9 codes
+- [`BCK.SUBSCRIPTION_CATALOG`](#bck-subscription_catalog) — 10 codes
 - [`BCK.SUBSCRIPTION_COMPLIANCE`](#bck-subscription_compliance) — 8 codes
 - [`BCK.SUBSCRIPTION_MCP`](#bck-subscription_mcp) — 1 code
-- [`BCK.SUBSCRIPTION_REFUND`](#bck-subscription_refund) — 9 codes
+- [`BCK.SUBSCRIPTION_REFUND`](#bck-subscription_refund) — 10 codes
 - [`BCK.SUBSCRIPTION_ROUTER`](#bck-subscription_router) — 22 codes
 - [`BCK.SUBSCRIPTION_STRIPE`](#bck-subscription_stripe) — 6 codes
 - [`BCK.SUBSCRIPTION_TARIFF`](#bck-subscription_tariff) — 12 codes
@@ -75,7 +75,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.VGS`](#bck-vgs) — 10 codes
 - [`BCK.VISA`](#bck-visa) — 27 codes
 - [`BCK.WALLET`](#bck-wallet) — 6 codes
-- [`BCK.WELCOME_CREDITS`](#bck-welcome_credits) — 4 codes
+- [`BCK.WELCOME_CREDITS`](#bck-welcome_credits) — 5 codes
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
 - [`BCK.WIDGET_SESSION`](#bck-widget_session) — 13 codes
@@ -381,6 +381,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-credit_rescale-0005"></a>`BCK.CREDIT_RESCALE.0005` | 409 | business | ❌ | This deployment has no single credits plan to rescale | Nothing changed. subscription_catalog must name exactly one credits plan; params.plans says how many it names. Bootstrap the catalog first, or resolve the extra plan. |
 | <a id="bck-credit_rescale-0006"></a>`BCK.CREDIT_RESCALE.0006` | 500 | internal | ❌ | The rescale failed, so it was rolled back | Nothing changed. A statement failed unexpectedly: see the server log for the cause. |
 | <a id="bck-credit_rescale-0007"></a>`BCK.CREDIT_RESCALE.0007` | 500 | internal | ❌ | The rescale may or may not have committed | The commit did not answer. Read the stored scale and credit_rescale_runs for params.runId before doing anything: a run that applied has its row. Running again is safe, because expectedScale refuses a second run. |
+| <a id="bck-credit_rescale-0008"></a>`BCK.CREDIT_RESCALE.0008` | 409 | business | ❌ | This rescale does not land on the credit size the API versions convert | Nothing changed and nothing was locked. expectedScale times factor is params.toScale, and a run must land on params.targetScale, the scale the newest credit-size version gate moves a deployment to (its toScale): at any other, clients pinned to older API versions would read every count at the wrong size. Send the factor that gets from the stored scale to params.targetScale. A run past it needs a new version gate first. |
 
 ## <span id="bck-credit_topups"></span>`BCK.CREDIT_TOPUPS`
 
@@ -948,6 +949,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-subscription_catalog-0007"></a>`BCK.SUBSCRIPTION_CATALOG.0007` | 503 | internal | ✅ | The Nevermined Subscription catalog bootstrap hit a database error | A database read or write of the catalog bootstrap failed (params.lookupKey / params.stripePriceId, params.planId for the credits plan, or params.ownerAddress while provisioning its owner, the System profile, when known). Any Stripe object already created is kept and found again, so re-running the bootstrap resumes where it stopped. A 0007 that persists across re-runs is not transient: read the API log for the original error. |
 | <a id="bck-subscription_catalog-0008"></a>`BCK.SUBSCRIPTION_CATALOG.0008` | 409 | integration | ❌ | The plan-owner address resolves to another account | The Nevermined Subscription credits plan is owned by the API provider account (params.ownerAddress), but no profile has that address as its own: a lookup by it resolves to another account, which records it as its 7702 wallet. The credits plan was not stored (catalog rows written earlier in the run are kept). Investigate the profile recording that wallet, then re-run the bootstrap. |
 | <a id="bck-subscription_catalog-0009"></a>`BCK.SUBSCRIPTION_CATALOG.0009` | 503 | internal | ✅ | The catalog credits could not be read | Reading catalog credits eligibility failed on our side (see the server log). Nothing was charged; retry in a moment. Coverage is unavailable, not zero. Search can be retried without funding; do not claim those results are payable with credits. Price views can show the budget (USD) price until the credits read succeeds. |
+| <a id="bck-subscription_catalog-0010"></a>`BCK.SUBSCRIPTION_CATALOG.0010` | 409 | business | ✅ | The credit scale changed while the catalog bootstrap ran | Nothing was stored for the pack: its credits were sized at params.packCreditScale and the deployment is now at params.creditScale. The Stripe price for params.lookupKey (created or reused by this run) stays unused. Run the bootstrap again: it sizes the pack at the current scale. |
 
 ## <span id="bck-subscription_compliance"></span>`BCK.SUBSCRIPTION_COMPLIANCE`
 
@@ -973,14 +975,15 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | Code | HTTP | Category | Retryable | Message | Hint |
 |---|---|---|---|---|---|
 | <a id="bck-subscription_refund-0001"></a>`BCK.SUBSCRIPTION_REFUND.0001` | 503 | internal | ❌ | SLA grants are not configured on this deployment | SUBSCRIPTION_SLA_GRANT_MAX_CREDITS (the most credits one SLA grant may give) is unset or not a positive integer, so every SLA grant is refused. It is a policy value with no default: set it for this deployment, then retry. Nothing was granted. |
-| <a id="bck-subscription_refund-0002"></a>`BCK.SUBSCRIPTION_REFUND.0002` | 400 | validation | ❌ | The SLA grant exceeds the most credits one grant may give | `params.credits` is above `params.maxCredits` (SUBSCRIPTION_SLA_GRANT_MAX_CREDITS). Grant at most that many credits per request. Nothing was granted. |
+| <a id="bck-subscription_refund-0002"></a>`BCK.SUBSCRIPTION_REFUND.0002` | 400 | validation | ❌ | The SLA grant exceeds the most credits one grant may give | `params.credits` is above `params.maxCredits` (SUBSCRIPTION_SLA_GRANT_MAX_CREDITS times the credit scale, in credits of the current size). Grant at most that many credits per request. Nothing was granted. |
 | <a id="bck-subscription_refund-0003"></a>`BCK.SUBSCRIPTION_REFUND.0003` | 404 | business | ❌ | No subscription payment with that id | `params.paymentId` names no Router payment funded by a Nevermined Subscription. Check the id against GET /api/v1/router/payments (`fundingSource: subscription`). Nothing was changed. |
 | <a id="bck-subscription_refund-0004"></a>`BCK.SUBSCRIPTION_REFUND.0004` | 409 | business | ❌ | The payment's credits were not committed, so it gets no SLA grant | An SLA grant is for a call the merchant answered 2xx (`creditsStatus: Committed`). `params.creditsStatus` says where this call's credits stand: `Refunded` calls already got them back, and `Reserved` calls are still being decided (a failed call is refunded by the refund engine, not by an SLA grant). Nothing was granted. |
 | <a id="bck-subscription_refund-0005"></a>`BCK.SUBSCRIPTION_REFUND.0005` | 409 | business | ❌ | The holder has no current subscription period to grant credits into | An SLA grant lands in the holder's current period and expires with it. This holder has no unexpired credits lot on the plan, so there is nothing to grant into. Nothing was granted. |
-| <a id="bck-subscription_refund-0006"></a>`BCK.SUBSCRIPTION_REFUND.0006` | 409 | business | ❌ | That idempotency key was already used for a different SLA grant | Each `idempotencyKey` names ONE SLA grant. A retry must repeat the original request exactly; `params.creditId` is the grant the key already made. Use a new key for a new grant. Nothing was granted. |
+| <a id="bck-subscription_refund-0006"></a>`BCK.SUBSCRIPTION_REFUND.0006` | 409 | business | ❌ | That idempotency key was already used for a different SLA grant | Each `idempotencyKey` names ONE SLA grant. A retry must repeat the original request exactly; `params.creditId` is the grant the key already made. A rescale between the two requests multiplied the stored credits: send them as stored now. Use a new key for a new grant. Nothing was granted. |
 | <a id="bck-subscription_refund-0007"></a>`BCK.SUBSCRIPTION_REFUND.0007` | 500 | internal | ❌ | The payment's credits burn is missing from the ledger | The subscription payment names a credits burn the credit ledger does not hold, so its subscriber cannot be resolved. This is a Nevermined ledger inconsistency, logged for investigation. Nothing was granted. |
 | <a id="bck-subscription_refund-0008"></a>`BCK.SUBSCRIPTION_REFUND.0008` | 500 | internal | ❌ | A subscription payment's credits could not be refunded | The refund engine found the payment in a state it cannot refund from (`params.reason`). The credits stay reserved and the payment stays queued for the refund sweep; this is logged for investigation, and the sweep's `CREDITS UNDECIDED` / FAILED lines name the payment. |
 | <a id="bck-subscription_refund-0009"></a>`BCK.SUBSCRIPTION_REFUND.0009` | 409 | business | ❌ | The payment's credits outcome is already decided | Only a subscription payment whose credits are still `Reserved` with no recorded outcome can be resolved by hand. `params.creditsStatus` and `params.decided` say where this one stands: a call already marked not-delivered is refunded by the sweep, and a `Committed` or `Refunded` call is final. Nothing was changed. |
+| <a id="bck-subscription_refund-0010"></a>`BCK.SUBSCRIPTION_REFUND.0010` | 503 | internal | ✅ | The SLA grant waited for a running credit rescale | A rescale of the credit counts held the scale while this grant waited, so it gave up. Nothing was granted. Retry with the same request once the rescale has finished. |
 
 ## <span id="bck-subscription_router"></span>`BCK.SUBSCRIPTION_ROUTER`
 
@@ -1035,7 +1038,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-subscription_tariff-0009"></a>`BCK.SUBSCRIPTION_TARIFF.0009` | 409 | business | ✅ | Another tariff engine run is in progress | Another engine run holds the run lock (a scheduled run on some replica, or another manual run). Retry shortly; a dry run needs no lock. |
 | <a id="bck-subscription_tariff-0010"></a>`BCK.SUBSCRIPTION_TARIFF.0010` | 404 | business | ❌ | Tariff engine run not found | No recorded engine run has that id. Dry runs are never recorded; list the recent runs to find one. |
 | <a id="bck-subscription_tariff-0011"></a>`BCK.SUBSCRIPTION_TARIFF.0011` | 500 | internal | ✅ | The tariff engine run failed | The engine could not take its run lock, read the catalog and the Router-paid prices, or record the run (see the server log for which, and how many writes had applied). Every run is idempotent: the next one reconciles whatever state this one left. |
-| <a id="bck-subscription_tariff-0012"></a>`BCK.SUBSCRIPTION_TARIFF.0012` | 500 | internal | ❌ | Tariff arithmetic received an invalid input | A credit computation was handed an input no caller should produce (a negative cost, a zero or malformed rational, a per-call limit that is not a whole number of at least 1), so it refused rather than price at the 1-credit minimum. This is a server-side defect; the details name the input. |
+| <a id="bck-subscription_tariff-0012"></a>`BCK.SUBSCRIPTION_TARIFF.0012` | 500 | internal | ❌ | Tariff arithmetic received an invalid input | A credit computation was handed an input no caller should produce (a negative cost, a zero or malformed rational, a per-call limit or a credit scale that is not a whole number of at least 1), so it refused rather than price at the 1-credit minimum. This is a server-side defect; the details name the input. |
 
 ## <span id="bck-subscription_treasury"></span>`BCK.SUBSCRIPTION_TREASURY`
 
@@ -1172,6 +1175,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-welcome_credits-0002"></a>`BCK.WELCOME_CREDITS.0002` | 500 | internal | ❌ | Welcome credits are switched on but not configured | NVM_WELCOME_CREDITS_ENABLED is true and the setting named in params.setting is missing or invalid (params.reason), so the API refuses to boot rather than grant without it. The settings: WELCOME_CREDITS_SIGNUP_AFTER (an ISO-8601 instant with a time zone), WELCOME_CREDITS_AMOUNT, WELCOME_CREDITS_TTL_DAYS, WELCOME_CREDITS_DAILY_MAX_GRANTS and WELCOME_CREDITS_TOTAL_BUDGET_CREDITS (positive integers; the budget at least one grant). WELCOME_CREDITS_MAX_PER_IP_PER_DAY is optional (unset means no IP cap) but must be a positive integer when set. Fix the setting, or switch welcome credits off. |
 | <a id="bck-welcome_credits-0003"></a>`BCK.WELCOME_CREDITS.0003` | 500 | internal | ❌ | No credits plan to report welcome credits on | subscription_catalog names no Nevermined credits plan, or more than one (params.planCount), so the welcome credits ledger cannot be read. Bootstrap the subscription catalog (one credits plan per deployment) and retry. |
 | <a id="bck-welcome_credits-0004"></a>`BCK.WELCOME_CREDITS.0004` | 503 | internal | ✅ | Your welcome credits could not be read | Reading your welcome credits failed on our side (see the server log). Reading charges nothing and changes nothing; retry in a moment. |
+| <a id="bck-welcome_credits-0005"></a>`BCK.WELCOME_CREDITS.0005` | 503 | internal | ✅ | The welcome credits offer could not be read | Reading what a new account is granted failed on our side (see the server log). It is not "no offer": retry in a moment. |
 
 ## <span id="bck-widget"></span>`BCK.WIDGET`
 
