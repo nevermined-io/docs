@@ -4,12 +4,12 @@ description: "Pay catalog services with Nevermined credits, free at sign-up, by 
 icon: "repeat"
 ---
 
-The Router normally pays a merchant from **your** money: a Delegation caps the spend and your wallet or card funds it. **Nevermined credits** are the other way to pay. When your agent calls a catalog service with credits, **Nevermined pays the merchant** from its own treasury and your call costs a fixed number of credits that Nevermined publishes for that endpoint.
+The Router normally pays a merchant from **your** money: a Delegation caps the spend and your wallet or card funds it. **Nevermined credits** are the other way to pay. When your agent calls a catalog service with credits, **Nevermined pays the merchant** from its own treasury and your call costs credits, set by the service's live price for that request.
 
 You get credits in three ways:
 
-- **Free credits when you sign up.** A new account that signs up with a verified email gets 2,000 credits, with no card and no subscription. See [Free credits](#free-credits).
-- **Top-ups.** Turn them on and a pack of 10,000 credits that never expire is charged to your card whenever your credits run out, up to a monthly limit you set — with or without a subscription. See [Top-ups](#top-ups).
+- **Free credits when you sign up.** A new account that signs up with a verified email gets 200,000 credits, with no card and no subscription. See [Free credits](#free-credits).
+- **Top-ups.** Turn them on and a pack of 1,000,000 credits that never expire is charged to your card whenever your credits run out, up to a monthly limit you set — with or without a subscription. See [Top-ups](#top-ups).
 - **A Nevermined Subscription.** You pay Nevermined a monthly price and get a monthly allowance of credits. See [Subscribe](#subscribe).
 
 All your credits are [one balance](#credits), and they're spent the same way whatever their source. That changes three things for an agent:
@@ -26,7 +26,7 @@ Credits and a Delegation live side by side. Some services can't be paid with cre
 
 ## Free credits
 
-A new Nevermined account that signs up with a verified email gets **2,000 free credits**, once, to try the catalog. You don't need a subscription or a card to receive them or to spend them.
+A new Nevermined account that signs up with a verified email gets **200,000 free credits**, once, to try the catalog. You don't need a subscription or a card to receive them or to spend them.
 
 - **Who gets them.** A new account that signs up with a verified email address: an email code, or a Google account. Accounts that existed before free credits launched don't get them, and neither do wallet-only sign-ups or accounts created for you by an organization, an embedded widget or an SDK.
 - **Once.** They're granted once per account and once per email address in each environment. Addresses that differ only in letter case, in a `+` suffix or, for Gmail, in dots count as the same address.
@@ -42,7 +42,7 @@ curl -s "$NVM_API_URL/api/v1/credits/welcome/offer"
 ```
 
 ```json
-{ "offer": { "credits": "2000", "ttlDays": 30 } }
+{ "offer": { "credits": "200000", "ttlDays": 30 } }
 ```
 
 `offer` is `null` while the offer is closed. See the [API reference](/api-reference/router/welcome-credits-offer).
@@ -65,9 +65,9 @@ An assistant you connect through OAuth, such as the Catalog MCP from Claude.ai o
 
 ## Top-ups
 
-Top-ups keep your agent going when your credits run out. Turn them on, and each time a call needs more credits than you can spend, Nevermined charges your card for a **pack of 10,000 credits that never expire** and the call goes ahead, up to a monthly limit you set. They're for every personal account, with or without a subscription.
+Top-ups keep your agent going when your credits run out. Turn them on, and each time a call needs more credits than you can spend, Nevermined charges your card for a **pack of 1,000,000 credits that never expire** and the call goes ahead, up to a monthly limit you set. They're for every personal account, with or without a subscription.
 
-- **A pack is USD 10 plus applicable taxes** for 10,000 credits. The tax is calculated from your billing address, and the total is shown before you pay.
+- **A pack is USD 10 plus applicable taxes** for 1,000,000 credits. The tax is calculated from your billing address, and the total is shown before you pay.
 - **Top-up credits never expire.** They join your [one balance](#credits). The credits that expire soonest are spent first, so top-up credits are spent last, after your free credits and your subscription's allowance.
 - **Off by default.** You turn top-ups on by buying your first pack, and the card you pay it with pays the packs after it.
 - **Only when a call needs it.** While top-ups are on, a pack is charged automatically when a call costs more credits than you can spend, then the call is paid from your balance, which now includes the pack. A running call charges at most one pack, and **only a call made with your personal API key** charges one automatically — a call made through an OAuth connection never does.
@@ -92,13 +92,13 @@ You turn top-ups on in the [Nevermined App](https://nevermined.app), on the same
     Type a monthly limit in US dollars, before tax. The panel says how many packs a month it allows: a USD 30 limit allows up to 3 packs a month.
   </Step>
   <Step title="Give the consents">
-    Tick both boxes. The first agrees that Nevermined charges your card USD 10 plus applicable taxes for each pack of 10,000 credits that never expire: the first pack now, and another automatically each time your credits run out, up to your monthly limit. The second asks for each pack's credits to be made available immediately and acknowledges that you lose your 14-day right of withdrawal once they are, for your first pack and every pack charged automatically after it. **Top-up terms** below the boxes has the full terms.
+    Tick both boxes. The first agrees that Nevermined charges your card USD 10 plus applicable taxes for each pack of 1,000,000 credits that never expire: the first pack now, and another automatically each time your credits run out, up to your monthly limit. The second asks for each pack's credits to be made available immediately and acknowledges that you lose your 14-day right of withdrawal once they are, for your first pack and every pack charged automatically after it. **Top-up terms** below the boxes has the full terms.
   </Step>
   <Step title="Pay for your first pack">
     Choose a saved card, or **Add a card** and enter its details. Confirm your billing country — with a postal code in the US and Canada — and the panel shows your total, such as **Total today: $10.81, including $0.81 tax**. Click **Pay with •••• 4242**. Your bank may ask you to confirm the payment (3-D Secure).
   </Step>
   <Step title="Your credits arrive">
-    Once the payment is confirmed, top-ups are on, the pack's 10,000 credits are in your balance, and an email sends you the receipt. The same card pays the packs charged automatically after this one.
+    Once the payment is confirmed, top-ups are on, the pack's 1,000,000 credits are in your balance, and an email sends you the receipt. The same card pays the packs charged automatically after this one.
   </Step>
 </Steps>
 
@@ -144,7 +144,7 @@ You buy the subscription in the [Nevermined Catalog](https://nevermined.app/cata
     In the catalog, click **Subscription** in the header, or **Subscribe for $20 a month** on the catalog's home page. Log in with your Nevermined account if the page asks you to.
   </Step>
   <Step title="Choose the subscription">
-    The page compares the two ways to pay for the catalog: **Pay per call** from a budget you set up yourself, or the **Nevermined Subscription**. The subscription is **USD 20 per month plus applicable taxes**, and it grants **20,000 credits** each month. Click **Choose Subscription**.
+    The page compares the two ways to pay for the catalog: **Pay per call** from a budget you set up yourself, or the **Nevermined Subscription**. The subscription is **USD 20 per month plus applicable taxes**, and it grants **2,000,000 credits** each month. Click **Choose Subscription**.
   </Step>
   <Step title="Give the consents">
     Tick both consents. The first agrees that the subscription renews automatically every month until you cancel. The second asks for your credits to be made available immediately, and acknowledges that you lose the 14-day right of withdrawal once they are. Then click **Continue to payment**.
@@ -181,12 +181,19 @@ In the [Nevermined App](https://nevermined.app), open **Catalog Subscription** i
 
 All the credits your account holds are **one balance**, whether they're free credits, top-up credits or your subscription's monthly allowance. A call costs the same credits whatever the source, and **the credits that expire soonest are spent first**.
 
-- **One allowance per billing period.** Your plan includes a monthly allowance of 20,000 credits, available once each monthly invoice is paid. Changes to the price or the monthly allowance are announced in advance, and you can cancel before they apply.
+- **One allowance per billing period.** Your plan includes a monthly allowance of 2,000,000 credits, available once each monthly invoice is paid. Changes to the price or the monthly allowance are announced in advance, and you can cancel before they apply.
 - **The allowance expires at the end of the period.** Unused allowance credits don't roll over; your allowance resets when the next period's invoice is paid. Free credits expire 30 days after they're added, whatever your billing period.
 - **Top-up credits never expire,** so they're spent last.
 - **An overdue renewal freezes only the allowance.** While a subscription payment is overdue, its allowance credits can't be spent until the payment goes through. Your free and top-up credits still can, and top-ups stay on. But a call that the frozen allowance would have covered is refused (`0016`) instead of charging a pack: paying the overdue invoice is what unlocks it.
 - **A card dispute freezes everything.** While a card payment you made to Nevermined — for the subscription or for a top-up pack — is disputed with your card issuer, none of your credits can be spent, and top-ups stop.
 - **They are not money.** Credits have no cash value, can't be cashed out, and can't be transferred to another account.
+
+### The size of a credit
+
+Nevermined credits were made 100 times smaller, so a call can be priced closer to what the service charges. Every count was multiplied by 100 on the day of the change, at the same prices: the subscription is still USD 20 a month, now for 2,000,000 credits, and a pack is still USD 10, now for 1,000,000. Balances, allowances and past calls in the ledger were multiplied in place, with their expiry dates unchanged, and each holder on Live got an email that day. What your credits pay for didn't change.
+
+- **An API key pinned below 1.94 keeps the old size.** The API divides the credit counts it sends that key and multiplies the ones it receives (`maxCredits`, `forCallCredits`, daily and monthly credit limits), so an integration written for the old numbers keeps working. Prices and amounts spent round up, and balances and limits round down. To read the current size, move the key's pin to 1.94 or later, or send `Nevermined-Version: 1.94`. Error `params` are always in the current size. See the [API changelog](/development-guide/api-changelog#1-94).
+- **The catalog and ARD reads ignore your key's pin.** Send `Nevermined-Version: 1.94` or later on `GET /api/v1/catalog/services`, `GET /api/v1/catalog/services/{slug}`, `POST /api/v1/ard/search` and `GET /api/v1/ard/agents`. Without the header they answer as version 1.0, and below 1.91 no endpoint reads as payable with credits there. `GET /api/v1/subscription/catalog/credits` follows your key's pin: below 1.91 it lists no service.
 
 Check your credits at any time, subscribed or not — it charges nothing:
 
@@ -197,13 +204,13 @@ curl -s "$NVM_API_URL/api/v1/credits/balance" \
 
 ```json
 {
-  "total": "11500",
-  "spendable": "11500",
+  "total": "1150000",
+  "spendable": "1150000",
   "parts": [
-    { "kind": "welcome", "credits": "1500", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null },
-    { "kind": "topup", "credits": "10000", "expiresAt": null, "frozen": null }
+    { "kind": "welcome", "credits": "150000", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null },
+    { "kind": "topup", "credits": "1000000", "expiresAt": null, "frozen": null }
   ],
-  "nextExpiry": { "credits": "1500", "at": "2026-11-26T09:12:44.000Z" },
+  "nextExpiry": { "credits": "150000", "at": "2026-11-26T09:12:44.000Z" },
   "topups": {
     "enabled": true,
     "monthlyLimitUsd": 30,
@@ -246,13 +253,13 @@ curl -s "$NVM_API_URL/api/v1/router/subscription/balance" \
 ```json
 {
   "subscribed": true,
-  "creditsLeft": "1240",
+  "creditsLeft": "124000",
   "spendable": true,
   "resetsAt": "2026-10-30T00:00:00.000Z",
   "cancelAtPeriodEnd": false,
   "status": "active",
   "suspended": false,
-  "plan": { "catalogId": "3f2b…", "planKey": "standard", "creditsPerCycle": "20000" }
+  "plan": { "catalogId": "3f2b…", "planKey": "standard", "creditsPerCycle": "2000000" }
 }
 ```
 
@@ -260,11 +267,11 @@ curl -s "$NVM_API_URL/api/v1/router/subscription/balance" \
 
 ### In the catalog
 
-Signed in, the catalog shows your credits in the account menu under **Credits**, subscribed or not, and where your top-ups stand. A subscriber also sees a status bar on the catalog's home page, such as **Subscribed · 19,835 credits left this month**.
+Signed in, the catalog shows your credits in the account menu under **Credits**, subscribed or not, and where your top-ups stand. A subscriber also sees a status bar on the catalog's home page, such as **Subscribed · 1,983,500 credits left this month**.
 
 When your credits can pay a call, the catalog shows service prices **in credits** instead of USD:
 
-- a service card priced like **15 credits**, or **from 15 credits** when its endpoints differ;
+- a service card priced like **1,500 credits**, or **from 1,500 credits** when its endpoints differ;
 - on a service's page, an estimate of the credits one call costs and how many credits you have left, with each endpoint priced in credits — or marked **Budget only** when credits can't pay it (**Own crypto wallet only** on a service that sells only to the payer's own crypto wallet);
 - a switch on the services page, **Pay with your budget instead**, that turns the prices back into USD.
 
@@ -284,7 +291,7 @@ curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/quote" \
 ```
 
 ```json
-{ "slug": "webscrape-pro", "credits": 3, "paymentRequired": true, "upstreamStatus": 402 }
+{ "slug": "webscrape-pro", "credits": 216, "paymentRequired": true, "upstreamStatus": 402 }
 ```
 
 `credits` is what this exact request costs now. `paymentRequired: false` means the service did not ask to be paid for this request, so it named no price and `credits` is `0`, which does not make the call free: read `upstreamStatus`. A `2xx` means the service answered for free; a `400` or `422` usually means the request is not what the endpoint expects.
@@ -296,7 +303,7 @@ A quote refuses what the call would refuse before anything is paid (see [When a 
 A quote holds nothing: the service's price can move before you call. To make sure a call doesn't cost more than you were quoted, send the quote's `credits` as `maxCredits` on the call:
 
 ```json
-{ "slug": "webscrape-pro", "path": "scrape", "method": "POST", "requestId": "…", "maxCredits": 3 }
+{ "slug": "webscrape-pro", "path": "scrape", "method": "POST", "requestId": "…", "maxCredits": 216 }
 ```
 
 A call that would cost more is refused with `409 BCK.SUBSCRIPTION_ROUTER.0020` before anything is reserved or signed, and charges nothing. Quote it again and decide. On `/api/v1/router/subscription/svc/<slug>`, send it as the `X-Router-Max-Credits` header. The Catalog MCP's `quote_service` hands you the value to pass to `pay_service`.
@@ -336,7 +343,7 @@ curl -s -X POST "$NVM_API_URL/api/v1/router/subscription/route" \
     "paymentId": "b1f9c2e4-…",
     "status": "Settled",
     "txHash": "0xfc8af37b…",
-    "creditsCharged": 3,
+    "creditsCharged": 216,
     "creditsStatus": "Committed",
     "failureReason": null,
     "correlationId": "…"
@@ -354,7 +361,7 @@ What's different from the Delegation route:
 - **A top-up shows on the call that charged it.** When this call ran out of credits and, with [top-ups](#top-ups) on, charged a pack to cover itself, the response — the result, or the `202` — also carries `topUp`: the credits the pack added and its price before tax. Your card was charged, so tell the person you're acting for.
 
 ```json
-{ "topUp": { "credits": 10000, "amountUsd": 10 } }
+{ "topUp": { "credits": 1000000, "amountUsd": 10 } }
 ```
 
 For large or streamed responses, the streaming form is `ALL /api/v1/router/subscription/svc/{slug}/{path}`. Point your HTTP client at it with your API key and an `X-Router-Request-Id` header; the method, body and headers pass through and the response streams back with `X-Router-Credits-Charged` and `X-Router-Credits-Status` alongside the usual `X-Router-Payment-*` headers, plus `X-Router-Topup-Credits` and `X-Router-Topup-Amount-Usd` when the call charged a top-up pack. `X-Router-Target-Url`, `X-Router-Target-Slug` and `X-Router-Delegation-Id` are refused on this route.
@@ -471,7 +478,7 @@ curl -s -G "$NVM_API_URL/api/v1/router/payments" \
 {
   "presence": "present",
   "payments": [
-    { "paymentId": "b1f9c2e4-…", "requestId": "scrape-example-com-1", "fundingSource": "subscription", "creditsCharged": 3, "creditsStatus": "Committed", "delegationId": null, "feeBps": 0 }
+    { "paymentId": "b1f9c2e4-…", "requestId": "scrape-example-com-1", "fundingSource": "subscription", "creditsCharged": 216, "creditsStatus": "Committed", "delegationId": null, "feeBps": 0 }
   ]
 }
 ```

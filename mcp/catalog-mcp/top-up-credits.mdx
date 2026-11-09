@@ -4,7 +4,7 @@ sidebarTitle: "Top Up Credits"
 description: "Catalog MCP tool: charge one credit pack to the card your human enrolled, within the monthly top-up limit they set. Charges real funds."
 ---
 
-Refill your [Nevermined credits](/products/catalog/router/subscription#top-ups) within the human-set monthly limit. Charges one **pack of 10,000 credits that never expire** to the card your human enrolled — **no new human approval** — and only when your spendable credits are below the call you're about to make. **This charges the human's card.** Needs a credential (API key, or a `commerce` OAuth grant that enabled credit top-ups at consent).
+Refill your [Nevermined credits](/products/catalog/router/subscription#top-ups) within the human-set monthly limit. Charges one **pack of 1,000,000 credits that never expire** to the card your human enrolled — **no new human approval** — and only when your spendable credits are below the call you're about to make. **This charges the human's card.** Needs a credential (API key, or a `commerce` OAuth grant that enabled credit top-ups at consent).
 
 Turning top-ups on and setting the monthly limit stay with the human, in the [Nevermined App](https://nevermined.app) — this tool charges a pack *within* that limit, it does not create or change it. With your **own API key** and top-ups on, a credits call that runs out charges a pack on its own (see [`pay_service`](/mcp/catalog-mcp/pay-service#when-a-call-charges-a-top-up-pack)). Through an **OAuth connection** it never does — so for an OAuth-connected agent (the Claude.ai, ChatGPT or Fleet connectors) `top_up_credits` is the only way to get a pack. Either way, call it to refill **before** a call, so the credits are in place when you make it.
 
@@ -26,12 +26,12 @@ The pack's result and where your top-up spend stands this month. Dollar amounts 
   "status": "bought",
   "replayed": false,
   "purchaseId": "9c2e4a71-…",
-  "creditsAdded": "10000",
+  "creditsAdded": "1000000",
   "monthlyLimitUsd": 30,
   "boughtThisMonthUsd": 10,
   "packPriceUsd": 10,
   "operatorUrl": null,
-  "message": "Added 10000 credits."
+  "message": "Added 1000000 credits."
 }
 ```
 
@@ -76,7 +76,7 @@ An OAuth grant needs **Let this assistant top up my Nevermined credits** ticked 
 
 **Ask your assistant:**
 
-> My credits are low and the next call needs about 1,000. Top up within my limit, then make the call.
+> My credits are low and the next call needs about 100,000. Top up within my limit, then make the call.
 
 **Call it directly** (⚠️ **charges the human's card** — rehearse on `https://mcp.sandbox.nevermined.app/mcp` first):
 
@@ -85,7 +85,7 @@ curl -X POST https://mcp.live.nevermined.app/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -H "Authorization: Bearer $NVM_API_KEY" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"top_up_credits","arguments":{"requestId":"run-7f3a9c21-topup-1","forCallCredits":1000}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"top_up_credits","arguments":{"requestId":"run-7f3a9c21-topup-1","forCallCredits":100000}}}'
 ```
 
 The REST equivalent is `POST /api/v1/credits/topups/pack` with the same `{ "requestId", "forCallCredits" }` body and your API key.

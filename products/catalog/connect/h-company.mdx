@@ -19,7 +19,7 @@ icon: "plug"
 
   "See it in action" / "What one run looks like" come from a real build+run captured 2026-10-27: the
   saved Agent `recall-checker` (Peloton Tread+), ~165 subscription credits (RecallRadar 150 + Perplexity
-  15). Nothing was re-run for the recording. Video: YouTube 7PkMvaeUX8A. No platform screenshots exist,
+  15), 16,500 once credits were made 100 times smaller. Nothing was re-run for the recording. Video: YouTube 7PkMvaeUX8A. No platform screenshots exist,
   so the run is shown as prose + a table, not fabricated images.
 */}
 
@@ -51,10 +51,10 @@ On a run the agent calls the Catalog more than once. For each part of the brief 
 
 | Step | Service it paid | What came back | Cost |
 | --- | --- | --- | --- |
-| 1 | `recallradar` (recall lookup) | The real **CPSC recall of 2021-05-05**: the Tread+ entrapment hazard, the remedy, and the cpsc.gov source | 150 credits, settled, upstream 200 |
-| 2 | `perplexity` (`sonar`) | The risk brief written from that record plus live sources, with 10 citations | 15 credits, settled, upstream 200 |
+| 1 | `recallradar` (recall lookup) | The real **CPSC recall of 2021-05-05**: the Tread+ entrapment hazard, the remedy, and the cpsc.gov source | 15,000 credits, settled, upstream 200 |
+| 2 | `perplexity` (`sonar`) | The risk brief written from that record plus live sources, with 10 citations | 1,500 credits, settled, upstream 200 |
 
-The agent then emitted a sourced **HIGH-risk** brief: the active CPSC recall, the hazard, the remedy, a recommended action, and the source link. About **165 credits** in total, all from the account's **subscription credits**, with no stablecoin spend. It paid for the two calls its task needed and nothing else. The Catalog tool calls in this run were resolved by the integration's own backend, the method shown in [Add the Catalog to H Company](#add-the-catalog-to-h-company).
+The agent then emitted a sourced **HIGH-risk** brief: the active CPSC recall, the hazard, the remedy, a recommended action, and the source link. About **16,500 credits** in total, all from the account's **subscription credits**, with no stablecoin spend (at today's [credit size](/products/catalog/router/subscription#the-size-of-a-credit); the run cost 165 credits before credits were made 100 times smaller). It paid for the two calls its task needed and nothing else. The Catalog tool calls in this run were resolved by the integration's own backend, the method shown in [Add the Catalog to H Company](#add-the-catalog-to-h-company).
 
 ## Before you connect
 
@@ -107,7 +107,7 @@ Browsing the Catalog is free; paying a service is what draws on your budget. See
 An agent runs with no human watching each call, so the account's limits do the work a person would. The key spends only what its Nevermined account funds, enforced on Nevermined's side, not inside H Company. With a plain key the Commerce MCP pays from your **credits** first whenever they can cover a call, and from a **delegation** otherwise, so know which one an agent is spending and what actually bounds it.
 
 - **A delegation is a hard, revocable cap.** Fund it once and its cap is the ceiling for every call paid from it. Revoke it any time, in one action, from [Payment methods](https://nevermined.app/payment-methods), and the next delegation-funded call fails. For a hard per-agent ceiling, have your backend send `funding: "delegation"` on every pay call, so the delegation cap is the only bound no matter what credits the account holds. (Running the agent on a separate account with no credits works too, but welcome credits and a subscription's allowance arrive on their own, so the explicit lever is simpler.)
-- **Credits have no cap beyond your balance.** There is no daily, per-service or per-key limit, and with [top-ups](/products/catalog/router/subscription#top-ups) on, a call that runs short charges your card for a 10,000-credit pack, up to a monthly limit you set. Revoking a delegation does not stop credit spend; the Nevermined-side stop for credits is rotating or deleting the key and turning top-ups off.
+- **Credits have no cap beyond your balance.** There is no daily, per-service or per-key limit, and with [top-ups](/products/catalog/router/subscription#top-ups) on, a call that runs short charges your card for a 1,000,000-credit pack, up to a monthly limit you set. Revoking a delegation does not stop credit spend; the Nevermined-side stop for credits is rotating or deleting the key and turning top-ups off.
 - **Keep the stop within reach.** Treat the backend secret that stores the key as spending authority, and know the lever before you need it: the key and top-ups for credits, the delegation cap for delegated calls.
 
 ## Make your first paid call
