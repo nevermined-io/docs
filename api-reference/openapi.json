@@ -3102,7 +3102,7 @@
     },
     "/credits/welcome/offer": {
       "get": {
-        "description": "The free welcome credits a new account is granted when it signs up with a verified email, and how many days they last. `offer` is `null` while the offer is closed. A non-null offer says what the offer grants, not that a particular sign-up right now will be granted. No authentication; the answer is the same for every caller and may be cached for 5 minutes.",
+        "description": "The free welcome credits a new account is granted when it signs up with a verified email, and how many days they last. `offer` is `null` while the offer is closed. A non-null offer says what the offer grants, not that a particular sign-up right now will be granted. No authentication, and cacheable for 5 minutes. `credits` follows the `Nevermined-Version` header: without it the request answers as version 1.0, which reads the credit's old size (API changelog, 1.94).",
         "operationId": "getWelcomeCreditsOffer",
         "parameters": [],
         "security": [],
@@ -6597,7 +6597,7 @@
           "credits": {
             "type": "integer",
             "description": "The exact credits this request costs now, from the merchant's live price with a 1-credit minimum. 0 when `paymentRequired` is false: the merchant named no price for this request, which is not a promise that the call is free. Read `upstreamStatus`.",
-            "example": 3
+            "example": 216
           },
           "paymentRequired": {
             "type": "boolean",
@@ -6623,7 +6623,7 @@
             "type": "integer",
             "minimum": 1,
             "description": "The most credits you accept for this call, usually the `credits` of a quote you just read. A call that would cost more is refused (`BCK.SUBSCRIPTION_ROUTER.0020`) before anything is reserved or signed, and charges nothing. It can only lower what a call may cost: the per-call limit still applies.",
-            "example": 3
+            "example": 216
           },
           "slug": {
             "type": "string",
@@ -6731,7 +6731,7 @@
           "creditsCharged": {
             "type": "integer",
             "description": "Credits this call cost (the endpoint's rate). Absent only when the ledger could not be read at answer time; `GET /router/payments` has it.",
-            "example": 3
+            "example": 216
           },
           "creditsStatus": {
             "type": "string",
@@ -6825,7 +6825,7 @@
           "credits": {
             "type": "integer",
             "description": "Credits the pack added. They never expire.",
-            "example": 10000
+            "example": 1000000
           },
           "amountUsd": {
             "type": "number",
@@ -6875,7 +6875,7 @@
           "creditsPerCycle": {
             "type": "string",
             "description": "Credits each paid monthly invoice grants, as a whole-number digit string.",
-            "example": "20000"
+            "example": "2000000"
           }
         },
         "required": [
@@ -6894,7 +6894,7 @@
           "creditsLeft": {
             "type": "string",
             "description": "Credits left: every unexpired credit of the balance the subscription pays from — free welcome credits included, frozen ones too — as a whole-number digit string. For what can pay a call now, read `spendable` on `GET /credits/balance`.",
-            "example": "1240"
+            "example": "124000"
           },
           "spendable": {
             "type": "boolean",
@@ -6954,7 +6954,7 @@
           "credits": {
             "type": "string",
             "description": "Credits of this kind and expiry left, as a whole-number digit string.",
-            "example": "2000"
+            "example": "200000"
           },
           "expiresAt": {
             "type": [
@@ -6990,7 +6990,7 @@
           "credits": {
             "type": "string",
             "description": "Credits that expire at `at`, as a whole-number digit string.",
-            "example": "2000"
+            "example": "200000"
           },
           "at": {
             "type": "string",
@@ -7009,12 +7009,12 @@
           "total": {
             "type": "string",
             "description": "Every unexpired credit, frozen ones included, as a whole-number digit string. `\"0\"` when there is none.",
-            "example": "2000"
+            "example": "200000"
           },
           "spendable": {
             "type": "string",
             "description": "The credits that can pay a call right now: the sum of the parts that are not frozen, as a whole-number digit string. What the Router spends — read it rather than adding up your calls.",
-            "example": "2000"
+            "example": "200000"
           },
           "parts": {
             "type": "array",
@@ -7168,7 +7168,7 @@
           "credits": {
             "type": "string",
             "description": "Credits granted to a new account, as a whole-number digit string.",
-            "example": "2000"
+            "example": "200000"
           },
           "ttlDays": {
             "type": "integer",

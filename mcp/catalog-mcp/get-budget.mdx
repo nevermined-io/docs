@@ -50,35 +50,35 @@ With a personal API key, the result also carries your [Nevermined credits](/prod
   "status": "no_active_delegation",
   "message": "There is no delegation spending budget, but your Nevermined credits cover the catalog services that accept credits: pay_service uses them by default for those, and does not fall back to a delegation when they run out. To pay merchants from a delegation instead, call setup_delegation.",
   "subscription": { "subscribed": false },
-  "subscriptionMessage": "You have no Nevermined Subscription. You have 2,000 credits. 2,000 welcome credits expire on 2026-11-26.",
+  "subscriptionMessage": "You have no Nevermined Subscription. You have 200,000 credits. 200,000 welcome credits expire on 2026-11-26.",
   "credits": {
-    "total": "2000",
-    "spendable": "2000",
+    "total": "200000",
+    "spendable": "200000",
     "parts": [
-      { "kind": "welcome", "credits": "2000", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null }
+      { "kind": "welcome", "credits": "200000", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null }
     ],
-    "nextExpiry": { "credits": "2000", "at": "2026-11-26T09:12:44.000Z" }
+    "nextExpiry": { "credits": "200000", "at": "2026-11-26T09:12:44.000Z" }
   },
-  "creditsMessage": "You have 2,000 credits. 2,000 welcome credits expire on 2026-11-26."
+  "creditsMessage": "You have 200,000 credits. 200,000 welcome credits expire on 2026-11-26."
 }
 ```
 
 - `credits` is your balance as [`GET /api/v1/credits/balance`](/api-reference/router/credits-balance) reports it: `spendable` is what can pay a call now, and `parts` lists the credits left by kind (`welcome` for free credits, `allowance` for a subscription's monthly allowance, `topup` for top-up credits) and expiry, with any freeze. `creditsMessage` says the same in a sentence. Relay it as it stands.
-- `subscription` is your Nevermined Subscription, with `subscriptionMessage` to relay as it stands. It's `{ "subscribed": false }` when you don't subscribe. A subscriber sees the plan, the reset date and `creditsLeft`. For a subscriber who also holds free or top-up credits, `subscriptionMessage` counts them in the credits "left this month" — and its "unused credits do not carry over", or "unused credits expire on …, when the subscription ends" after a cancellation, is about the allowance only — so relay `creditsMessage` for what each part is and when it expires:
+- `subscription` is your Nevermined Subscription, with `subscriptionMessage` to relay as it stands. It's `{ "subscribed": false }` when you don't subscribe. A subscriber sees the plan, the reset date and `creditsLeft`. For a subscriber, `subscriptionMessage` names the monthly allowance and when it resets, then describes your credits part by part, as `creditsMessage` does. What it says about credits not carrying over, or about the subscription ending after a cancellation, is about the allowance only. When your balance couldn't be read, it gives one total instead, free and top-up credits included:
 
 ```json
 {
   "subscription": {
     "subscribed": true,
-    "creditsLeft": "1240",
+    "creditsLeft": "124000",
     "spendable": true,
     "resetsAt": "2026-10-30T00:00:00.000Z",
     "cancelAtPeriodEnd": false,
     "status": "active",
     "suspended": false,
-    "plan": { "catalogId": "3f2b…", "planKey": "standard", "creditsPerCycle": "20000" }
+    "plan": { "catalogId": "3f2b…", "planKey": "standard", "creditsPerCycle": "2000000" }
   },
-  "subscriptionMessage": "Nevermined Subscription (standard): 1240 of 20000 credits left this month; the monthly allowance resets on 2026-10-30 and unused credits do not carry over."
+  "subscriptionMessage": "Nevermined Subscription (standard), 2,000,000 credits a month: the allowance resets on 2026-10-30, and the allowance credits left then do not carry over. You have 124,000 credits. 124,000 subscription allowance credits expire on 2026-10-30."
 }
 ```
 
@@ -94,15 +94,15 @@ Credits from [top-up packs](/products/catalog/router/subscription#top-ups) are a
 ```json
 {
   "credits": {
-    "total": "11500",
-    "spendable": "11500",
+    "total": "1150000",
+    "spendable": "1150000",
     "parts": [
-      { "kind": "welcome", "credits": "1500", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null },
-      { "kind": "topup", "credits": "10000", "expiresAt": null, "frozen": null }
+      { "kind": "welcome", "credits": "150000", "expiresAt": "2026-11-26T09:12:44.000Z", "frozen": null },
+      { "kind": "topup", "credits": "1000000", "expiresAt": null, "frozen": null }
     ],
-    "nextExpiry": { "credits": "1500", "at": "2026-11-26T09:12:44.000Z" }
+    "nextExpiry": { "credits": "150000", "at": "2026-11-26T09:12:44.000Z" }
   },
-  "creditsMessage": "You have 11,500 credits. 1,500 welcome credits expire on 2026-11-26. 10,000 top-up credits never expire."
+  "creditsMessage": "You have 1,150,000 credits. 150,000 welcome credits expire on 2026-11-26. 1,000,000 top-up credits never expire."
 }
 ```
 
