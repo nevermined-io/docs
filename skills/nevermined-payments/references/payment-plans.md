@@ -208,12 +208,13 @@ fiat_price_config = payments.plans.get_fiat_price_config(
 
 When subscribers fetch an x402 token for a fiat plan, the supported flow is **create-first**: create the delegation, then reuse it by `delegationId`.
 
-- **Create the delegation** (`provider` + `currency` required), e.g. for Stripe / Braintree:
+- **Create the delegation** (`provider` + `currency` required), e.g. for a card enrolled through the Nevermined App's credit/debit card form (Stripe- or Braintree-priced plans alike; the plan picks the PSP at charge time):
   ```ts
   const delegation = await payments.delegation.createDelegation({
-    provider: 'stripe', providerPaymentMethodId: 'pm_…', spendingLimitCents: 1000, durationSecs: 86400, currency: 'usd'
+    provider: 'vgs', providerPaymentMethodId: 'CRD…', spendingLimitCents: 1000, durationSecs: 86400, currency: 'usd'
   })
   ```
+  `providerPaymentMethodId` is the enrolled card's `CRD…` id: its `id` in `payments.delegation.listPaymentMethods()` (filter with `{ provider: 'vgs' }`).
 - **Reuse it by `delegationId`** (works for all networks, including Visa):
   ```ts
   delegationConfig: { delegationId: delegation.delegationId }
