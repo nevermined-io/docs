@@ -14,7 +14,7 @@ related:
 This specification defines a **delegation extension** to the [x402 protocol](https://x402.org/) that enables payment settlement through on-chain credit burns with delegated spending permissions. The delegation model is shared between crypto and fiat payment providers:
 
 - **Crypto delegations** (`provider: 'erc4337'`): Use ERC-4337 smart accounts and session keys for on-chain settlement, with crypto-funded ordering when the subscriber's balance is insufficient.
-- **Fiat delegations** (`provider: 'stripe' | 'braintree' | 'visa'`): Use the configured Payment Service Provider (Stripe PaymentIntents, Braintree sales, or — for Visa Agentic Tokens — Stripe Connect against the seller's connected account) backed by pre-authorized card delegations for automatic card-funded credit top-ups when the subscriber's balance is insufficient.
+- **Fiat delegations** (`provider: 'vgs' | 'stripe' | 'braintree' | 'visa'`): Use the configured Payment Service Provider (Stripe PaymentIntents, Braintree sales, or — for Visa Agentic Tokens — Stripe Connect against the seller's connected account) backed by pre-authorized card delegations for automatic card-funded credit top-ups when the subscriber's balance is insufficient.
 
 All providers use the same `DelegationConfig` interface with `spendingLimitCents` and `durationSecs` to control delegation scope. The PSP is selected per plan via the seller's `fiatPaymentProvider` metadata. Visa adds a per-delegation device-binding step (`consumerPrompt` + `assuranceData`) imposed by the Visa Trusted Agent Protocol.
 
@@ -83,11 +83,10 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 | Term | Definition |
 |------|------------|
-| **Delegation** | A pre-authorized permission granting the facilitator the ability to execute payment operations on behalf of a client, within defined spending limits and time constraints. Delegations use the unified `DelegationConfig` interface for crypto (`erc4337`) and fiat (`stripe`, `braintree`, `visa`) providers. |
+| **Delegation** | A pre-authorized permission granting the facilitator the ability to execute payment operations on behalf of a client, within defined spending limits and time constraints. Delegations use the unified `DelegationConfig` interface for crypto (`erc4337`) and fiat (`vgs`, `stripe`, `braintree`, `visa`) providers. |
 | **Visa Agentic Token** | A long-lived CMP-issued identifier (`vat_…`) that replaces a real PAN. Bound to Nevermined as the token requestor. Used as the `providerPaymentMethodId` for `provider: 'visa'` delegations. |
 | **Device Binding** | A per-delegation WebAuthn/passkey ceremony embedded by Visa VTS that produces a single-use `assuranceData` blob bound to the delegation's spending limit, duration, and merchant context. Required by the Visa Trusted Agent Protocol. Browser-only. |
 | **Consumer Prompt** | Human-readable approval text shown during Visa device binding. Forwarded verbatim to VGS `POST /intents`. Limited to 500 characters. |
-| **SetupIntent** | A Stripe object used to collect and confirm a customer's payment method for future off-session charges, without immediately charging the card. |
 | **PaymentIntent** | A Stripe object representing the intent to collect a payment. Used during settlement to charge the delegated card. |
 | **Payment Method Token** | A permanent Braintree handle that identifies a card vaulted before enrollment moved to VGS; no new card gets one. Used at settlement time as the equivalent of Stripe's `pm_...` ID. |
 | **Off-session payment** | A PSP-side payment executed without the cardholder being actively present, using a previously saved payment method. |
@@ -234,9 +233,9 @@ The `token` field contains a signed JWT with the following claims:
 | `iat` | `number` | Yes | Issued-at timestamp (Unix epoch seconds). |
 | `exp` | `number` | Yes | Expiration timestamp (Unix epoch seconds). |
 | `nvm.delegationId` | `string` | Yes | Unique delegation identifier (UUID). MUST match the `jti` claim. |
-| `nvm.provider` | `string` | Yes | Payment provider identifier. MUST be `"stripe"`, `"braintree"`, `"visa"`, or `"erc4337"`. |
-| `nvm.providerCustomerId` | `string` | Yes | PSP-side customer identifier. For Stripe, the Customer ID (e.g., `"cus_PaBcDeFgHiJk"`). For Braintree, the customer ID derived from the buyer's userId. For Visa, the CMP cardholder identifier. |
-| `nvm.providerPaymentMethodId` | `string` | Yes | PSP-side payment method handle for the enrolled card. For Stripe, the PaymentMethod ID (e.g., `"pm_1AbCdEfGhIjKlM"`). For Braintree, the `paymentMethodToken` of a card vaulted before enrollment moved to VGS. For Visa, the Agentic Token (e.g., `"vat_01HXYZABCDEF"`). |
+| `nvm.provider` | `string` | Yes | Payment provider identifier. MUST be `"vgs"`, `"stripe"`, `"braintree"`, `"visa"`, or `"erc4337"`. `"vgs"` is a card enrolled through VGS (Section 4.2, Phase 0), charged through the PSP the plan selects. |
+| `nvm.providerCustomerId` | `string` | Yes | PSP-side customer identifier. For Stripe, the Customer ID (e.g., `"cus_PaBcDeFgHiJk"`). For Braintree, the customer ID derived from the buyer's userId. For Visa, the CMP cardholder identifier. For `vgs`, empty: the card has no PSP-side customer. |
+| `nvm.providerPaymentMethodId` | `string` | Yes | Payment method handle for the enrolled card. For `vgs`, the VGS card ID (e.g., `"CRDrX94aaaJz7oTFy2i13964k"`). For Stripe, the PaymentMethod ID (e.g., `"pm_1AbCdEfGhIjKlM"`). For Braintree, the `paymentMethodToken` of a card vaulted before enrollment moved to VGS. For Visa, the Agentic Token (e.g., `"vat_01HXYZABCDEF"`). |
 | `nvm.vgsIntentId` | `string` | No | Visa-only: identifier of the VGS `POST /intents` mandate provisioned at delegation create time. Required for settlement to call `enroll-cryptogram` against the right intent. |
 | `nvm.spendingLimitCents` | `number` | Yes | Maximum amount in cents that can be charged over the delegation lifetime. |
 | `nvm.currency` | `string` | Yes | ISO 4217 currency code (e.g., `"usd"`, `"eur"`). |
@@ -255,7 +254,7 @@ For `provider: 'visa'` delegations, the Visa Trusted Agent Protocol imposes two 
 |-------|------|----------|-------------|
 | `consumerPrompt` | `string` | Yes | Human-readable approval text shown during device binding (≤ 500 characters). Forwarded verbatim to VGS `POST /intents` and rendered in the cardholder's VTS-embedded approval iframe. |
 | `assuranceData` | `unknown` (typically an array) | Yes | Opaque payload produced by the VGS Agentic Auth browser SDK after the WebAuthn/passkey ceremony completes. Treated as opaque end-to-end and forwarded as-is to VGS. Size capped at 64 KiB at the DTO layer. |
-| `planId` | `string` | Yes | Visa delegations MUST bind to a single plan seller (`BCK.VISA.0015`). |
+| `planId` | `string` | No | Optional, as for every provider. When sent, it MUST be a string and restricts the delegation to that plan. |
 
 The facilitator MUST reject `provider: 'visa'` requests that are missing either `consumerPrompt` or `assuranceData` with `BCK.VISA.0014` (HTTP 400). The facilitator MUST also reject Visa delegations whose plan seller has not completed Stripe Connect onboarding with `BCK.VISA.0016`, because Visa settlements route through Stripe Connect.
 
@@ -279,29 +278,34 @@ sequenceDiagram
   %% ACTORS
   actor client as Client
   participant facilitator as Facilitator (Nevermined API)
-  participant vgs as VGS Proxy
+  participant vgs as VGS (Collect / CMP)
   participant psp as PSP (Stripe, Braintree, ..)
   participant server as Server (AI Agent)
 
   %% PHASE 0: CARD ENROLLMENT
   rect rgb(240, 248, 255)
-    note over client,psp: Phase 0: Card Enrollment
-    client->>facilitator: POST /payments/card/setup
-    facilitator->>psp: Create SetupIntent
-    psp-->>facilitator: SetupIntent (client_secret)
-    facilitator-->>client: SetupIntent client_secret
+    note over client,vgs: Phase 0: Card Enrollment
+    client->>facilitator: GET /fiat/visa/collect-token<br/>GET /delegation/enroll-session
+    facilitator-->>client: access_token, enrollSessionToken
 
-    note over vgs: PI captured by VGS Collect directly (PCI Compliant)
-    client->>vgs: Submit card details (using VGS Collect)
-    vgs->>psp: Confirm SetupIntent with tokenized card
-    psp-->>vgs: SetupIntent confirmed (PaymentMethod)
-    vgs-->>client: Confirmation
+    note over vgs: PAN captured by VGS Collect directly (PCI Compliant)
+    client->>vgs: Submit card details (VGS Collect createCard, access_token)
+    vgs-->>client: cardId (CRD…)
 
-    client->>facilitator: POST /payments/card/enroll (SetupIntent ID)
-    facilitator->>psp: Retrieve PaymentMethod
-    psp-->>facilitator: PaymentMethod details
-    facilitator->>facilitator: Store customer + payment method mapping
-    facilitator-->>client: Enrollment confirmed
+    client->>facilitator: POST /delegation/enroll/3ds/initialize<br/>cardId, enrollSessionToken
+    facilitator-->>client: required, threeDs?
+
+    opt required: true
+      client->>facilitator: POST /delegation/enroll/3ds/authenticate, /status<br/>cardId, enrollSessionToken, threeDs
+      facilitator->>vgs: Authenticate cardholder
+      facilitator-->>client: challenge / pending
+    end
+
+    client->>facilitator: POST /delegation/enroll<br/>cardId, enrollSessionToken, threeDs?
+    facilitator->>vgs: Provision network token for cardId
+    vgs-->>facilitator: Network token
+    facilitator->>facilitator: Store card (provider: vgs)
+    facilitator-->>client: paymentMethodId, providerPaymentMethodId (CRD…)
   end
 
   %% PHASE 1: DELEGATION CREATION (create-first)
@@ -375,42 +379,53 @@ The following steps detail the complete payment and execution flow. Steps are gr
 
 ---
 
-#### Phase 0: Card Enrollment (Steps 1-10)
+#### Phase 0: Card Enrollment (Steps 1-8)
 
-Card enrollment is a one-time process that securely saves a client's payment method for future use.
+Card enrollment is a one-time process that securely saves a client's card for future use. The card is vaulted at VGS (Very Good Security), not at a PSP: the plan being paid picks the PSP that charges it, at charge time. This is the flow of the "Credit/debit card" form in the Nevermined App; Visa cards enrol through `POST /api/v1/delegation/enroll-visa` instead (see Sections 9.3 and 9.4).
 
-**Step 1.** Client requests a SetupIntent from the facilitator.
+**Step 1.** Client requests, from the facilitator, a VGS Collect access token and an enrollment session token. The session token is valid for 10 minutes, and Steps 3 to 6 must complete within it. Both are requested before the card is created at VGS, so a failure here cannot leave a card at VGS with no payment method.
 
 ```http
-POST /payments/card/setup HTTP/1.1
+GET /api/v1/fiat/visa/collect-token HTTP/1.1
 Host: facilitator.example.com
 Authorization: Bearer <user-auth-token>
 ```
 
-**Step 2.** Facilitator creates a SetupIntent and returns the `client_secret` to the client.
+```http
+GET /api/v1/delegation/enroll-session HTTP/1.1
+Host: facilitator.example.com
+Authorization: Bearer <user-auth-token>
+```
 
-**Step 3.** Client submits card details through a VGS (Very Good Security) proxy. The VGS proxy tokenizes the card data before it reaches any Nevermined infrastructure, ensuring PCI compliance.
+**Step 2.** Facilitator returns the VGS Collect `access_token` and the `enrollSessionToken`. Every enrollment call in Steps 5 and 6 carries the `enrollSessionToken`.
 
-**Step 4.** VGS forwards the tokenized card data to the PSP to confirm the SetupIntent.
+**Step 3.** Client captures the card number, expiry, and CVC in a VGS Collect iframe. VGS Collect creates the card directly at VGS (`form.createCard({ auth: access_token, … })`), so the card data never reaches any Nevermined infrastructure, ensuring PCI compliance.
 
-**Step 5.** PSP confirms the SetupIntent and attaches the PaymentMethod.
+**Step 4.** VGS returns the card ID (`CRD…`) to the client.
 
-**Step 6.** Client notifies the facilitator that enrollment is complete.
+**Step 5.** Client calls `POST /api/v1/delegation/enroll/3ds/initialize` with the `cardId` and `enrollSessionToken`. If it answers `required: false`, the client goes straight to Step 6. Otherwise the facilitator requires 3-D Secure, and `initialize` also returns the transaction's `threeDs: { xid, merchantTransactionId }`. The client authenticates the cardholder through `/enroll/3ds/authenticate`, which additionally takes `browserInfo` (`javaEnabled`, `javascriptEnabled`, `colorDepth`, `screenWidth`, `screenHeight`, `tz`), a `redirectUrl` and an optional `language`, and polls `/enroll/3ds/status` until the challenge completes. Each call carries the `cardId`, the `enrollSessionToken` and that `threeDs`, and the client sends the same `threeDs` in Step 6.
+
+**Step 6.** Client sends the card ID to the facilitator to enroll the card.
 
 ```http
-POST /payments/card/enroll HTTP/1.1
+POST /api/v1/delegation/enroll HTTP/1.1
 Host: facilitator.example.com
 Authorization: Bearer <user-auth-token>
 Content-Type: application/json
 
 {
-  "setupIntentId": "seti_1AbCdEfGhIjKlM"
+  "cardId": "CRDrX94aaaJz7oTFy2i13964k",
+  "enrollSessionToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "alias": "My Card",
+  "threeDs": { "xid": "…", "merchantTransactionId": "…" }
 }
 ```
 
-**Step 7.** Facilitator retrieves the confirmed PaymentMethod from the PSP and stores the customer-to-payment-method mapping.
+`threeDs` is required when `initialize` answered `required: true`, and omitted otherwise.
 
-**Step 8.** Facilitator confirms enrollment to the client.
+**Step 7.** Facilitator provisions a network token for the card at VGS (re-reading the 3-D Secure outcome from VGS when Step 5 ran) and records the card under the client's account with provider `vgs`.
+
+**Step 8.** Facilitator confirms enrollment, returning `paymentMethodId`, `providerPaymentMethodId`, `status` and `outcome` (`created`, `matched` or `reactivated`: enrolling a card already on the account reuses its record, and reactivates it if it was removed). `paymentMethodId` is the facilitator's internal record id; everything downstream uses the card ID, `providerPaymentMethodId` (`CRD…`). That is what Step 9 passes as `providerPaymentMethodId` with `provider: 'vgs'`, and the `id` the payment-methods list returns for the card.
 
 <Note>
 Card enrollment only needs to happen once per payment method. A single enrolled card can back multiple delegations with different spending limits and expiry times.
@@ -420,9 +435,9 @@ Card enrollment only needs to happen once per payment method. A single enrolled 
 
 #### Phase 1: Delegation Creation (Steps 9-12)
 
-**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'stripe'`, `'braintree'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt`, `assuranceData`, and `planId` (see Section 3.4); both extras are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
+**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'vgs'` for a card enrolled in Phase 0, `'stripe'`, `'braintree'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt` and `assuranceData` (see Section 3.4); both are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
 
-The supported flow is **create-first**: create the delegation with `createDelegation`, then request the access token by passing only its `delegationId` (shown below). Inline create-on-the-fly (passing creation fields in `delegationConfig` to `getX402AccessToken` instead of a `delegationId`) is **deprecated** and emits a runtime deprecation warning; it remains reachable for backward compatibility but should not be used in new integrations. `provider` and `currency` are required on `createDelegation` (no silent default); a delegation is plan-agnostic unless `planId` is supplied (Visa always requires `planId`).
+The supported flow is **create-first**: create the delegation with `createDelegation`, then request the access token by passing only its `delegationId` (shown below). Inline create-on-the-fly (passing creation fields in `delegationConfig` to `getX402AccessToken` instead of a `delegationId`) is **deprecated** and emits a runtime deprecation warning; it remains reachable for backward compatibility but should not be used in new integrations. `provider` and `currency` are required on `createDelegation` (no silent default); a delegation is plan-agnostic unless `planId` is supplied, for every provider.
 
 **Using the `createDelegation` API directly:**
 
@@ -433,14 +448,16 @@ Authorization: Bearer <user-auth-token>
 Content-Type: application/json
 
 {
-  "provider": "stripe",
+  "provider": "vgs",
   "spendingLimitCents": 10000,
   "durationSecs": 2592000,
-  "providerPaymentMethodId": "pm_1AbCdEfGhIjKlM",
+  "providerPaymentMethodId": "CRDrX94aaaJz7oTFy2i13964k",
   "currency": "usd",
   "maxTransactions": 100
 }
 ```
+
+A card enrolled in Phase 0 uses `provider: "vgs"` and its card ID (`CRD…`) as `providerPaymentMethodId`, whether the plan it pays is Stripe-priced or Braintree-priced: the facilitator picks the PSP from the plan at settlement. A card saved at Stripe before enrollment moved to VGS uses the same payload with `provider: "stripe"` and its `pm_…` ID.
 
 For Braintree-priced plans, a card vaulted before enrollment moved to VGS uses the same payload with `provider: "braintree"` and its `paymentMethodToken` as `providerPaymentMethodId`. The seller's per-currency Braintree merchant account is resolved by the facilitator, not supplied by the client:
 
@@ -455,7 +472,7 @@ For Braintree-priced plans, a card vaulted before enrollment moved to VGS uses t
 }
 ```
 
-For Visa Trusted Agent Protocol plans, the same payload uses `provider: "visa"`, the Visa Agentic Token (`vat_…`) as `providerPaymentMethodId`, a mandatory `planId`, and the two device-binding extras produced by the browser ceremony:
+For Visa Trusted Agent Protocol plans, the same payload uses `provider: "visa"`, the Visa Agentic Token (`vat_…`) as `providerPaymentMethodId`, an optional `planId`, and the two device-binding extras produced by the browser ceremony:
 
 ```json
 {
@@ -946,7 +963,6 @@ For Stripe-backed plans, this extension uses:
 
 | Feature | Purpose |
 |---------|---------|
-| SetupIntents | Securely save payment methods for future use |
 | PaymentIntents | Charge saved payment methods off-session |
 | Stripe Connect | Route payments to merchant connected accounts |
 | Off-session payments | Execute charges without cardholder presence |
@@ -1004,7 +1020,6 @@ Implementations SHOULD pass an idempotency key when creating Stripe PaymentInten
 
 - [x402 Protocol](https://x402.org/)
 - [Stripe PaymentIntents API](https://docs.stripe.com/api/payment_intents)
-- [Stripe SetupIntents API](https://docs.stripe.com/api/setup_intents)
 - [Stripe Connect](https://docs.stripe.com/connect)
 - [Stripe Off-session Payments](https://docs.stripe.com/payments/save-and-reuse)
 - [Braintree Vault](https://developer.paypal.com/braintree/docs/guides/payment-methods)
