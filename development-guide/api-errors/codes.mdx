@@ -74,7 +74,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.VERSION`](#bck-version) — 2 codes
 - [`BCK.VGS`](#bck-vgs) — 10 codes
 - [`BCK.VISA`](#bck-visa) — 27 codes
-- [`BCK.WALLET`](#bck-wallet) — 6 codes
+- [`BCK.WALLET`](#bck-wallet) — 7 codes
 - [`BCK.WELCOME_CREDITS`](#bck-welcome_credits) — 5 codes
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
@@ -1166,6 +1166,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-wallet-0004"></a>`BCK.WALLET.0004` | 400 | validation | ❌ | Insufficient balance for this transfer | The wallet holds less of the source asset on the source network than the requested amount (fees are taken out of the amount, so the full balance is transferable). Refresh the balance and retry with a smaller amount. Distinct from BCK.WALLET.0005 because nothing is wrong with the route or the provider — retrying the SAME amount cannot succeed. |
 | <a id="bck-wallet-0005"></a>`BCK.WALLET.0005` | 502 | integration | ✅ | The transfer provider could not price or route this transfer | Privy (or the bridge behind it) rejected or failed the quote/transfer for a reason that is not the caller’s balance or input — no liquidity on the route, a provider outage, or a rejected authorization. Nothing was debited when a QUOTE fails; a failed TRANSFER may still have been submitted, so re-read the wallet balance before retrying rather than assuming it did not run. |
 | <a id="bck-wallet-0006"></a>`BCK.WALLET.0006` | 502 | integration | ❌ | The wallet provider request failed | The wallet provider failed a transfer quote, transfer or status read for a reason Nevermined could not classify (not a balance shortfall, which is BCK.WALLET.0004, nor a policy refusal, which is BCK.WALLET.0005). The provider's reply is in the server log for this error id and is never returned. A failed TRANSFER may still have been submitted, so re-read the wallet balance before retrying. |
+| <a id="bck-wallet-0007"></a>`BCK.WALLET.0007` | 400 | validation | ❌ | Invalid transfer id | The transfer id in the path must be the `id` returned by POST /api/v1/wallet/transfer: letters, digits, `_` and `-` only, at most 128 characters. |
 
 ## <span id="bck-welcome_credits"></span>`BCK.WELCOME_CREDITS`
 
