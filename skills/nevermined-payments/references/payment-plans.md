@@ -240,7 +240,7 @@ What makes either plan pay-as-you-go is the **PayAsYouGoTemplate** address in it
 ```typescript
 // TypeScript — async: fetches the PayAsYouGoTemplate address from the API for you
 const paygPriceConfig = await payments.plans.getPayAsYouGoPriceConfig(
-  1_000_000n,                    // price per request (1 USDC, 6 decimals)
+  1_000_000n,                    // amount per request (1 USDC, 6 decimals); the API adds its fees at registration
   process.env.BUILDER_ADDRESS!,
   USDC_ADDRESS,                  // optional — defaults to the native token
 )
