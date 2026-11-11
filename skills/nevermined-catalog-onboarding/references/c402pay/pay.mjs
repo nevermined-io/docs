@@ -1,9 +1,37 @@
 // Native x402 "exact" payer for code402 (Base mainnet, USDC EIP-3009).
 // No merchant code executed: we sign the EIP-3009 authorization ourselves with viem
 // and build the standard X-PAYMENT header. Reads key from env; never prints it.
-import { privateKeyToAccount } from 'viem/accounts'
-import { recoverTypedDataAddress, toHex } from 'viem'
 import { randomBytes } from 'node:crypto'
+import { readFileSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// Sign only with the viem that package.json pins and package-lock.json locks
+// (`npm ci --ignore-scripts` installs it). When the local install is missing, failed or
+// stale, Node would otherwise load any viem it finds in a parent node_modules. viem is
+// imported dynamically, after this check, so an unpinned copy never even loads.
+const HERE = dirname(fileURLToPath(import.meta.url))
+const LOCAL_VIEM = join(HERE, 'node_modules', 'viem')
+const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8')) } catch { return null } }
+const pinnedViem = readJson(join(HERE, 'package.json'))?.dependencies?.viem
+const localViem = readJson(join(LOCAL_VIEM, 'package.json'))?.version
+let resolvedViem = null
+let localViemDir = null   // real path, so a symlinked node_modules still counts as local
+try { resolvedViem = createRequire(import.meta.url).resolve('viem') } catch { /* not installed anywhere */ }
+try { localViemDir = realpathSync(LOCAL_VIEM) } catch { /* no local install */ }
+if (!pinnedViem || localViem !== pinnedViem || !localViemDir || !resolvedViem?.startsWith(localViemDir + sep)) {
+  console.error(`refusing to run: viem must be the locked ${pinnedViem} in ${LOCAL_VIEM}, ` +
+    `found ${localViem ?? 'none'} there and Node resolves ${resolvedViem ?? 'nothing'}. ` +
+    `Run \`npm ci --ignore-scripts\` in ${HERE}.`)
+  process.exit(7)
+}
+const { privateKeyToAccount } = await import('viem/accounts')
+const { recoverTypedDataAddress, toHex } = await import('viem')
+// A dynamic import yields undefined for a missing export instead of failing to link.
+if (![privateKeyToAccount, recoverTypedDataAddress, toHex].every((fn) => typeof fn === 'function')) {
+  console.error('refusing to run: the installed viem lacks an expected export'); process.exit(7)
+}
 
 const mode = process.argv[2] || 'dryrun'
 const needsKey = mode === 'dryrun' || mode === 'pay'   // selfcheck is offline + keyless

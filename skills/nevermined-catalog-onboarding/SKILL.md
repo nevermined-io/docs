@@ -1,7 +1,18 @@
 ---
 name: nevermined-catalog-onboarding
 version: "1.1.0"
-lastUpdated: "2026-10-29"
+lastUpdated: "2026-11-11"
+# Tool scope, read by NVIDIA SkillSpector, the scanner ClawHub runs (rule LP3;
+# see nevermined-io/docs#629). It describes the skill and grants nothing: no
+# host enforces it. Keep it top-level, where LP3 reads it. Do not turn it into
+# `allowed-tools`: Claude Code treats that as pre-approval, which would let the
+# real-money payer in references/c402pay run without a permission prompt, and
+# SkillSpector maps Bash to shell only, so the payer's env and network use
+# would become two HIGH findings.
+permissions:
+  - shell    # the curl, jq, npm and node commands the skill runs
+  - network  # the Nevermined API, the merchant and a Base RPC
+  - env      # NVM_API_KEY, NVM_API_URL; the payer's WALLET_PRIVATE_KEY, WALLET_ADDRESS, MAX_PAY_ATOMIC
 description: >
   Use to onboard an EXTERNAL builder's x402 service into the Nevermined Agent Services
   Catalog end-to-end: check the service exposes the metadata a listing needs, pick the
@@ -37,7 +48,7 @@ metadata:
 
 # Nevermined Catalog onboarding — enroll & validate an external x402 service
 
-> **Skill version**: 1.1.0 | **Last updated**: 2026-10-29
+> **Skill version**: 1.1.0 | **Last updated**: 2026-11-11
 >
 > Companion to two existing skills — **`nevermined-payments`** (register an agent/plan,
 > get an API key) and **`nevermined-router`** (the full Router buy loop + error table).
@@ -136,7 +147,7 @@ honest test that the 402 is real and the result is correct.
 > (tested against a live Base-mainnet merchant): **`references/direct-wallet-pay.md`**.
 
 ```bash
-cd references/c402pay && npm i --silent   # viem
+cd references/c402pay && npm ci --ignore-scripts   # the locked viem tree; pay.mjs refuses any other
 WALLET_PRIVATE_KEY=0x… node pay.mjs dryrun                                   # sign-only self-check
 WALLET_PRIVATE_KEY=0x… node pay.mjs pay "https://$HOST/v1/tools/<tool>/call" '{"input":{...}}'
 ```
