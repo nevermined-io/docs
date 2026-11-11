@@ -284,7 +284,7 @@ const { planId } = await payments.plans.registerPlan(
 ```
 
 ```python
-# Python (payments-py 1.19.1+; on older versions the template address is
+# Python (payments-py 1.19.0+; on older versions the template address is
 # payments.contracts_api.contracts.pay_as_you_go_template)
 payg_card_price_config = payments.plans.get_fiat_price_config(
     1_000_000,  # $1.00 per request — 6-decimal units, NOT cents

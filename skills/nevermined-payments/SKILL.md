@@ -502,7 +502,7 @@ price_config = payments.plans.get_erc20_price_config(10_000_000, USDC_ADDRESS, b
 # or get_eurc_price_config / get_native_token_price_config / get_free_price_config
 # or get_fiat_price_config(amount, builder_address, "USD") for Stripe/Braintree
 # or payments.plans.get_pay_as_you_go_price_config(...)  (sync; fetches and caches the template address): CRYPTO pay-as-you-go only (is_crypto=True)
-# or, for CARD pay-as-you-go, the fiat price on the PayAsYouGoTemplate (payments-py 1.19.1+;
+# or, for CARD pay-as-you-go, the fiat price on the PayAsYouGoTemplate (payments-py 1.19.0+;
 # older: payments.contracts_api.contracts.pay_as_you_go_template):
 #   payments.plans.get_fiat_price_config(amount, builder_address).model_copy(
 #       update={"template_address": payments.contracts.get_pay_as_you_go_template_address()})
@@ -600,7 +600,7 @@ Nevermined supports several plan types:
 - **Time-based**: access for a fixed duration (e.g., 30 days unlimited). Use `getExpirableDurationConfig`.
 - **Pay-as-you-go (PAYG)**: the subscriber is charged on every request instead of buying a balance of credits up front. What makes a plan PAYG is the **PayAsYouGoTemplate** address on its price (the API reports `billingModel: 'pay-as-you-go'` only for that template), and the price helper decides the rail — pair either with `getPayAsYouGoCreditsConfig()`:
   - **Crypto PAYG**: `await payments.plans.getPayAsYouGoPriceConfig(amount, receiver, tokenAddress?)`, which sets the template for you. It **always** builds a crypto price (`isCrypto: true`) — never use it for a card plan.
-  - **Card PAYG**: `{ ...payments.plans.getFiatPriceConfig(amount, receiver), templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress() }` (Python, payments-py 1.19.1+: `payments.plans.get_fiat_price_config(...).model_copy(update={"template_address": payments.contracts.get_pay_as_you_go_template_address()})`). It is paid **per request through an x402 card delegation**, is **not** sold through checkout (`orderFiatPlan` → `BCK.STRIPE.0041`, by design), and keeps the $1.00 fiat floor.
+  - **Card PAYG**: `{ ...payments.plans.getFiatPriceConfig(amount, receiver), templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress() }` (Python, payments-py 1.19.0+: `payments.plans.get_fiat_price_config(...).model_copy(update={"template_address": payments.contracts.get_pay_as_you_go_template_address()})`). It is paid **per request through an x402 card delegation**, is **not** sold through checkout (`orderFiatPlan` → `BCK.STRIPE.0041`, by design), and keeps the $1.00 fiat floor.
   - `getFiatPriceConfig` + `getPayAsYouGoCreditsConfig` **without** the template is not PAYG: it registers a one-credit `credits` plan. Both recipes: `references/payment-plans.md`.
 - **Trial**: free limited access, one-time claim per user. Use `getFreePriceConfig`.
 - **Hybrid**: combine fixed credits with a time expiry by passing `accessLimit: 'time'` and an expirable duration config.

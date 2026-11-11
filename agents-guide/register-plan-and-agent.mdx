@@ -74,7 +74,7 @@ Report both IDs and the confirmation results. (Fiat provider defaults to Stripe 
         # Pay-as-you-go (charged per request) = get_pay_as_you_go_credits_config() + a pay-as-you-go PRICE:
         #   card:   payments.plans.get_fiat_price_config(1_000_000, BUILDER_ADDRESS).model_copy(
         #               update={"template_address": payments.contracts.get_pay_as_you_go_template_address()})
-        #           (payments-py 1.19.1+; older: payments.contracts_api.contracts.pay_as_you_go_template)
+        #           (payments-py 1.19.0+; older: payments.contracts_api.contracts.pay_as_you_go_template)
         #   crypto: payments.plans.get_pay_as_you_go_price_config(1_000_000, BUILDER_ADDRESS, USDC_ADDRESS)  # always crypto
         # get_fiat_price_config(...) WITHOUT template_address + get_pay_as_you_go_credits_config() is NOT
         # pay-as-you-go: it registers a one-credit credits plan.
