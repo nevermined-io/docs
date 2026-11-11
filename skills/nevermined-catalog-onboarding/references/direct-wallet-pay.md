@@ -13,9 +13,10 @@ builds the standard header.
 ## Run it
 
 ```bash
-cd references/c402pay && npm i --silent          # installs viem
+cd references/c402pay && npm ci --ignore-scripts   # installs the locked viem tree
 
 # offline guard self-check (no network, no spend, no key): asserts the pre-sign guards fail closed
+# (like every mode, it first refuses to run unless the locked viem is the one Node loads)
 node pay.mjs selfcheck
 
 # sign-only self-check (no network, no spend): proves the key signs and self-recovers
@@ -25,6 +26,13 @@ WALLET_PRIVATE_KEY=0x<64hex> node pay.mjs dryrun
 WALLET_PRIVATE_KEY=0x<64hex> [WALLET_ADDRESS=0x<expected>] [MAX_PAY_ATOMIC=100000] \
   node pay.mjs pay "https://HOST/v1/tools/<tool>/call" '{"input":{"iban":"DE89370400440532013000"}}'
 ```
+
+`viem` is pinned to an exact version and `package-lock.json` locks every dependency
+under it, so every install gets the same signing code. `npm ci` installs exactly
+that tree and fails if the lockfile and `package.json` disagree, where `npm i` would quietly
+re-resolve; `--ignore-scripts` keeps install scripts from running. `pay.mjs` itself refuses
+to run (exit 7) unless `viem` loads from its own `node_modules` at the exact pinned version,
+so a missing, failed or stale install cannot fall back to some other copy of `viem`.
 
 `WALLET_ADDRESS` is optional; when set, the script aborts if the key derives a different
 address (catches a key/address mismatch before you spend). The key is read from env and
@@ -100,6 +108,9 @@ The 402 challenge is **merchant-controlled** — the `payTo`, `asset`, and `amou
 about to sign over all come from an untrusted response. The payer validates at the boundary
 **before signing**, and so should any adaptation:
 
+- **Locked signer:** it exits 7 before loading `viem` unless the copy Node would load is the one
+  in its own `node_modules`, at the exact version `package.json` pins. Keep `viem` pinned exactly
+  (bump it with `npm i --save-exact viem@<version>`) and commit the regenerated `package-lock.json`.
 - **Right asset:** it refuses any `accept.asset` that isn't the configured USDC (`USDC_BASE`).
   For a different chain, set `USDC_BASE` to that chain's USDC first — don't remove the check.
 - **Bounded amount:** it refuses an amount over `MAX_PAY_ATOMIC` (default `100000` = 0.10 USDC).
