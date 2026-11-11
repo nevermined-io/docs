@@ -1,7 +1,7 @@
 ---
 name: nevermined-catalog-onboarding
 version: "1.1.0"
-lastUpdated: "2026-10-29"
+lastUpdated: "2026-11-11"
 description: >
   Use to onboard an EXTERNAL builder's x402 service into the Nevermined Agent Services
   Catalog end-to-end: check the service exposes the metadata a listing needs, pick the
@@ -13,6 +13,14 @@ description: >
   catalog", "onboard an external builder", "a merchant wants to add their x402 service",
   "list and validate an x402 service", "add <service> to the Nevermined Catalog", "claim a
   catalog listing".
+# Tool scope, for security scanners: ClawHub's SkillSpector reads this key. It
+# describes the skill and grants nothing; no host enforces it. Do not turn it
+# into `allowed-tools`: Claude Code treats that as pre-approval, which would let
+# the real-money payer in references/c402pay run without a permission prompt.
+permissions:
+  - shell    # the curl, jq, npm and node commands the skill runs
+  - network  # the Nevermined API, the merchant and a Base RPC
+  - env      # NVM_API_KEY, and WALLET_PRIVATE_KEY for the payer
 metadata:
   openclaw:
     primaryEnv: NVM_API_KEY
@@ -37,7 +45,7 @@ metadata:
 
 # Nevermined Catalog onboarding — enroll & validate an external x402 service
 
-> **Skill version**: 1.1.0 | **Last updated**: 2026-10-29
+> **Skill version**: 1.1.0 | **Last updated**: 2026-11-11
 >
 > Companion to two existing skills — **`nevermined-payments`** (register an agent/plan,
 > get an API key) and **`nevermined-router`** (the full Router buy loop + error table).
