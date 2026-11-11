@@ -8,7 +8,7 @@ icon: "browser"
 
 Nevermined ships a standalone embed app (served at `embed.<tier>` — e.g. `embed.nevermined.app`) with a chromeless **card setup** page at `/cards/setup` that walks a user through:
 
-1. Enrolling a credit / debit card (through VGS Collect card fields — the card number never touches your servers or Nevermined's).
+1. Enrolling a credit / debit card (in a VGS Collect form — sensitive data never touches your servers).
 2. Creating a spending delegation against that card (a per-card budget the user pre-authorises for agent spend).
 
 This guide explains how a **CLI or any other non-iframe integrator** can drive that page in a top-level browser tab and receive `paymentMethodId` + `delegationId` back at a localhost HTTP callback. The pattern mirrors `nevermined login`: print a URL, the user clicks it, the browser redirects back to a one-shot port on the user's machine, your process resolves with the result.
@@ -57,7 +57,7 @@ Card setup is **organization-scoped**. Self-mint callers must be members of at l
    │  ?sessionToken=...                   │                                           │                                     │
    │  &returnUrl=http://127.0.0.1:<port>  │                                           │                                     │
    │  &state=<rand>  &network=<net>       │                                           │                                     │
-   │  &provider=visa (optional)           │                                           │                                     │
+   │  &provider=stripe                    │                                           │                                     │
    ├──────────────────────────────────────────────────────────────────────────────────▶ navigate                            │
    │                                      │                                           │                                     │
    │                                      │ GET /widgets/session/validate            │                                     │
@@ -68,9 +68,9 @@ Card setup is **organization-scoped**. Self-mint callers must be members of at l
    │                                      │──────────────────────────────────────────▶│                                     │
    │                                      │                                           │                                     │
    │                                      │ Step 1: Enroll card                      │                                     │
-   │                                      │   VGS Collect card fields                │                                     │
+   │                                      │   VGS Collect card form                  │                                     │
    │                                      │   POST /delegation/enroll                │                                     │
-   │                                      │   → paymentMethodId (CRD…)               │                                     │
+   │                                      │   → paymentMethodId                      │                                     │
    │                                      │                                           │                                     │
    │                                      │ Step 2: Create delegation                │                                     │
    │                                      │   POST /delegation/create                │                                     │
@@ -102,15 +102,22 @@ nevermined cards enroll
 
 # Single-purpose: only create a delegation against an already-enrolled card.
 # Returns delegationId.
-nevermined cards delegate --card CRDs4FYUfwueGDryKrPDjd3JR
+nevermined cards delegate --card 0b7f3c2e-5a1d-4e8f-9c6b-2d4a8e1f7b90
 ```
 
 All three accept:
 - `--org <id>` — Required if you belong to multiple organisations and the terminal is non-interactive (CI). Inferred silently when you belong to exactly one org. In an interactive terminal with two or more memberships, the CLI prompts you to pick.
 - `--no-browser` — Print the URL instead of opening the browser automatically (useful over SSH or in CI).
-- `--provider stripe|braintree|visa` — Passed to the embed as `?provider=`. The embed enrols every card through VGS: `visa` starts the Visa Agentic option ticked, and the other values (the CLI defaults to `stripe`) enrol a plain credit / debit card.
+- `--provider stripe|braintree|visa` — Tokenization provider for the enrolment step. Defaults to `stripe`.
 
 Pre-requisite: run `nevermined login` first to authenticate against the target environment.
+
+> **Custom backends.** The embed card flow must know its tier (`sandbox` or `live`). For the named
+> environments it is implied; for a `custom` backend the CLI derives it from the `api.<sandbox|live>`
+> label pair in `NVM_BACKEND_URL` (e.g. `https://api.live.nevermined.app`). A host that does not
+> carry that pair — a local stack or a proxy in front of the API — cannot be classified, so set
+> `NVM_EMBED_NETWORK=sandbox|live` to state it explicitly. The CLI never guesses the tier: an
+> unresolved network fails fast rather than sending a `live` session to the sandbox backend.
 
 ```bash
 $ nevermined cards setup
@@ -118,7 +125,7 @@ $ nevermined cards setup
 Opening browser...
 Waiting for completion...
 ✓ Card setup complete!
-  paymentMethodId: CRDs4FYUfwueGDryKrPDjd3JR
+  paymentMethodId: 0b7f3c2e-…
   delegationId:    9719d8b5-…
   organization:    org-abc-123
 ```
@@ -170,7 +177,7 @@ For the **widget-key** path, see the existing `POST /widgets/session` documentat
 Construct the URL and open it (`xdg-open` / `open` / `start`):
 
 ```
-{embed}/cards/setup?sessionToken=<token>&returnUrl=<urlEncoded callback>&state=<random>&network=<sandbox|live>
+{embed}/cards/setup?sessionToken=<token>&returnUrl=<urlEncoded callback>&state=<random>&network=<sandbox|live>&provider=stripe
 ```
 
 `{embed}` is the standalone embed app origin for your environment (`https://embed.nevermined.app` for live/sandbox, `https://embed.nevermined.dev` for staging) — formed by prepending `embed.` to the webapp host.
@@ -180,9 +187,7 @@ Required query parameters:
 - `returnUrl` — your localhost callback URL.
 - `state` — a cryptographically random nonce (16+ bytes, hex-encoded). The browser echoes it back in the redirect; you reject any callback that doesn't echo this value (CSRF binding).
 - `network` — `sandbox` or `live`, matching the environment you minted the session against. **The embed app reads its active backend solely from this param and defaults to `sandbox` when it is absent** — omitting it on a `live` session makes the embed validate the token against the sandbox backend, where it doesn't exist, and the flow fails. Always set it explicitly.
-
-Optional:
-- `provider` — `visa` starts the Visa Agentic option of the card enrol ticked. Any other value, or none, enrols a plain credit / debit card through VGS. (`stripe` and `braintree` are still accepted for older integrations; Stripe Elements is no longer offered.)
+- `provider` — `stripe`, `braintree`, or `visa`.
 
 Three other routes exist if you only need one step of the flow:
 
@@ -266,6 +271,7 @@ server.listen(0, '127.0.0.1', async () => {
   // session would otherwise be validated against the sandbox backend and
   // fail. Always set it explicitly.
   setupUrl.searchParams.set('network', 'sandbox')
+  setupUrl.searchParams.set('provider', 'stripe')
 
   console.log('Open this URL in your browser:\n')
   console.log(setupUrl.toString())
