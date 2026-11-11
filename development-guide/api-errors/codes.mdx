@@ -79,7 +79,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
 - [`BCK.WIDGET_SESSION`](#bck-widget_session) — 13 codes
-- [`BCK.X402`](#bck-x402) — 56 codes
+- [`BCK.X402`](#bck-x402) — 57 codes
 
 ## <span id="bck-account_provisioning"></span>`BCK.ACCOUNT_PROVISIONING`
 
@@ -1273,4 +1273,5 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-x402-0060"></a>`BCK.X402.0060` | 403 | business | ❌ | This credential is not a party to the payment it is settling | verify/settle on the card rail require you to be a party to the transaction: the seller (the account that published the plan, or the organization that owns it), or the buyer the token was issued to. Presenting a valid API key for an account on neither side is refused — an API key is not a universal settle capability. Buyers do call settle for their own tokens, e.g. the plan top-up in the generated agent instructions. |
 | <a id="bck-x402-0061"></a>`BCK.X402.0061` | 500 | internal | ❌ | The order was rejected by the session key policy | The delegation session key was minted with a call policy that does not allow this order. Create a new delegation and retry; adding funds will not clear it. |
 | <a id="bck-x402-0062"></a>`BCK.X402.0062` | 403 | auth | ❌ | A commerce credential cannot generate x402 payment tokens | This credential comes from a `commerce` authorization, whose consented spend path is `POST /api/v1/router/commerce/route` — the Router derives the delegation from your grant and enforces the cap the user approved. Generating an x402 permission here would let you name a different delegation, or create a fresh one, and spend outside that cap, so it is refused. Use the commerce route instead; to mint x402 permissions, use a plain API key from the account owner. |
+| <a id="bck-x402-0063"></a>`BCK.X402.0063` | 400 | business | ❌ | This plan is priced in crypto and cannot be purchased by card | This plan is priced in crypto, so the card rail does not sell it: no card payment will complete this purchase. If you already hold enough credits on this plan to cover the call, they are still spent (a balance below one call is refused with this same code). A crypto-priced plan is sold only through the crypto scheme the catalog advertises for it, never by card. For the seller/integrator: this plan should not be offered on a card checkout — list it on its crypto scheme, or price the plan in fiat if card purchase is intended. |
 
