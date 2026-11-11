@@ -8,7 +8,7 @@ How to register agents and create payment plans programmatically using the Never
 |---|---|---|
 | **Credits-based** | Prepaid credits, deducted per request | Per-request API billing |
 | **Time-based** | Access for a fixed duration | Monthly/yearly subscriptions |
-| **Pay-as-you-go** | Settle in USDC per request | On-demand, no prepaid balance |
+| **Pay-as-you-go** | Charged on every request, in crypto or by card ([recipes](#pay-as-you-go-plans)) | On-demand, no prepaid balance |
 | **Trial** | Free limited access, one-time claim | Let users try your service |
 | **Hybrid** | Credits with time expiry | e.g., 1000 credits valid for 30 days |
 
@@ -180,7 +180,7 @@ payments.plans.getFreePriceConfig()
 
 Fiat plans use the `nvm:card-delegation` x402 scheme — subscribers enroll a card through the credit/debit card form (VGS) or as a Visa Agentic Token, and per-request charges are settled by the plan's provider. The active provider per plan is set by the seller's `fiatPaymentProvider` metadata (`'stripe'` | `'braintree'`).
 
-> **Fiat amount units.** `getFiatPriceConfig` takes the amount in **6-decimal units** (the USDC convention used across the protocol) — `10_000_000n` = $10.00 — **NOT cents**. The server-side minimum is **$1.00** (`1_000_000n`); anything smaller is rejected with `BCK.PROTOCOL.0047`. (This is distinct from `spendingLimitCents` on a *delegation*, which really is in cents.)
+> **Fiat amount units.** `getFiatPriceConfig` takes the amount in **6-decimal units** (the USDC convention used across the protocol) — `10_000_000n` = 10.00 USD — **NOT cents**. The server-side minimum is **$1.00** (`1_000_000n`); anything smaller is rejected with `BCK.PROTOCOL.0047`. (This is distinct from `spendingLimitCents` on a *delegation*, which really is in cents.)
 
 ```typescript
 // TypeScript — $10.00 fiat, paid into the builder's wallet/account
@@ -224,31 +224,101 @@ The SDK auto-resolves `nvm:card-delegation` from the plan's `priceConfig`. Passi
 
 ## Pay-As-You-Go Plans
 
-PAYG plans grant exactly **one credit per purchase** — every call requires the subscriber to re-order the plan. Use the dedicated helpers:
+A pay-as-you-go plan charges the subscriber on every request instead of selling a balance of credits up front. Its price config decides **how** the subscriber pays, so pick it by rail:
+
+| Rail | Price config | Credits config |
+|---|---|---|
+| Crypto | `await payments.plans.getPayAsYouGoPriceConfig(amount, receiver[, tokenAddress])` | `payments.plans.getPayAsYouGoCreditsConfig()` |
+| Card | `await payments.plans.getFiatPayAsYouGoPriceConfig(amount, receiver[, currency])` (1.15.0+), or the manual `{ ...payments.plans.getFiatPriceConfig(amount, receiver[, currency]), templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress() }` | `payments.plans.getPayAsYouGoCreditsConfig()` |
+
+> **`getPayAsYouGoPriceConfig` always builds a crypto price** (`isCrypto: true`), whatever token you pass. Do not use it for a plan that subscribers pay by card. The same holds for Python's `get_pay_as_you_go_price_config`.
+
+What makes either plan pay-as-you-go is the **PayAsYouGoTemplate** address in its price config: the API reports `billingModel: 'pay-as-you-go'` only for a plan registered on that template. `getPayAsYouGoPriceConfig` (crypto) and `getFiatPayAsYouGoPriceConfig` (card) set it for you; a plain `getFiatPriceConfig` does not, so the manual card recipe adds it.
+
+### Crypto pay-as-you-go
 
 ```typescript
-// TypeScript
+// TypeScript — async: fetches the PayAsYouGoTemplate address from the API for you
 const paygPriceConfig = await payments.plans.getPayAsYouGoPriceConfig(
-  1_000_000n,                    // amount per call (1 USDC, 6 decimals)
+  1_000_000n,                    // amount per request (1 USDC, 6 decimals); the API adds its fees at registration
   process.env.BUILDER_ADDRESS!,
-  USDC_ADDRESS,                  // optional — defaults to native token
+  USDC_ADDRESS,                  // optional — defaults to the native token
 )
 const paygCreditsConfig = payments.plans.getPayAsYouGoCreditsConfig()
 
 const { planId } = await payments.plans.registerPlan(
-  { name: 'PAYG', description: '$1 per call', dateCreated: new Date() },
+  { name: 'PAYG (USDC)', description: '1 USDC per call', dateCreated: new Date() },
   paygPriceConfig,
   paygCreditsConfig,
 )
 ```
 
 ```python
-# Python
+# Python — sync; fetches (and caches) the PayAsYouGoTemplate address for you
 payg_price_config = payments.plans.get_pay_as_you_go_price_config(
     1_000_000, os.environ["BUILDER_ADDRESS"], USDC_ADDRESS
 )
 payg_credits_config = payments.plans.get_pay_as_you_go_credits_config()
 ```
+
+### Card pay-as-you-go
+
+One call builds the card price: a fiat price on the PayAsYouGoTemplate, whose address it fetches for you (`@nevermined-io/payments` 1.15.0+, `payments-py` 1.20.0+).
+
+```typescript
+// TypeScript — isCrypto: false: the subscriber's card is charged on every request
+const paygCardPriceConfig = await payments.plans.getFiatPayAsYouGoPriceConfig(
+  1_000_000n,                    // $1.00 per request — 6-decimal units, NOT cents
+  process.env.BUILDER_ADDRESS!,
+)
+const paygCreditsConfig = payments.plans.getPayAsYouGoCreditsConfig()
+
+const { planId } = await payments.plans.registerPlan(
+  { name: 'PAYG (card)', description: '$1 per call', dateCreated: new Date() },
+  paygCardPriceConfig,
+  paygCreditsConfig,
+)
+```
+
+```python
+# Python — is_crypto=False: the subscriber's card is charged on every request
+payg_card_price_config = payments.plans.get_fiat_pay_as_you_go_price_config(
+    1_000_000,  # $1.00 per request — 6-decimal units, NOT cents
+    os.environ["BUILDER_ADDRESS"],
+)
+payg_credits_config = payments.plans.get_pay_as_you_go_credits_config()
+```
+
+The same price config by hand, for an older SDK or when you already hold the template address:
+
+```typescript
+// TypeScript (any version)
+const paygCardPriceConfig = {
+  ...payments.plans.getFiatPriceConfig(1_000_000n, process.env.BUILDER_ADDRESS!),
+  // The PayAsYouGoTemplate is what makes this fiat price pay-as-you-go
+  templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress(),
+}
+```
+
+```python
+# Python (payments-py 1.19.0+; on older versions the template address is
+# payments.contracts_api.contracts.pay_as_you_go_template)
+payg_card_price_config = payments.plans.get_fiat_price_config(
+    1_000_000,  # $1.00 per request — 6-decimal units, NOT cents
+    os.environ["BUILDER_ADDRESS"],
+).model_copy(
+    # The PayAsYouGoTemplate is what makes this fiat price pay-as-you-go
+    update={"template_address": payments.contracts.get_pay_as_you_go_template_address()}
+)
+```
+
+A card pay-as-you-go plan:
+
+- is paid **per request through an x402 card delegation** (`nvm:card-delegation`): each settle charges the card the plan price and reports `billingModel: 'pay-as-you-go'` with the charge in `orderTx`;
+- is **not sold through checkout**, by design: there is no balance to buy up front, so `orderFiatPlan` fails with `BCK.STRIPE.0041` (`BCK.BRAINTREE.0019` on Braintree checkout);
+- keeps the fiat price floor: the per-request price must be at least **$1.00** (`1_000_000n`), otherwise registration fails with `BCK.PROTOCOL.0047`.
+
+> **`getFiatPriceConfig` + `getPayAsYouGoCreditsConfig` alone is NOT a pay-as-you-go plan.** Without the template address it registers a one-credit **credits** plan: it reports `billingModel: 'credits'`, and each purchase buys a single credit.
 
 ## Example Plans
 
@@ -259,4 +329,5 @@ payg_credits_config = payments.plans.get_pay_as_you_go_credits_config()
 | Unlimited | $99 USDC | Unlimited | 30 days | High-volume access |
 | Trial | Free | 10 | 7 days | Try before you buy |
 | Fiat Starter | $10.00 (Stripe) | 100 | None | Card-paying subscribers |
-| PAYG | $1 USDC / call | 1 per purchase | None | Pay-per-call without prepaid balance |
+| PAYG (crypto) | $1 USDC / call | No balance: charged per call | None | Pay-per-call in stablecoins |
+| PAYG (card) | $1.00 / call (card) | No balance: charged per call | None | Pay-per-call by card, no checkout |
