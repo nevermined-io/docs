@@ -14,31 +14,36 @@ name: Publish skill to ClawHub
 #
 # Versioning (decided on docs#624, 2026-11-11): ClawHub version numbers belong
 # to ClawHub and are deliberately decoupled from the `version:` in a skill's
-# SKILL.md frontmatter, which the CLI never reads. They already differ for every
-# skill (payments: 1.0.x on ClawHub, 0.5.x in its frontmatter). The CLI publishes
-# 1.0.0 for a new slug and the latest public version + 1 after that (`--help`:
-# "defaults to 1.0.0 or next patch"), and this workflow skips any number a held
-# version has taken (below). The optional per-skill matrix `version` pins one
-# publish to an exact number. It is not used for routine publishing: remove it
-# once that version is public, or the next run fails because the number is taken.
+# SKILL.md frontmatter, which the CLI never reads. The CLI publishes 1.0.0 while
+# a slug has no public version, and the next patch of the latest public version
+# after that (`--help`: "defaults to 1.0.0 or next patch"). This workflow skips
+# any number a held version has taken (below). The optional per-skill matrix
+# `version` pins one publish to an exact number. It is not for routine
+# publishing: remove it once that version is public, or the next run fails
+# because the number is taken.
 #
 # Held versions: ClawHub accepts an upload as a HELD version and makes it public
-# only after its security scans pass. A held version is invisible
-# to the lookup the CLI derives "latest" from (/api/v1/resolve), yet its number
-# is taken. So when a version is held for good (a scan that blocked it, failed
-# or expired), the CLI keeps choosing that same number and the server keeps
-# answering "Version X already exists". Both nevermined-router (0.1.38) and
-# nevermined-catalog-onboarding (1.0.0) were stuck that way from Oct 2026
-# (docs#624). The publish step therefore (1) skips past a taken number, printing
-# the held version's scan stage, and (2) waits until the new version is PUBLIC,
-# failing the run if ClawHub blocks it, fails it or never releases it. A green
-# run means the version is live. Before this, the run that created 0.1.38 went
-# green although 0.1.38 was never released.
+# only after its security scans pass. A held version is invisible to the lookup
+# the CLI derives "latest" from (/api/v1/resolve), yet its number is taken: the
+# CLI keeps choosing that number and the server answers "Version X already
+# exists". That happens while a version is held, and for good once ClawScan
+# blocks it, its checks fail for good or it expires. (A secret-scan block
+# deletes the version, which frees its number.) nevermined-router and
+# nevermined-catalog-onboarding were stuck behind such numbers from Oct 2026
+# (docs#624). So when a number is taken, the publish step prints the held
+# version's scan stage. If that version is still being checked, the step waits
+# for it and then chooses the number again (it may hold this very content).
+# If ClawHub settled it without releasing it, the step skips past it. Then the
+# step waits until the new version is PUBLIC, and fails the run if ClawHub
+# blocks or deletes that version or never releases it. A green run means the
+# version is live.
 #
 # The push trigger is path-filtered on `skills/**`, so a change to ONE skill
-# still runs the matrix legs for the others. Those legs are no-ops: when the
-# folder's content fingerprint matches a public version, the CLI reports
-# `"status": "unchanged"`, exits 0 and uploads nothing.
+# still runs the matrix legs for the others. A leg whose content matches the
+# LATEST public version is a no-op: the CLI reports `"status": "unchanged"`,
+# exits 0 and uploads nothing. If the content matches only an older public
+# version (after a revert, say), the CLI still says `unchanged`, so the step
+# publishes that content again as the next version.
 #
 # Adding a skill: add one entry to the matrix. Nothing else needs to change.
 
@@ -57,12 +62,15 @@ jobs:
   publish:
     name: Publish ${{ matrix.slug }} to ClawHub
     runs-on: ubuntu-latest
-    # The publish step waits up to 30 minutes for ClawHub to release the version.
+    # Must exceed the publish step's TIMEOUT_MINUTES budget plus setup and one
+    # last upload, which the CLI retries for up to 3 x 2 minutes.
     timeout-minutes: 45
     # Per-skill so the legs never queue behind each other, and a rerun of one
     # skill can't cancel an in-flight publish of another. It also holds the next
-    # run of a skill back until this one's version is public, so that run can
-    # recognise unchanged content instead of uploading it again.
+    # run of a skill back until this run ends. When this run succeeded its
+    # version is public by then, so the next run recognises unchanged content.
+    # After a timed-out run the version may still be held; the next run then
+    # finds its number taken and waits for it to settle.
     concurrency:
       group: clawhub-publish-${{ matrix.slug }}
       cancel-in-progress: false
@@ -123,8 +131,8 @@ jobs:
           SOURCE_COMMIT: ${{ github.sha }}
           SOURCE_REF: ${{ github.ref }}
         run: |
-          # The version reported here can be one a held version has taken; the
-          # publish step then skips to the next free number.
+          # The version reported here can be one a held version has taken.
+          # Without a matrix pin the publish step skips past it; with one it fails.
           #
           # `if`, not `[ -n … ] && …`. Both behave identically *here*: the default
           # shell is `bash -e`, and errexit ignores a failing non-final element of
@@ -148,14 +156,16 @@ jobs:
           SOURCE_REF: ${{ github.ref }}
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
           CLAWHUB_API: https://clawhub.ai/api/v1
-          MAX_TAKEN: 5          # taken version numbers to skip before giving up
-          TIMEOUT_MINUTES: 30   # the default of ClawHub's own reusable publish workflow
+          MAX_TAKEN: 5          # give up after this many "already exists" answers
+          TIMEOUT_MINUTES: 30   # as publication_timeout_minutes in ClawHub's package-publish.yml
           POLL_SECONDS: 20
         run: |
           # Reads one exact version's publication state from the owner-only
           # endpoint (GET /skills/{slug}/versions/{version}/publication) and
           # prints it. Sets HTTP, STAGE and RETRYING; STAGE is empty when the
-          # state could not be read. Never fails the step.
+          # state could not be read. Never fails the step. 401 means a bad
+          # token; 404 means no such version (or one the secret scan deleted)
+          # or a token without access to this skill.
           read_publication() {
             local resp body
             resp=$(curl -sS --max-time 30 -w '\n%{http_code}' \
@@ -176,13 +186,75 @@ jobs:
             fi
           }
 
+          # Polls one version until it is public or ClawHub settles it some
+          # other way, or until DEADLINE. Returns 0 once it is public (owner
+          # stage `published` AND the public, unauthenticated read returns 200,
+          # which is what an installer sees), 1 once it is settled otherwise,
+          # 2 at the deadline. Sets REASON for 1 and 2.
+          await_version() {
+            local v=$1 public missing=0
+            REASON=''
+            while :; do
+              read_publication "$v"
+              case "$STAGE" in
+                published)
+                  public=$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' \
+                    "$CLAWHUB_API/skills/$SLUG/versions/$v") || true
+                  if [ "$public" = 200 ]; then return 0; fi
+                  echo "$SLUG@$v is released but not publicly readable yet (HTTP $public)." ;;
+                blocked | failed | expired)
+                  REASON="ClawHub did not release it (stage: $STAGE). Scan report: clawhub scan download @$OWNER/$SLUG --version $v"
+                  return 1 ;;
+                checks_failed | checks_incomplete)
+                  if [ "$RETRYING" != true ]; then
+                    REASON="its checks did not complete and will not be retried (stage: $STAGE)"
+                    return 1
+                  fi ;;
+              esac
+              if [ "$HTTP" = 401 ] || [ "$HTTP" = 403 ]; then
+                REASON="CLAWHUB_TOKEN cannot read its publication state (HTTP $HTTP)"
+                return 1
+              fi
+              # Every caller knows this version exists, so a 404 or an
+              # `unavailable` (no live publication attempt) that repeats is an
+              # answer, not a delay.
+              if [ "$HTTP" = 404 ] || [ "$STAGE" = unavailable ]; then missing=$((missing + 1)); else missing=0; fi
+              if [ "$missing" -ge 3 ]; then
+                REASON="ClawHub reports no live publication for it, $missing reads in a row (HTTP $HTTP, stage: ${STAGE:-none}). A secret-scan block deletes the version and emails the publisher; otherwise the token cannot read this skill"
+                return 1
+              fi
+              if [ "$SECONDS" -ge "$DEADLINE" ]; then
+                REASON="still not public after $TIMEOUT_MINUTES minutes (last stage: ${STAGE:-unknown})"
+                return 2
+              fi
+              sleep "$POLL_SECONDS"
+            done
+          }
+
+          # Prints the next patch version (0.1.38 -> 0.1.39); fails on anything
+          # that is not plain MAJOR.MINOR.PATCH.
+          next_patch() {
+            local major minor patch
+            [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+            IFS=. read -r major minor patch <<<"$1"
+            echo "$major.$minor.$((patch + 1))"
+          }
+
           # 1. Upload. With no pinned version the CLI picks the latest PUBLIC
-          #    version + 1, and that number may belong to a held version: skip
-          #    past it, at most MAX_TAKEN times.
+          #    version + 1, and that number may belong to a held version. One
+          #    still being checked is waited for, then the number is chosen
+          #    again; one ClawHub settled without releasing is skipped.
           ERR="$RUNNER_TEMP/clawhub-publish.err"
+          DEADLINE=$((SECONDS + TIMEOUT_MINUTES * 60))   # one budget for all waiting
           VERSION="${SKILL_VERSION:-}"
           TAKEN_COUNT=0
+          ATTEMPTS=0
           while :; do
+            if [ "$ATTEMPTS" -gt 0 ] && [ "$SECONDS" -ge "$DEADLINE" ]; then
+              echo "::error::Out of time after $TIMEOUT_MINUTES minutes, before an upload to $SLUG went through (see above)."
+              exit 1
+            fi
+            ATTEMPTS=$((ATTEMPTS + 1))
             VERSION_ARG=()
             if [ -n "$VERSION" ]; then VERSION_ARG=(--version "$VERSION"); fi
             STATUS=0
@@ -194,7 +266,34 @@ jobs:
               --json 2>"$ERR") || STATUS=$?
             if [ -n "$OUT" ]; then echo "$OUT"; fi
             cat "$ERR"
-            if [ "$STATUS" -eq 0 ]; then break; fi
+
+            if [ "$STATUS" -eq 0 ]; then
+              RESULT=$(jq -r '.status' <<<"$OUT")
+              PUBLISHED=$(jq -r '.version' <<<"$OUT")
+              LATEST=$(jq -r '.latestVersion // empty' <<<"$OUT")
+              case "$RESULT" in
+                # CLI 0.22 reports an accepted (still held) upload as `published`.
+                # Later CLIs report `pending-publication` or `submitted`, so
+                # revisit this case with any CLI upgrade.
+                published) break ;;
+                unchanged)
+                  # The content matches SOME public version. Installs get it
+                  # only if that version is the latest, which a revert breaks.
+                  if [ "$PUBLISHED" = "$LATEST" ]; then
+                    echo "$SLUG@$PUBLISHED is the latest public version and has this exact content. Nothing to publish."
+                    exit 0
+                  fi
+                  if ! VERSION=$(next_patch "$LATEST"); then
+                    echo "::error::This content matches $SLUG@$PUBLISHED, but the latest public version is '$LATEST'."
+                    exit 1
+                  fi
+                  echo "This content matches $SLUG@$PUBLISHED, not the latest public version $LATEST. Publishing it as $VERSION."
+                  continue ;;
+                *)
+                  echo "::error::Unexpected publish result '$RESULT' (see output above)."
+                  exit 1 ;;
+              esac
+            fi
 
             TAKEN=$(grep -oE 'Version [0-9]+\.[0-9]+\.[0-9]+ already exists' "$ERR" | head -n 1 | cut -d' ' -f2) || TAKEN=''
             if [ -z "$TAKEN" ]; then
@@ -208,58 +307,43 @@ jobs:
             fi
             TAKEN_COUNT=$((TAKEN_COUNT + 1))
             if [ "$TAKEN_COUNT" -ge "$MAX_TAKEN" ]; then
-              echo "::error::$MAX_TAKEN version numbers in a row are taken by versions ClawHub has not released (states above). Find out why before publishing more."
+              echo "::error::ClawHub answered 'already exists' $MAX_TAKEN times (states above). Find out why before publishing more."
               exit 1
             fi
-            IFS=. read -r MAJOR MINOR PATCH <<<"$TAKEN"
-            VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
-            echo "$SLUG@$TAKEN is taken by a version ClawHub has not released; trying $VERSION."
+            IN_FLIGHT=''
+            case "$STAGE" in
+              pending_checks | ready_to_finalize | finalizing | published) IN_FLIGHT=yes ;;
+              checks_failed | checks_incomplete) if [ "$RETRYING" = true ]; then IN_FLIGHT=yes; fi ;;
+            esac
+            if [ -n "$IN_FLIGHT" ]; then
+              # It may hold this very content (a run that timed out, or the
+              # CLI's own retry of a POST that did land), so do not upload the
+              # content again beside it. Wait, then choose the number again.
+              echo "$SLUG@$TAKEN is still being checked (stage: $STAGE). Waiting for it to settle."
+              RC=0
+              await_version "$TAKEN" || RC=$?
+              if [ "$RC" -eq 0 ]; then
+                echo "$SLUG@$TAKEN is public now. Choosing the version again."
+                VERSION=''
+                continue
+              fi
+              if [ "$RC" -eq 2 ]; then
+                echo "::error::$SLUG@$TAKEN: $REASON."
+                exit 1
+              fi
+              echo "$SLUG@$TAKEN: $REASON."
+            fi
+            VERSION=$(next_patch "$TAKEN")
+            echo "$SLUG@$TAKEN is taken by a version ClawHub did not release (stage: ${STAGE:-unknown}). Trying $VERSION."
           done
-
-          RESULT=$(jq -r '.status' <<<"$OUT")
-          PUBLISHED=$(jq -r '.version' <<<"$OUT")
-          case "$RESULT" in
-            unchanged)
-              echo "$SLUG@$PUBLISHED is public with this exact content. Nothing to publish."
-              exit 0 ;;
-            published) ;;
-            *)
-              echo "::error::Unexpected publish result '$RESULT' (see output above)."
-              exit 1 ;;
-          esac
 
           # 2. The upload is a held version until its scans pass. Wait for it
-          #    to go public: a green run must mean the version is live. Live is
-          #    what an installer sees: the public, unauthenticated version read.
-          echo "Uploaded $SLUG@$PUBLISHED. Waiting up to $TIMEOUT_MINUTES minutes for ClawHub to release it."
-          DEADLINE=$((SECONDS + TIMEOUT_MINUTES * 60))
-          while :; do
-            read_publication "$PUBLISHED"
-            case "$STAGE" in
-              published)
-                PUBLIC=$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' \
-                  "$CLAWHUB_API/skills/$SLUG/versions/$PUBLISHED" 2>/dev/null) || true
-                if [ "$PUBLIC" = 200 ]; then
-                  echo "Published $OWNER/$SLUG@$PUBLISHED: https://clawhub.ai/skills/$SLUG"
-                  exit 0
-                fi
-                echo "$SLUG@$PUBLISHED is released but not publicly readable yet (HTTP $PUBLIC)." ;;
-              blocked | failed | expired)
-                echo "::error::ClawHub did not release $SLUG@$PUBLISHED (stage: $STAGE). Scan report: clawhub scan download @$OWNER/$SLUG --version $PUBLISHED"
-                exit 1 ;;
-              checks_failed | checks_incomplete)
-                if [ "$RETRYING" != true ]; then
-                  echo "::error::ClawHub's checks on $SLUG@$PUBLISHED did not complete and will not be retried (stage: $STAGE)."
-                  exit 1
-                fi ;;
-            esac
-            if [ "$HTTP" = 401 ] || [ "$HTTP" = 403 ]; then
-              echo "::error::CLAWHUB_TOKEN cannot read $SLUG's publication state (HTTP $HTTP)."
-              exit 1
-            fi
-            if [ "$SECONDS" -ge "$DEADLINE" ]; then
-              echo "::error::$SLUG@$PUBLISHED is still not public after $TIMEOUT_MINUTES minutes (last stage: ${STAGE:-unknown})."
-              exit 1
-            fi
-            sleep "$POLL_SECONDS"
-          done
+          #    to go public: a green run must mean the version is live.
+          echo "Uploaded $SLUG@$PUBLISHED. Waiting for ClawHub to release it."
+          RC=0
+          await_version "$PUBLISHED" || RC=$?
+          if [ "$RC" -ne 0 ]; then
+            echo "::error::$SLUG@$PUBLISHED: $REASON."
+            exit 1
+          fi
+          echo "Published $OWNER/$SLUG@$PUBLISHED: https://clawhub.ai/skills/$SLUG"
