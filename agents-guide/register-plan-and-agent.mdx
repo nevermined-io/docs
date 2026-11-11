@@ -53,7 +53,12 @@ Report both IDs and the confirmation results. (Fiat provider defaults to Stripe 
 
         // Credits: 100 granted, 1 burned per request
         const creditsConfig = payments.plans.getFixedCreditsConfig(100n, 1n)
-        // or getExpirableDurationConfig(...) (time-based) · getPayAsYouGoCreditsConfig() (per-call)
+        // or getExpirableDurationConfig(...) (time-based)
+
+        // Pay-as-you-go (charged per request) = getPayAsYouGoCreditsConfig() + a pay-as-you-go PRICE:
+        //   card:   { ...getFiatPriceConfig(1_000_000n, BUILDER_ADDRESS), templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress() }
+        //   crypto: await payments.plans.getPayAsYouGoPriceConfig(1_000_000n, BUILDER_ADDRESS, USDC_ADDRESS)  // always isCrypto: true
+        // The fiat price above + getPayAsYouGoCreditsConfig() alone is NOT pay-as-you-go: it registers a one-credit credits plan.
         ```
       </Tab>
       <Tab title="Python">
@@ -64,6 +69,11 @@ Report both IDs and the confirmation results. (Fiat provider defaults to Stripe 
 
         # Credits: 100 granted, 1 burned per request
         credits_config = payments.plans.get_fixed_credits_config(100, 1)
+
+        # Pay-as-you-go (charged per request) = get_pay_as_you_go_credits_config() + a pay-as-you-go PRICE:
+        #   card:   payments.plans.get_fiat_price_config(1_000_000, BUILDER_ADDRESS).model_copy(
+        #               update={"template_address": payments.contracts.get_pay_as_you_go_template_address()})
+        #   crypto: payments.plans.get_pay_as_you_go_price_config(1_000_000, BUILDER_ADDRESS, USDC_ADDRESS)  # always crypto
         ```
       </Tab>
     </Tabs>

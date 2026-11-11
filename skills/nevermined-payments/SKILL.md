@@ -266,7 +266,7 @@ const { agentId, planId } = await payments.agents.registerAgentAndPlan(
 )
 ```
 
-Price helpers: `getERC20PriceConfig`/`getEURCPriceConfig` (crypto), `getFiatPriceConfig` (card). Credits helpers: `getFixedCreditsConfig` (prepaid), `getExpirableDurationConfig` (time-based), `getPayAsYouGoCreditsConfig` (per-call). The raw REST endpoints exist (`POST /api/v1/protocol/plans`, `/api/v1/protocol/agents`, `/api/v1/protocol/agents/plans`) but expect the fully-formed `priceConfig`/`creditsConfig` objects — use the SDK helpers to produce them. Full plan-type matrix and helper reference: `references/payment-plans.md`.
+Price helpers: `getERC20PriceConfig`/`getEURCPriceConfig` (crypto), `getFiatPriceConfig` (card), `getPayAsYouGoPriceConfig` (**crypto** pay-as-you-go only — always `isCrypto: true`). Credits helpers: `getFixedCreditsConfig` (prepaid), `getExpirableDurationConfig` (time-based), `getPayAsYouGoCreditsConfig` (pay-as-you-go). A **card** pay-as-you-go plan is `getFiatPriceConfig` with `templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress()` added, plus `getPayAsYouGoCreditsConfig()` — without that template it registers a one-credit `credits` plan instead (see **Payment Plan Types** below). The raw REST endpoints exist (`POST /api/v1/protocol/plans`, `/api/v1/protocol/agents`, `/api/v1/protocol/agents/plans`) but expect the fully-formed `priceConfig`/`creditsConfig` objects — use the SDK helpers to produce them. Full plan-type matrix and helper reference: `references/payment-plans.md`.
 
 ## A7 · Check your agents' status & revenue (as a seller)  *(fully programmatic)*
 
@@ -436,12 +436,14 @@ const priceConfig =
   payments.plans.getERC20PriceConfig(10_000_000n, USDC_ADDRESS, builderAddress)
   // or getEURCPriceConfig / getNativeTokenPriceConfig / getFreePriceConfig
   // or getFiatPriceConfig(amount, builderAddress, 'USD') for Stripe/Braintree
-  // or await getPayAsYouGoPriceConfig(amount, builderAddress, tokenAddress?)
+  // or await getPayAsYouGoPriceConfig(amount, builderAddress, tokenAddress?): CRYPTO pay-as-you-go only (isCrypto: true)
+  // or, for CARD pay-as-you-go, the fiat price on the PayAsYouGoTemplate:
+  //   { ...getFiatPriceConfig(amount, builderAddress), templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress() }
 
 const creditsConfig =
   payments.plans.getFixedCreditsConfig(100n, 1n)
   // or getDynamicCreditsConfig / getExpirableDurationConfig
-  // or getPayAsYouGoCreditsConfig() for PAYG plans
+  // or getPayAsYouGoCreditsConfig() with either pay-as-you-go price above (alone it makes no plan pay-as-you-go)
 
 // Register agent + plan
 const { agentId, planId } = await payments.agents.registerAgentAndPlan(
@@ -499,8 +501,12 @@ payments = Payments.get_instance(PaymentOptions(nvm_api_key=key, environment="sa
 price_config = payments.plans.get_erc20_price_config(10_000_000, USDC_ADDRESS, builder_address)
 # or get_eurc_price_config / get_native_token_price_config / get_free_price_config
 # or get_fiat_price_config(amount, builder_address, "USD") for Stripe/Braintree
-# or payments.plans.get_pay_as_you_go_price_config(...)  (sync; uses cached contract address)
+# or payments.plans.get_pay_as_you_go_price_config(...)  (sync; uses cached contract address): CRYPTO pay-as-you-go only (is_crypto=True)
+# or, for CARD pay-as-you-go, the fiat price on the PayAsYouGoTemplate:
+#   get_fiat_price_config(amount, builder_address).model_copy(
+#       update={"template_address": payments.contracts.get_pay_as_you_go_template_address()})
 credits_config = payments.plans.get_fixed_credits_config(100, 1)
+# or get_pay_as_you_go_credits_config() with either pay-as-you-go price above
 
 # Register agent + plan
 result = payments.agents.register_agent_and_plan(
@@ -591,11 +597,14 @@ Nevermined supports several plan types:
 
 - **Credits-based**: prepaid balance, deducted per request (most common for APIs). Use `getFixedCreditsConfig` or `getDynamicCreditsConfig`.
 - **Time-based**: access for a fixed duration (e.g., 30 days unlimited). Use `getExpirableDurationConfig`.
-- **Pay-as-you-go (PAYG)**: one credit granted and burned per purchase — clients re-purchase before each call. Use `getPayAsYouGoPriceConfig` + `getPayAsYouGoCreditsConfig`.
+- **Pay-as-you-go (PAYG)**: the subscriber is charged on every request instead of buying a balance of credits up front. What makes a plan PAYG is the **PayAsYouGoTemplate** address on its price (the API reports `billingModel: 'pay-as-you-go'` only for that template), and the price helper decides the rail — pair either with `getPayAsYouGoCreditsConfig()`:
+  - **Crypto PAYG**: `await getPayAsYouGoPriceConfig(amount, receiver, tokenAddress?)`, which sets the template for you. It **always** builds a crypto price (`isCrypto: true`) — never use it for a card plan.
+  - **Card PAYG**: `{ ...getFiatPriceConfig(amount, receiver), templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress() }` (Python: `get_fiat_price_config(...).model_copy(update={"template_address": payments.contracts.get_pay_as_you_go_template_address()})`). It is paid **per request through an x402 card delegation**, is **not** sold through checkout (`orderFiatPlan` → `BCK.STRIPE.0041`, by design), and keeps the $1.00 fiat floor.
+  - `getFiatPriceConfig` + `getPayAsYouGoCreditsConfig` **without** the template is not PAYG: it registers a one-credit `credits` plan. Both recipes: `references/payment-plans.md`.
 - **Trial**: free limited access, one-time claim per user. Use `getFreePriceConfig`.
 - **Hybrid**: combine fixed credits with a time expiry by passing `accessLimit: 'time'` and an expirable duration config.
 
-Each plan can be priced in **crypto** (`getERC20PriceConfig`, `getEURCPriceConfig`, `getNativeTokenPriceConfig`) or **fiat** (`getFiatPriceConfig` — Stripe / Braintree / Visa Trusted Agent). The selected price helper determines the x402 scheme used at runtime.
+Each plan can be priced in **crypto** (`getERC20PriceConfig`, `getEURCPriceConfig`, `getNativeTokenPriceConfig`, `getPayAsYouGoPriceConfig`) or **fiat** (`getFiatPriceConfig` — Stripe / Braintree / Visa Trusted Agent). The selected price helper determines the x402 scheme used at runtime.
 
 For fiat plans, the active provider is selected per plan via the `fiatPaymentProvider` metadata field (`'stripe'` or `'braintree'`). Sellers using Braintree must connect a Braintree merchant account with at least one child merchant account in the plan's currency. Sellers offering Visa Trusted Agent plans must complete Stripe Connect onboarding (Visa delegations settle through Stripe Connect) — see [Braintree onboarding](https://nevermined.ai/docs/products/payments/braintree-onboarding) for the Braintree seller setup and [card enrollment](https://nevermined.ai/docs/products/payments/card-enrollment) for the buyer-side flow.
 
