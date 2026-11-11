@@ -159,11 +159,16 @@ jobs:
           MAX_TAKEN: 5          # give up after this many "already exists" answers
           TIMEOUT_MINUTES: 30   # as publication_timeout_minutes in ClawHub's package-publish.yml
           POLL_SECONDS: 20
+          # A held version whose attempt has not changed for this long is stuck,
+          # not being checked: ClawHub retries failed checks every 5 minutes and
+          # its own publish workflow waits at most 40.
+          STALE_MINUTES: 60
         run: |
           # Reads one exact version's publication state from the owner-only
           # endpoint (GET /skills/{slug}/versions/{version}/publication) and
           # prints it. Sets HTTP, STAGE and RETRYING; STAGE is empty when the
-          # state could not be read. Never fails the step. 401 means a bad
+          # state could not be read; UPDATED_AT is the attempt's last change
+          # (epoch ms, 0 when unknown). Never fails the step. 401 means a bad
           # token; 404 means no such version (or one the secret scan deleted)
           # or a token without access to this skill.
           read_publication() {
@@ -175,12 +180,14 @@ jobs:
             body=${resp%$'\n'*}
             STAGE=''
             RETRYING=''
+            UPDATED_AT=0
             if [ "$HTTP" = 200 ]; then
               STAGE=$(jq -r '.publication.stage // empty' <<<"$body" 2>/dev/null) || STAGE=''
               RETRYING=$(jq -r '.publication.retrying // false' <<<"$body" 2>/dev/null) || RETRYING=''
+              UPDATED_AT=$(jq -r '.publication.updatedAt // 0 | floor' <<<"$body" 2>/dev/null) || UPDATED_AT=0
             fi
             if [ -n "$STAGE" ]; then
-              echo "$SLUG@$1: stage=$STAGE retrying=$RETRYING checks=$(jq -c '.publication.checks // {}' <<<"$body")"
+              echo "$SLUG@$1: stage=$STAGE retrying=$RETRYING updated=$(date -u -d "@$((UPDATED_AT / 1000))" +%FT%TZ) checks=$(jq -c '.publication.checks // {}' <<<"$body")"
             else
               echo "$SLUG@$1: publication state unavailable (HTTP $HTTP): $body"
             fi
@@ -315,6 +322,11 @@ jobs:
               pending_checks | ready_to_finalize | finalizing | published) IN_FLIGHT=yes ;;
               checks_failed | checks_incomplete) if [ "$RETRYING" = true ]; then IN_FLIGHT=yes; fi ;;
             esac
+            IDLE_MINUTES=$(( ($(date +%s) - UPDATED_AT / 1000) / 60 ))
+            if [ -n "$IN_FLIGHT" ] && [ "$IDLE_MINUTES" -ge "$STALE_MINUTES" ]; then
+              echo "$SLUG@$TAKEN has not changed for $IDLE_MINUTES minutes. Treating it as stuck."
+              IN_FLIGHT=''
+            fi
             if [ -n "$IN_FLIGHT" ]; then
               # It may hold this very content (a run that timed out, or the
               # CLI's own retry of a POST that did land), so do not upload the
