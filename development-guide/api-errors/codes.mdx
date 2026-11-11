@@ -32,7 +32,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.CREDITS`](#bck-credits) — 17 codes
 - [`BCK.CREDIT_RESCALE`](#bck-credit_rescale) — 8 codes
 - [`BCK.CREDIT_TOPUPS`](#bck-credit_topups) — 23 codes
-- [`BCK.DELEGATION`](#bck-delegation) — 11 codes
+- [`BCK.DELEGATION`](#bck-delegation) — 12 codes
 - [`BCK.ENTITLEMENTS`](#bck-entitlements) — 5 codes
 - [`BCK.FEATURE_ACCESS`](#bck-feature_access) — 3 codes
 - [`BCK.GROUPS`](#bck-groups) — 12 codes
@@ -428,6 +428,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-delegation-0009"></a>`BCK.DELEGATION.0009` | 400 | validation | ❌ | delegationId must be a v4 UUID | The `delegationId` path parameter must be a v4 UUID (e.g. a1b2c3d4-e5f6-4a90-8bcd-ef1234567890). This is a request-format error, not an authentication or not-found failure — a well-formed but unknown id returns 404 instead. |
 | <a id="bck-delegation-0010"></a>`BCK.DELEGATION.0010` | 500 | internal | ❌ | Invalid spend-cap amount | An amount to reserve, record, release or roll back against a spending cap was negative, blank or not a whole number, so the cap was left unchanged. On a reserve that means nothing was charged; on a release or rollback, what should have been given back was not; on a record of an already-settled payment, the spend was not counted. This is an internal invariant violation — inspect the API logs for the amount and the operation that produced it. |
 | <a id="bck-delegation-0011"></a>`BCK.DELEGATION.0011` | 422 | business | ❌ | Delegation currency does not match the plan currency | A card delegation charges in its own currency, and this plan is priced in another, so nothing was charged. Use a card delegation in the plan’s currency: pass its `delegationConfig.delegationId`, or create one with `currency` set to the plan’s currency (POST /delegation/create, or inline in `delegationConfig`). A credential an app obtained through OAuth pays only with the delegation its authorization created: authorize the app again with a card in the plan’s currency. `params` names both currencies. |
+| <a id="bck-delegation-0012"></a>`BCK.DELEGATION.0012` | 422 | business | ❌ | The card has no Visa agentic rail | A `provider: "visa"` delegation was requested for a card, named by its `CRD…`, that cannot pay through Visa agentic: it is enrolled for card-on-file payments only, its Visa agentic rail was turned off, or its Visa agentic entry is not linked to the card (then pass that entry’s `id`, its agentic token id, as `providerPaymentMethodId`). Nothing was created. GET /payment-methods lists the rails each card supports in `rails`. Create the delegation with `provider: "vgs"` to pay with the card on file, or enrol the card for Visa agentic in the Nevermined app first (it needs a Visa card from a participating issuer). |
 
 ## <span id="bck-entitlements"></span>`BCK.ENTITLEMENTS`
 
