@@ -31,6 +31,10 @@ When you start an MCP server, the library automatically exposes OAuth 2.1 discov
 
 These endpoints are generated automatically—no manual configuration required.
 
+The `authorization_endpoint` they advertise names the API tier your server runs against — `https://nevermined.app/oauth/authorize?network=sandbox` for `sandbox`, `?network=live` for `live` — because one Nevermined web app serves the consent screens for both tiers and boots on whatever tier the user's browser last chose. Clients keep that query string when they add their own parameters (RFC 6749 §3.1); if you configure a client by hand, copy the endpoint from your server's discovery document, query string included. A `custom` environment derives the tier from its backend host (`api.sandbox.…` / `api.live.…`, branded subdomains included); behind a host the SDK cannot classify — `localhost`, a proxy — no tier is stamped, so set `oauthUrls.authorizationUri` to the webapp URL **with** `?network=<tier>` yourself.
+
+The two authorization-server documents' `issuer` is the **canonical API origin of that tier** — `https://api.sandbox.nevermined.app` for `sandbox`, `https://api.live.nevermined.app` for `live` — the same identifier the Nevermined API's own discovery document publishes and the value the consent page returns as the RFC 9207 `iss` parameter on every authorization response (which clients compare with the discovered `issuer` by simple string comparison). A named environment keeps its canonical origin whatever `oauthUrls.tokenUri` proxy sits in front of it; a `custom` environment follows the backend it publishes, reduced to the canonical `api.<tier>.nevermined.…` origin for a branded or MCP subdomain, and to the host's own origin otherwise. It is also what `authorization_servers` names in the protected-resource document — an explicit `oauthUrls.issuer` moves both — so a client that discovers through either route sees one authorization-server **identifier**. The two routes do not read the same *document*, though: a client following `authorization_servers` fetches the Nevermined API's own metadata, so an `oauthUrls.tokenUri` proxy is honoured only by a client that discovers directly against your server, and that client alone sees a `registration_endpoint` (the API offers no dynamic registration). And when your `custom` backend host is a proxy or gateway in front of a Nevermined API rather than the API itself, set `oauthUrls.issuer` (and `oauthUrls.tokenUri`) to that API's real origin — otherwise the document publishes your proxy's origin as `issuer`, which will not match the `iss` the authorization server returns (the SDK warns once when it derives an issuer from a non-Nevermined host). For `sandbox` and `live` the documents also advertise `authorization_response_iss_parameter_supported: true` (RFC 9207) — the consent page returns `iss` on every response, so clients can reject a mix-up; it is omitted — which RFC 9207 defines as `false` — for `custom` (even on a Nevermined backend: the line is the environment name) and for an overridden `authorizationUri`, where the SDK cannot vouch for the consent page. Omitting is a trade, not a non-event: RFC 9207 §2.4 has a client reject an `iss`-less response from a server that advertises support, and *discard* a response that carries `iss` from one that does not — so if your override still points at the Nevermined web app, which returns `iss` on every response, a strict client may discard its responses. (A client that follows `authorization_servers` never sees the omission: the Nevermined API's own document advertises the flag unconditionally.) And an `oauthUrls.issuer` override on `sandbox` or `live` that differs from the canonical origin can never match the `iss` the consent page returns — the SDK publishes it and warns once. (Earlier releases published the web app's origin here, identical for both tiers; a client that keyed its authorization-server state on that identifier re-discovers, and may re-consent, once.)
+
 ## Configure MCP
 
 Initialize the MCP integration with your plan details:
@@ -51,11 +55,14 @@ payments.mcp.configure({
 })
 ```
 
-> **`planId` is required; `agentId` is optional.** The x402 facilitator is
+> **`planId` and `agentId` are both optional.** The x402 facilitator is
 > plan-centric — verify/settle resolve everything from the plan and the
 > subscriber's token. `agentId` is informational only (it also populates the
 > OAuth `client_id` when present). A per-tool `planId` option overrides the
-> server-level plan.
+> server-level plan — and stands in for it entirely, so a server whose every
+> handler sets its own plan needs no `planId` here at all. What is required is
+> that a plan be resolvable by the time a handler is registered: with neither,
+> registration throws `Server misconfiguration: missing planId`.
 
 ## Register Tools with Credits
 
@@ -401,7 +408,7 @@ async function fetchAlerts() {
 | Option          | Type                   | Description                                                                                                                                                                                                                             |
 | --------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `credits`       | `bigint` or `function` | Credits to consume per call                                                                                                                                                                                                             |
-| `planId`        | `string`               | Per-handler plan ID override. A server-level `planId` (set via `configure`/`start`) is required; set this only to charge a different plan for this handler.                                                                               |
+| `planId`        | `string`               | Per-handler plan ID override. Optional when a server-level `planId` is set via `configure`/`start`; required per handler when there is none. With neither, registration throws `Server misconfiguration: missing planId`.                                                                               |
 | `maxAmount`     | `bigint`               | Max credits to verify during authentication (default: `1n`)                                                                                                                                                                             |
 | `onRedeemError` | `string`               | On post-execution settlement failure: `'ignore'` (default) returns the in-band payment error; `'propagate'` throws a JSON-RPC error. Tool content is always suppressed either way (paid content is never delivered without settlement). |
 
@@ -419,7 +426,7 @@ import { decodeAccessToken } from '@nevermined-io/payments'
 // Mint a token against a delegation (create one first). `agentId` (2nd arg) is
 // optional, but `delegationConfig` is required.
 const { delegationId } = await payments.delegation.createDelegation({
-  provider: 'erc4337', // 'stripe' | 'braintree' | 'visa' for fiat plans
+  provider: 'erc4337', // 'vgs' | 'stripe' (+ providerPaymentMethodId) for fiat plans
   spendingLimitCents: 10000,
   durationSecs: 604800,
   currency: 'usdc', // 'usd' for fiat plans
@@ -450,6 +457,7 @@ On a successful paid call, the SDK injects the settlement receipt under `_meta["
       transaction: '0xabc...',
       network: 'eip155:84532',
       payer: '0x123...',
+      billingModel: 'credits',
       creditsRedeemed: '5',
       remainingBalance: '95',
     },
@@ -457,6 +465,7 @@ On a successful paid call, the SDK injects the settlement receipt under `_meta["
     'nevermined/credits': {
       success: true,
       txHash: '0xabc...',
+      billingModel: 'credits',
       creditsRedeemed: '5',
       planId: 'plan-123',
       subscriberAddress: '0x123...',
@@ -466,6 +475,32 @@ On a successful paid call, the SDK injects the settlement receipt under `_meta["
 ```
 
 Free / no-credit calls omit the `x402/payment-response` key (no settlement occurred); `nevermined/credits` is still attached with `creditsRedeemed: '0'`.
+
+> ⚠️ **`creditsRedeemed` is not always present on `nevermined/credits`.** When a
+> settle succeeds but the facilitator reports no figure, the key is **omitted**.
+> It used to be filled in with the credits the request *asked* to burn — a number
+> the settle never reported, published under the name of one it did. Nothing
+> substitutes for a missing figure now.
+>
+> | settle | `creditsRedeemed` on `nevermined/credits` |
+> | --- | --- |
+> | succeeded, figure reported | that figure |
+> | succeeded, **no figure reported** | **key absent** |
+> | pay-as-you-go (charged, no balance) | `'0'` — read `billingModel` beside it |
+> | failed, or a free / no-credit call | `'0'` |
+>
+> Read it with `in` rather than truthiness, since `'0'` is both a legitimate value
+> and truthy. The facilitator's response is always passed through verbatim under
+> `x402/payment-response`, so the raw figure is there whatever this summary does.
+
+> **On a pay-as-you-go plan, a paid call also reports `creditsRedeemed: '0'`.** Those plans hold no
+> credit balance — each call is charged directly — so both credit fields read `'0'` even though the
+> buyer *was* charged. Read `billingModel` off `_meta["x402/payment-response"]` to tell the two apart:
+> `'pay-as-you-go'` means the charge is referenced by `orderTx` (fiat rails) or `transaction` (crypto
+> rails), and `creditsRedeemed` carries no information. Both keys carry the discriminator: the whole
+> settle receipt is passed through under `x402/payment-response`, and `nevermined/credits` carries
+> `billingModel` and `orderTx` alongside its condensed fields. See
+> [Was the buyer charged?](./validation-of-requests#was-the-buyer-charged).
 
 ### Payment required
 

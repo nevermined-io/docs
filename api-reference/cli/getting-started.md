@@ -12,13 +12,13 @@ Complete guide to installing and configuring the Nevermined CLI.
 
 Before installing the CLI, ensure you have:
 
-- **Node.js** >= 18.0.0
+- **Node.js** >= 20.0.0
 - **npm** or **pnpm** package manager
 - A Nevermined account with API key
 
 ## Getting Your API Key
 
-To interact with the Nevermined API, you need an API key. Follow the [Get Your API Key](/getting-started/get-your-api-key) guide to create one.
+To interact with the Nevermined API, you need an API key. Follow the [Get Your API Key](/docs/getting-started/get-your-api-key) guide to create one.
 
 ## Installation
 
