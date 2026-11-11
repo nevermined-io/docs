@@ -229,11 +229,11 @@ A pay-as-you-go plan charges the subscriber on every request instead of selling 
 | Rail | Price config | Credits config |
 |---|---|---|
 | Crypto | `await payments.plans.getPayAsYouGoPriceConfig(amount, receiver[, tokenAddress])` | `payments.plans.getPayAsYouGoCreditsConfig()` |
-| Card | `{ ...payments.plans.getFiatPriceConfig(amount, receiver[, currency]), templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress() }` | `payments.plans.getPayAsYouGoCreditsConfig()` |
+| Card | `await payments.plans.getFiatPayAsYouGoPriceConfig(amount, receiver[, currency])` (1.15.0+), or the manual `{ ...payments.plans.getFiatPriceConfig(amount, receiver[, currency]), templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress() }` | `payments.plans.getPayAsYouGoCreditsConfig()` |
 
 > **`getPayAsYouGoPriceConfig` always builds a crypto price** (`isCrypto: true`), whatever token you pass. Do not use it for a plan that subscribers pay by card. The same holds for Python's `get_pay_as_you_go_price_config`.
 
-What makes either plan pay-as-you-go is the **PayAsYouGoTemplate** address in its price config: the API reports `billingModel: 'pay-as-you-go'` only for a plan registered on that template. `getPayAsYouGoPriceConfig` sets it for you; `getFiatPriceConfig` does not, so the card recipe adds it.
+What makes either plan pay-as-you-go is the **PayAsYouGoTemplate** address in its price config: the API reports `billingModel: 'pay-as-you-go'` only for a plan registered on that template. `getPayAsYouGoPriceConfig` (crypto) and `getFiatPayAsYouGoPriceConfig` (card) set it for you; a plain `getFiatPriceConfig` does not, so the manual card recipe adds it.
 
 ### Crypto pay-as-you-go
 
@@ -263,17 +263,14 @@ payg_credits_config = payments.plans.get_pay_as_you_go_credits_config()
 
 ### Card pay-as-you-go
 
+One call builds the card price: a fiat price on the PayAsYouGoTemplate, whose address it fetches for you (`@nevermined-io/payments` 1.15.0+, `payments-py` 1.20.0+).
+
 ```typescript
-// TypeScript
-const paygCardPriceConfig = {
-  // isCrypto: false — the subscriber's card is charged on every request
-  ...payments.plans.getFiatPriceConfig(
-    1_000_000n,                  // $1.00 per request — 6-decimal units, NOT cents
-    process.env.BUILDER_ADDRESS!,
-  ),
-  // The PayAsYouGoTemplate is what makes this fiat price pay-as-you-go
-  templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress(),
-}
+// TypeScript — isCrypto: false: the subscriber's card is charged on every request
+const paygCardPriceConfig = await payments.plans.getFiatPayAsYouGoPriceConfig(
+  1_000_000n,                    // $1.00 per request — 6-decimal units, NOT cents
+  process.env.BUILDER_ADDRESS!,
+)
 const paygCreditsConfig = payments.plans.getPayAsYouGoCreditsConfig()
 
 const { planId } = await payments.plans.registerPlan(
@@ -281,6 +278,26 @@ const { planId } = await payments.plans.registerPlan(
   paygCardPriceConfig,
   paygCreditsConfig,
 )
+```
+
+```python
+# Python — is_crypto=False: the subscriber's card is charged on every request
+payg_card_price_config = payments.plans.get_fiat_pay_as_you_go_price_config(
+    1_000_000,  # $1.00 per request — 6-decimal units, NOT cents
+    os.environ["BUILDER_ADDRESS"],
+)
+payg_credits_config = payments.plans.get_pay_as_you_go_credits_config()
+```
+
+The same price config by hand, for an older SDK or when you already hold the template address:
+
+```typescript
+// TypeScript (any version)
+const paygCardPriceConfig = {
+  ...payments.plans.getFiatPriceConfig(1_000_000n, process.env.BUILDER_ADDRESS!),
+  // The PayAsYouGoTemplate is what makes this fiat price pay-as-you-go
+  templateAddress: await payments.contracts.getPayAsYouGoTemplateAddress(),
+}
 ```
 
 ```python
@@ -293,7 +310,6 @@ payg_card_price_config = payments.plans.get_fiat_price_config(
     # The PayAsYouGoTemplate is what makes this fiat price pay-as-you-go
     update={"template_address": payments.contracts.get_pay_as_you_go_template_address()}
 )
-payg_credits_config = payments.plans.get_pay_as_you_go_credits_config()
 ```
 
 A card pay-as-you-go plan:
