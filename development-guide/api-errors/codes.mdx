@@ -26,7 +26,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.BILLING`](#bck-billing) — 27 codes
 - [`BCK.BRAINTREE`](#bck-braintree) — 22 codes
 - [`BCK.BUDGETS`](#bck-budgets) — 6 codes
-- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 21 codes
+- [`BCK.CARD_PAYMENT`](#bck-card_payment) — 23 codes
 - [`BCK.CATALOG`](#bck-catalog) — 48 codes
 - [`BCK.COMMON`](#bck-common) — 35 codes
 - [`BCK.CREDITS`](#bck-credits) — 17 codes
@@ -72,8 +72,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.TXS`](#bck-txs) — 16 codes
 - [`BCK.USER_PROFILE`](#bck-user_profile) — 7 codes
 - [`BCK.VERSION`](#bck-version) — 2 codes
-- [`BCK.VGS`](#bck-vgs) — 10 codes
-- [`BCK.VISA`](#bck-visa) — 27 codes
+- [`BCK.VGS`](#bck-vgs) — 11 codes
+- [`BCK.VISA`](#bck-visa) — 29 codes
 - [`BCK.WALLET`](#bck-wallet) — 7 codes
 - [`BCK.WELCOME_CREDITS`](#bck-welcome_credits) — 5 codes
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
@@ -254,6 +254,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-card_payment-0019"></a>`BCK.CARD_PAYMENT.0019` | 403 | auth | ❌ | Only the cardholder can reactivate the card | A card is reactivated by its holder, signed in to the Nevermined app. An API key or an OAuth-minted credential cannot do it. |
 | <a id="bck-card_payment-0020"></a>`BCK.CARD_PAYMENT.0020` | 500 | internal | ❌ | The card could not be reactivated because of a fault on our side | The card vault refused the request for a reason that is not the card (a configuration fault on our side). Nothing was charged. Contact support. |
 | <a id="bck-card_payment-0021"></a>`BCK.CARD_PAYMENT.0021` | 409 | business | ✅ | Another card purchase by the caller is still being paid | Another of the caller’s card purchases held the per-user lock past its timeout, so this one stopped before doing anything. Nothing was charged for it. Retry once the other purchase has finished. |
+| <a id="bck-card_payment-0022"></a>`BCK.CARD_PAYMENT.0022` | 503 | internal | ✅ | The enrolled card could not be revoked right now | Reading or revoking the rails the card is enrolled on (card-on-file, Visa agentic) failed, so the payment method was not revoked, or not entirely. Nothing about it changed that a retry cannot finish: retry shortly. |
+| <a id="bck-card_payment-0023"></a>`BCK.CARD_PAYMENT.0023` | 503 | internal | ✅ | The enrolled card could not be updated right now | Reading or updating the rails the card is enrolled on (card-on-file, Visa agentic) failed, so the edit may have reached some of them and not others. Retry shortly: the same edit finishes it. |
 
 ## <span id="bck-catalog"></span>`BCK.CATALOG`
 
@@ -1124,6 +1126,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-vgs-0008"></a>`BCK.VGS.0008` | 502 | integration | ✅ | Card not enrolled — card verification is temporarily unavailable | The card could not be verified due to a temporary issue and nothing was saved. Please try again shortly. |
 | <a id="bck-vgs-0009"></a>`BCK.VGS.0009` | 422 | validation | ❌ | Card not enrolled — the card issuer did not authenticate the cardholder | Your bank could not verify this card and nothing was saved. Please try again, use a different card, or contact your bank. |
 | <a id="bck-vgs-0010"></a>`BCK.VGS.0010` | 400 | validation | ❌ | Card not enrolled — card verification was not completed | The card verification step was not completed and nothing was saved. Please add the card again and complete the verification with your bank. |
+| <a id="bck-vgs-0011"></a>`BCK.VGS.0011` | 503 | internal | ✅ | The card could not be enrolled right now | Enrolling the card failed on our side (reading the rails the card is already enrolled on, or writing its credential), so it was not saved as a usable card. Nothing was charged. Retry shortly. |
 
 ## <span id="bck-visa"></span>`BCK.VISA`
 
@@ -1156,6 +1159,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-visa-0025"></a>`BCK.VISA.0025` | 400 | business | ❌ | Visa delegation duration exceeds the maximum Visa allows | Visa mandates can last at most 7 days (params.maxDurationSecs). Choose a shorter duration and create a new delegation when it expires. |
 | <a id="bck-visa-0026"></a>`BCK.VISA.0026` | 422 | business | ❌ | This card's issuing country is not supported for Visa agentic payments. Use another Visa card, or add this one with the standard credit/debit card option. | Nothing was saved. Retrying with the same card will not succeed. Enrol a Visa card issued in a supported country, or use the standard credit/debit card enrolment for this one. |
 | <a id="bck-visa-0027"></a>`BCK.VISA.0027` | 422 | business | ✅ | Visa declined this card for agentic payments right now. Try again later, or use another Visa card. | Nothing was saved. Visa Token Service refused to tokenize this card; it may accept it later. Retry after a while, enrol another Visa card, or use the standard credit/debit card enrolment. |
+| <a id="bck-visa-0028"></a>`BCK.VISA.0028` | 502 | integration | ✅ | Visa Agentic Token upgrade on card enrolment failed (best-effort) | A log marker, never sent to a client. With VISA_AGENTIC_UPGRADE_ON_ENROLL on, the unified card enrolment (POST /delegation/enroll) also asks VGS for a Visa Agentic Token for a Visa card. That failed at the stage the log line names (minting the token, writing its row, or the card credential): the card was still enrolled and can pay as card-on-file, but it has no Visa agentic rail, so it cannot back a Visa agentic delegation. A refusal of the card itself is logged at warn, anything else at error. Enrolling the card again retries the upgrade. |
+| <a id="bck-visa-0029"></a>`BCK.VISA.0029` | 500 | internal | ✅ | Card-on-file rail not added on a Visa agentic enrolment (best-effort) | A log marker, never sent to a client. POST /delegation/enroll-visa also enrols the card as card-on-file when its network token provisions. Writing that rail failed: the card is enrolled as Visa agentic only, and the response says cardOnFile: false. Enrolling the card again completes it. |
 
 ## <span id="bck-wallet"></span>`BCK.WALLET`
 
