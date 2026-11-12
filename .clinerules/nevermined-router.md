@@ -57,8 +57,9 @@ Both rails **pull** from your own wallet: a Delegation authorizes a spend, it do
 supply funds. Read the address from the live Delegation every time —
 `GET /api/v1/delegation/{id}` → `providerPaymentMethodId`.
 
-**Never reuse a cached address.** A stale one is the most common cause of `402 BCK.ROUTER.0009`, and
-that error deliberately doesn't echo the address it checked.
+**Never reuse a cached address.** A stale one is the most common cause of an underfunded wallet. On
+MPP `tempo` that is `402 BCK.ROUTER.0009`, which deliberately doesn't echo the address it checked; x402
+and MPP `evm` are not balance-checked, so there the payment fails at settlement instead.
 
 **One x402 network is funded per deployment, fixed by its environment: sandbox → `base-sepolia`,
 live → `base`.** A merchant on the other chain is unpayable from where you are and fails
@@ -156,7 +157,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0001` (400) — bad input / no fundable option / non-allowlisted asset; `details` names it.
 - `BCK.ROUTER.0008` (403) — legacy API key; create a new one.
 - Only `BCK.ROUTER.0006` (500, summary read), `0007` (429, too many concurrent), `0020` (5xx/429), `0022` (500, required capability unavailable: service selection or buyer identity signing;
-  retry only after operator repair, never loop unchanged), `0028` (503, quote), `0042` (409, closing payment channel), `0043` (503, busy payment channel) and `0048` (503, Privy did not answer) are **retryable**, and so is `BCK.X402.0052` (503, wallet upgrade did not complete) — on the paying path, `0007`, `0020`, `0042`, `0043`, `0048` and `BCK.X402.0052`. Everything else is a decision — retrying
+  retry only after operator repair, never loop unchanged), `0028` (503, quote), `0042` (409, closing payment channel), `0043` (503, busy payment channel) and `0048` (503, Privy did not answer) are **retryable**, and so are `BCK.X402.0052` (503, wallet upgrade did not complete) and `BCK.USER_PROFILE.0006` (503, wallet-ownership check unanswered) — on the paying path, `0007`, `0020`, `0042`, `0043`, `0048`, `BCK.X402.0052` and `BCK.USER_PROFILE.0006`. Everything else is a decision — retrying
   unchanged gives the same answer.
 - `BCK.ROUTER.0010` (500) — internal. **Never blind-retry it:** a credential was already minted and
   no record was written, so `requestId` will not suppress the retry. Report it.
@@ -196,7 +197,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0035` (422) — the service's challenge asks for no payment (an auth-only wallet sign-in) and the Router could not answer it. It signs one only on a slug call to an `auth: "siwx"` endpoint (an async result poll) or follow-up path, after your own wallet paid that service within the follow-up window. Nothing was charged; pay first from your own wallet and poll through the same slug, or authenticate with the service directly. Do not retry unchanged.
 - `BCK.ROUTER.0036` (422) — the endpoint is known to outlast the Router's 120 s paid-call limit, so paying would charge and deliver nothing; refused before payment. `params.source` is `declared` (permanent) or `observed` (lifts at `params.liftsAt`). Pick another endpoint; do not retry unchanged.
 - `BCK.ROUTER.0040` (500) — internal: the Router's MPP session channel state refused an inconsistent read or write. Nothing moved. Report it; do not retry.
-- `BCK.ROUTER.0041` (400) — the service is paid only over an MPP session, which `POST /router/payments` cannot pay. There it is the answer for every crypto delegation, even one with `allowSessionPayments: false`. Use `/router/route`, `/router/svc/<slug>` or `/router/proxy`, or pay the service's x402 offer, if it has one, with `protocol: "x402"`.
+- `BCK.ROUTER.0041` (400) — the service's MPP challenge offers only a session, which `POST /router/payments` cannot pay. There it is the answer for every crypto delegation, even one with `allowSessionPayments: false` (the Router-fetched routes answer that one with `0047` unless they can pay the service another way). Use `/router/route`, `/router/svc/<slug>` or `/router/proxy`, or, if the service also offers x402, pay that offer with `protocol: "x402"`.
 - `BCK.ROUTER.0042` (409) — the MPP session payment channel with this service is closing; no payment signed or charged. Retry later with the same `requestId`.
 - `BCK.ROUTER.0043` (503) — the MPP session payment channel with this service is busy; nothing signed or charged. Retry after a few seconds with the same `requestId`.
 - `BCK.ROUTER.0044` (422) — the Router cannot collect its fee on this MPP session payment: `params.cause` is `org-wallet` (pay from a delegation funded by your own wallet) or `network` (session fees are not collected on that network; pay another network's service). Nothing charged. Do not retry unchanged.
@@ -204,7 +205,8 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
 - `BCK.ROUTER.0046` (400) — you set `validateRequestBody` (opt-in) and the request body provably fails the endpoint's published request schema; the Router refused before anything was signed, reserved or charged (`params.endpointPath`). Without the flag the call is never refused on this basis. It is read on `/route`, `/commerce/route` (and their `/with-controls` variants) and `/router/subscription/route`, and the Commerce MCP `pay_service` forwards it to them; the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. Not retryable unchanged: fix the body to match the endpoint's published schema/example (catalog `requestSchema`/`requestExample`, or the Commerce MCP `get_service`), or drop `validateRequestBody`.
 - `BCK.ROUTER.0047` (409) — this delegation was created with `allowSessionPayments: false` and the Router would pay the service over an MPP session (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged. Raised by the routes and quotes that can pay a session, never by `POST /router/payments`, which answers `0041` instead. Not retryable unchanged: use a service that charges per call, or report to the human, who can deliberately drop a `requireProtocol: "mpp"` pin or create a delegation that allows session payments. An app connected over OAuth holds its delegation through its grant, so they disconnect the app in Nevermined and reconnect it with session payments allowed instead.
 - `BCK.ROUTER.0048` (503) — on an MPP `tempo` payment, Privy did not answer when the Router read the wallet's public key (once per wallet). Transient; nothing signed, reserved or charged. Retry after a backoff with the same `requestId`.
-- `BCK.X402.0052` (503) — the wallet's EIP-7702 upgrade, which the Router runs before paying from it (only where EIP-7702 is enabled), did not complete. Nothing was paid. Usually transient: retry after a backoff with the same `requestId`; report it if it persists across several backed-off retries.
+- `BCK.X402.0052` (503) — your account wallet's EIP-7702 upgrade, which the Router runs before any payment whichever delegation pays (only where EIP-7702 is enabled), did not complete. Nothing was paid. Usually transient: retry with the same `requestId` after a backoff of a few minutes (a retry inside the fail-closed window that follows a failed upgrade gets `0052` again); report it if it persists across several such retries.
+- `BCK.USER_PROFILE.0006` (503) — Privy or the chain RPC did not answer while the Router checked that the wallet belongs to your account. Nothing signed, reserved or charged. Retry after a short backoff with the same `requestId`.
 
 **Never widen a Delegation, and never create a second one, to get past a refusal.** The cap is the
 user's decision, not a runtime obstacle; minting a fresh Delegation to escape an exhausted one

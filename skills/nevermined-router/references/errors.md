@@ -48,7 +48,7 @@ unbound quote and service-selection request shapes.
 | `BCK.ROUTER.0035` | 422 | The service's challenge asks for no payment (a zero amount — typically an auth-only "sign in with your wallet" challenge), and the Router could not answer it. It answers one (MPP zero-amount proof or x402 SIWX) only on a slug call to an `auth: "siwx"` endpoint or declared follow-up path, after **your own wallet** settled a payment for that service within the follow-up window (see "Wallet-authenticated results" in `references/paying.md`). Your request is not malformed; nothing was signed, reserved or charged. | No — make the paid call first from your own wallet, then poll through the same slug; or authenticate with the service directly |
 | `BCK.ROUTER.0036` | 422 | Every catalog endpoint the call reaches is known to answer after the Router abandons a paid call (120 s), and the merchant charges on receipt — so paying would charge and deliver nothing. Refused before any payment (a retry of an already-paid `requestId` gets `0002` instead). `params.source` is `declared` (permanent) or `observed` (lifts at `params.liftsAt`). On a declared free-follow-up path it is raised only when the service answers `402`. | No — pick another endpoint or service; an `observed` refusal lifts at `liftsAt` |
 | `BCK.ROUTER.0040` | 500 | Internal: the Router's record of an MPP **session** payment channel refused an inconsistent read or write — a defect on our side, not your request. The payment was refused before its credential reached the service, so nothing moved. | No — **report it** with the `correlationId` |
-| `BCK.ROUTER.0041` | 400 | The service is paid only over an MPP **session** (a payment channel). The Router must read the service's receipt after every call to keep the channel consistent, so it pays a session only when it fetches the service itself — never through `POST /router/payments`. Nothing was signed or charged. It is the answer there for every crypto delegation, including one created with `allowSessionPayments: false` (the Router-fetched routes refuse that one with `0047`). | No — call it through `POST /router/route`, `/router/svc/<slug>` or `/router/proxy`, or, if the service also offers x402, pay that offer on `POST /router/payments` with `protocol: "x402"` |
+| `BCK.ROUTER.0041` | 400 | The service's MPP challenge offers only a **session** (a payment channel). The Router must read the service's receipt after every call to keep the channel consistent, so it pays a session only when it fetches the service itself — never through `POST /router/payments`. Nothing was signed or charged. It is the answer there for every crypto delegation, including one created with `allowSessionPayments: false` (on the Router-fetched routes that one gets `0047` instead, unless they can pay the service another way). | No — call it through `POST /router/route`, `/router/svc/<slug>` or `/router/proxy`, or, if the service also offers x402, pay that offer on `POST /router/payments` with `protocol: "x402"` |
 | `BCK.ROUTER.0042` | 409 | The MPP **session** payment channel with this service is closing — its deposit reached its ceiling, or the service refused the channel, a top-up of its deposit, or the payment after a top-up — so nothing can be signed on it until the close completes. No payment was signed, reserved or charged (a top-up the Router sent only moved your own funds into the channel; they come back at close). | **Yes**, later — reuse the same `requestId`; the next call after the close opens a new channel |
 | `BCK.ROUTER.0043` | 503 | The MPP **session** payment channel with this service is busy: another payment on it held it too long, your wallet's signer or balance read did not answer in time, or a top-up of the channel was in flight or the service could not be reached to take one (`params.stage`). Nothing was signed, reserved or charged. | **Yes**, after a few seconds — same `requestId` |
 | `BCK.ROUTER.0044` | 422 | The Router cannot collect its routing fee on this MPP **session** payment, so it refused it. A session's fee is never charged call by call: it is added up and collected later in one transfer from the paying wallet, and `params.cause` says why that cannot happen here: `org-wallet` (the payment is funded by an organization wallet, which that collection cannot draw from yet) or `network` (this deployment does not collect session fees on the service's network). Nothing was signed, reserved or charged, and no payment channel was opened. | No — `org-wallet`: pay from a delegation funded by your own wallet; `network`: pay a service on another network |
@@ -60,14 +60,21 @@ unbound quote and service-selection request shapes.
 `0022` (500, required Router capability unavailable: service selection or buyer identity signing) is retryable only after an operator restores that capability; do not loop unchanged.
 
 **Only `0006`, `0007`, `0020`, `0028`, `0042`, `0043` and `0048` are worth retrying automatically** — on the
-paying path, `0007`, `0020`, `0042`, `0043` and `0048`, plus `BCK.X402.0052` below. The rest are decisions; retrying them unchanged produces the same answer.
+paying path, `0007`, `0020`, `0042`, `0043` and `0048`, plus `BCK.X402.0052` and `BCK.USER_PROFILE.0006` below. The rest are decisions; retrying them unchanged produces the same answer.
 
-**One code from outside `BCK.ROUTER.*` is retryable too: `503 BCK.X402.0052`.** The routes that pay from
-your wallet run its EIP-7702 upgrade first (only where EIP-7702 is enabled), and this code says the
-upgrade did not complete: its delegation could not be installed, a step was mined but reverted, Privy
-did not sign it, or moving its funds to the upgraded wallet failed. Nothing was paid from the wallet.
-It is an infrastructure fault and usually transient: retry after a backoff with the same `requestId`,
-and report it if it persists across several backed-off retries.
+**Two codes from outside `BCK.ROUTER.*` can also stop a payment, and both are retryable.** Neither is in
+the table above, but the paying routes (`POST /router/payments`, `/route`, `/commerce/route`,
+`/proxy`, `/svc`; never a quote) can return them, whichever delegation pays:
+
+- **`503 BCK.X402.0052`** — the Router runs your account wallet's EIP-7702 upgrade before it pays (only
+  where EIP-7702 is enabled), and the upgrade did not complete: its delegation could not be installed,
+  a step was mined but reverted, Privy did not sign it, or moving its funds to the upgraded wallet
+  failed. Nothing was paid from the wallet. It is an infrastructure fault and usually transient: retry
+  with the same `requestId` after a backoff of a few minutes (a retry inside the fail-closed window that
+  follows a failed upgrade gets `0052` again), and report it if it persists across several such retries.
+- **`503 BCK.USER_PROFILE.0006`** — Privy or the chain RPC did not answer while the Router checked that
+  the wallet belongs to your account. Nothing was signed, reserved or charged. Retry after a short
+  backoff with the same `requestId`.
 
 ### Refusals that are not `BCK.ROUTER.*` at all
 
@@ -142,8 +149,8 @@ Here the card is fine; it simply has not been authenticated for this charge.
 
 `0006` and `0010` are both 500s and behave in opposite ways, so "retry 5xx" is the wrong reflex
 here. Note also that `0006` is raised **only by the payments summary read**, never by a payment —
-so on the paying path, `0007`, `0020`, `0042`, `0043`, `0048` and `BCK.X402.0052` are the codes worth
-retrying (with backoff).
+so on the paying path, `0007`, `0020`, `0042`, `0043`, `0048`, `BCK.X402.0052` and
+`BCK.USER_PROFILE.0006` are the codes worth retrying (with backoff).
 
 `0010` means a payment handler reported a settlement amount in cents that isn't a non-negative
 integer, so the routing-fee arithmetic can't compute what to reserve. It deliberately fails rather
