@@ -54,10 +54,18 @@ cap workspace rule files at **12,000 characters each** (*"Workspace rule files a
 characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Older versions cut at
 **6,000**, and this file was squeezed to that until 2026-10-08, omitting eight `BCK.ROUTER` codes. Now:
 
-- **The first 6,000 characters stay self-sufficient**: every gotcha, the guardrails, the blanket
-  "only … are retryable" rule and accounting. An old Windsurf that cuts there loses only the remedies
-  of the non-retryable codes appended under *More refusals*, never a retry verdict.
-- New codes go **at the end**, in *More refusals*; never grow the first 6,000 characters.
+- **The first 6,000 characters stay self-sufficient**: every gotcha, the guardrails (through
+  "**Never widen a Delegation…**") and the blanket "only … are retryable" rule with its paying-path
+  list. An old Windsurf that cuts there loses the *Accounting* section and the remedies of the codes
+  appended after it, never a retry verdict.
+- New codes go **at the end**: a non-retryable one in *More refusals (none retryable)*, a retryable
+  one in *Retryable refusals* after it. Never grow the first 6,000 characters. A retryable code must
+  also join the blanket rule, which sits inside that span, so offset the growth by moving a bullet
+  whose verdict the blanket rule already carries. docs#636 added `0048`, `BCK.X402.0052` and
+  `BCK.USER_PROFILE.0006` to the rule, and moved the `0042`/`0043` bullets to *Retryable refusals*
+  and `0024` to *More refusals*.
+- The file sits close to the 12,000 cap, so measure it after every edit, and check where the
+  "Never widen" line ends: `t.find("\n", t.find("**Never widen"))` must stay below 6000.
 
 The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser** — no
 worked examples (`curl` blocks and the `new URL(...)` snippet become prose), no literal enum members,
