@@ -56,8 +56,13 @@ characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Old
 
 - **The first 6,000 characters stay self-sufficient**: every gotcha, the guardrails, the blanket
   "only … are retryable" rule and accounting. An old Windsurf that cuts there loses only the remedies
-  of the non-retryable codes appended under *More refusals*, never a retry verdict.
-- New codes go **at the end**, in *More refusals*; never grow the first 6,000 characters.
+  of the codes appended after it, never a retry verdict.
+- New codes go **at the end**: a non-retryable one in *More refusals (none retryable)*, a retryable
+  one in *Retryable refusals* after it. Never grow the first 6,000 characters. A retryable code must
+  also join the blanket rule, which sits inside that span, so offset the growth: docs#635 added
+  `0048` and `BCK.X402.0052` there and moved the `0042`/`0043` bullets to *Retryable refusals*
+  (their verdicts stay in the blanket rule), so the span shrank.
+- The file is near the 12,000 cap (11,710 after docs#635), so measure it after every edit.
 
 The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser** — no
 worked examples (`curl` blocks and the `new URL(...)` snippet become prose), no literal enum members,
