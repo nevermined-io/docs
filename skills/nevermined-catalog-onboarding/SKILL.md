@@ -1,7 +1,7 @@
 ---
 name: nevermined-catalog-onboarding
-version: "1.1.0"
-lastUpdated: "2026-11-11"
+version: "1.1.1"
+lastUpdated: "2026-11-13"
 # Tool scope, read by NVIDIA SkillSpector, the scanner ClawHub runs (rule LP3;
 # see nevermined-io/docs#629). It describes the skill and grants nothing: no
 # host enforces it. Keep it top-level, where LP3 reads it. Do not turn it into
@@ -48,7 +48,7 @@ metadata:
 
 # Nevermined Catalog onboarding — enroll & validate an external x402 service
 
-> **Skill version**: 1.1.0 | **Last updated**: 2026-11-11
+> **Skill version**: 1.1.1 | **Last updated**: 2026-11-13
 >
 > Companion to two existing skills — **`nevermined-payments`** (register an agent/plan,
 > get an API key) and **`nevermined-router`** (the full Router buy loop + error table).
