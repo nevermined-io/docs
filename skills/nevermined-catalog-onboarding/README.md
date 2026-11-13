@@ -12,7 +12,7 @@ In Claude Code:
 
 ## What it does
 
-The plugin contains one skill: `SKILL.md` and the reference files in `references/`. It is instructions and code examples that Claude reads — it starts no MCP server and installs no packages on its own. The one runnable helper, `references/c402pay/pay.mjs`, is a raw-EOA x402 payer you invoke explicitly; it signs an EIP-3009 authorization with `viem` (install its pinned, locked dependencies with `npm ci` first; it refuses to run with any other copy of `viem`) and refuses to sign a non-USDC asset or an amount over a configurable cap.
+The plugin contains one skill: `SKILL.md` and the reference files in `references/`. It is instructions and code examples that Claude reads — it starts no MCP server and installs no packages on its own. The one runnable helper, `references/c402pay/pay.mjs`, is a raw-EOA x402 payer you invoke explicitly; it signs an EIP-3009 authorization with `viem` (install its pinned, locked dependencies with `npm ci` first; it refuses to run with any other copy of `viem`) and refuses to sign a non-USDC asset or an amount over a configurable cap. `agents/openai.yaml` only sets the skill's display name for registries that read it, such as ClawHub; Claude Code does not load it.
 
 When you ask Claude to act on the skill, the examples call the Nevermined API (`https://api.live.nevermined.app`, or `https://api.sandbox.nevermined.app` for testing) with a Nevermined API key that you supply. The direct-wallet proof spends real money only within the cents-scale cap you fund the throwaway EOA with.
 
