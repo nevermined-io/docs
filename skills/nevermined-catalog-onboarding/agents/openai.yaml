@@ -1,0 +1,8 @@
+# Display name for registries that read the OpenAI skill presentation file.
+# ClawHub needs it (nvm-monorepo#2853): it discards a publisher --name equal to
+# the titleized slug or to frontmatter `name:`, then falls back to that kebab
+# `name:`, which this file outranks. The path and the `interface:` map are what
+# its parser reads. No `short_description`, so the summary stays the frontmatter
+# one. A file it cannot parse is ignored silently: check the name after an edit.
+interface:
+  display_name: Nevermined Catalog Onboarding

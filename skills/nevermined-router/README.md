@@ -12,7 +12,7 @@ In Claude Code:
 
 ## What it does
 
-The plugin contains one skill: `SKILL.md` and the reference files in `references/`. It runs no code, starts no MCP server and installs no packages. Everything it contains is instructions and code examples that Claude reads.
+The plugin contains one skill: `SKILL.md` and the reference files in `references/`. It runs no code, starts no MCP server and installs no packages. Everything it contains is instructions and code examples that Claude reads. The one other file, `agents/openai.yaml`, only sets the skill's display name for registries that read it, such as ClawHub; Claude Code does not load it.
 
 When you ask Claude to act on them, the examples call the Nevermined API (`https://api.live.nevermined.app`, or `https://api.sandbox.nevermined.app` for testing) and the Nevermined Catalog MCP (`https://mcp.live.nevermined.app/mcp`) with a Nevermined API key that you supply. Paid calls spend real money only within the spending cap you set on the Delegation.
 

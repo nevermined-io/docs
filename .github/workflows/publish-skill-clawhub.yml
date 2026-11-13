@@ -45,7 +45,9 @@ name: Publish skill to ClawHub
 # version (after a revert, say), the CLI still says `unchanged`, so the step
 # publishes that content again as the next version.
 #
-# Adding a skill: add one entry to the matrix. Nothing else needs to change.
+# Adding a skill: add one entry to the matrix. If its `name` equals the titleized
+# slug or the skill's frontmatter `name:`, ClawHub discards it, so also give the
+# skill an `agents/openai.yaml` (see CLAUDE.md, "Plugin and registry distribution").
 
 on:
   workflow_dispatch:
