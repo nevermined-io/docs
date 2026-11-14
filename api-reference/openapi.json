@@ -5014,7 +5014,23 @@
           },
           "cardId": {
             "type": "string",
-            "description": "Present on a card flagged needsReactivation: its CRD… card id."
+            "example": "CRDs4FYUfwueGDryKrPDjd3JR",
+            "description": "The card’s CRD… card id, on an entry of a card enrolled with Nevermined (provider vgs or visa) whose card is known, and on an entry flagged needsReactivation. A card enrolled for card-on-file and Visa agentic payments is listed once per rail (or more), each entry with the same cardId: group entries by `cardId`, falling back to `id`. Absent on other entries, and on every entry while the cards cannot be read; a retry can fix only the latter. POST /delegation/create takes it as `providerPaymentMethodId` for a provider its `rails` lists."
+          },
+          "rails": {
+            "type": "array",
+            "example": [
+              "vgs",
+              "visa"
+            ],
+            "description": "Present with cardId on an entry of a card enrolled with Nevermined: the delegation providers a new delegation naming the card by its cardId can pay through now — vgs (card on file; listed only while the card-on-file network token is active) and visa (Visa agentic). It describes the card, so the entry for a rail that was turned off still lists the card’s other rails; needsReactivation describes the entry, so on a card whose rails are still held separately the two can differ. Empty when the card can pay through neither. An entry can still back a delegation by its own `id` and `provider` when its rail is not listed here.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "vgs",
+                "visa"
+              ]
+            }
           },
           "orgId": {
             "type": [
@@ -5154,7 +5170,7 @@
           },
           "providerPaymentMethodId": {
             "type": "string",
-            "description": "Payment-method identifier from the provider. For stripe / braintree this is the saved card; for visa this is the VGS agentic-token id returned by enrollment; for vgs this is the `CRD…` canonical cardId from the unified VGS-Collect enroll. Required for these providers; ignored for erc4337.",
+            "description": "Payment-method identifier from the provider. For stripe this is the saved card; for vgs this is the `CRD…` canonical cardId from the unified VGS-Collect enroll; for visa this is the card’s `CRD…` cardId (the card must list `visa` in its `rails` on GET /payment-methods) or the VGS agentic-token id returned by enrollment. Required for these providers; ignored for erc4337.",
             "example": "pm_1Abc2Def3Ghi4Jkl"
           },
           "consumerPrompt": {
