@@ -148,7 +148,7 @@ for q in "web search" scrape screenshot chat; do
        -X POST https://mcp.live.nevermined.app/mcp \
        -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"search_services\",\"arguments\":{\"query\":\"$q\"}}}" \
     | jq -r '.result.content[0].text' \
-    | jq --arg q "$q" '{query:$q, count:(.results|length), top:[.results[0:3][]|{slug, title:.displayName, protocol, priceLabel:(.displayPriceLabel // .headlinePriceLabel // .priceLabel)}]}'
+    | jq --arg q "$q" '{query:$q, count:(.results|length), top:[.results[0:3][]|{slug:(.slug // (if .["nvm:catalog"] then .identifier|split(":")|last else null end)), title:.displayName, protocol:(.protocol // .["nvm:catalog"].protocol), priceLabel:(.displayPriceLabel // .headlinePriceLabel // .priceLabel // .["nvm:catalog"].priceLabel)}]}'
 done
 ```
 
@@ -163,7 +163,7 @@ curl -s -H "Content-Type: application/json" \
 ```
 
 <Tip>
-**Search ranks by meaning and keyword together (ARD hybrid), most relevant first** — so a plain-language need finds services that never use your exact words, and a longer, descriptive query helps rather than hurts (`weather forecast` works as well as `weather`). Each result is a concise listing with every field at the top level: `slug` (what `get_service` and `pay_service` take), `displayName`, `protocol`, the price labels (`displayPriceLabel`, `headlinePriceLabel`, `priceLabel`), `healthStatus` and `uptime30d` — the `jq` above takes `displayPriceLabel`, else `headlinePriceLabel`, else `priceLabel`. A field the catalog doesn't know is omitted, so a missing `healthStatus` doesn't mean healthy. Filter with `tag` (a keyword from a listing's `tags`; `category` also matches tags, so put a `list_categories` name in `query`, not in `category`) and `protocol` (to keep only payable rails). Prefer a service whose `healthStatus` is `operational`.
+**Search ranks by meaning and keyword together (ARD hybrid), most relevant first** — so a plain-language need finds services that never use your exact words, and a longer, descriptive query helps rather than hurts (`weather forecast` works as well as `weather`). Each result is a concise listing with every field at the top level: `slug` (what `get_service` and `pay_service` take), `displayName`, `protocol`, the price labels (`displayPriceLabel`, `headlinePriceLabel`, `priceLabel`), `healthStatus` and `uptime30d` — the `jq` above takes `displayPriceLabel`, else `headlinePriceLabel`, else `priceLabel`. A field the catalog doesn't know is omitted, so a missing `healthStatus` doesn't mean healthy. Until the MCP release that carries nvm-monorepo#5155, results are full ARD records with those fields under `nvm:catalog` and the slug as the last segment of `identifier`; the `jq` above reads both shapes. Filter with `tag` (a keyword from a listing's `tags`; `category` also matches tags, so put a `list_categories` name in `query`, not in `category`) and `protocol` (to keep only payable rails). Prefer a service whose `healthStatus` is `operational`.
 </Tip>
 
 ## Turn a proposal into a run

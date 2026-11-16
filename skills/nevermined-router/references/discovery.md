@@ -135,6 +135,12 @@ subpath = endpoint["path"] if endpoint.get("invokePath") is None else endpoint["
 In jq, `.invokePath // .path` is already correct: `//` falls through on `null`/`false` only, and
 `""` is truthy there.
 
+**The exception is a templated `path`** (a `:name`, `{name}`, `*` or `<name>` segment): neither
+field is the subpath for your call, since `path` keeps the placeholder and an `invokePath`, where
+present, fills it with a documented example value. Call the Catalog MCP `get_service` on the slug
+and send its `payServiceArgs.path`, with your own value in place of the example's. The concise
+`search_services` hit omits `invokePath` on such an endpoint.
+
 Then pay with `POST /api/v1/router/route` and `{ "slug": …, "path": subpath }` — see `paying.md`.
 
 ## Categories
@@ -198,16 +204,16 @@ curl -s -H "Content-Type: application/json" \
 - **`search_services` result shape depends on the MCP server version.** From v1.48 it ranks by ARD
   hybrid relevance (semantic + lexical): `query` is **required**, `page` / `offset` are gone (a
   `pageSize` replaces them, with no next-page input), and the result is `{ results, pageToken }`.
-  Each result is now a concise listing with its `slug`, `protocol`, price labels, health and
-  `endpoints` (each with `invokePath`, so rule 2 applies unchanged) at the top level; a hit
-  federated from another registry has no `slug` and can't be paid here, and `detail: true` returns
-  the full ARD record plus its `slug`. Servers from v1.48 until that change returned the full ARD
-  record only, keyed by an `identifier` URN whose last segment is the slug
-  (`urn:air:api.live.nevermined.app:service:superhighway` → `superhighway`), which current hits
-  still carry. Earlier servers return `{ total, page, offset, services }`. So: always send `query`,
-  parse `content[0].text` without assuming `services[]`, and **do not build a pager on it** — an
-  unknown `page` is silently dropped and you would get the first page forever. To walk everything,
-  use the feed.
+  From the MCP release that carries nvm-monorepo#5155, each result is a concise listing with its
+  `slug`, `protocol`, price labels, health and `endpoints` (`invokePath` on untemplated paths only;
+  see rule 2) at the top level; a hit federated from another registry has no `slug` and can't be
+  paid here, and `detail: true` returns the full ARD record plus its `slug`. Servers from v1.48
+  until that release return the full ARD record only, keyed by an `identifier` URN whose last
+  segment is the slug (`urn:air:api.live.nevermined.app:service:superhighway` → `superhighway`);
+  concise hits still carry `identifier`. Earlier servers return `{ total, page, offset, services }`.
+  So: always send `query`, parse `content[0].text` without assuming `services[]`, and **do not build
+  a pager on it** — an unknown `page` is silently dropped and you would get the first page forever.
+  To walk everything, use the feed.
 - **Errors come back as a tool result with `isError: true`** and a plain-text message, not a
   JSON-RPC error: an unknown slug in `get_service` reads `… returned 404`; a bad `protocol` fails the
   input schema with `MCP error -32602: Input validation error …`. Check `isError` before parsing

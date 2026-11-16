@@ -29,7 +29,7 @@ To have the platform **pick** (and optionally pay) the single best service for a
 
 ## Returns
 
-`results` and an opaque `pageToken` (informational only). Each result is a **concise listing**: the fields you pick a service by, flattened to one level (endpoints trimmed to two here):
+`results` and an opaque `pageToken` (informational only). Each result is a **concise listing**: the fields you pick a service by, flattened to one level (endpoints trimmed to two here). The concise shape and `detail` ship with the MCP release that carries nvm-monorepo#5155; before that release, each result is the full ARD record, with the catalog fields under `nvm:catalog` and no `slug` (the slug is the last segment of `identifier`).
 
 ```json
 {
@@ -69,8 +69,8 @@ What a listing carries:
 - **`slug`** is what [`get_service`](/mcp/catalog-mcp/get-service), [`quote_service`](/mcp/catalog-mcp/quote-service) and [`pay_service`](/mcp/catalog-mcp/pay-service) take. Only a hit from this Catalog has one. A `rankingSource: "federated"` hit comes from another registry: it has no `slug`, carries its `url` and `source` instead, and can't be quoted or paid here.
 - `identifier`, `displayName`, `description` and `tags` describe the service; `matchReason`, `rankingSource` and one score rank it.
 - `protocol`, `network` and the prices: `priceLabel` (the listing's advertised price), `headlinePriceLabel` (derived from endpoint prices; "from" means they vary) and `displayPriceLabel` (the whole listing: what calls to it settled at when `displayPriceSource` is `settled`, the merchant's latest quote when `quoted`).
-- Health and payability: `routerPayable`, `healthStatus`, `uptime30d`, `successRate`, `verificationStatus`, plus `freeAfterPurchasePaths` (result paths free to poll after your own paid call).
-- `endpoints`, each with its `method`, `path`, `invokePath` (the subpath to send; `""` means the service base already is the endpoint), `priceLabel` and `description`, plus `access`, `auth` and `subscription` when set.
+- Health and payability: `routerPayable`, `healthStatus`, `uptime30d`, `successRate`, `verificationStatus`, plus `freeAfterPurchasePaths`: path prefixes free to poll after your own paid call, within the follow-up window. A call under one that answers `402` is still paid; see `get_service`.
+- `endpoints`, each with its `method`, `path`, `invokePath`, `priceLabel` and `description`, plus `access`, `auth` and `subscription` when set. For an untemplated `path`, `invokePath` is the subpath to send, and `""` means the service base already is the endpoint. A templated `path` (a `:name`, `{name}`, `*` or `<name>` segment) carries no `invokePath`: call `get_service` and send its `payServiceArgs.path`.
 - **An omitted field is unknown or withheld, never defaulted:** a missing `healthStatus` doesn't mean healthy.
 - Request shapes, examples and quotes are not in a concise listing. Read them with `get_service` before paying, or pass `detail: true`.
 
