@@ -53,6 +53,36 @@ The vendor's response plus the payment record. A paid result also carries `deleg
 - `budget: null` means it couldn't be read this time — **not** that it's zero; call [`get_budget`](/mcp/catalog-mcp/get-budget).
 - `payable: false` (with `protocol`, `priceLabel`, `network`, `note`; never the upstream URL) means the service isn't on a payable rail — nothing charged.
 
+### When the body is not inlined
+
+A paid body that is binary (audio, images, PDFs), or whose JSON form is larger than the server's inline limit (32 KiB by default), comes as **`responseOmitted`** in place of `response` and `bodyEncoding`, once the Router is confirmed to have kept the result; if that cannot be confirmed, the body stays inline. **It does not mean the body is empty:**
+
+```json
+{
+  "paid": true,
+  "upstreamStatus": 200,
+  "payment": { "paymentId": "b1f9c2e4-…", "txHash": "0xfc8af37b…" },
+  "responseOmitted": {
+    "reason": "binary",
+    "contentType": "audio/mpeg",
+    "sizeBytes": 452311,
+    "resultUrl": "https://api.live.nevermined.app/api/v1/router/payments/b1f9c2e4-…/result",
+    "contentUrl": "https://api.live.nevermined.app/api/v1/router/payments/b1f9c2e4-…/result/content",
+    "resourceUri": "nevermined://router/payments/b1f9c2e4-…/result",
+    "expiresAt": "2026-11-17T10:00:00.000Z",
+    "instructions": "The response body (audio/mpeg, 452311 bytes) is not inlined because it is binary; it is not empty. …"
+  }
+}
+```
+
+`reason` is `binary` or `too_large`, and `sizeBytes` is the size of the body itself (decoded, for binary). A `resource_link` content block pointing at `resourceUri` follows the JSON. Getting the body charges nothing; never pay again to get it:
+
+- **Download `contentUrl`** with your API key: [`GET …/result/content`](/products/catalog/router/how-it-works#slow-services-and-retained-results) answers the bytes, with the service's status in `X-Upstream-Status`.
+- **Read `resourceUri`** (MCP `resources/read`), with the credential you send this server, so it also serves an OAuth connection. Claude Code saves a resource blob it reads to a file and puts only a one-line pointer in the context.
+- **As a last resort**, call [`get_payment_result`](/mcp/catalog-mcp/get-payment-result) with this `paymentId` and `inline: true`, which returns the body in the tool result at its full size.
+
+The same object comes as `bodyOmitted` from `get_payment_result` and from an `autoPay` [`route_by_intent`](/mcp/catalog-mcp/route-by-intent).
+
 ## Outcomes and refusals
 
 | Result | Meaning | What to do |

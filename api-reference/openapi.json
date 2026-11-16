@@ -3333,6 +3333,124 @@
         ]
       }
     },
+    "/router/payments/{id}/result/content": {
+      "get": {
+        "description": "The response body of a paid call, exactly as `GET /api/v1/router/payments/{id}/result`\nwould relay it, but as the bytes themselves instead of JSON: binary media (audio, images,\nPDFs) comes back decoded rather than base64, served with the content type the service gave\nit and `Content-Disposition: attachment`. `X-Upstream-Status` carries the service’s HTTP\nstatus. Same access, scope and 24-hour retention as `/result`.\n\n- `200` — the body bytes. A streamed call (`/router/proxy`, `/router/svc`) is served byte for\n  byte as the service sent it; a `/router/route` text body is served as UTF-8.\n- `204` — the call ended with no body to return (none was sent, or it was withheld).\n- `202` — still running: the same JSON document `/result` answers (`state: Pending`). Poll\n  `/result` until it is `Ready`, then fetch this.\n- `409` `BCK.ROUTER.0050` — nothing to download: the call ended `Failed` (read `/result` for\n  `failureReason`), or its stored body cannot be read.\n- `404` `BCK.ROUTER.0030` — the result expired, was never retained or is not yours.",
+        "operationId": "getRouterPaymentResultContent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "The `paymentId` of the paid call.",
+            "schema": {
+              "example": "b1f9c2e4-8a3d-4f27-9c6b-5d2e17a04f8b",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The body bytes, with the service’s content type.",
+            "headers": {
+              "X-Upstream-Status": {
+                "description": "The HTTP status the service answered the paid call with. A non-2xx value means the call did not deliver what was paid for, whatever this download's own status.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Disposition": {
+                "description": "`attachment; filename=\"<paymentId>\"`, with no extension: name a saved file from `Content-Type`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The paid call is still running (`state: Pending`).",
+            "headers": {
+              "Location": {
+                "description": "The `/result` URL to poll until it is `Ready`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterPaymentResultDto"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "The call ended with no body to return.",
+            "headers": {
+              "X-Upstream-Status": {
+                "description": "The HTTP status the service answered the paid call with. A non-2xx value means the call did not deliver what was paid for, whatever this download's own status.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` is not a valid uuid (BCK.HTTP.400).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Nevermined API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No retained result for this id under your account — expired, never retained, or not yours (BCK.ROUTER.0030).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The result is retained but has nothing to download: the call ended Failed, or its stored body cannot be read (BCK.ROUTER.0050).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouterErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Download a paid Router result as raw bytes (retained for 24 hours)",
+        "tags": [
+          "Router"
+        ]
+      }
+    },
     "/router/payments/summary": {
       "get": {
         "description": "Returns the buyer’s total number of Router payment requests (uncapped — unlike the 1000-row\nlist endpoint) plus a per-bucket time-series for a dashboard chart. Filter by `from`/`to`\n(ISO-8601, inclusive on `createdAt`); choose the bucket size with `granularity` (day/week/month).",

@@ -13,6 +13,7 @@ Read the result of a paid call by its `paymentId`. Use it when [`pay_service`](/
 | Argument | Required | Type | Description |
 | --- | --- | --- | --- |
 | `paymentId` | yes | string (uuid) | The `paymentId` a `pay_service` result returned. |
+| `inline` | no | boolean | Return the body in the result even when it is binary or larger than the inline limit (as base64 for binary). It can be very large and fill your context: set it only when you cannot fetch the body by `contentUrl` or `resourceUri`. |
 
 ## Returns
 
@@ -29,6 +30,7 @@ A `state` and, when ready, the service's response:
 
 - `state: "Pending"` — still running; call again in a few seconds. **Don't** call `pay_service` again — it returns the same `pending`.
 - `state: "Ready"` — `status` is the service's HTTP status, `body` its response. `bodyEncoding` is `json`, `text`, or `base64`.
+- `state: "Ready"` with **`bodyOmitted`** in place of `body` and `bodyEncoding` — the body is binary, or larger than the inline limit (32 KiB by default) as JSON. It is not empty: `bodyOmitted` gives its `contentType`, `sizeBytes`, a `contentUrl` to download and a `resourceUri` to read, and a `resource_link` block follows the JSON; see [When the body is not inlined](/mcp/catalog-mcp/pay-service#when-the-body-is-not-inlined). Pass `inline: true` to get it in the result anyway.
 - `state: "Failed"` — the call ended without a response; `failureReason` says why.
 - `{ "status": "not_available" }` — nothing to return. Results are kept for **24 hours**, for the account that paid.
 
