@@ -52,7 +52,7 @@ With `autoPay: false`, a proposal (nothing charged):
 
 - **`chosen`** is the winner; its `invokeUrl` is the Router's opaque alias, never the merchant's host. Pay it by `slug`.
 - **`shortlist`** is the payable candidates in pick order. Each carries a closed `matchReason`, `gateReason`, per-item `rankingSource`, and one scale-specific score. **Read the order, not the numbers** — the scores sit on different scales. `healthy` is always `true` here.
-- With **`autoPay: true`**, the same fields plus **`result`** (the upstream call and the payment receipt). Read the outcome from `result.payment.status` — `Settled`, `Issued` (attempted, not confirmed) or `Failed` — not from `paid` alone. `instructions` is always present and names the next step.
+- With **`autoPay: true`**, the same fields plus **`result`** (the upstream call and the payment receipt). Read the outcome from `result.payment.status` — `Settled`, `Issued` (attempted, not confirmed) or `Failed` — not from `paid` alone. A paid body that is binary, or larger than the inline limit (32 KiB by default) as JSON, comes as `result.bodyOmitted` in place of `result.body` and `result.bodyEncoding`, with a `resource_link` block: it is not empty; see [When the body is not inlined](/mcp/catalog-mcp/pay-service#when-the-body-is-not-inlined). `instructions` is always present and names the next step.
 
 ## Refusals
 
