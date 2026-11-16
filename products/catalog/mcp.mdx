@@ -23,12 +23,14 @@ Discovery needs no key. Paying needs a Nevermined API key ([get one](/agents-gui
 
 <Tabs>
   <Tab title="Claude Code">
-    Set `NVM_API_KEY` in your shell first: the command expands it once, into the stored server config.
+    Set `NVM_API_KEY` in your shell first: the command expands it once, into the stored server config. `--scope user` makes the server available in every project; without it Claude Code adds it only to the directory you run the command in.
 
     ```bash
-    claude mcp add --transport http nevermined-catalog https://mcp.live.nevermined.app/mcp \
+    claude mcp add --transport http --scope user nevermined-catalog https://mcp.live.nevermined.app/mcp \
       --header "Authorization: Bearer ${NVM_API_KEY}"
     ```
+
+    Already connected (the other tier, another credential, or an earlier install)? Replace it first: `claude mcp remove nevermined-catalog`
   </Tab>
   <Tab title="Codex">
     ```toml
