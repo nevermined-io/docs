@@ -21,7 +21,7 @@ To have the platform **pick** (and optionally pay) the single best service for a
 | `prefer` | no | string | Move this opaque catalog slug to the front **when it matched the returned page**; otherwise keep the normal ranked fallback. |
 | `exclude` | no | string | Never return this opaque catalog slug. |
 | `pageSize` | no | integer | Page size, 1–100. |
-| `detail` | no | boolean | `true` returns every listing in full, as the catalog publishes it (the ARD record, with each endpoint's request and response shapes, examples and quote), plus its `slug`. About 6 KB per listing on average, far more for one with many endpoints; to read one listing, prefer [`get_service`](/mcp/catalog-mcp/get-service). Default `false`: concise listings. |
+| `detail` | no | boolean | `true` returns every listing in full, as the catalog publishes it (the ARD record, with each endpoint's request and response shapes, examples and quote), plus its `slug` (local hits). Large; to read one listing, prefer [`get_service`](/mcp/catalog-mcp/get-service). Default `false`: concise listings. |
 
 <Warning>
 **Only the first page is returned.** The `pageToken` in the result **cannot be passed back** to this tool. To see other matches, narrow the `query` or filters, or raise `pageSize` (up to 100).
@@ -29,7 +29,7 @@ To have the platform **pick** (and optionally pay) the single best service for a
 
 ## Returns
 
-`results` and an opaque `pageToken` (informational only). Each result is a **concise listing**: the fields you pick a service by, flattened to one level (endpoints trimmed to two here). The concise shape and `detail` ship with the MCP release that carries nvm-monorepo#5155; before that release, each result is the full ARD record, with the catalog fields under `nvm:catalog` and no `slug` (the slug is the last segment of `identifier`).
+`results` and an opaque `pageToken` (informational only). Each result is a **concise listing**: the fields you pick a service by, flattened to one level (endpoints trimmed to two here). A hit with an `nvm:catalog` block comes from an older server, which returns the full ARD record instead (and has no `detail`): its catalog fields sit inside that block, and it has no `slug` (the slug is the last segment of `identifier`).
 
 ```json
 {
@@ -70,7 +70,7 @@ What a listing carries:
 - `identifier`, `displayName`, `description` and `tags` describe the service; `matchReason`, `rankingSource` and one score rank it.
 - `protocol`, `network` and the prices: `priceLabel` (the listing's advertised price), `headlinePriceLabel` (derived from endpoint prices; "from" means they vary) and `displayPriceLabel` (the whole listing: what calls to it settled at when `displayPriceSource` is `settled`, the merchant's latest quote when `quoted`).
 - Health and payability: `routerPayable`, `healthStatus`, `uptime30d`, `successRate`, `verificationStatus`, plus `freeAfterPurchasePaths`: path prefixes free to poll after your own paid call, within the follow-up window. A call under one that answers `402` is still paid; see `get_service`.
-- `endpoints`, each with its `method`, `path`, `invokePath`, `priceLabel` and `description`, plus `access`, `auth` and `subscription` when set. For an untemplated `path`, `invokePath` is the subpath to send, and `""` means the service base already is the endpoint. A templated `path` (a `:name`, `{name}`, `*` or `<name>` segment) carries no `invokePath`: call `get_service` and send its `payServiceArgs.path`.
+- `endpoints`, each with its `method`, `path`, `invokePath`, `priceLabel` and `description`, plus `access` or `auth` when set. For an untemplated `path`, `invokePath` is the subpath to send, and `""` means the service base already is the endpoint. A templated `path` (a `:name`, `{name}` or `*` segment) carries no `invokePath`: call `get_service` and send its `payServiceArgs.path` with each `pathParams` segment, whether a placeholder or the example's value, replaced by your own.
 - **An omitted field is unknown or withheld, never defaulted:** a missing `healthStatus` doesn't mean healthy.
 - Request shapes, examples and quotes are not in a concise listing. Read them with `get_service` before paying, or pass `detail: true`.
 

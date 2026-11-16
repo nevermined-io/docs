@@ -88,12 +88,12 @@ Any host that can send headers takes the server URL plus your Nevermined API key
   <Tab title="Claude Code">
     Set `NVM_API_KEY` in your shell first: the command expands it once, into the stored server config. `--scope user` makes the server available in every project; without it Claude Code adds it only to the directory you run the command in.
 
+    Connected before? From the folder you first connected in, run `claude mcp remove nevermined-catalog` first. If you already ran the add below, use `claude mcp remove nevermined-catalog -s local` instead.
+
     ```bash
     claude mcp add --transport http --scope user nevermined-catalog https://mcp.live.nevermined.app/mcp \
       --header "Authorization: Bearer ${NVM_API_KEY}"
     ```
-
-    Already connected (the other tier, another credential, or an earlier install)? Replace it first, from the folder you first connected in: `claude mcp remove nevermined-catalog`
   </Tab>
   <Tab title="Codex">
     ```toml
@@ -467,7 +467,7 @@ The key is sent as a request header, forwarded to the Nevermined API per call, a
 Discovery is public — call these before you've set any key. Ask your host to run:
 
 - **[`list_categories`](/mcp/catalog-mcp/list-categories)** — the Catalog's categories, each with a count.
-- **[`search_services`](/mcp/catalog-mcp/search-services)** with `{ "query": "weather", "protocol": "x402" }` — weather listings on the x402 rail, most relevant first. `query` is required; also filter by `category` and `tag` (both narrow the same tag set, so passing both matches a listing tagged with either), and set `pageSize` (1–100). You get the first page only: the `pageToken` in the result can't be passed back yet, so narrow the query rather than paging. From the MCP release that carries nvm-monorepo#5155, each result is a concise listing whose `slug` is what `get_service` and `pay_service` take (a hit federated from another registry has none), and `detail: true` returns the full catalog record; before that release, each result is the full ARD record and the slug is the last segment of its `identifier`.
+- **[`search_services`](/mcp/catalog-mcp/search-services)** with `{ "query": "weather", "protocol": "x402" }` — weather listings on the x402 rail, most relevant first. `query` is required; also filter by `category` and `tag` (both narrow the same tag set, so passing both matches a listing tagged with either), and set `pageSize` (1–100). You get the first page only: the `pageToken` in the result can't be passed back yet, so narrow the query rather than paging. Each result is a concise listing whose `slug` is what `get_service` and `pay_service` take (a hit federated from another registry has none), and `detail: true` returns the full catalog record. A hit with an `nvm:catalog` block comes from an older server: it is the full ARD record, and its slug is the last segment of its `identifier`.
 - **[`get_service`](/mcp/catalog-mcp/get-service)** with `{ "slug": "<a-slug-from-the-search>" }` — one service's protocol, price label, and its **`requestShape`**: every callable endpoint with its `path`, HTTP `method`, price and `pathParams`, each carrying the exact `payServiceArgs` to hand to `pay_service`. An endpoint may also carry the JSON Schema of its request (`requestSchema`, as the merchant declares it — sanitised by Nevermined, not verified) or `noParameters: true`; for one with neither, build the request from its description or the provider's docs. An endpoint with a `quote` has a live price: the merchant's price for one call, on the rail and network the Router pays it on, with the routing fee excluded — see [Price a call before paying](#price-a-call-before-paying).
 
 In natural language that's just: *"List the Nevermined categories, then find x402 services for weather."* The host picks the tools.

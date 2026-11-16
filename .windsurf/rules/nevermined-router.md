@@ -78,15 +78,13 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
   written, so `requestId` won't suppress it.
 - `BCK.ROUTER.0011` (402) — card rail needs 3-D Secure (human-only). Nothing
   charged; each retry strands a single-use credential. **Don't auto-retry.**
-- `BCK.ROUTER.0013` (500) — no EIP-712 domain on our side for that token (our gap).
-  Nothing charged; report it.
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` below the fee-inclusive rounded reserve.
   No charge/cap debit; may sign. `requiredTotalCents` is in JSON-string `params`.
   Raise only if intended; reuse `requestId`.
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected it; body withheld, status kept. Fix from Catalog detail; no retry.
 - `BCK.ROUTER.0020` (5xx/429, streaming) — upstream errored/429; body+headers withheld; no fee; retry w/ backoff; NEW `requestId` if `X-Router-Payment-Id` returned, else reuse.
 - `BCK.ROUTER.0025` (502) — oversized reply; charge unknown. Don't retry: same id cannot redeliver; fresh may charge again. Find `paymentId` in `params`, else look up `/router/payments?requestId=<encoded id>`; after 0025 `absent` = wrong id/account. `Failed` means delivery failed, not uncharged; non-null `merchantSettlementObservedAt` confirms on-chain payment, but null proves nothing.
-- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, capability unavailable: selection/identity; only after operator repair, never loop unchanged), `0028` (503, quote), `0042` (409, closing payment channel), `0043` (503, busy payment channel) and `0048` (503, Privy) are **retryable**, with backoff, as are `BCK.X402.0052` and `BCK.USER_PROFILE.0006` (503s); paying path: `0007`/`0020`/`0042`/`0043`/`0048` plus those two.
+- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022` (500, capability unavailable: selection/identity; only after operator repair, never loop unchanged), `0028` (503, quote), `0042` (409, closing payment channel), `0043` (503, busy payment channel), `0048` (503, Privy), `0051` (409, match down) and `0052` (503, ranking down) are **retryable**, with backoff, as are `BCK.X402.0052` and `BCK.USER_PROFILE.0006` (503s); paying path: `0007`/`0020`/`0042`/`0043`/`0048`/`0051`/`0052` plus those two.
 
 **Never widen a Delegation, or create a second one, to get past a refusal.**
 
@@ -97,9 +95,10 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
 ## More refusals (none retryable)
 
 - `BCK.ROUTER.0024` (413) — body over ~5 MB. No retry as-is; shrink it.
-- `BCK.ROUTER.0012` (400) — the seller's 402 advertises an EIP-712 domain its own settlement
-  token does not sign under. Nothing signed, charged or reserved. It is the seller's bug and a
-  retry gives the same answer: report it and pay someone else.
+- `BCK.ROUTER.0012` (400) — the seller's 402 names an EIP-712 domain its own settlement token
+  does not sign under (seller bug). Nothing signed, charged or reserved; report it, pay elsewhere.
+- `BCK.ROUTER.0013` (500) — no EIP-712 domain on our side for that token (our gap).
+  Nothing charged; report it.
 - `BCK.ROUTER.0014` (409) — the target is a cataloged Nevermined service; the Router will not pay
   it by raw URL. Invoke it by `slug` on `/router/route` or `/router/svc/<slug>` (`commerce` grant:
   `/router/commerce/route`); re-quote a refused quote by slug, never pay it.
@@ -123,18 +122,18 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
 - `BCK.ROUTER.0040` (500) — internal: the Router's MPP session channel state refused an
   inconsistent read or write. Nothing moved. Report it.
 - `BCK.ROUTER.0041` (400) — the service's MPP challenge offers only a session, which
-  `POST /router/payments` cannot pay. There it is the answer for every crypto delegation, even one
-  with `allowSessionPayments: false` (other routes may answer it with `0047`). Use `/router/route`,
-  `/router/svc/<slug>` or `/router/proxy`, or, if the service also offers x402, pay that offer with `protocol: "x402"`.
+  `POST /router/payments` cannot pay for any crypto delegation, even one with
+  `allowSessionPayments: false` (other routes may answer `0047`). Use `/router/route`,
+  `/router/svc/<slug>` or `/router/proxy`, or pay its x402 offer, if any, with `protocol: "x402"`.
 - `BCK.ROUTER.0044` (422) — the Router cannot collect its fee on this MPP session payment;
   `params.cause` is `org-wallet` (pay from your own wallet's delegation) or `network` (pay another
-  network's service). Nothing charged; do not retry unchanged.
+  network's service). Nothing charged.
 - `BCK.ROUTER.0045` (409) — the service does not offer the rail pinned by `requireProtocol`
   (`X-Router-Require-Protocol` on `/proxy` · `/svc`; x402 or mpp). Nothing signed, reserved or
-  charged. Not retryable unchanged: choose a service on your required rail, or deliberately change
-  the pin; never drop it automatically.
-- `BCK.ROUTER.0046` (400) — you set opt-in `validateRequestBody` and the body provably fails the endpoint's published request schema (`params.endpointPath`); nothing signed, reserved or charged. Never refused on this basis without the flag. Read on `/route`, `/commerce/route` (and their `/with-controls` variants) and `/router/subscription/route`, and MCP `pay_service` forwards it; the streaming `/proxy` and `/svc/:slug` do not apply it. Not retryable unchanged: fix the body to the published schema/example (catalog `requestSchema`/`requestExample`, or MCP `get_service`), or drop the flag.
-- `BCK.ROUTER.0047` (409) — this delegation was created with `allowSessionPayments: false` and the Router would pay the service over an MPP session (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged. Never from `POST /router/payments` (`0041` there). Not retryable unchanged: use a service that charges per call, or report to the human, who can deliberately drop a `requireProtocol: "mpp"` pin or create a delegation that allows session payments. An app connected over OAuth holds its delegation through its grant, so they disconnect the app in Nevermined and reconnect it with session payments allowed instead.
+  charged. Choose a service on your required rail, or deliberately change the pin; never drop it
+  automatically.
+- `BCK.ROUTER.0046` (400) — opt-in `validateRequestBody`: the body provably fails the endpoint's published request schema (`params.endpointPath`); nothing signed, reserved or charged, and never refused without the flag. Read on `/route`, `/commerce/route` (and `/with-controls`) and `/router/subscription/route`, and forwarded by MCP `pay_service`; not on the streaming `/proxy` or `/svc/:slug`. Fix the body (catalog `requestSchema`/`requestExample`, MCP `get_service`) or drop the flag.
+- `BCK.ROUTER.0047` (409) — the delegation has `allowSessionPayments: false` and the Router would pay over an MPP session (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged; never from `POST /router/payments` (`0041` there). Use a per-call service, or report to the human, who can deliberately drop a `requireProtocol: "mpp"` pin or create a delegation allowing session payments (an app connected over OAuth: disconnect it in Nevermined and reconnect it with session payments allowed).
 - `BCK.ROUTER.0049` (422) — select: no payable match clears the relevance floor; nothing charged, even on autoPay. Rephrase or broaden `intent`, search the catalog, or pin `filters.require` (no floor).
 
 ## Retryable refusals (backoff, same `requestId`)
@@ -146,8 +145,12 @@ means required slug unavailable — inspect `params.reason`, fix it/request, or 
   or charged. Retry after a few seconds with the same `requestId`.
 - `BCK.ROUTER.0048` (503) — MPP `tempo`: Privy did not answer the Router's read of the wallet's
   public key. Nothing signed or charged. Retry after a backoff with the same `requestId`.
+- `BCK.ROUTER.0051` (409) — select: a close enough match is unhealthy or held by moderation; nothing
+  charged. Retry later or search; rephrasing finds the same service.
+- `BCK.ROUTER.0052` (503) — autoPay select while semantic ranking is down; nothing charged (a
+  `require` pin still pays). Retry later, or select without autoPay and pay the pick by slug.
 - `BCK.X402.0052` (503) — your account wallet's EIP-7702 upgrade, run before any payment (only
   where EIP-7702 is enabled), did not complete. Nothing paid. Retry after a few minutes' backoff (sooner
-  gets `0052` again) with the same `requestId`; report it if it persists.
+  gets it again) with the same `requestId`; report it if it persists.
 - `BCK.USER_PROFILE.0006` (503) — Privy or the chain RPC did not answer the wallet-ownership check.
   Nothing signed or charged. Retry after a short backoff with the same `requestId`.
