@@ -21,6 +21,7 @@ To have the platform **pick** (and optionally pay) the single best service for a
 | `prefer` | no | string | Move this opaque catalog slug to the front **when it matched the returned page**; otherwise keep the normal ranked fallback. |
 | `exclude` | no | string | Never return this opaque catalog slug. |
 | `pageSize` | no | integer | Page size, 1–100. |
+| `detail` | no | boolean | `true` returns every listing in full, as the catalog publishes it (the ARD record, with each endpoint's request and response shapes, examples and quote), plus its `slug` (local hits). Large; to read one listing, prefer [`get_service`](/mcp/catalog-mcp/get-service). Default `false`: concise listings. |
 
 <Warning>
 **Only the first page is returned.** The `pageToken` in the result **cannot be passed back** to this tool. To see other matches, narrow the `query` or filters, or raise `pageSize` (up to 100).
@@ -28,42 +29,56 @@ To have the platform **pick** (and optionally pay) the single best service for a
 
 ## Returns
 
-`results` (ARD records) and an opaque `pageToken` (informational only). Each result carries catalog metadata under `nvm:catalog` plus its own ranking fields. A record's `identifier` is a URN — the slug is its last segment (`urn:air:api.live.nevermined.app:service:openweather-mpp` → `openweather-mpp`):
+`results` and an opaque `pageToken` (informational only). Each result is a **concise listing**: the fields you pick a service by, flattened to one level (endpoints trimmed to two here). A hit with an `nvm:catalog` block comes from an older server, which returns the full ARD record instead (and has no `detail`): its catalog fields sit inside that block, and it has no `slug` (the slug is the last segment of `identifier`).
 
 ```json
 {
   "results": [
     {
+      "slug": "openweather-mpp",
       "identifier": "urn:air:api.live.nevermined.app:service:openweather-mpp",
       "displayName": "OpenWeather",
-      "type": "application/json",
-      "url": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp",
-      "description": "Global weather data — current conditions, forecasts, air quality, geocoding",
+      "description": "Global weather data — current conditions, 5-day forecasts, hourly forecasts, air quality index with pollutants, geocoding, and One Call 3.0",
       "tags": ["weather", "forecast", "conditions", "temperature"],
-      "nvm:catalog": {
-        "protocol": "mpp",
-        "invokeUrl": "https://api.live.nevermined.app/api/v1/router/svc/openweather-mpp",
-        "priceLabel": "$0.005–$0.01",
-        "displayPriceLabel": "$0.008",
-        "displayPriceSource": "settled",
-        "network": "Tempo",
-        "healthStatus": "operational",
-        "routerPayable": true
-      },
-      "rankingSource": "semantic",
       "matchReason": "semantic_similarity",
-      "semanticScore": 46
+      "rankingSource": "semantic",
+      "semanticScore": 46,
+      "protocol": "mpp",
+      "network": "Tempo",
+      "priceLabel": "$0.005–$0.01",
+      "headlinePriceLabel": "from $0.005",
+      "displayPriceLabel": "$0.006",
+      "displayPriceSource": "settled",
+      "routerPayable": true,
+      "healthStatus": "operational",
+      "uptime30d": 100,
+      "successRate": 100,
+      "verificationStatus": "verified-by-canary",
+      "endpoints": [
+        { "method": "POST", "path": "/openweather/current-weather", "invokePath": "openweather/current-weather", "priceLabel": "$0.006", "description": "Current Weather" },
+        { "method": "POST", "path": "/openweather/forecast-5day", "invokePath": "openweather/forecast-5day", "priceLabel": "$0.008", "description": "5-Day Forecast" }
+      ]
     }
   ],
   "pageToken": "eyJvZmZzZXQiOjJ9"
 }
 ```
 
+What a listing carries:
+
+- **`slug`** is what [`get_service`](/mcp/catalog-mcp/get-service), [`quote_service`](/mcp/catalog-mcp/quote-service) and [`pay_service`](/mcp/catalog-mcp/pay-service) take. Only a hit from this Catalog has one. A `rankingSource: "federated"` hit comes from another registry: it has no `slug`, carries its `url` and `source` instead, and can't be quoted or paid here.
+- `identifier`, `displayName`, `description` and `tags` describe the service; `matchReason`, `rankingSource` and one score rank it.
+- `protocol`, `network` and the prices: `priceLabel` (the listing's advertised price), `headlinePriceLabel` (derived from endpoint prices; "from" means they vary) and `displayPriceLabel` (the whole listing: what calls to it settled at when `displayPriceSource` is `settled`, the merchant's latest quote when `quoted`).
+- Health and payability: `routerPayable`, `healthStatus`, `uptime30d`, `successRate`, `verificationStatus`, plus `freeAfterPurchasePaths`: path prefixes free to poll after your own paid call, within the follow-up window. A call under one that answers `402` is still paid; see `get_service`.
+- `endpoints`, each with its `method`, `path`, `invokePath`, `priceLabel` and `description`, plus `access` or `auth` when set. For an untemplated `path`, `invokePath` is the subpath to send, and `""` means the service base already is the endpoint. A templated `path` (a `:name`, `{name}` or `*` segment) carries no `invokePath`: call `get_service` and send its `payServiceArgs.path` with each `pathParams` segment, whether a placeholder or the example's value, replaced by your own.
+- **An omitted field is unknown or withheld, never defaulted:** a missing `healthStatus` doesn't mean healthy.
+- Request shapes, examples and quotes are not in a concise listing. Read them with `get_service` before paying, or pass `detail: true`.
+
 Reading the ranking:
 
 - **Read the order, not the numbers.** Results come back in pick order.
-- `rankingSource` is per-item — `semantic` or `lexical`. `matchReason` is a closed value explaining the match.
-- The score field is scale-specific (`semanticScore` for a semantic match, a lexical score otherwise). The two scales are not comparable — don't re-sort across them.
+- `rankingSource` is per-item: `semantic`, `lexical` or `federated`. `matchReason` is a closed value explaining the match.
+- The score field is scale-specific (`semanticScore`, `lexicalScore` or `federatedScore`). The scales are not comparable, so don't re-sort across them.
 - `displayPriceSource: "settled"` means the `displayPriceLabel` reflects real multi-payer settlement — the service is genuinely used, not just advertised.
 
 Then read one service in full with [`get_service`](/mcp/catalog-mcp/get-service).

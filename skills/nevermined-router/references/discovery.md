@@ -66,7 +66,7 @@ jq --arg q "crypto" '[.services[]
 # Exact tag
 jq '[.services[] | select(.tags | index("search")) | .slug]' ai-catalog.json
 
-# One service by slug, with the subpath to send for each endpoint
+# One service by slug, with the subpath to send for each endpoint (not on a templated path; see rule 2)
 jq '.services[] | select(.slug == "superhighway")
      | {slug, protocol, endpoints: [.endpoints[] | {method, path: (.invokePath // .path), priceLabel}]}' ai-catalog.json
 ```
@@ -135,6 +135,12 @@ subpath = endpoint["path"] if endpoint.get("invokePath") is None else endpoint["
 In jq, `.invokePath // .path` is already correct: `//` falls through on `null`/`false` only, and
 `""` is truthy there.
 
+**The exception is a templated `path`** (a `:name`, `{name}` or `*` segment): neither field is the
+subpath for your call, since `path` keeps the placeholder and an `invokePath`, where present, fills
+it with a documented example value. Call the Catalog MCP `get_service` on the slug and send its
+`payServiceArgs.path` with each `pathParams` segment, whether a placeholder or the example's value,
+replaced by your own. The concise `search_services` hit omits `invokePath` on such an endpoint.
+
 Then pay with `POST /api/v1/router/route` and `{ "slug": …, "path": subpath }` — see `paying.md`.
 
 ## Categories
@@ -191,14 +197,19 @@ curl -s -H "Content-Type: application/json" \
 
 | Tool | Arguments |
 | --- | --- |
-| `search_services` | `query` (always send one), plus optional `category`, `protocol`, `tag` |
+| `search_services` | `query` (always send one), plus optional `category`, `protocol`, `tag`, `prefer`, `exclude`, `pageSize`, `detail` |
 | `get_service` | `slug` — returns the service plus its `requestShape` (each endpoint's `payServiceArgs`) |
 | `list_categories` | none — each category with a `count` and its `subCategories[]` |
 
 - **`search_services` result shape depends on the MCP server version.** From v1.48 it ranks by ARD
   hybrid relevance (semantic + lexical): `query` is **required**, `page` / `offset` are gone (a
-  `pageSize` replaces them, with no next-page input), and the result is `{ results, pageToken }` —
-  ARD records keyed by an `identifier` URN, whose last segment is the slug
+  `pageSize` replaces them, with no next-page input), and the result is `{ results, pageToken }`.
+  Each result is a concise listing with its `slug`, `protocol`, price labels, health and
+  `endpoints` (`invokePath` on untemplated paths only; see rule 2) at the top level; a hit
+  federated from another registry has no `slug` and can't be paid here, and `detail: true` returns
+  the full ARD record plus its `slug` (local hits). A hit with an `nvm:catalog` block comes from an
+  older v1.48+ server and is that full ARD record: the catalog fields sit inside the block, and the
+  slug is the last segment of its `identifier` URN
   (`urn:air:api.live.nevermined.app:service:superhighway` → `superhighway`). Earlier servers return
   `{ total, page, offset, services }`. So: always send `query`, parse `content[0].text` without
   assuming `services[]`, and **do not build a pager on it** — an unknown `page` is silently dropped
@@ -241,7 +252,7 @@ ready-made `invoke` block in a flat shape. The ARD document is for registries cr
    `search_services` do it.
 3. Read `endpoints[]` — pick the one whose `description` and `method` match your need, and note its
    `priceLabel`.
-4. Take the `slug` and the endpoint's `invokePath ?? path`, per rule 2.
+4. Take the `slug` and the endpoint's `invokePath ?? path` (not on a templated path; see rule 2).
 5. Pay with `POST /api/v1/router/route` — see `paying.md`.
 
 If nothing matches, say so. Do not fall back to a `rest` entry and do not guess a merchant URL.

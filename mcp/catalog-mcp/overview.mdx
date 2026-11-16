@@ -86,10 +86,12 @@ Any host that can send headers takes the server URL plus your Nevermined API key
 
 <Tabs>
   <Tab title="Claude Code">
-    Set `NVM_API_KEY` in your shell first: the command expands it once, into the stored server config.
+    Set `NVM_API_KEY` in your shell first: the command expands it once, into the stored server config. `--scope user` makes the server available in every project; without it Claude Code adds it only to the directory you run the command in.
+
+    Connected before? From the folder you first connected in, run `claude mcp remove nevermined-catalog` first. If you already ran the add below, use `claude mcp remove nevermined-catalog -s local` instead.
 
     ```bash
-    claude mcp add --transport http nevermined-catalog https://mcp.live.nevermined.app/mcp \
+    claude mcp add --transport http --scope user nevermined-catalog https://mcp.live.nevermined.app/mcp \
       --header "Authorization: Bearer ${NVM_API_KEY}"
     ```
   </Tab>
@@ -465,7 +467,7 @@ The key is sent as a request header, forwarded to the Nevermined API per call, a
 Discovery is public — call these before you've set any key. Ask your host to run:
 
 - **[`list_categories`](/mcp/catalog-mcp/list-categories)** — the Catalog's categories, each with a count.
-- **[`search_services`](/mcp/catalog-mcp/search-services)** with `{ "query": "weather", "protocol": "x402" }` — weather listings on the x402 rail, most relevant first. `query` is required; also filter by `category` and `tag` (both narrow the same tag set, so passing both matches a listing tagged with either), and set `pageSize` (1–100). You get the first page only: the `pageToken` in the result can't be passed back yet, so narrow the query rather than paging. Each result is an ARD record carrying an `identifier` URN, not a `slug` — the slug is its last segment (`urn:air:api.live.nevermined.app:service:openweather-mpp` → `openweather-mpp`).
+- **[`search_services`](/mcp/catalog-mcp/search-services)** with `{ "query": "weather", "protocol": "x402" }` — weather listings on the x402 rail, most relevant first. `query` is required; also filter by `category` and `tag` (both narrow the same tag set, so passing both matches a listing tagged with either), and set `pageSize` (1–100). You get the first page only: the `pageToken` in the result can't be passed back yet, so narrow the query rather than paging. Each result is a concise listing whose `slug` is what `get_service` and `pay_service` take (a hit federated from another registry has none), and `detail: true` returns the full catalog record. A hit with an `nvm:catalog` block comes from an older server: it is the full ARD record, and its slug is the last segment of its `identifier`.
 - **[`get_service`](/mcp/catalog-mcp/get-service)** with `{ "slug": "<a-slug-from-the-search>" }` — one service's protocol, price label, and its **`requestShape`**: every callable endpoint with its `path`, HTTP `method`, price and `pathParams`, each carrying the exact `payServiceArgs` to hand to `pay_service`. An endpoint may also carry the JSON Schema of its request (`requestSchema`, as the merchant declares it — sanitised by Nevermined, not verified) or `noParameters: true`; for one with neither, build the request from its description or the provider's docs. An endpoint with a `quote` has a live price: the merchant's price for one call, on the rail and network the Router pays it on, with the routing fee excluded — see [Price a call before paying](#price-a-call-before-paying).
 
 In natural language that's just: *"List the Nevermined categories, then find x402 services for weather."* The host picks the tools.
@@ -625,7 +627,7 @@ A quote **charges nothing** but **does contact the service** (to read the price,
 
 ## Let the platform pick a service
 
-[`route_by_intent`](/mcp/catalog-mcp/route-by-intent) turns a plain-language need into the **single best payable service** in the Catalog, plus the ranked shortlist it was chosen from — so your agent doesn't search, compare listings and pick one itself. The ranking is deterministic — no randomness, and no model doing the picking — but it's recomputed on every call from the live Catalog, so the pick can change as listings, health and payability change. It uses Nevermined's own relevance and quality signals, behind a payability gate (listed, not flagged unpayable, healthy, not held by moderation, on x402 or MPP). When nothing passes the gate you get an explicit refusal, never a weak match.
+[`route_by_intent`](/mcp/catalog-mcp/route-by-intent) turns a plain-language need into the **single best payable service** in the Catalog, plus the ranked shortlist it was chosen from — so your agent doesn't search, compare listings and pick one itself. The ranking is deterministic — no randomness, and no model doing the picking — but it's recomputed on every call from the live Catalog, so the pick can change as listings, health and payability change. It uses Nevermined's own relevance and quality signals, behind a payability gate (listed, not flagged unpayable, healthy, not held by moderation, on x402 or MPP) and a relevance floor. When nothing passes, you get an explicit refusal instead of a weak match. While semantic ranking is unavailable the floor judges nothing: a proposal is returned on keywords alone, and an `autoPay` pick is refused (`BCK.ROUTER.0052`). The floor compares your request with how each listing describes itself, not with what a service accepts and returns, so for a need that combines steps, check the pick with `get_service` before you pay.
 
 ### Which tool to reach for
 
