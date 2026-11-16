@@ -178,7 +178,7 @@ ranking when its slug is not payable, while `exclude` removes its slug from cons
 Selection also applies a relevance floor: it chooses a payable service only when its semantic score
 for your `intent` reaches the floor (a service not yet indexed for that score can win on a keyword
 match), and otherwise answers `422 BCK.ROUTER.0049`, with nothing charged even on autoPay. The
-floor applies to `prefer`; `require` is exempt. When a close enough match is unhealthy or held by
+floor applies to `prefer`; `require` is exempt. When nothing can be chosen because a close enough match is unhealthy or held by
 moderation right now, the answer is `409 BCK.ROUTER.0051`: retry later or search, rather than
 rephrase. While semantic ranking is unavailable no service has a score, so the floor applies to
 none, and an `autoPay` pick is refused with `503 BCK.ROUTER.0052` (nothing charged; a `require`
