@@ -1487,7 +1487,7 @@
     },
     "/delegation/create": {
       "post": {
-        "description": "Creates a spending delegation for the authenticated user against a previously enrolled payment method. For fiat-backed delegations (stripe/braintree/visa) the response includes a signed JWT (`delegationToken`); for crypto (erc4337) flows the token is held client-side and omitted. Requires a Nevermined API key.",
+        "description": "Creates a spending delegation for the authenticated user against a previously enrolled payment method. For fiat-backed delegations (stripe/visa/vgs) the response includes a signed JWT (`delegationToken`); for crypto (erc4337) flows the token is held client-side and omitted. Requires a Nevermined API key.",
         "operationId": "DelegationController_createDelegation",
         "parameters": [],
         "requestBody": {
@@ -5046,7 +5046,7 @@
               "null"
             ],
             "example": "eyJhbGciOiJIUzI1NiIsInR...",
-            "description": "Signed JWT for fiat-backed delegations (stripe/braintree). Omitted for crypto (erc4337) flows where the signed delegation is held client-side."
+            "description": "Signed JWT for fiat-backed delegations (stripe/visa/vgs). Omitted for crypto (erc4337) flows where the signed delegation is held client-side."
           }
         },
         "required": [
@@ -5274,6 +5274,14 @@
       "CreateDelegationDto": {
         "type": "object",
         "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Buyer-supplied agent identifier for attribution only; does not grant access or change credential restrictions."
+          },
+          "label": {
+            "type": "string",
+            "description": "Buyer-chosen agent name shown in delegations and payment history."
+          },
           "provider": {
             "type": "string",
             "description": "Payment rail for this delegation. `stripe`, `visa`, and `erc4337` select that rail directly. `vgs` is a portable, plan-agnostic card delegation whose settlement processor (Stripe or Braintree) is chosen when a payment is made, based on the plan being paid — so one enrolled card can pay across processors. `vgs` requires a portable `providerPaymentMethodId` (the `CRD…` `cardId`, which must carry an active network token); for `vgs`, `planId` is optional and only restricts the delegation to a single plan.",
@@ -5311,7 +5319,7 @@
           },
           "currency": {
             "type": "string",
-            "description": "Currency code (lowercase)",
+            "description": "Currency code (lowercase). A card delegation charges in this currency and nothing converts it, so it can only pay plans priced in the same currency; a card delegation created with `planId` set in another currency than that plan is refused (`BCK.DELEGATION.0011`).",
             "example": "usd",
             "enum": [
               "usd",
@@ -5322,7 +5330,7 @@
           },
           "planId": {
             "type": "string",
-            "description": "Plan ID to restrict this delegation to. Optional and plan-agnostic by default (#1534), INCLUDING provider=vgs (#2082): a unified VGS card delegation is plan-agnostic and the settlement PSP is resolved at charge time from the plan being paid, so one card can charge any PSP — pass planId only to BIND it to a single plan. EXCEPT provider=visa (the VGS mandate is merchant-scoped, derived from the plan owner; see BCK.VISA.0015), where it is REQUIRED.",
+            "description": "Restrict this delegation to a single plan. Optional and plan-agnostic by default for every provider, including `vgs` and `visa` card delegations (whose merchant is resolved at payment time from the plan being paid).",
             "example": "123456789"
           },
           "maxTransactions": {
@@ -5352,7 +5360,7 @@
           },
           "organizationWalletId": {
             "type": "string",
-            "description": "erc4337 / Router only (#2230): fund this delegation from an ORGANIZATION wallet instead of the caller's own wallet. The caller must be an admin of the wallet's org. Spend is always capped by the SPENDING member's group budget (the wallet must be shared with the member's group).",
+            "description": "erc4337 / Router only: fund this delegation from an organization wallet instead of the caller's own wallet. The caller must be an admin of the wallet's organization, and spending is always capped by the member's group budget (the wallet must be shared with that group).",
             "example": "orw-abc123"
           }
         },
