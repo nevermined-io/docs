@@ -4,9 +4,12 @@ name: Publish skill to ClawHub
 # the same org used for the OpenClaw plugin. Runs on demand and whenever a skill
 # changes on `main`.
 #
-#   skills/nevermined-payments            → https://clawhub.ai/skills/nevermined
-#   skills/nevermined-router              → https://clawhub.ai/skills/nevermined-router
-#   skills/nevermined-catalog-onboarding  → https://clawhub.ai/skills/nevermined-catalog-onboarding
+#   skills/nevermined-payments            → https://clawhub.ai/nevermined-io/skills/nevermined
+#   skills/nevermined-router              → https://clawhub.ai/nevermined-io/skills/nevermined-router
+#   skills/nevermined-catalog-onboarding  → https://clawhub.ai/nevermined-io/skills/nevermined-catalog-onboarding
+#
+# Use the owner-qualified page URL: https://clawhub.ai/skills/<slug> redirects to
+# /skills/skills/<slug>, which shows none of the skill's data (2026-11-17).
 #
 # Required repository secret:
 #   CLAWHUB_TOKEN — a ClawHub API token belonging to a user who owns the
@@ -38,6 +41,16 @@ name: Publish skill to ClawHub
 # blocks or deletes that version or never releases it. A green run means the
 # version is live.
 #
+# A matrix entry with `payer: true` (catalog-onboarding's raw-key payer) uploads
+# only if the `payer-check` job, which runs c402pay-selfcheck.yml with no
+# secrets, succeeded; otherwise that leg fails and the others still publish.
+# See the `payer-check` job below.
+#
+# Live is not the same as clean: ClawHub releases a version its scan rates
+# `suspicious`. After the publish step, a last step reads the public version's
+# scan verdict and emits a `::warning::` annotation when it is not `clean`. It
+# never fails the run (nevermined-io/docs#642).
+#
 # The push trigger is path-filtered on `skills/**`, so a change to ONE skill
 # still runs the matrix legs for the others. A leg whose content matches the
 # LATEST public version is a no-op: the CLI reports `"status": "unchanged"`,
@@ -61,8 +74,25 @@ permissions:
   contents: read
 
 jobs:
+  # catalog-onboarding ships pay.mjs, a payer that signs real payments with a
+  # raw private key. Its leg publishes only if the locked install still works
+  # and the payer still loads the locked viem (nevermined-io/docs#642). The check
+  # is c402pay-selfcheck.yml itself, called as its own job: pay.mjs imports viem
+  # and its dependencies at load time, which is third-party code, so it never
+  # runs on the VM that holds CLAWHUB_TOKEN. No `secrets:` is passed, so none
+  # reach it.
+  payer-check:
+    name: Check the catalog-onboarding payer
+    uses: ./.github/workflows/c402pay-selfcheck.yml
+    permissions:
+      contents: read
+
   publish:
     name: Publish ${{ matrix.slug }} to ClawHub
+    needs: payer-check
+    # Run every leg even when the payer check fails: only a leg with a `payer`
+    # key depends on it (step "Require the payer check").
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     # Must exceed the publish step's TIMEOUT_MINUTES budget plus setup and one
     # last upload, which the CLI retries for up to 3 x 2 minutes.
@@ -90,6 +120,9 @@ jobs:
           - path: skills/nevermined-catalog-onboarding
             slug: nevermined-catalog-onboarding
             name: Nevermined Catalog Onboarding
+            # Ships the raw-key payer: publish only after the payer-check job
+            # succeeded (step "Require the payer check").
+            payer: true
     env:
       SKILL_PATH: ${{ matrix.path }}
       OWNER: nevermined-io
@@ -97,6 +130,16 @@ jobs:
       SKILL_NAME: ${{ matrix.name }}
       SKILL_VERSION: ${{ matrix.version }}
     steps:
+      # A job-level `if` cannot read `matrix`, so the per-leg gate is a step.
+      # It runs first: a leg whose payer failed its check uploads nothing.
+      - name: Require the payer check
+        if: matrix.payer && needs.payer-check.result != 'success'
+        env:
+          PAYER_CHECK: ${{ needs.payer-check.result }}
+        run: |
+          echo "::error title=Payer check failed::The payer-check job ended '$PAYER_CHECK', so $SLUG is not published."
+          exit 1
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -152,6 +195,7 @@ jobs:
 
       # See "Held versions" at the top of this file.
       - name: Publish to ClawHub
+        id: publish
         env:
           SOURCE_REPO: ${{ github.repository }}
           SOURCE_COMMIT: ${{ github.sha }}
@@ -290,6 +334,7 @@ jobs:
                   # only if that version is the latest, which a revert breaks.
                   if [ "$PUBLISHED" = "$LATEST" ]; then
                     echo "$SLUG@$PUBLISHED is the latest public version and has this exact content. Nothing to publish."
+                    echo "version=$PUBLISHED" >> "$GITHUB_OUTPUT"
                     exit 0
                   fi
                   if ! VERSION=$(next_patch "$LATEST"); then
@@ -360,4 +405,82 @@ jobs:
             echo "::error::$SLUG@$PUBLISHED: $REASON."
             exit 1
           fi
-          echo "Published $OWNER/$SLUG@$PUBLISHED: https://clawhub.ai/skills/$SLUG"
+          echo "Published $OWNER/$SLUG@$PUBLISHED: https://clawhub.ai/$OWNER/skills/$SLUG"
+          echo "version=$PUBLISHED" >> "$GITHUB_OUTPUT"
+
+      # A public version can still carry a non-clean scan verdict: ClawHub
+      # releases a `suspicious` version, and the run above stays green. This
+      # step makes that visible as a warning annotation on the run. It never
+      # fails the job: the publish has already happened, and a red run would
+      # read as "not published". It also runs when the content was unchanged,
+      # so every run reports the verdict of the version installs get.
+      #
+      # The verdict is `.version.security.status` from the public, unauthenticated
+      # GET /api/v1/skills/{slug}/versions/{v}. ClawHub sets it from its ClawScan
+      # LLM verdict alone (SkillSpector is evidence for it), as one of clean,
+      # suspicious, malicious, pending or error (`buildSkillSecuritySnapshot` in
+      # convex/httpApiV1/skillsV1.ts, openclaw/clawhub@bf198e6). Anything but `clean` warns, and
+      # so does a verdict that cannot be read. A `clean` verdict that ClawHub
+      # flags with `hasWarnings` (an LLM dimension rated other than ok) gets a
+      # notice.
+      - name: Warn on a non-clean ClawHub scan
+        if: steps.publish.outcome == 'success'
+        continue-on-error: true
+        # continue-on-error absorbs a step timeout, but not the job's
+        # timeout-minutes, which would turn a published run red.
+        timeout-minutes: 3
+        env:
+          CLAWHUB_API: https://clawhub.ai/api/v1
+          VERSION: ${{ steps.publish.outputs.version }}
+        run: |
+          URL="https://clawhub.ai/$OWNER/skills/$SLUG"
+          unreadable() {
+            echo "::warning title=ClawHub scan unreadable::$SKILL_NAME ($SLUG@${VERSION:-unknown}): $1 Check the scan at $URL"
+            exit 0
+          }
+          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            # Not a version, so never print it into a workflow command.
+            VERSION=''
+            unreadable "the publish step reported no usable version."
+          fi
+
+          BODY_FILE="$RUNNER_TEMP/clawhub-scan.json"
+          HTTP=$(curl -sS --max-time 30 --retry 3 --retry-connrefused -o "$BODY_FILE" \
+            -w '%{http_code}' "$CLAWHUB_API/skills/$SLUG/versions/$VERSION") || HTTP=000
+
+          # What ClawHub returns is untrusted, and the runner reads workflow
+          # commands in log lines: `::cmd::` at the start of a line, and the
+          # legacy `##[cmd]` anywhere in one. Suspend command processing while
+          # the response is in the log, and resume it before any annotation.
+          TOKEN=$(cat /proc/sys/kernel/random/uuid)
+          echo "::stop-commands::$TOKEN"
+          echo "GET $CLAWHUB_API/skills/$SLUG/versions/$VERSION: HTTP $HTTP"
+          if [ "$HTTP" = 200 ]; then
+            jq -c '.version.security // {} | {status, hasWarnings, skillspector: (.scanners.skillspector // {} | {status, score, severity, issueCount}), llm: (.scanners.llm // {} | {verdict, confidence, summary})}' "$BODY_FILE" \
+              || head -c 1000 "$BODY_FILE"
+          elif [ -s "$BODY_FILE" ]; then
+            head -c 1000 "$BODY_FILE"
+          fi
+          # The resume command only counts at the start of a line, and a raw
+          # body need not end in a newline.
+          echo
+          echo "::$TOKEN::"
+
+          if [ "$HTTP" != 200 ]; then
+            unreadable "the version read answered HTTP $HTTP (response in the log above)."
+          fi
+          VERDICT=$(jq -r '.version.security.status // empty' "$BODY_FILE" 2>/dev/null) || VERDICT=''
+          WARNINGS=$(jq -r '.version.security.hasWarnings // false' "$BODY_FILE" 2>/dev/null) || WARNINGS=''
+          # The verdict goes into a workflow command, so accept only ClawHub's own words.
+          case "$VERDICT" in
+            clean)
+              if [ "$WARNINGS" = true ]; then
+                echo "::notice title=ClawHub scan clean, with warnings::$SKILL_NAME ($SLUG@$VERSION) is rated clean, but ClawHub flags warnings in its scan. Read the scan at $URL"
+              else
+                echo "$SLUG@$VERSION: ClawHub's scan verdict is clean."
+              fi ;;
+            suspicious | malicious | pending | error)
+              echo "::warning title=ClawHub scan not clean::$SKILL_NAME ($SLUG@$VERSION) is public, but ClawHub's scan verdict is '$VERDICT', not 'clean'. The ClawHub skill page shows that rating. Read the scan at $URL" ;;
+            *)
+              unreadable "the response carries no recognised scan verdict (see the log above)." ;;
+          esac
