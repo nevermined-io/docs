@@ -20,12 +20,14 @@ updates:
   # The ClawHub CLI that publish-skill-clawhub.yml runs next to CLAWHUB_TOKEN
   # (nevermined-io/docs#647). package.json pins it exactly, so each update is a
   # PR that bumps the pin and regenerates package-lock.json, and
-  # .github/workflows/clawhub-cli-check.yml installs it on that PR and checks
-  # that it starts, is the pinned version, and still lists every command and
-  # option the publish uses. That check never logs in, so it does not prove the
-  # publish still works: the publish step parses the CLI's JSON `status`, which
-  # later CLIs report differently. Read the bump's changelog. Merging the PR
-  # runs the ClawHub publish on main, a no-op for every unchanged skill.
+  # .github/workflows/clawhub-cli-check.yml checks it on that PR: the lock
+  # installs, the CLI is the pinned version, it still lists every command and
+  # option the publish uses and reports no publish status the publish does not
+  # handle, and every locked package is at least 14 days old. The cooldown
+  # applies to the clawhub version only and not to security updates, and the
+  # regenerated tree can hold younger packages, which the age check reports.
+  # The check never logs in, so read the bump's changelog for server-side
+  # changes. Merging the PR runs the ClawHub publish on main.
   - package-ecosystem: npm
     directory: /.github/clawhub-cli
     schedule:

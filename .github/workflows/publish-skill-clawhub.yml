@@ -51,15 +51,16 @@ name: Publish skill to ClawHub
 # scan verdict and emits a `::warning::` annotation when it is not `clean`. It
 # never fails the run (nevermined-io/docs#642).
 #
-# The ClawHub CLI is pinned and locked in .github/clawhub-cli (docs#647);
-# Dependabot proposes its updates and clawhub-cli-check.yml checks each one.
+# The ClawHub CLI is pinned and locked in .github/clawhub-cli (docs#647).
+# Dependabot proposes its updates, and clawhub-cli-check.yml checks each one.
 #
 # The push trigger is path-filtered on `skills/**` and the CLI's folder, so a
-# change to ONE skill (or to the CLI) still runs the matrix legs for every skill. A leg whose content matches the
-# LATEST public version is a no-op: the CLI reports `"status": "unchanged"`,
-# exits 0 and uploads nothing. If the content matches only an older public
-# version (after a revert, say), the CLI still says `unchanged`, so the step
-# publishes that content again as the next version.
+# change to ONE skill, or to the CLI, still runs the matrix legs for every
+# skill. A leg whose content matches the LATEST public version is a no-op:
+# the CLI reports `"status": "unchanged"`, exits 0 and uploads nothing. If the
+# content matches only an older public version (after a revert, say), the CLI
+# still says `unchanged`, so the step publishes that content again as the next
+# version.
 #
 # Adding a skill: add one entry to the matrix. If its `name` equals the titleized
 # slug or the skill's frontmatter `name:`, ClawHub discards it, so also give the
@@ -154,27 +155,20 @@ jobs:
 
       # The CLI runs next to CLAWHUB_TOKEN, so its whole dependency tree comes
       # from the committed lockfile in .github/clawhub-cli, with dependency
-      # install scripts off (nevermined-io/docs#647). That folder is outside
-      # skills/, so the staging step below never uploads its node_modules. Only
-      # the `clawhub` binary goes on PATH: node_modules/.bin also holds semver,
-      # mime, json5 and plugin-inspector, which must not shadow anything.
+      # install scripts off, and only the `clawhub` binary goes on PATH
+      # (nevermined-io/docs#647). install.sh is the same install the PR check
+      # (clawhub-cli-check.yml) runs.
       - name: Install ClawHub CLI from the lockfile
-        working-directory: .github/clawhub-cli
         run: |
-          npm ci --ignore-scripts
-          BIN_DIR="$RUNNER_TEMP/clawhub-bin"
-          mkdir -p "$BIN_DIR"
-          ln -s "$PWD/node_modules/.bin/clawhub" "$BIN_DIR/clawhub"
-          echo "$BIN_DIR" >> "$GITHUB_PATH"
-          # `npm ci` accepts a pin widened to a range as long as the lock still
-          # satisfies it, so also require the installed CLI to be the pinned one.
-          PINNED=$(jq -r '.dependencies.clawhub' package.json)
-          INSTALLED=$("$BIN_DIR/clawhub" --cli-version)
-          if [ "$INSTALLED" != "$PINNED" ]; then
-            echo "::error title=ClawHub CLI version::Installed clawhub '$INSTALLED', but package.json pins '$PINNED'."
-            exit 1
-          fi
-          echo "clawhub $INSTALLED (locked)"
+          .github/clawhub-cli/install.sh "$RUNNER_TEMP/clawhub-bin"
+          echo "$RUNNER_TEMP/clawhub-bin" >> "$GITHUB_PATH"
+
+      # Offline, before the token is used: the CLI must still offer every
+      # command and option below, and report no publish status the publish
+      # step's `case "$RESULT"` does not handle. It fails a merged CLI bump on
+      # its first run, while every leg would otherwise be an `unchanged` no-op.
+      - name: Check the CLI still fits this workflow
+        run: .github/clawhub-cli/check-cli.sh
 
       # A skill folder is also a Claude Code plugin (`.claude-plugin/` holds its
       # plugin.json and directory icon), and `clawhub skill publish` refuses any
@@ -354,7 +348,8 @@ jobs:
               case "$RESULT" in
                 # CLI 0.22 reports an accepted (still held) upload as `published`.
                 # Later CLIs report `pending-publication` or `submitted`, so
-                # revisit this case with any CLI upgrade (.github/clawhub-cli).
+                # revisit this case with any CLI upgrade. check-cli.sh fails
+                # until its list of handled statuses matches the CLI's.
                 published) break ;;
                 unchanged)
                   # The content matches SOME public version. Installs get it

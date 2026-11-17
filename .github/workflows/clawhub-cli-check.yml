@@ -3,19 +3,23 @@ name: Check the locked ClawHub CLI
 # .github/clawhub-cli/ pins the ClawHub CLI that publish-skill-clawhub.yml runs
 # next to CLAWHUB_TOKEN, and locks its whole dependency tree
 # (nevermined-io/docs#647). Dependabot proposes CLI updates as PRs
-# (.github/dependabot.yml). This job shows on such a PR, before it merges, that:
-#   - the lockfile installs with dependency install scripts off;
-#   - the installed CLI starts and is the version package.json pins;
-#   - every command and option the publish workflow uses is still listed in
-#     the CLI's help.
-# It does NOT show that the publish still works. It never logs in, so it runs
-# no dry run and reads none of the CLI's JSON output, and the publish step
-# parses the `status` that output carries (`published`, `unchanged`), which
-# later CLIs report differently. Read a bump's changelog, and the first
-# publish run after it merges, for that.
+# (.github/dependabot.yml). This job shows on such a PR, before it merges:
+#   - install.sh, the publish job's own install: every lock entry is the npm
+#     registry tarball of its name and version, `npm ci --ignore-scripts`
+#     installs it, and the CLI on PATH is the pinned version;
+#   - check-cli.sh, which the publish job also runs before it logs in: the CLI
+#     still lists every command and option the publish passes, and its
+#     `skill publish --json` can report no status the publish step does not
+#     handle;
+#   - check-age.sh: every locked package is at least 14 days old;
+#   - npm audit, as a warning only.
+# It never logs in and runs no publish, so a change in the server calls behind
+# an option shows only on the next real publish. Read a bump's changelog.
 #
-# It holds no token and must never be given one: everything it runs is offline
-# and reads only --help and --cli-version.
+# It references no secret and must never be given one: it installs and runs
+# third-party code from a PR before anyone has merged it. Its clawhub calls
+# (--help, --cli-version) are offline; npm ci, npm view and npm audit reach the
+# npm registry.
 
 on:
   pull_request:
@@ -28,6 +32,7 @@ on:
     paths:
       - '.github/clawhub-cli/**'
       - '.github/workflows/clawhub-cli-check.yml'
+      - '.github/workflows/publish-skill-clawhub.yml'
   workflow_dispatch:
 
 permissions:
@@ -35,12 +40,9 @@ permissions:
 
 jobs:
   check:
-    name: npm ci + clawhub interface check
+    name: Install the lock and check the CLI
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: .github/clawhub-cli
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,52 +52,22 @@ jobs:
         with:
           node-version: '24.x'
 
-      # The same install as the publish job's. `npm ci` fails when
-      # package-lock.json does not match package.json (a bumped pin with a stale
-      # lock, a tampered integrity hash).
-      - name: Install from the lockfile
-        run: npm ci --ignore-scripts
-
-      - name: Check the CLI is the pinned version
+      - name: Install the CLI from the lockfile
         run: |
-          PINNED=$(jq -r '.dependencies.clawhub' package.json)
-          INSTALLED=$(node_modules/.bin/clawhub --cli-version)
-          echo "package.json pins clawhub '$PINNED'; installed: '$INSTALLED'"
-          if [ "$INSTALLED" != "$PINNED" ]; then
-            echo "::error title=ClawHub CLI version::Installed clawhub '$INSTALLED', but package.json pins '$PINNED'."
-            exit 1
+          .github/clawhub-cli/install.sh "$RUNNER_TEMP/clawhub-bin"
+          echo "$RUNNER_TEMP/clawhub-bin" >> "$GITHUB_PATH"
+
+      - name: Check the CLI still fits the publish workflow
+        run: .github/clawhub-cli/check-cli.sh
+
+      - name: Check every locked package is at least 14 days old
+        run: .github/clawhub-cli/check-age.sh
+
+      # Advisories are shown, not enforced: the publish needs a working CLI,
+      # and the fix is usually a CLI bump, which is Dependabot's PR.
+      - name: Report npm audit advisories
+        working-directory: .github/clawhub-cli
+        run: |
+          if ! npm audit --audit-level=high; then
+            echo "::warning title=ClawHub CLI audit::npm audit reports high or critical advisories in the locked ClawHub CLI tree (details in the log)."
           fi
-
-      # Keep this list in step with the clawhub calls in publish-skill-clawhub.yml.
-      - name: Check the commands and options the publish workflow uses
-        run: |
-          FAILED=0
-          # need "<subcommand…>" <command or option>: requires `clawhub
-          # <subcommand…> --help` to list it at the start of a help line.
-          need() {
-            local help cmd="clawhub${1:+ $1}"
-            # $1 is unquoted on purpose: "skill publish" is two words.
-            if ! help=$(node_modules/.bin/clawhub $1 --help); then
-              echo "::error title=ClawHub CLI interface::'$cmd --help' failed."
-              FAILED=1
-              return
-            fi
-            if grep -qE -- "^  (-[A-Za-z], )?$2( |$)" <<<"$help"; then
-              echo "ok: $cmd $2"
-            else
-              echo "::error title=ClawHub CLI interface::'$cmd --help' no longer lists $2."
-              FAILED=1
-            fi
-          }
-          need "" --no-input
-          need "" --cli-version
-          need "" login
-          need "" whoami
-          need "" skill
-          need login --token
-          need skill publish
-          for opt in --owner --slug --name --version --source-repo --source-commit \
-            --source-ref --source-path --dry-run --json; do
-            need "skill publish" "$opt"
-          done
-          exit "$FAILED"
