@@ -1,0 +1,53 @@
+name: Check the catalog-onboarding payer
+
+# skills/nevermined-catalog-onboarding/references/c402pay/ ships pay.mjs, a raw-EOA
+# payer that signs EIP-3009 payments with a private key. Its viem is pinned and
+# locked (nevermined-io/docs#629), and Dependabot proposes viem updates as PRs
+# (.github/dependabot.yml). This job proves on every such change that the lockfile
+# still installs and that the payer still loads the locked viem: pay.mjs exits 7
+# when the viem Node resolves is not the locked one, before its self-check runs.
+#
+# It runs ONLY `selfcheck`, which is offline and keyless: it reads no key, makes
+# no network call and signs nothing. This job references no secret and must never
+# be given one. Never run `pay` or `dryrun` here; both need a private key.
+
+on:
+  pull_request:
+    paths:
+      - 'skills/nevermined-catalog-onboarding/references/c402pay/**'
+      - '.github/workflows/c402pay-selfcheck.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'skills/nevermined-catalog-onboarding/references/c402pay/**'
+      - '.github/workflows/c402pay-selfcheck.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selfcheck:
+    name: npm ci + pay.mjs selfcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: skills/nevermined-catalog-onboarding/references/c402pay
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      # The install command SKILL.md gives users. `npm ci` fails when
+      # package-lock.json does not match package.json, and --ignore-scripts keeps
+      # dependency lifecycle scripts from running.
+      - name: Install from the lockfile
+        run: npm ci --ignore-scripts
+
+      - name: Run the offline, keyless self-check
+        run: node pay.mjs selfcheck

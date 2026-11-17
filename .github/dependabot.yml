@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # viem in the catalog-onboarding payer, which signs payments with a raw private
+  # key (nevermined-io/docs#629). package.json pins it exactly, so each update is
+  # a PR that bumps the pin and regenerates package-lock.json, and
+  # .github/workflows/c402pay-selfcheck.yml installs and self-checks it on that PR.
+  # The cooldown matches the folder's policy of pinning only a release at least
+  # 14 days old. It does not delay security updates.
+  # Merging such a PR changes the skill, so the ClawHub publish runs on main.
+  - package-ecosystem: npm
+    directory: /skills/nevermined-catalog-onboarding/references/c402pay
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: chore
+      include: scope

@@ -38,6 +38,11 @@ name: Publish skill to ClawHub
 # blocks or deletes that version or never releases it. A green run means the
 # version is live.
 #
+# Live is not the same as clean: ClawHub releases a version its scan rates
+# `suspicious`. After the publish step, a last step reads the public version's
+# scan verdict and emits a `::warning::` annotation when it is not `clean`. It
+# never fails the run (nevermined-io/docs#642).
+#
 # The push trigger is path-filtered on `skills/**`, so a change to ONE skill
 # still runs the matrix legs for the others. A leg whose content matches the
 # LATEST public version is a no-op: the CLI reports `"status": "unchanged"`,
@@ -152,6 +157,7 @@ jobs:
 
       # See "Held versions" at the top of this file.
       - name: Publish to ClawHub
+        id: publish
         env:
           SOURCE_REPO: ${{ github.repository }}
           SOURCE_COMMIT: ${{ github.sha }}
@@ -290,6 +296,7 @@ jobs:
                   # only if that version is the latest, which a revert breaks.
                   if [ "$PUBLISHED" = "$LATEST" ]; then
                     echo "$SLUG@$PUBLISHED is the latest public version and has this exact content. Nothing to publish."
+                    echo "version=$PUBLISHED" >> "$GITHUB_OUTPUT"
                     exit 0
                   fi
                   if ! VERSION=$(next_patch "$LATEST"); then
@@ -361,3 +368,41 @@ jobs:
             exit 1
           fi
           echo "Published $OWNER/$SLUG@$PUBLISHED: https://clawhub.ai/skills/$SLUG"
+          echo "version=$PUBLISHED" >> "$GITHUB_OUTPUT"
+
+      # A public version can still carry a non-clean scan verdict: ClawHub
+      # releases a `suspicious` version, and the run above stays green. This
+      # step makes that visible as a warning annotation on the run. It never
+      # fails the job: the publish has already happened, and a red run would
+      # read as "not published". It also runs when the content was unchanged,
+      # so every run reports the verdict of the version installs get.
+      #
+      # The verdict is `.version.security.status` from the public, unauthenticated
+      # GET /api/v1/skills/{slug}/versions/{v}. ClawHub sets it from its ClawScan
+      # LLM verdict alone (SkillSpector is evidence for it), as one of clean,
+      # suspicious, malicious, pending or error. Anything but `clean`, an absent
+      # verdict or an unreadable response warns.
+      - name: Warn on a non-clean ClawHub scan
+        if: steps.publish.outputs.version != ''
+        continue-on-error: true
+        env:
+          CLAWHUB_API: https://clawhub.ai/api/v1
+          VERSION: ${{ steps.publish.outputs.version }}
+        run: |
+          URL="https://clawhub.ai/skills/$SLUG"
+          BODY=$(curl -sS --fail --max-time 30 --retry 3 --retry-all-errors \
+            "$CLAWHUB_API/skills/$SLUG/versions/$VERSION" 2>&1) || {
+            echo "::warning title=ClawHub scan unreadable::$SKILL_NAME ($SLUG@$VERSION): could not read the scan verdict. Check it at $URL"
+            exit 0
+          }
+          VERDICT=$(jq -r '.version.security.status // "none"' <<<"$BODY" 2>/dev/null) || VERDICT='unparseable'
+          # It goes into a workflow command, so allow only a bare word.
+          if ! [[ $VERDICT =~ ^[a-z_-]+$ ]]; then VERDICT='unrecognised'; fi
+          # jq -c prints one JSON object per line, so nothing ClawHub returns
+          # can start a line with `::` and be read as a workflow command.
+          jq -c '.version.security // {} | {status, skillspector: (.scanners.skillspector // {} | {score, severity, issueCount}), llm: (.scanners.llm // {} | {verdict, confidence, summary})}' <<<"$BODY" 2>/dev/null || true
+          if [ "$VERDICT" = clean ]; then
+            echo "$SLUG@$VERSION: ClawHub scan verdict is clean."
+          else
+            echo "::warning title=ClawHub scan not clean::$SKILL_NAME ($SLUG@$VERSION) is public, but ClawHub's scan verdict is '$VERDICT', not 'clean'. Installers see that rating. Read the scan at $URL"
+          fi
