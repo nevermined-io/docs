@@ -41,9 +41,10 @@ name: Publish skill to ClawHub
 # blocks or deletes that version or never releases it. A green run means the
 # version is live.
 #
-# A matrix entry with a `payer` folder (catalog-onboarding's raw-key payer) is
-# installed from its lockfile and self-checked before anything is uploaded; a
-# failure fails that leg. See "Self-check the payer" below.
+# A matrix entry with `payer: true` (catalog-onboarding's raw-key payer) uploads
+# only if the `payer-check` job, which runs c402pay-selfcheck.yml with no
+# secrets, succeeded; otherwise that leg fails and the others still publish.
+# See the `payer-check` job below.
 #
 # Live is not the same as clean: ClawHub releases a version its scan rates
 # `suspicious`. After the publish step, a last step reads the public version's
@@ -73,8 +74,25 @@ permissions:
   contents: read
 
 jobs:
+  # catalog-onboarding ships pay.mjs, a payer that signs real payments with a
+  # raw private key. Its leg publishes only if the locked install still works
+  # and the payer still loads the locked viem (nevermined-io/docs#642). The check
+  # is c402pay-selfcheck.yml itself, called as its own job: pay.mjs imports viem
+  # and its dependencies at load time, which is third-party code, so it never
+  # runs on the VM that holds CLAWHUB_TOKEN. No `secrets:` is passed, so none
+  # reach it.
+  payer-check:
+    name: Check the catalog-onboarding payer
+    uses: ./.github/workflows/c402pay-selfcheck.yml
+    permissions:
+      contents: read
+
   publish:
     name: Publish ${{ matrix.slug }} to ClawHub
+    needs: payer-check
+    # Run every leg even when the payer check fails: only a leg with a `payer`
+    # key depends on it (step "Require the payer check").
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     # Must exceed the publish step's TIMEOUT_MINUTES budget plus setup and one
     # last upload, which the CLI retries for up to 3 x 2 minutes.
@@ -102,8 +120,9 @@ jobs:
           - path: skills/nevermined-catalog-onboarding
             slug: nevermined-catalog-onboarding
             name: Nevermined Catalog Onboarding
-            # Self-checked before upload (step "Self-check the payer").
-            payer: references/c402pay
+            # Ships the raw-key payer: publish only after the payer-check job
+            # succeeded (step "Require the payer check").
+            payer: true
     env:
       SKILL_PATH: ${{ matrix.path }}
       OWNER: nevermined-io
@@ -111,36 +130,21 @@ jobs:
       SKILL_NAME: ${{ matrix.name }}
       SKILL_VERSION: ${{ matrix.version }}
     steps:
+      # A job-level `if` cannot read `matrix`, so the per-leg gate is a step.
+      # It runs first: a leg whose payer failed its check uploads nothing.
+      - name: Require the payer check
+        if: matrix.payer && needs.payer-check.result != 'success'
+        env:
+          PAYER_CHECK: ${{ needs.payer-check.result }}
+        run: |
+          echo "::error title=Payer check failed::The payer-check job ended '$PAYER_CHECK', so $SLUG is not published."
+          exit 1
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
-
-      # catalog-onboarding ships pay.mjs, a payer that signs real payments with
-      # a raw private key. Publish it only if its locked install still works
-      # and the payer still loads the locked viem; otherwise this leg goes red
-      # and nothing is uploaded (nevermined-io/docs#642). Same commands as
-      # c402pay-selfcheck.yml, which runs them on PRs. `selfcheck` is offline
-      # and keyless; no secret reaches this step. It runs in a copy, so the
-      # node_modules it installs can never be staged into the published folder.
-      # pay.mjs exits 0 silently for a mode it does not know, so the step also
-      # requires selfcheck's success line, not just its exit code.
-      - name: Self-check the payer
-        if: matrix.payer
-        env:
-          PAYER_PATH: ${{ matrix.path }}/${{ matrix.payer }}
-        run: |
-          CHECK="$RUNNER_TEMP/payer-check"
-          cp -R "$PAYER_PATH" "$CHECK"
-          cd "$CHECK"
-          npm ci --ignore-scripts
-          OUT=$(node pay.mjs selfcheck)
-          echo "$OUT"
-          if [ "$OUT" != "selfcheck OK" ]; then
-            echo "::error title=Payer self-check::pay.mjs selfcheck exited 0 without printing 'selfcheck OK'."
-            exit 1
-          fi
 
       - name: Install ClawHub CLI
         run: npm install -g clawhub@^0.22
@@ -435,6 +439,8 @@ jobs:
             exit 0
           }
           if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            # Not a version, so never print it into a workflow command.
+            VERSION=''
             unreadable "the publish step reported no usable version."
           fi
 

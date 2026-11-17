@@ -9,12 +9,15 @@ name: Check the catalog-onboarding payer
 # It does not exercise viem's signing: selfcheck tests the payer's pre-sign
 # guards and signs nothing, so a viem release that changed EIP-712 signing would
 # still pass here. Review a viem bump's changelog for that.
-# publish-skill-clawhub.yml runs the same two commands before it uploads the
-# skill, so a payer that fails here is not published either.
+# publish-skill-clawhub.yml also calls this workflow (`workflow_call`) as its
+# `payer-check` job, and the catalog-onboarding leg requires that job's success,
+# so a payer that fails here is not published either.
 #
 # It runs ONLY `selfcheck`, which is offline and keyless: it needs and uses no
 # key, makes no network call and signs nothing. This job references no secret and must never
-# be given one. Never run `pay` or `dryrun` here; both need a private key.
+# be given one, by a caller either. Never run `pay` or `dryrun` here; both need a
+# private key. pay.mjs imports viem and its dependencies at load time, so this is
+# third-party code: keep it out of any job that holds a secret.
 
 on:
   pull_request:
@@ -27,6 +30,8 @@ on:
       - 'skills/nevermined-catalog-onboarding/references/c402pay/**'
       - '.github/workflows/c402pay-selfcheck.yml'
   workflow_dispatch:
+  # From publish-skill-clawhub.yml, which passes no secrets.
+  workflow_call:
 
 permissions:
   contents: read
