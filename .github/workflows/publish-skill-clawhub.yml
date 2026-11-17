@@ -475,7 +475,9 @@ jobs:
           case "$VERDICT" in
             clean)
               if [ "$WARNINGS" = true ]; then
-                echo "::notice title=ClawHub scan clean, with warnings::$SKILL_NAME ($SLUG@$VERSION) is rated clean, but ClawHub flags warnings in its scan. Read the scan at $URL"
+                # No comma in a title: a comma ends a workflow-command property,
+                # so "clean, with warnings" was shown as just "clean".
+                echo "::notice title=ClawHub scan clean with warnings::$SKILL_NAME ($SLUG@$VERSION) is rated clean, but ClawHub flags warnings in its scan. Read the scan at $URL"
               else
                 echo "$SLUG@$VERSION: ClawHub's scan verdict is clean."
               fi ;;
