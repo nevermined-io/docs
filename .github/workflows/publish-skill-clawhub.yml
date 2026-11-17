@@ -124,6 +124,8 @@ jobs:
       # c402pay-selfcheck.yml, which runs them on PRs. `selfcheck` is offline
       # and keyless; no secret reaches this step. It runs in a copy, so the
       # node_modules it installs can never be staged into the published folder.
+      # pay.mjs exits 0 silently for a mode it does not know, so the step also
+      # requires selfcheck's success line, not just its exit code.
       - name: Self-check the payer
         if: matrix.payer
         env:
@@ -133,7 +135,12 @@ jobs:
           cp -R "$PAYER_PATH" "$CHECK"
           cd "$CHECK"
           npm ci --ignore-scripts
-          node pay.mjs selfcheck
+          OUT=$(node pay.mjs selfcheck)
+          echo "$OUT"
+          if [ "$OUT" != "selfcheck OK" ]; then
+            echo "::error title=Payer self-check::pay.mjs selfcheck exited 0 without printing 'selfcheck OK'."
+            exit 1
+          fi
 
       - name: Install ClawHub CLI
         run: npm install -g clawhub@^0.22

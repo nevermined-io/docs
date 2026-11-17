@@ -4,6 +4,7 @@ updates:
   # key (nevermined-io/docs#629). package.json pins it exactly, so each update is
   # a PR that bumps the pin and regenerates package-lock.json, and
   # .github/workflows/c402pay-selfcheck.yml installs and self-checks it on that PR.
+  # That proves the lock installs and loads; it does not exercise viem's signing.
   # The cooldown matches the folder's policy of pinning only a release at least
   # 14 days old. It does not delay security updates.
   # Merging such a PR changes the skill, so the ClawHub publish runs on main.

@@ -6,6 +6,9 @@ name: Check the catalog-onboarding payer
 # (.github/dependabot.yml). This job proves on every such change that the lockfile
 # still installs and that the payer still loads the locked viem: pay.mjs exits 7
 # when the viem Node resolves is not the locked one, before its self-check runs.
+# It does not exercise viem's signing: selfcheck tests the payer's pre-sign
+# guards and signs nothing, so a viem release that changed EIP-712 signing would
+# still pass here. Review a viem bump's changelog for that.
 # publish-skill-clawhub.yml runs the same two commands before it uploads the
 # skill, so a payer that fails here is not published either.
 #
@@ -46,10 +49,21 @@ jobs:
           node-version: '24.x'
 
       # The install command SKILL.md gives users. `npm ci` fails when
-      # package-lock.json does not match package.json, and --ignore-scripts keeps
-      # dependency lifecycle scripts from running.
+      # package-lock.json does not match package.json (a bumped pin with a stale
+      # lock, a tampered integrity hash), and --ignore-scripts keeps dependency
+      # lifecycle scripts from running. A pin widened to a range still installs;
+      # pay.mjs's exit 7 catches that, since it compares the installed viem
+      # version with the package.json string.
       - name: Install from the lockfile
         run: npm ci --ignore-scripts
 
+      # pay.mjs exits 0 silently for a mode it does not know, so require
+      # selfcheck's success line, not just its exit code.
       - name: Run the offline, keyless self-check
-        run: node pay.mjs selfcheck
+        run: |
+          OUT=$(node pay.mjs selfcheck)
+          echo "$OUT"
+          if [ "$OUT" != "selfcheck OK" ]; then
+            echo "::error title=Payer self-check::pay.mjs selfcheck exited 0 without printing 'selfcheck OK'."
+            exit 1
+          fi
