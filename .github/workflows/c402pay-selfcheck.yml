@@ -6,9 +6,11 @@ name: Check the catalog-onboarding payer
 # (.github/dependabot.yml). This job proves on every such change that the lockfile
 # still installs and that the payer still loads the locked viem: pay.mjs exits 7
 # when the viem Node resolves is not the locked one, before its self-check runs.
+# publish-skill-clawhub.yml runs the same two commands before it uploads the
+# skill, so a payer that fails here is not published either.
 #
-# It runs ONLY `selfcheck`, which is offline and keyless: it reads no key, makes
-# no network call and signs nothing. This job references no secret and must never
+# It runs ONLY `selfcheck`, which is offline and keyless: it needs and uses no
+# key, makes no network call and signs nothing. This job references no secret and must never
 # be given one. Never run `pay` or `dryrun` here; both need a private key.
 
 on:

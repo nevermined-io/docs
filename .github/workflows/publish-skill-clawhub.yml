@@ -4,9 +4,12 @@ name: Publish skill to ClawHub
 # the same org used for the OpenClaw plugin. Runs on demand and whenever a skill
 # changes on `main`.
 #
-#   skills/nevermined-payments            → https://clawhub.ai/skills/nevermined
-#   skills/nevermined-router              → https://clawhub.ai/skills/nevermined-router
-#   skills/nevermined-catalog-onboarding  → https://clawhub.ai/skills/nevermined-catalog-onboarding
+#   skills/nevermined-payments            → https://clawhub.ai/nevermined-io/skills/nevermined
+#   skills/nevermined-router              → https://clawhub.ai/nevermined-io/skills/nevermined-router
+#   skills/nevermined-catalog-onboarding  → https://clawhub.ai/nevermined-io/skills/nevermined-catalog-onboarding
+#
+# Use the owner-qualified page URL: https://clawhub.ai/skills/<slug> redirects to
+# /skills/skills/<slug>, which shows none of the skill's data (2026-11-17).
 #
 # Required repository secret:
 #   CLAWHUB_TOKEN — a ClawHub API token belonging to a user who owns the
@@ -37,6 +40,10 @@ name: Publish skill to ClawHub
 # step waits until the new version is PUBLIC, and fails the run if ClawHub
 # blocks or deletes that version or never releases it. A green run means the
 # version is live.
+#
+# A matrix entry with a `payer` folder (catalog-onboarding's raw-key payer) is
+# installed from its lockfile and self-checked before anything is uploaded; a
+# failure fails that leg. See "Self-check the payer" below.
 #
 # Live is not the same as clean: ClawHub releases a version its scan rates
 # `suspicious`. After the publish step, a last step reads the public version's
@@ -95,6 +102,8 @@ jobs:
           - path: skills/nevermined-catalog-onboarding
             slug: nevermined-catalog-onboarding
             name: Nevermined Catalog Onboarding
+            # Self-checked before upload (step "Self-check the payer").
+            payer: references/c402pay
     env:
       SKILL_PATH: ${{ matrix.path }}
       OWNER: nevermined-io
@@ -107,6 +116,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
+
+      # catalog-onboarding ships pay.mjs, a payer that signs real payments with
+      # a raw private key. Publish it only if its locked install still works
+      # and the payer still loads the locked viem; otherwise this leg goes red
+      # and nothing is uploaded (nevermined-io/docs#642). Same commands as
+      # c402pay-selfcheck.yml, which runs them on PRs. `selfcheck` is offline
+      # and keyless; no secret reaches this step. It runs in a copy, so the
+      # node_modules it installs can never be staged into the published folder.
+      - name: Self-check the payer
+        if: matrix.payer
+        env:
+          PAYER_PATH: ${{ matrix.path }}/${{ matrix.payer }}
+        run: |
+          CHECK="$RUNNER_TEMP/payer-check"
+          cp -R "$PAYER_PATH" "$CHECK"
+          cd "$CHECK"
+          npm ci --ignore-scripts
+          node pay.mjs selfcheck
 
       - name: Install ClawHub CLI
         run: npm install -g clawhub@^0.22
@@ -367,7 +394,7 @@ jobs:
             echo "::error::$SLUG@$PUBLISHED: $REASON."
             exit 1
           fi
-          echo "Published $OWNER/$SLUG@$PUBLISHED: https://clawhub.ai/skills/$SLUG"
+          echo "Published $OWNER/$SLUG@$PUBLISHED: https://clawhub.ai/$OWNER/skills/$SLUG"
           echo "version=$PUBLISHED" >> "$GITHUB_OUTPUT"
 
       # A public version can still carry a non-clean scan verdict: ClawHub
@@ -380,29 +407,67 @@ jobs:
       # The verdict is `.version.security.status` from the public, unauthenticated
       # GET /api/v1/skills/{slug}/versions/{v}. ClawHub sets it from its ClawScan
       # LLM verdict alone (SkillSpector is evidence for it), as one of clean,
-      # suspicious, malicious, pending or error. Anything but `clean`, an absent
-      # verdict or an unreadable response warns.
+      # suspicious, malicious, pending or error (`buildSkillSecuritySnapshot` in
+      # convex/httpApiV1/skillsV1.ts, openclaw/clawhub@bf198e6). Anything but `clean` warns, and
+      # so does a verdict that cannot be read. A `clean` verdict that ClawHub
+      # flags with `hasWarnings` (an LLM dimension rated other than ok) gets a
+      # notice.
       - name: Warn on a non-clean ClawHub scan
-        if: steps.publish.outputs.version != ''
+        if: steps.publish.outcome == 'success'
         continue-on-error: true
+        # continue-on-error absorbs a step timeout, but not the job's
+        # timeout-minutes, which would turn a published run red.
+        timeout-minutes: 3
         env:
           CLAWHUB_API: https://clawhub.ai/api/v1
           VERSION: ${{ steps.publish.outputs.version }}
         run: |
-          URL="https://clawhub.ai/skills/$SLUG"
-          BODY=$(curl -sS --fail --max-time 30 --retry 3 --retry-all-errors \
-            "$CLAWHUB_API/skills/$SLUG/versions/$VERSION" 2>&1) || {
-            echo "::warning title=ClawHub scan unreadable::$SKILL_NAME ($SLUG@$VERSION): could not read the scan verdict. Check it at $URL"
+          URL="https://clawhub.ai/$OWNER/skills/$SLUG"
+          unreadable() {
+            echo "::warning title=ClawHub scan unreadable::$SKILL_NAME ($SLUG@${VERSION:-unknown}): $1 Check the scan at $URL"
             exit 0
           }
-          VERDICT=$(jq -r '.version.security.status // "none"' <<<"$BODY" 2>/dev/null) || VERDICT='unparseable'
-          # It goes into a workflow command, so allow only a bare word.
-          if ! [[ $VERDICT =~ ^[a-z_-]+$ ]]; then VERDICT='unrecognised'; fi
-          # jq -c prints one JSON object per line, so nothing ClawHub returns
-          # can start a line with `::` and be read as a workflow command.
-          jq -c '.version.security // {} | {status, skillspector: (.scanners.skillspector // {} | {score, severity, issueCount}), llm: (.scanners.llm // {} | {verdict, confidence, summary})}' <<<"$BODY" 2>/dev/null || true
-          if [ "$VERDICT" = clean ]; then
-            echo "$SLUG@$VERSION: ClawHub scan verdict is clean."
-          else
-            echo "::warning title=ClawHub scan not clean::$SKILL_NAME ($SLUG@$VERSION) is public, but ClawHub's scan verdict is '$VERDICT', not 'clean'. Installers see that rating. Read the scan at $URL"
+          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            unreadable "the publish step reported no usable version."
           fi
+
+          BODY_FILE="$RUNNER_TEMP/clawhub-scan.json"
+          HTTP=$(curl -sS --max-time 30 --retry 3 --retry-connrefused -o "$BODY_FILE" \
+            -w '%{http_code}' "$CLAWHUB_API/skills/$SLUG/versions/$VERSION") || HTTP=000
+
+          # What ClawHub returns is untrusted, and the runner reads workflow
+          # commands in log lines: `::cmd::` at the start of a line, and the
+          # legacy `##[cmd]` anywhere in one. Suspend command processing while
+          # the response is in the log, and resume it before any annotation.
+          TOKEN=$(cat /proc/sys/kernel/random/uuid)
+          echo "::stop-commands::$TOKEN"
+          echo "GET $CLAWHUB_API/skills/$SLUG/versions/$VERSION: HTTP $HTTP"
+          if [ "$HTTP" = 200 ]; then
+            jq -c '.version.security // {} | {status, hasWarnings, skillspector: (.scanners.skillspector // {} | {status, score, severity, issueCount}), llm: (.scanners.llm // {} | {verdict, confidence, summary})}' "$BODY_FILE" \
+              || head -c 1000 "$BODY_FILE"
+          elif [ -s "$BODY_FILE" ]; then
+            head -c 1000 "$BODY_FILE"
+          fi
+          # The resume command only counts at the start of a line, and a raw
+          # body need not end in a newline.
+          echo
+          echo "::$TOKEN::"
+
+          if [ "$HTTP" != 200 ]; then
+            unreadable "the version read answered HTTP $HTTP (response in the log above)."
+          fi
+          VERDICT=$(jq -r '.version.security.status // empty' "$BODY_FILE" 2>/dev/null) || VERDICT=''
+          WARNINGS=$(jq -r '.version.security.hasWarnings // false' "$BODY_FILE" 2>/dev/null) || WARNINGS=''
+          # The verdict goes into a workflow command, so accept only ClawHub's own words.
+          case "$VERDICT" in
+            clean)
+              if [ "$WARNINGS" = true ]; then
+                echo "::notice title=ClawHub scan clean, with warnings::$SKILL_NAME ($SLUG@$VERSION) is rated clean, but ClawHub flags warnings in its scan. Read the scan at $URL"
+              else
+                echo "$SLUG@$VERSION: ClawHub's scan verdict is clean."
+              fi ;;
+            suspicious | malicious | pending | error)
+              echo "::warning title=ClawHub scan not clean::$SKILL_NAME ($SLUG@$VERSION) is public, but ClawHub's scan verdict is '$VERDICT', not 'clean'. The ClawHub skill page shows that rating. Read the scan at $URL" ;;
+            *)
+              unreadable "the response carries no recognised scan verdict (see the log above)." ;;
+          esac
