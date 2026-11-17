@@ -138,7 +138,7 @@ await payments.plans.orderPlan(planId)
 // Credentials work the same way
 // Create a delegation once, then reuse its id to mint tokens.
 const { delegationId } = await payments.delegation.createDelegation({
-  provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+  provider: 'erc4337',       // 'vgs' | 'stripe' | 'visa' for fiat plans
   spendingLimitCents: 10000, // $100 budget
   durationSecs: 604800,      // 7 days
   currency: 'usdc',          // 'usd' for fiat plans

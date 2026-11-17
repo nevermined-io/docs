@@ -244,7 +244,7 @@ def purchase_and_query():
     # the token by its delegationId. Reuse the delegation for later requests.
     delegation = payments.delegation.create_delegation(
         CreateDelegationPayload(
-            provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+            provider="erc4337",  # "vgs" | "stripe" | "visa" for fiat plans
             spending_limit_cents=1000,
             duration_secs=86_400,
             currency="usdc",  # "usd" for fiat plans

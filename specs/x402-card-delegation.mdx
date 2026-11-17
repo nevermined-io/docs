@@ -14,7 +14,7 @@ related:
 This specification defines a **delegation extension** to the [x402 protocol](https://x402.org/) that enables payment settlement through on-chain credit burns with delegated spending permissions. The delegation model is shared between crypto and fiat payment providers:
 
 - **Crypto delegations** (`provider: 'erc4337'`): Use ERC-4337 smart accounts and session keys for on-chain settlement, with crypto-funded ordering when the subscriber's balance is insufficient.
-- **Fiat delegations** (`provider: 'vgs' | 'stripe' | 'braintree' | 'visa'`): Use the configured Payment Service Provider (Stripe PaymentIntents, Braintree sales, or — for Visa Agentic Tokens — Stripe Connect against the seller's connected account) backed by pre-authorized card delegations for automatic card-funded credit top-ups when the subscriber's balance is insufficient.
+- **Fiat delegations** (`provider: 'vgs' | 'stripe' | 'visa'`): Use the configured Payment Service Provider (Stripe PaymentIntents, Braintree sales, or — for Visa Agentic Tokens — Stripe Connect against the seller's connected account) backed by pre-authorized card delegations for automatic card-funded credit top-ups when the subscriber's balance is insufficient.
 
 All providers use the same `DelegationConfig` interface with `spendingLimitCents` and `durationSecs` to control delegation scope. The PSP is selected per plan via the seller's `fiatPaymentProvider` metadata. Visa adds a per-delegation device-binding step (`consumerPrompt` + `assuranceData`) imposed by the Visa Trusted Agent Protocol.
 
@@ -83,7 +83,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 | Term | Definition |
 |------|------------|
-| **Delegation** | A pre-authorized permission granting the facilitator the ability to execute payment operations on behalf of a client, within defined spending limits and time constraints. Delegations use the unified `DelegationConfig` interface for crypto (`erc4337`) and fiat (`vgs`, `stripe`, `braintree`, `visa`) providers. |
+| **Delegation** | A pre-authorized permission granting the facilitator the ability to execute payment operations on behalf of a client, within defined spending limits and time constraints. Delegations use the unified `DelegationConfig` interface for crypto (`erc4337`) and fiat (`vgs`, `stripe`, `visa`) providers. |
 | **Visa Agentic Token** | A long-lived CMP-issued identifier (`vat_…`) that replaces a real PAN. Bound to Nevermined as the token requestor. Used as the `providerPaymentMethodId` for `provider: 'visa'` delegations. |
 | **Device Binding** | A per-delegation WebAuthn/passkey ceremony embedded by Visa VTS that produces a single-use `assuranceData` blob bound to the delegation's spending limit, duration, and merchant context. Required by the Visa Trusted Agent Protocol. Browser-only. |
 | **Consumer Prompt** | Human-readable approval text shown during Visa device binding. Forwarded verbatim to VGS `POST /intents`. Limited to 500 characters. |
@@ -256,7 +256,7 @@ For `provider: 'visa'` delegations, the Visa Trusted Agent Protocol imposes two 
 | `assuranceData` | `unknown` (typically an array) | Yes | Opaque payload produced by the VGS Agentic Auth browser SDK after the WebAuthn/passkey ceremony completes. Treated as opaque end-to-end and forwarded as-is to VGS. Size capped at 64 KiB at the DTO layer. |
 | `planId` | `string` | No | Optional, as for every provider. When sent, it MUST be a string and restricts the delegation to that plan. |
 
-The facilitator MUST reject `provider: 'visa'` requests that are missing either `consumerPrompt` or `assuranceData` with `BCK.VISA.0014` (HTTP 400). The facilitator MUST also reject Visa delegations whose plan seller has not completed Stripe Connect onboarding with `BCK.VISA.0016`, because Visa settlements route through Stripe Connect.
+The facilitator MUST reject `provider: 'visa'` requests that are missing either `consumerPrompt` or `assuranceData` with `BCK.VISA.0014` (HTTP 400). The facilitator MUST also refuse a Visa payment whose plan seller has not completed Stripe Connect onboarding with `BCK.VISA.0016`, before it mints the cryptogram, because Visa settlements route through Stripe Connect.
 
 <Warning>
 `assuranceData` is **cryptographically single-use** and bound to the spending limit, duration, and merchant context shown to the cardholder. Replaying or recombining it across delegations produces an upstream Visa rejection (surfaced as `BCK.VISA.0003`). The Nevermined SDK therefore cannot create Visa delegations programmatically — both inputs require the in-browser ceremony, which has no headless equivalent.
@@ -435,7 +435,7 @@ Card enrollment only needs to happen once per payment method. A single enrolled 
 
 #### Phase 1: Delegation Creation (Steps 9-12)
 
-**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'vgs'` for a card enrolled in Phase 0, `'stripe'`, `'braintree'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt` and `assuranceData` (see Section 3.4); both are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
+**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'vgs'` for a card enrolled in Phase 0, `'stripe'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt` and `assuranceData` (see Section 3.4); both are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
 
 The supported flow is **create-first**: create the delegation with `createDelegation`, then request the access token by passing only its `delegationId` (shown below). Inline create-on-the-fly (passing creation fields in `delegationConfig` to `getX402AccessToken` instead of a `delegationId`) is **deprecated** and emits a runtime deprecation warning; it remains reachable for backward compatibility but should not be used in new integrations. `provider` and `currency` are required on `createDelegation` (no silent default); a delegation is plan-agnostic unless `planId` is supplied, for every provider.
 
@@ -459,18 +459,7 @@ Content-Type: application/json
 
 A card enrolled in Phase 0 uses `provider: "vgs"` and its card ID (`CRD…`) as `providerPaymentMethodId`, whether the plan it pays is Stripe-priced or Braintree-priced: the facilitator picks the PSP from the plan at settlement. A card saved at Stripe before enrollment moved to VGS uses the same payload with `provider: "stripe"` and its `pm_…` ID.
 
-For Braintree-priced plans, a card vaulted before enrollment moved to VGS uses the same payload with `provider: "braintree"` and its `paymentMethodToken` as `providerPaymentMethodId`. The seller's per-currency Braintree merchant account is resolved by the facilitator, not supplied by the client:
-
-```json
-{
-  "provider": "braintree",
-  "spendingLimitCents": 10000,
-  "durationSecs": 2592000,
-  "providerPaymentMethodId": "abc123token",
-  "currency": "usd",
-  "maxTransactions": 100
-}
-```
+For Braintree-priced plans, the `vgs` payload above is the only card form: the vaulted Braintree card rail is retired, and the facilitator refuses `provider: "braintree"`. A card vaulted at Braintree before enrollment moved to VGS is enrolled again in Phase 0. The seller's per-currency Braintree merchant account is resolved by the facilitator at settlement, not supplied by the client.
 
 For Visa Trusted Agent Protocol plans, the same payload uses `provider: "visa"`, the Visa Agentic Token (`vat_…`) as `providerPaymentMethodId`, an optional `planId`, and the two device-binding extras produced by the browser ceremony:
 
@@ -814,7 +803,7 @@ The facilitator MUST route funds to the seller's account on the PSP that backs t
 - **Braintree**: settlement is one sale for the whole price (`tokenizeNetworkToken`, then `chargeCreditCard`, over Braintree's GraphQL API), on the seller's OAuth-connected gateway, against the child `merchantAccountId` whose currency matches the plan.
 - **Visa**: the facilitator calls VGS `enroll-cryptogram` against the delegation's `vgsIntentId` to mint a single-use Visa cryptogram, then submits the cryptogram to Stripe Connect (`transfer_data.destination` set to the seller's Stripe Connect account) as the PaymentMethod. The facilitator MAY apply platform fees via `application_fee_amount`. Each settlement consumes one cryptogram — they are not reusable, even within the same delegation's spending limit.
 
-In all cases the facilitator selects a `merchantAccountId` whose currency matches `nvm.currency`. For Braintree this is enforced both at plan creation (sellers must have a child merchant account in the chosen currency) and at settlement time; a mismatch fails the charge with `BCK.BRAINTREE.0007`. For Stripe and Visa, the seller's Stripe Connect account is resolved from the plan's owning organization, else the plan owner's profile — if Connect onboarding is incomplete, Visa delegation creation fails with `BCK.VISA.0016` before settlement is ever attempted, and a Stripe or Visa settlement fails with `BCK.STRIPE.0022` / `BCK.STRIPE.0024` rather than paying the platform.
+In all cases the facilitator selects a `merchantAccountId` whose currency matches `nvm.currency`. For Braintree this is enforced both at plan creation (sellers must have a child merchant account in the chosen currency) and at settlement time; a mismatch fails the charge with `BCK.BRAINTREE.0007`. For Stripe and Visa, the seller's Stripe Connect account is resolved from the plan's owning organization, else the plan owner's profile — if Connect onboarding is incomplete, a Visa payment fails with `BCK.VISA.0016` before anything is charged, and a Stripe or Visa settlement fails with `BCK.STRIPE.0022` / `BCK.STRIPE.0024` rather than paying the platform.
 
 ### 6.5 Receipt Format
 
@@ -892,8 +881,8 @@ Returned by `POST /api/v1/delegation/create` (with `provider: 'visa'`) and `POST
 |------|------|-------------|
 | `BCK.VISA.0003` | Visa Mandate Provisioning Failed | VGS rejected `POST /intents` (typically a stale or replayed `assuranceData`) |
 | `BCK.VISA.0014` | Visa Device Binding Required | `provider: 'visa'` request missing `consumerPrompt` and/or `assuranceData` |
-| `BCK.VISA.0015` | Visa Plan Binding Required | `provider: 'visa'` request missing `planId` |
-| `BCK.VISA.0016` | Visa Seller Not Onboarded | The plan seller has not completed Stripe Connect onboarding |
+| `BCK.VISA.0015` | Visa Plan Binding Required (retired) | No longer returned: `planId` is optional for `provider: 'visa'`. Only an older API deployment can still return it |
+| `BCK.VISA.0016` | Visa Seller Not Onboarded | The plan seller has not completed Stripe Connect onboarding. Returned when a payment is made, not by these two endpoints |
 | `BCK.VISA.0018` | Visa Card Already Enrolled | The PAN being enrolled is already a Visa Agentic Token under another account |
 
 ### 7.2 Error Response Format

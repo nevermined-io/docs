@@ -282,7 +282,7 @@ async function callProtectedAPI() {
     // Step 3: Generate x402 token. Create the delegation first (provider +
     // currency required), then request the token by its delegationId.
     const delegation = await payments.delegation.createDelegation({
-      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      provider: 'erc4337',       // 'vgs' | 'stripe' | 'visa' for fiat plans
       spendingLimitCents: 1000,
       durationSecs: 86_400,
       currency: 'usdc',          // 'usd' for fiat plans

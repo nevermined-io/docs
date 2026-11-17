@@ -1487,7 +1487,7 @@
     },
     "/delegation/create": {
       "post": {
-        "description": "Creates a spending delegation for the authenticated user against a previously enrolled payment method. For fiat-backed delegations (stripe/braintree/visa) the response includes a signed JWT (`delegationToken`); for crypto (erc4337) flows the token is held client-side and omitted. Requires a Nevermined API key.",
+        "description": "Creates a spending delegation for the authenticated user against a previously enrolled payment method. For fiat-backed delegations (stripe/visa/vgs) the response includes a signed JWT (`delegationToken`); for crypto (erc4337) flows the token is held client-side and omitted. Requires a Nevermined API key.",
         "operationId": "DelegationController_createDelegation",
         "parameters": [],
         "requestBody": {
@@ -5046,7 +5046,7 @@
               "null"
             ],
             "example": "eyJhbGciOiJIUzI1NiIsInR...",
-            "description": "Signed JWT for fiat-backed delegations (stripe/braintree). Omitted for crypto (erc4337) flows where the signed delegation is held client-side."
+            "description": "Signed JWT for fiat-backed delegations (stripe/visa/vgs). Omitted for crypto (erc4337) flows where the signed delegation is held client-side."
           }
         },
         "required": [
@@ -5132,7 +5132,23 @@
           },
           "cardId": {
             "type": "string",
-            "description": "Present on a card flagged needsReactivation: its CRD… card id."
+            "example": "CRDs4FYUfwueGDryKrPDjd3JR",
+            "description": "The card’s CRD… card id, on an entry of a card enrolled with Nevermined (provider vgs or visa) whose card is known, and on an entry flagged needsReactivation. A card enrolled for card-on-file and Visa agentic payments is listed once per rail (or more), each entry with the same cardId: group entries by `cardId`, falling back to `id`. Absent on other entries, and on every entry while the cards cannot be read; a retry can fix only the latter. POST /delegation/create takes it as `providerPaymentMethodId` for a provider its `rails` lists."
+          },
+          "rails": {
+            "type": "array",
+            "example": [
+              "vgs",
+              "visa"
+            ],
+            "description": "Present with cardId on an entry of a card enrolled with Nevermined: the delegation providers a new delegation naming the card by its cardId can pay through now — vgs (card on file; listed only while the card-on-file network token is active) and visa (Visa agentic). It describes the card, so the entry for a rail that was turned off still lists the card’s other rails; needsReactivation describes the entry, so on a card whose rails are still held separately the two can differ. Empty when the card can pay through neither. An entry can still back a delegation by its own `id` and `provider` when its rail is not listed here.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "vgs",
+                "visa"
+              ]
+            }
           },
           "orgId": {
             "type": [
@@ -5258,21 +5274,28 @@
       "CreateDelegationDto": {
         "type": "object",
         "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Buyer-supplied agent identifier for attribution only; does not grant access or change credential restrictions."
+          },
+          "label": {
+            "type": "string",
+            "description": "Buyer-chosen agent name shown in delegations and payment history."
+          },
           "provider": {
             "type": "string",
-            "description": "Payment provider type. `stripe` / `braintree` / `visa` / `erc4337` select that rail directly. `vgs` (epic #1958) is a unified VGS-Collect card: a PLAN-AGNOSTIC, portable delegation whose settlement PSP (`stripe` / `braintree`) is resolved AT CHARGE TIME from the plan being paid (`fiatPaymentProvider`), so ONE card can charge ANY PSP (#2082). `delegation.provider` is persisted as the portable `vgs` marker (the concrete charge never sees it — the handler derives the real PSP at settle). Requires a portable `providerPaymentMethodId` (the `CRD…` cardId, which must carry an active network token); `planId` is OPTIONAL — pass it only to BIND the delegation to a single plan.",
+            "description": "Payment rail for this delegation. `stripe`, `visa`, and `erc4337` select that rail directly. `vgs` is a portable, plan-agnostic card delegation whose settlement processor (Stripe or Braintree) is chosen when a payment is made, based on the plan being paid — so one enrolled card can pay across processors. `vgs` requires a portable `providerPaymentMethodId` (the `CRD…` `cardId`, which must carry an active network token); for `vgs`, `planId` is optional and only restricts the delegation to a single plan.",
             "example": "stripe",
             "enum": [
               "stripe",
               "erc4337",
-              "braintree",
               "visa",
               "vgs"
             ]
           },
           "providerPaymentMethodId": {
             "type": "string",
-            "description": "Payment-method identifier from the provider. For stripe / braintree this is the saved card; for visa this is the VGS agentic-token id returned by enrollment; for vgs this is the `CRD…` canonical cardId from the unified VGS-Collect enroll. Required for these providers; ignored for erc4337.",
+            "description": "Payment-method identifier from the provider. For stripe this is the saved card; for vgs this is the `CRD…` canonical cardId from the unified VGS-Collect enroll; for visa this is the card’s `CRD…` cardId (the card must list `visa` in its `rails` on GET /payment-methods) or the VGS agentic-token id returned by enrollment. Required for these providers; ignored for erc4337.",
             "example": "pm_1Abc2Def3Ghi4Jkl"
           },
           "consumerPrompt": {
@@ -5296,7 +5319,7 @@
           },
           "currency": {
             "type": "string",
-            "description": "Currency code (lowercase)",
+            "description": "Currency code (lowercase). A card delegation charges in this currency and nothing converts it, so it can only pay plans priced in the same currency; a card delegation created with `planId` set in another currency than that plan is refused (`BCK.DELEGATION.0011`).",
             "example": "usd",
             "enum": [
               "usd",
@@ -5307,7 +5330,7 @@
           },
           "planId": {
             "type": "string",
-            "description": "Plan ID to restrict this delegation to. Optional and plan-agnostic by default (#1534), INCLUDING provider=vgs (#2082): a unified VGS card delegation is plan-agnostic and the settlement PSP is resolved at charge time from the plan being paid, so one card can charge any PSP — pass planId only to BIND it to a single plan. EXCEPT provider=visa (the VGS mandate is merchant-scoped, derived from the plan owner; see BCK.VISA.0015), where it is REQUIRED.",
+            "description": "Restrict this delegation to a single plan. Optional and plan-agnostic by default for every provider, including `vgs` and `visa` card delegations (whose merchant is resolved at payment time from the plan being paid).",
             "example": "123456789"
           },
           "maxTransactions": {
@@ -5337,7 +5360,7 @@
           },
           "organizationWalletId": {
             "type": "string",
-            "description": "erc4337 / Router only (#2230): fund this delegation from an ORGANIZATION wallet instead of the caller's own wallet. The caller must be an admin of the wallet's org. Spend is always capped by the SPENDING member's group budget (the wallet must be shared with the member's group).",
+            "description": "erc4337 / Router only: fund this delegation from an organization wallet instead of the caller's own wallet. The caller must be an admin of the wallet's organization, and spending is always capped by the member's group budget (the wallet must be shared with that group).",
             "example": "orw-abc123"
           }
         },
