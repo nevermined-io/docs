@@ -17,3 +17,21 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+  # The ClawHub CLI that publish-skill-clawhub.yml runs next to CLAWHUB_TOKEN
+  # (nevermined-io/docs#647). package.json pins it exactly, so each update is a
+  # PR that bumps the pin and regenerates package-lock.json, and
+  # .github/workflows/clawhub-cli-check.yml installs it on that PR and checks
+  # that it starts, is the pinned version, and still lists every command and
+  # option the publish uses. That check never logs in, so it does not prove the
+  # publish still works: the publish step parses the CLI's JSON `status`, which
+  # later CLIs report differently. Read the bump's changelog. Merging the PR
+  # runs the ClawHub publish on main, a no-op for every unchanged skill.
+  - package-ecosystem: npm
+    directory: /.github/clawhub-cli
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: chore
+      include: scope
