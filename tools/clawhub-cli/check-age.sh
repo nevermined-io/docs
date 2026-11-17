@@ -5,11 +5,12 @@
 # 2026-11-17): a lock merged while this is red still runs next to
 # CLAWHUB_TOKEN, so the 14-day rule holds only as far as reviewers honour it.
 #
-# Dependabot's cooldown delays only the version it proposes for `clawhub`
-# itself, and security updates skip the cooldown altogether. When it
-# regenerates the lock, clawhub's transitive packages resolve to the newest
-# release their ranges allow, however young. This applies the 14-day rule to
-# every package. To satisfy it, re-resolve the whole lock as of two weeks ago.
+# Dependabot's version updates pass their cooldown to npm as
+# `--min-release-age=14`, but its security updates pass `--min-release-age=0`
+# and can lock packages of any age (its first undici fix proposed clawhub
+# 0.26.0, then four days old). This applies the 14-day rule to every package,
+# whoever wrote the lock. To satisfy it, re-resolve the whole lock as of two
+# weeks ago.
 # Delete it first: with a lock present, `npm install --before` keeps every
 # locked version that still satisfies its range.
 #   rm package-lock.json

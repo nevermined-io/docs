@@ -1,6 +1,6 @@
 name: Check the locked ClawHub CLI
 
-# .github/clawhub-cli/ pins the ClawHub CLI that publish-skill-clawhub.yml runs
+# tools/clawhub-cli/ pins the ClawHub CLI that publish-skill-clawhub.yml runs
 # next to CLAWHUB_TOKEN, and locks its whole dependency tree
 # (nevermined-io/docs#647). Dependabot proposes CLI updates as PRs
 # (.github/dependabot.yml). This job shows on such a PR, before it merges:
@@ -24,13 +24,13 @@ name: Check the locked ClawHub CLI
 on:
   pull_request:
     paths:
-      - '.github/clawhub-cli/**'
+      - 'tools/clawhub-cli/**'
       - '.github/workflows/clawhub-cli-check.yml'
       - '.github/workflows/publish-skill-clawhub.yml'
   push:
     branches: [main]
     paths:
-      - '.github/clawhub-cli/**'
+      - 'tools/clawhub-cli/**'
       - '.github/workflows/clawhub-cli-check.yml'
       - '.github/workflows/publish-skill-clawhub.yml'
   workflow_dispatch:
@@ -55,25 +55,25 @@ jobs:
       - name: Install the CLI from the lockfile
         id: install
         run: |
-          .github/clawhub-cli/install.sh "$RUNNER_TEMP/clawhub-bin"
+          tools/clawhub-cli/install.sh "$RUNNER_TEMP/clawhub-bin"
           echo "$RUNNER_TEMP/clawhub-bin" >> "$GITHUB_PATH"
 
       # The checks below are independent: each reports on every run once the
       # install succeeded, so one red does not hide another.
       - name: Check the CLI still fits the publish workflow
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: .github/clawhub-cli/check-cli.sh
+        run: tools/clawhub-cli/check-cli.sh
 
       # A red here does not block a merge: `main` has no required checks.
       - name: Check every locked package is at least 14 days old
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: .github/clawhub-cli/check-age.sh
+        run: tools/clawhub-cli/check-age.sh
 
       # Advisories are shown, not enforced: the publish needs a working CLI,
       # and the fix is usually a CLI bump, which is Dependabot's PR.
       - name: Report npm audit advisories
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        working-directory: .github/clawhub-cli
+        working-directory: tools/clawhub-cli
         run: |
           AUDIT="$RUNNER_TEMP/npm-audit.json"
           npm audit --json > "$AUDIT" || true

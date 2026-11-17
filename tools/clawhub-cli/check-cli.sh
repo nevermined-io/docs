@@ -69,7 +69,7 @@ done
 # an upload ClawHub holds. So the statuses the CLI declares must equal the arms
 # of that `case` (read from the workflow itself), plus `would-publish`, which
 # only the dry run reports. When a bump fails here, add the arms to the `case`.
-WORKFLOW=../workflows/publish-skill-clawhub.yml
+WORKFLOW=../../.github/workflows/publish-skill-clawhub.yml
 DTS=node_modules/clawhub/dist/cli/commands/publish.d.ts
 words() { tr '|' '\n' | tr -d ' "' | grep -v '^$' | LC_ALL=C sort -u | xargs; }
 
