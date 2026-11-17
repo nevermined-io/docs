@@ -5276,12 +5276,11 @@
         "properties": {
           "provider": {
             "type": "string",
-            "description": "Payment provider type. `stripe` / `braintree` / `visa` / `erc4337` select that rail directly. `vgs` (epic #1958) is a unified VGS-Collect card: a PLAN-AGNOSTIC, portable delegation whose settlement PSP (`stripe` / `braintree`) is resolved AT CHARGE TIME from the plan being paid (`fiatPaymentProvider`), so ONE card can charge ANY PSP (#2082). `delegation.provider` is persisted as the portable `vgs` marker (the concrete charge never sees it — the handler derives the real PSP at settle). Requires a portable `providerPaymentMethodId` (the `CRD…` cardId, which must carry an active network token); `planId` is OPTIONAL — pass it only to BIND the delegation to a single plan.",
+            "description": "Payment rail for this delegation. `stripe`, `visa`, and `erc4337` select that rail directly. `vgs` is a portable, plan-agnostic card delegation whose settlement processor (Stripe or Braintree) is chosen when a payment is made, based on the plan being paid — so one enrolled card can pay across processors. `vgs` requires a portable `providerPaymentMethodId` (the `CRD…` `cardId`, which must carry an active network token); for `vgs`, `planId` is optional and only restricts the delegation to a single plan.",
             "example": "stripe",
             "enum": [
               "stripe",
               "erc4337",
-              "braintree",
               "visa",
               "vgs"
             ]
