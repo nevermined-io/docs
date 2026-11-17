@@ -63,25 +63,48 @@ for opt in "--owner <" "--slug <" "--name <" "--version <" "--source-repo <" \
   need "skill publish" "$opt"
 done
 
-# The publish step reads `.status` from `clawhub skill publish --json` and
-# handles only these values (its `case "$RESULT"`); `would-publish` is the dry
-# run's. A CLI that can report another one (0.25 adds `pending-publication` and
-# `submitted` for an upload ClawHub holds) would fail that step after the upload
-# has landed. So compare the status union the CLI itself declares. When a bump
-# fails here, extend the publish step's `case` first, then this list.
-HANDLED="published unchanged would-publish"
+# The publish step reads `.status` from `clawhub skill publish --json`, and its
+# `case "$RESULT"` sends any value it has no arm for to `exit 1`, after the
+# upload has landed. clawhub 0.25 adds `pending-publication` and `submitted` for
+# an upload ClawHub holds. So the statuses the CLI declares must equal the arms
+# of that `case` (read from the workflow itself), plus `would-publish`, which
+# only the dry run reports. When a bump fails here, add the arms to the `case`.
+WORKFLOW=../workflows/publish-skill-clawhub.yml
 DTS=node_modules/clawhub/dist/cli/commands/publish.d.ts
+words() { tr '|' '\n' | tr -d ' "' | grep -v '^$' | LC_ALL=C sort -u | xargs; }
+
+# The `case "$RESULT"` arms: lines like `published) …` or `a | b)` between the
+# `case` and its `esac`. `*)` is the failure arm, not a handled status.
+ARMS=$(awk '/case "\$RESULT" in/ { t = 1; next } t && /^ *esac/ { exit } t' "$WORKFLOW" |
+  sed -nE 's/^ *([a-z][a-z |-]*)\).*/\1/p' | words) || ARMS=''
+if [[ " $ARMS " == *" published "* && " $ARMS " == *" unchanged "* ]]; then
+  # $ARMS is unquoted on purpose: one word per handled status.
+  HANDLED=$(printf '%s\n' $ARMS would-publish | words)
+else
+  HANDLED=''
+  fail "Cannot read the arms of \`case \"\$RESULT\"\` in $WORKFLOW (read: '$ARMS')."
+fi
+
+# The status union: the single `status:` field of `type SkillPublishResult = {
+# … };`, every member a string literal. Any other shape (an object union, a
+# type alias, `string`) cannot be compared, so it fails rather than passing on
+# the literals it happens to contain.
 DECLARED=''
 if [ -f "$DTS" ]; then
-  DECLARED=$(awk '/^type SkillPublishResult = \{/ { t = 1 } t && /^ +status: / { print; exit }' "$DTS" |
-    grep -oE '"[a-z-]+"' | tr -d '"' | LC_ALL=C sort | xargs) || DECLARED=''
+  BLOCK=$(awk '/^type SkillPublishResult = \{$/ { t = 1; next } t && /^\}/ { print "CLOSE " $0; exit } t' "$DTS")
+  RHS=$(sed -nE 's/^ +status: (.*);$/\1/p' <<<"$BLOCK")
+  if [ "$(tail -n 1 <<<"$BLOCK")" = "CLOSE };" ] &&
+    [ "$(grep -cE '^ +status[?]?:' <<<"$BLOCK")" = 1 ] &&
+    [[ $RHS =~ ^\"[^\"]+\"( \| \"[^\"]+\")*$ ]]; then
+    DECLARED=$(words <<<"$RHS")
+  fi
 fi
 if [ -z "$DECLARED" ]; then
-  fail "Cannot read the SkillPublishResult status union from $DTS. Check by hand which statuses \`clawhub skill publish --json\` reports, then update this check."
-elif [ "$DECLARED" != "$HANDLED" ]; then
-  fail "\`clawhub skill publish --json\` can report: $DECLARED. The publish step handles: $HANDLED. Extend its \`case \"\$RESULT\"\` before merging this CLI."
-else
-  echo "ok: clawhub skill publish --json statuses: $DECLARED"
+  fail "Cannot read a union of string literals as SkillPublishResult.status in $DTS. Check by hand which statuses \`clawhub skill publish --json\` reports, then update this check."
+elif [ -n "$HANDLED" ] && [ "$DECLARED" != "$HANDLED" ]; then
+  fail "\`clawhub skill publish --json\` can report: $DECLARED. The publish step handles: $HANDLED. Add the missing arms to its \`case \"\$RESULT\"\` before merging this CLI."
+elif [ -n "$HANDLED" ]; then
+  echo "ok: clawhub skill publish --json statuses: $DECLARED (all handled)"
 fi
 
 exit "$FAILED"

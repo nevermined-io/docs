@@ -30,16 +30,20 @@ fi
 
 # 2. The locked tree, with dependency install scripts off. `npm ci` fails when
 #    package-lock.json does not match package.json (a bumped pin with a stale
-#    lock), or when a tarball does not match the lock's integrity hash.
-npm ci --ignore-scripts
+#    lock), or when a tarball does not match the lock's integrity hash. The
+#    registry is pinned here: a `registry=` in an .npmrc or NPM_CONFIG_REGISTRY
+#    would otherwise make npm fetch every checked URL from that host instead
+#    (its `replace-registry-host` default).
+npm ci --ignore-scripts --registry=https://registry.npmjs.org/ --replace-registry-host=never
 
 # 3. Link only `clawhub`. node_modules/.bin also holds other bins (clawdhub,
 #    semver, mime, json5, plugin-inspector), and none of them belongs on PATH.
 #    The link must lead into the clawhub package itself, not to whichever
 #    package claimed the bin name.
-TARGET=$(readlink -f node_modules/.bin/clawhub) || TARGET=''
+#    readlink -e fails on a dangling link; pwd -P matches its physical path.
+TARGET=$(readlink -e node_modules/.bin/clawhub) || TARGET=''
 case "$TARGET" in
-  "$PWD/node_modules/clawhub/"*) ;;
+  "$(pwd -P)/node_modules/clawhub/"*) ;;
   *)
     echo "::error title=ClawHub CLI bin::node_modules/.bin/clawhub resolves to '$TARGET', not into node_modules/clawhub/."
     exit 1 ;;

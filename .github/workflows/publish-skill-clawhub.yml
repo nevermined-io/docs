@@ -348,8 +348,9 @@ jobs:
               case "$RESULT" in
                 # CLI 0.22 reports an accepted (still held) upload as `published`.
                 # Later CLIs report `pending-publication` or `submitted`, so
-                # revisit this case with any CLI upgrade. check-cli.sh fails
-                # until its list of handled statuses matches the CLI's.
+                # revisit this case with any CLI upgrade. check-cli.sh reads
+                # this case's arms and fails while the CLI declares a status
+                # that has no arm here.
                 published) break ;;
                 unchanged)
                   # The content matches SOME public version. Installs get it
