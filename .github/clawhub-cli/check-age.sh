@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Fails when any package in package-lock.json was published less than
 # MIN_AGE_DAYS ago. clawhub-cli-check.yml runs it on every PR that changes the
-# lock (nevermined-io/docs#647).
+# lock (nevermined-io/docs#647). The publish job does not run it (Rodolphe,
+# 2026-11-17): a lock merged while this is red still runs next to
+# CLAWHUB_TOKEN, so the 14-day rule holds only as far as reviewers honour it.
 #
 # Dependabot's cooldown delays only the version it proposes for `clawhub`
 # itself, and security updates skip the cooldown altogether. When it
@@ -31,7 +33,7 @@ if [ -z "$ENTRIES" ]; then
   exit 1
 fi
 while read -r name version; do
-  published=$(npm view "$name" time --json </dev/null | jq -r --arg v "$version" '.[$v] // empty') || published=''
+  published=$(npm view "$name" time --json --registry=https://registry.npmjs.org/ </dev/null | jq -r --arg v "$version" '.[$v] // empty') || published=''
   if [ -z "$published" ]; then
     echo "::error title=ClawHub CLI lockfile age::Cannot read the publish date of $name@$version from the npm registry."
     FAILED=1

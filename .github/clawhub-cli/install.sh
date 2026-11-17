@@ -14,12 +14,16 @@ cd "$(dirname "$0")"
 #    name and version give. `npm ci` checks a tarball against the lock's
 #    integrity hash, but not against the entry's name or version: a lock entry
 #    that says "0.56.0" while its `resolved` URL and hash point at 0.55.0, or at
-#    another host, installs without complaint.
+#    another host, installs without complaint. The name and version must also
+#    be a plain npm name and a strict semver: a version holding `../` would
+#    otherwise make that URL name another package's tarball.
 BAD=$(jq -r '
   .packages | to_entries[] | select(.key != "") |
   (.key | sub("^.*node_modules/"; "")) as $name |
   "https://registry.npmjs.org/\($name)/-/\($name | split("/") | last)-\(.value.version).tgz" as $want |
-  select(.value.resolved != $want or (.value.integrity // "" | startswith("sha512-") | not)) |
+  select(.value.resolved != $want or (.value.integrity // "" | startswith("sha512-") | not)
+    or ($name | test("^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$") | not)
+    or (.value.version // "" | test("^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$") | not)) |
   "\(.key): resolved=\(.value.resolved // "none") integrity=\(.value.integrity // "none")"
 ' package-lock.json)
 if [ -n "$BAD" ]; then
@@ -33,8 +37,11 @@ fi
 #    lock), or when a tarball does not match the lock's integrity hash. The
 #    registry is pinned here: a `registry=` in an .npmrc or NPM_CONFIG_REGISTRY
 #    would otherwise make npm fetch every checked URL from that host instead
-#    (its `replace-registry-host` default).
-npm ci --ignore-scripts --registry=https://registry.npmjs.org/ --replace-registry-host=never
+#    (its `replace-registry-host` default). --prefer-online makes npm verify
+#    the bytes behind each `resolved` URL: with a warm cache, npm otherwise
+#    serves a tarball by its integrity hash alone, so an entry carrying
+#    another package's hash would install that package.
+npm ci --ignore-scripts --prefer-online --registry=https://registry.npmjs.org/ --replace-registry-host=never
 
 # 3. Link only `clawhub`. node_modules/.bin also holds other bins (clawdhub,
 #    semver, mime, json5, plugin-inspector), and none of them belongs on PATH.
