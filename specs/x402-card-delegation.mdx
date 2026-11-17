@@ -256,7 +256,7 @@ For `provider: 'visa'` delegations, the Visa Trusted Agent Protocol imposes two 
 | `assuranceData` | `unknown` (typically an array) | Yes | Opaque payload produced by the VGS Agentic Auth browser SDK after the WebAuthn/passkey ceremony completes. Treated as opaque end-to-end and forwarded as-is to VGS. Size capped at 64 KiB at the DTO layer. |
 | `planId` | `string` | No | Optional, as for every provider. When sent, it MUST be a string and restricts the delegation to that plan. |
 
-The facilitator MUST reject `provider: 'visa'` requests that are missing either `consumerPrompt` or `assuranceData` with `BCK.VISA.0014` (HTTP 400). The facilitator MUST also reject Visa delegations whose plan seller has not completed Stripe Connect onboarding with `BCK.VISA.0016`, because Visa settlements route through Stripe Connect.
+The facilitator MUST reject `provider: 'visa'` requests that are missing either `consumerPrompt` or `assuranceData` with `BCK.VISA.0014` (HTTP 400). The facilitator MUST also refuse a Visa payment whose plan seller has not completed Stripe Connect onboarding with `BCK.VISA.0016`, before it mints the cryptogram, because Visa settlements route through Stripe Connect.
 
 <Warning>
 `assuranceData` is **cryptographically single-use** and bound to the spending limit, duration, and merchant context shown to the cardholder. Replaying or recombining it across delegations produces an upstream Visa rejection (surfaced as `BCK.VISA.0003`). The Nevermined SDK therefore cannot create Visa delegations programmatically — both inputs require the in-browser ceremony, which has no headless equivalent.
@@ -882,7 +882,7 @@ Returned by `POST /api/v1/delegation/create` (with `provider: 'visa'`) and `POST
 | `BCK.VISA.0003` | Visa Mandate Provisioning Failed | VGS rejected `POST /intents` (typically a stale or replayed `assuranceData`) |
 | `BCK.VISA.0014` | Visa Device Binding Required | `provider: 'visa'` request missing `consumerPrompt` and/or `assuranceData` |
 | `BCK.VISA.0015` | Visa Plan Binding Required (retired) | No longer returned: `planId` is optional for `provider: 'visa'`. Only an older API deployment can still return it |
-| `BCK.VISA.0016` | Visa Seller Not Onboarded | The plan seller has not completed Stripe Connect onboarding |
+| `BCK.VISA.0016` | Visa Seller Not Onboarded | The plan seller has not completed Stripe Connect onboarding. Returned when a payment is made, not by these two endpoints |
 | `BCK.VISA.0018` | Visa Card Already Enrolled | The PAN being enrolled is already a Visa Agentic Token under another account |
 
 ### 7.2 Error Response Format

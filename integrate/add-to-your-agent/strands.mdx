@@ -131,7 +131,7 @@ if payment_required:
     # Create a delegation once, then reuse its id to mint tokens.
     delegation = payments.delegation.create_delegation(
         CreateDelegationPayload(
-            provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+            provider="erc4337",  # "vgs" | "stripe" | "visa" for fiat plans
             spending_limit_cents=10000,  # $100 budget
             duration_secs=604800,  # 7 days
             currency="usdc",  # "usd" for fiat plans

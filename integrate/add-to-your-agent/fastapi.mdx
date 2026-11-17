@@ -474,7 +474,7 @@ def call_protected_api():
             # currency required), then request the token by its delegationId.
             delegation = payments.delegation.create_delegation(
                 CreateDelegationPayload(
-                    provider="erc4337",  # "stripe" | "braintree" | "visa" for fiat plans
+                    provider="erc4337",  # "vgs" | "stripe" | "visa" for fiat plans
                     spending_limit_cents=1000,
                     duration_secs=86_400,
                     currency="usdc",  # "usd" for fiat plans

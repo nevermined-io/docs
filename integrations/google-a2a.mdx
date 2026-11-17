@@ -396,7 +396,7 @@ After [purchasing access to the payment plan](/getting-started/ai-agent-purchase
     const orderResult = await paymentsSubscriber.plans.orderPlan(planId)
     // Create a delegation once, then reuse its id to mint tokens.
     const { delegationId } = await paymentsSubscriber.delegation.createDelegation({
-      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      provider: 'erc4337',       // 'vgs' | 'stripe' | 'visa' for fiat plans
       spendingLimitCents: 10000, // $100 budget
       durationSecs: 604800,      // 7 days
       currency: 'usdc',          // 'usd' for fiat plans

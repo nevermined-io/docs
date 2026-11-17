@@ -180,7 +180,7 @@ sequenceDiagram
 
     // Create a delegation once, then reuse its id to mint tokens.
     const { delegationId } = await subscriber.delegation.createDelegation({
-      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      provider: 'erc4337',       // 'vgs' | 'stripe' | 'visa' for fiat plans
       spendingLimitCents: 10000, // $100 budget
       durationSecs: 604800,      // 7 days
       currency: 'usdc',          // 'usd' for fiat plans
@@ -968,7 +968,7 @@ The HTTP app, middleware, and route handlers are identical to the LangChain vers
     // Step 3: Acquire x402 token
     // Create a delegation once, then reuse its id to mint tokens.
     const { delegationId } = await payments.delegation.createDelegation({
-      provider: 'erc4337',       // 'stripe' | 'braintree' | 'visa' for fiat plans
+      provider: 'erc4337',       // 'vgs' | 'stripe' | 'visa' for fiat plans
       spendingLimitCents: 10000, // $100 budget
       durationSecs: 604800,      // 7 days
       currency: 'usdc',          // 'usd' for fiat plans
