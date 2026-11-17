@@ -51,7 +51,7 @@ name: Publish skill to ClawHub
 # scan verdict and emits a `::warning::` annotation when it is not `clean`. It
 # never fails the run (nevermined-io/docs#642).
 #
-# The ClawHub CLI is pinned and locked in .github/clawhub-cli (docs#647).
+# The ClawHub CLI is pinned and locked in tools/clawhub-cli (docs#647).
 # Dependabot proposes its updates, and clawhub-cli-check.yml checks each one.
 #
 # The push trigger is path-filtered on `skills/**` and the CLI's folder, so a
@@ -74,7 +74,7 @@ on:
       - 'skills/**'
       # The locked CLI: a merged Dependabot bump is exercised at once. While
       # no skill changed, every leg is an `unchanged` no-op.
-      - '.github/clawhub-cli/**'
+      - 'tools/clawhub-cli/**'
       - '.github/workflows/publish-skill-clawhub.yml'
 
 permissions:
@@ -154,13 +154,13 @@ jobs:
           node-version: '24.x'
 
       # The CLI runs next to CLAWHUB_TOKEN, so its whole dependency tree comes
-      # from the committed lockfile in .github/clawhub-cli, with dependency
+      # from the committed lockfile in tools/clawhub-cli, with dependency
       # install scripts off, and only the `clawhub` binary goes on PATH
       # (nevermined-io/docs#647). install.sh is the same install the PR check
       # (clawhub-cli-check.yml) runs.
       - name: Install ClawHub CLI from the lockfile
         run: |
-          .github/clawhub-cli/install.sh "$RUNNER_TEMP/clawhub-bin"
+          tools/clawhub-cli/install.sh "$RUNNER_TEMP/clawhub-bin"
           echo "$RUNNER_TEMP/clawhub-bin" >> "$GITHUB_PATH"
 
       # Offline, before the token is used: the CLI must still offer every
@@ -168,7 +168,7 @@ jobs:
       # step's `case "$RESULT"` does not handle. It fails a merged CLI bump on
       # its first run, while every leg would otherwise be an `unchanged` no-op.
       - name: Check the CLI still fits this workflow
-        run: .github/clawhub-cli/check-cli.sh
+        run: tools/clawhub-cli/check-cli.sh
 
       # A skill folder is also a Claude Code plugin (`.claude-plugin/` holds its
       # plugin.json and directory icon), and `clawhub skill publish` refuses any
