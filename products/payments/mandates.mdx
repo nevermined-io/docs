@@ -60,11 +60,10 @@ After enrolling a card, create a delegation from the [Nevermined App](https://ne
     1. Navigate to your enrolled Visa Agentic Token
     2. Click **Create Delegation**
     3. Set the spending limit, duration, and (optionally) max transactions
-    4. Optionally restrict the delegation to a single plan
-    5. Optionally link an NVM API key
-    6. Click **Continue to approval** — the embedded Visa VTS iframe starts the WebAuthn ceremony
-    7. Complete the passkey approval (or fall back to the email OTP that VTS sends)
-    8. The webapp captures the resulting `assuranceData` and submits the delegation
+    4. Optionally link an NVM API key
+    5. Click **Continue to approval** — the embedded Visa VTS iframe starts the WebAuthn ceremony
+    6. Complete the passkey approval (or fall back to the email OTP that VTS sends)
+    7. The webapp captures the resulting `assuranceData` and submits the delegation
 
     <Warning>
       Visa device binding is single-use and tied to the spending limit + duration + merchant context shown in the approval prompt. Changing any of those values invalidates the captured `assuranceData` — restart the approval step.

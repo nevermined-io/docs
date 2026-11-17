@@ -143,7 +143,7 @@ Settlement through Visa's Trusted Agent Protocol.
 </Accordion>
 
 <Accordion title="What does a seller need to accept Visa-path payments?">
-  The seller must have completed Stripe Connect onboarding — Visa delegations settle through Stripe Connect against the seller's connected account. The seller does not need any direct relationship with Visa or VGS; Nevermined acts as the token requestor. Visa delegations also require a `planId` so the delegation binds to a single seller per the Trusted Agent Protocol.
+  The seller must have completed Stripe Connect onboarding — Visa delegations settle through Stripe Connect against the seller's connected account. The seller does not need any direct relationship with Visa or VGS; Nevermined acts as the token requestor. A Visa delegation does not need a `planId`: the merchant is resolved when a payment is made, from the plan being paid.
 </Accordion>
 
 <Accordion title="Can I create a Visa delegation from the SDK or CLI?">

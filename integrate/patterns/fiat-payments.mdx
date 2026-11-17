@@ -120,7 +120,7 @@ Delegations enforce strict spending limits to protect the cardholder. All three 
 | Lifetime spending limit | `spendingLimitCents` | Cumulative cap across all charges on the delegation |
 | Max transactions | `maxTransactions` | Optional; omit the field to allow unlimited transactions |
 | Duration | `durationSecs` | Seconds from `createdAt` |
-| Plan binding | `planId` | Required for Visa (Trusted Agent Protocol) |
+| Plan binding | `planId` | Optional; restricts the delegation to a single plan, for every provider including Visa |
 | Device binding | `consumerPrompt` + `assuranceData` | Visa-only; produced by the in-browser WebAuthn ceremony |
 
 A delegation moves through a simple lifecycle:
