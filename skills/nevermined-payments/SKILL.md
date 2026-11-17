@@ -148,7 +148,7 @@ https://embed.nevermined.app/cards/setup?sessionToken=<sessionToken>&returnUrl=h
 
 > Generate `state` as an unguessable random value and **reject the callback unless the returned `state` matches** the one you sent — it binds the response to your request (CSRF guard). And per A0, don't log the callback request line: `paymentMethodId`/`delegationId` ride in the query string.
 
-**Create a delegation explicitly.** `provider` is one of `stripe`, `braintree`, `visa` (card) or `erc4337` (stablecoin). `provider`, `currency`, `spendingLimitCents`, and `durationSecs` are **required** (no silent default for `provider` or `currency`; use `currency: "usdc"` for `erc4337`, `"usd"` for card providers).
+**Create a delegation explicitly.** `provider` is one of `stripe`, `vgs`, `visa` (card) or `erc4337` (stablecoin). `provider`, `currency`, `spendingLimitCents`, and `durationSecs` are **required** (no silent default for `provider` or `currency`; use `currency: "usdc"` for `erc4337`, `"usd"` for card providers).
 
 ```bash
 # Stablecoin (crypto) — no card, no human. Uses your default smart-account method.

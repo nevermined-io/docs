@@ -435,7 +435,7 @@ Card enrollment only needs to happen once per payment method. A single enrolled 
 
 #### Phase 1: Delegation Creation (Steps 9-12)
 
-**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'vgs'` for a card enrolled in Phase 0, `'stripe'`, `'braintree'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt` and `assuranceData` (see Section 3.4); both are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
+**Step 9.** Client creates a delegation using the `createDelegation` API, specifying the `provider` (required: `'vgs'` for a card enrolled in Phase 0, `'stripe'`, `'visa'`, or `'erc4337'`), spending limits, and optional constraints. The `DelegationConfig` interface is shared across all providers. For Visa, the request MUST additionally include `consumerPrompt` and `assuranceData` (see Section 3.4); both are produced by the in-browser Visa VTS device-binding ceremony immediately before this request.
 
 The supported flow is **create-first**: create the delegation with `createDelegation`, then request the access token by passing only its `delegationId` (shown below). Inline create-on-the-fly (passing creation fields in `delegationConfig` to `getX402AccessToken` instead of a `delegationId`) is **deprecated** and emits a runtime deprecation warning; it remains reachable for backward compatibility but should not be used in new integrations. `provider` and `currency` are required on `createDelegation` (no silent default); a delegation is plan-agnostic unless `planId` is supplied, for every provider.
 
@@ -459,18 +459,7 @@ Content-Type: application/json
 
 A card enrolled in Phase 0 uses `provider: "vgs"` and its card ID (`CRD…`) as `providerPaymentMethodId`, whether the plan it pays is Stripe-priced or Braintree-priced: the facilitator picks the PSP from the plan at settlement. A card saved at Stripe before enrollment moved to VGS uses the same payload with `provider: "stripe"` and its `pm_…` ID.
 
-For Braintree-priced plans, a card vaulted before enrollment moved to VGS uses the same payload with `provider: "braintree"` and its `paymentMethodToken` as `providerPaymentMethodId`. The seller's per-currency Braintree merchant account is resolved by the facilitator, not supplied by the client:
-
-```json
-{
-  "provider": "braintree",
-  "spendingLimitCents": 10000,
-  "durationSecs": 2592000,
-  "providerPaymentMethodId": "abc123token",
-  "currency": "usd",
-  "maxTransactions": 100
-}
-```
+For Braintree-priced plans, the `vgs` payload above is the only card form: the vaulted Braintree card rail is retired, and the facilitator refuses `provider: "braintree"`. A card vaulted at Braintree before enrollment moved to VGS is enrolled again in Phase 0. The seller's per-currency Braintree merchant account is resolved by the facilitator at settlement, not supplied by the client.
 
 For Visa Trusted Agent Protocol plans, the same payload uses `provider: "visa"`, the Visa Agentic Token (`vat_…`) as `providerPaymentMethodId`, an optional `planId`, and the two device-binding extras produced by the browser ceremony:
 
