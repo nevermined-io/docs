@@ -23,15 +23,19 @@ updates:
   # .github/workflows/clawhub-cli-check.yml checks it on that PR: the lock
   # installs, the CLI is the pinned version, it still lists every command and
   # option the publish uses and reports no publish status the publish does not
-  # handle, and every locked package is at least 14 days old. Version updates
-  # pass the cooldown to npm as `--min-release-age`; security updates skip it,
-  # and the age check reports the young packages they lock. The check never
-  # logs in, so read the bump's changelog for server-side changes. Merging the
-  # PR runs the ClawHub publish on main.
-  # The folder is NOT under .github/: Dependabot's npm updater cannot open a PR
-  # that changes a file there. Every job for /.github/clawhub-cli resolved its
-  # bump, then failed creating the PR with HTTP 400 "The request contains
-  # invalid or unauthorized changes" (dependency_file_not_supported, docs#647).
+  # handle, and every locked package is at least 14 days old. A version update
+  # skips clawhub releases younger than the cooldown and, when its npm supports
+  # it, also passes `--min-release-age=14` to npm for the rest of the tree.
+  # Security updates skip the cooldown (`--min-release-age=0`), and the age
+  # check reports the young packages they lock. The check never logs in, so
+  # read the bump's changelog for server-side changes. Merging the PR runs the
+  # ClawHub publish on main.
+  # The folder is NOT under .github/. On 2026-11-17 both jobs for
+  # /.github/clawhub-cli (runs 44139268790, 44139310921) resolved their bump,
+  # then failed creating the PR with HTTP 400 "The request contains invalid or
+  # unauthorized changes" (dependency_file_not_supported, docs#647). Reported
+  # elsewhere as dependabot-core#15237: only github-actions updates get the
+  # token scope to write under .github/.
   - package-ecosystem: npm
     directory: /tools/clawhub-cli
     schedule:
