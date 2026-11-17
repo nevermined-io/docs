@@ -1,0 +1,97 @@
+name: Check the locked ClawHub CLI
+
+# .github/clawhub-cli/ pins the ClawHub CLI that publish-skill-clawhub.yml runs
+# next to CLAWHUB_TOKEN, and locks its whole dependency tree
+# (nevermined-io/docs#647). Dependabot proposes CLI updates as PRs
+# (.github/dependabot.yml). This job shows on such a PR, before it merges:
+#   - install.sh, the publish job's own install: every lock entry is the npm
+#     registry tarball of its name and version, `npm ci --ignore-scripts`
+#     installs it, and the CLI on PATH is the pinned version;
+#   - check-cli.sh, which the publish job also runs before it logs in: the CLI
+#     still lists every command and option the publish passes, and its
+#     `skill publish --json` can report no status the publish step does not
+#     handle;
+#   - check-age.sh: every locked package is at least 14 days old;
+#   - npm audit, as a warning only.
+# It never logs in and runs no publish, so a change in the server calls behind
+# an option shows only on the next real publish. Read a bump's changelog.
+#
+# It references no secret and must never be given one: it installs and runs
+# third-party code from a PR before anyone has merged it. Its clawhub calls
+# (--help, --cli-version) are offline; npm ci, npm view and npm audit reach the
+# npm registry.
+
+on:
+  pull_request:
+    paths:
+      - '.github/clawhub-cli/**'
+      - '.github/workflows/clawhub-cli-check.yml'
+      - '.github/workflows/publish-skill-clawhub.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/clawhub-cli/**'
+      - '.github/workflows/clawhub-cli-check.yml'
+      - '.github/workflows/publish-skill-clawhub.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Install the lock and check the CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Install the CLI from the lockfile
+        id: install
+        run: |
+          .github/clawhub-cli/install.sh "$RUNNER_TEMP/clawhub-bin"
+          echo "$RUNNER_TEMP/clawhub-bin" >> "$GITHUB_PATH"
+
+      # The checks below are independent: each reports on every run once the
+      # install succeeded, so one red does not hide another.
+      - name: Check the CLI still fits the publish workflow
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: .github/clawhub-cli/check-cli.sh
+
+      # A red here does not block a merge: `main` has no required checks.
+      - name: Check every locked package is at least 14 days old
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: .github/clawhub-cli/check-age.sh
+
+      # Advisories are shown, not enforced: the publish needs a working CLI,
+      # and the fix is usually a CLI bump, which is Dependabot's PR.
+      - name: Report npm audit advisories
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: .github/clawhub-cli
+        run: |
+          AUDIT="$RUNNER_TEMP/npm-audit.json"
+          npm audit --json > "$AUDIT" || true
+          COUNTS=$(jq -er '.metadata.vulnerabilities // empty | "\(.high) high, \(.critical) critical, \(.total) total"' "$AUDIT" 2>/dev/null) || COUNTS=''
+          # The report is registry text: print it with workflow commands off,
+          # then resume them on a line of their own before any annotation.
+          TOKEN=$(cat /proc/sys/kernel/random/uuid)
+          echo "::stop-commands::$TOKEN"
+          if [ -n "$COUNTS" ]; then
+            echo "npm audit: $COUNTS"
+            jq -r '.vulnerabilities // {} | to_entries[] | "\(.key) \(.value.range) \(.value.severity)"' "$AUDIT" || true
+          else
+            head -c 2000 "$AUDIT"
+          fi
+          echo
+          echo "::$TOKEN::"
+          if [ -z "$COUNTS" ]; then
+            echo "::warning title=ClawHub CLI audit unavailable::npm audit returned no advisory report (response in the log)."
+          elif [ "$(jq '.metadata.vulnerabilities.high + .metadata.vulnerabilities.critical' "$AUDIT")" != 0 ]; then
+            echo "::warning title=ClawHub CLI audit::npm audit reports $COUNTS advisories in the locked ClawHub CLI tree (packages in the log)."
+          fi
