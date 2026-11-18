@@ -47,6 +47,8 @@ A human needs a Nevermined account at https://nevermined.app, once.
 This skill is for live: real merchants and real money, within the cap the human approves. To
 test first, the sandbox (testnet funds) takes a `sandbox:` key and its own hosts,
 `https://api.sandbox.nevermined.app/api/v1` and `https://mcp.sandbox.nevermined.app/mcp`. A key works only on the deployment that issued it.
+The sandbox Router funds testnets only, so of its listings only the two free testnet test
+merchants can be paid there.
 
 Then take one of two paths.
 
