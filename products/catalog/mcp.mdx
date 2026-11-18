@@ -19,7 +19,12 @@ A **Delegation** is a payment method plus a spend mandate: an amount, an expiry 
 | **Live** | `https://mcp.live.nevermined.app/mcp` |
 | **Sandbox** | `https://mcp.sandbox.nevermined.app/mcp` |
 
-Discovery needs no key. Paying needs a Nevermined API key ([get one](/agents-guide/get-api-key)) and a funded Delegation ([enroll a card](/agents-guide/enroll-card)). For a first run, use the sandbox URL with a sandbox API key (`sandbox:...`): a key works only in the environment it was issued for.
+Discovery needs no key. Paying needs a credential and something to pay from:
+
+- **The credential** is an OAuth sign-in your assistant runs for you ([Connect from your assistant](/mcp/catalog-mcp/overview#connect-from-your-assistant)) or a Nevermined API key ([get one](/agents-guide/get-api-key)).
+- **The funds** are a crypto Delegation (`provider: "erc4337"`) whose wallet holds the asset on the service's network ([create one](/products/catalog/router/quickstart#2-create-a-delegation)), or [Nevermined credits](/products/catalog/router/subscription). A card Delegation cannot pay a Catalog service: the Router's x402 and MPP rails do not accept one.
+
+Every Catalog listing settles on mainnet, so payment is live-only. Sandbox pays only two free testnet test merchants kept for rehearsal (`mpp-dev-paid-ping` and `x402-org-protected`); no other Catalog listing is payable there. A key works only in the environment it was issued for, so rehearse with a sandbox API key (`sandbox:...`).
 
 <Tabs>
   <Tab title="Claude Code">
@@ -97,7 +102,7 @@ Discovery needs no key. Paying needs a Nevermined API key ([get one](/agents-gui
 Then restart your host to activate the connection. A **stdio-only** host can bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
 
 <Warning>
-These point at **live**, where `pay_service` moves real funds. Rehearse on sandbox first: use `https://mcp.sandbox.nevermined.app/mcp` with a **sandbox** API key (`sandbox:...`), because a key works only in the environment it was issued for. Then switch to live with a small Delegation cap and the cheapest sub-cent service.
+These point at **live**, where `pay_service` moves real funds. To rehearse the loop first, use `https://mcp.sandbox.nevermined.app/mcp` with a **sandbox** API key (`sandbox:...`), because a key works only in the environment it was issued for: sandbox pays only its two free testnet test merchants, never another Catalog listing. Then switch to live with a small Delegation cap and the cheapest sub-cent service.
 </Warning>
 
 **Hosts that need no API key.** Claude (claude.ai), ChatGPT, Claude Code, LangSmith Fleet, and Cursor through the Nevermined plugin in the Cursor Marketplace run OAuth for you: connect by URL and approve a spending cap once. See [Connect from your assistant](/mcp/catalog-mcp/overview#connect-from-your-assistant). The API-key setup above is for every other host, and for Claude Code or Cursor when you prefer a key.
@@ -148,6 +153,18 @@ Your agent never holds a private key, never learns a payment protocol, and never
     A reference page per tool — arguments, returns, refusals, and a `curl` to test it.
   </Card>
 </CardGroup>
+
+## Troubleshooting
+
+When your assistant or harness cannot connect, or connects but cannot pay, check these in order:
+
+- **The server URL.** Live is `https://mcp.live.nevermined.app/mcp`, sandbox is `https://mcp.sandbox.nevermined.app/mcp`. A host that runs OAuth only when the server challenges it on connect (LangSmith Fleet) needs `https://mcp.api.live.nevermined.app/mcp` or `https://mcp.api.sandbox.nevermined.app/mcp` instead; see [What happens without a credential](/mcp/catalog-mcp/overview#what-happens-without-a-credential).
+- **The key's environment.** A key works only in the environment it was issued for: a `sandbox:` key on the live server, or a `live:` key on sandbox, does not authenticate. Use the server that matches the key's prefix.
+- **The credential form.** With an API key, send it as the header `Authorization: Bearer <your-api-key>`. Any other `Authorization` scheme is ignored, and the server then treats the call as having no credential. With OAuth, add the server by its URL alone, with no header: the host runs the sign-in when a paid tool first needs it (or when it connects, depending on the host).
+- **Discovery works, paying does not.** Discovery needs no credential; pricing and paying do. With a key, check you have a funded crypto Delegation or Nevermined credits (see [Install](#install)). With OAuth, the cap you approved may be spent or expired: see [When the grant runs out](/mcp/catalog-mcp/overview#when-the-grant-runs-out).
+- **Credits are not used over OAuth.** An OAuth connection spends your Nevermined credits only if you allowed it when you connected. Reconnect the server in your assistant and tick **Let this assistant spend my Nevermined credits** on the consent screen; a connection approved without it stays opted out until you reconnect.
+
+Host-specific cases (a consent screen that never appears, a LangSmith Fleet account that keeps an old grant) are in [When connecting goes wrong](/mcp/catalog-mcp/overview#when-connecting-goes-wrong).
 
 ## Not this MCP
 

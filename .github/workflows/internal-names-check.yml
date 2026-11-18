@@ -1,0 +1,25 @@
+name: Internal names check
+
+# Published pages must not name the internal staging environments
+# (staging_sandbox, staging_live) or the staging host (nevermined.dev): public
+# docs say only sandbox and live (nevermined-io/nvm-monorepo#5182). The scope
+# and the generated-page exception list are in the script's header.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  internal-names:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detector selftest
+        run: python3 .github/scripts/check-internal-names.py --selftest
+      - name: Scan published pages
+        run: python3 .github/scripts/check-internal-names.py

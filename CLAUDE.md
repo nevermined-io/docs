@@ -262,7 +262,7 @@ Example usage:
 - **Use realistic agent names and configurations** (not "TestAgent", use "Legal Assistant", "Data Analyzer")
 - **Show both Web App UI flows AND SDK/programmatic approaches** when available
 - **Include error handling** in complex examples
-- **Environment names**: Only use `sandbox` and `live` in documentation and examples. The internal environment names `staging_sandbox` and `staging_live` are supported by the SDKs and CLI for internal development, but must never appear in public-facing documentation.
+- **Environment names**: Only use `sandbox` and `live` in documentation and examples. The internal environment names `staging_sandbox` and `staging_live` are supported by the SDKs and CLI for internal development, but must never appear in public-facing documentation. Neither may the staging host `nevermined.dev`. `.github/workflows/internal-names-check.yml` fails a PR that puts either on a published page (MDX comments excepted); a generated `api-reference/` page is fixed at its source repo, and its entry in the script's `PENDING_SOURCE_FIX` is deleted once the sync lands it clean.
 
 ### Code Example Template
 

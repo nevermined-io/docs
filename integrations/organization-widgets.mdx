@@ -313,7 +313,7 @@ For integrations that aren't an in-page iframe — a CLI tool, or any flow where
 
 You pass a `sessionToken` and a `returnUrl` on the query string. The page runs the same flow and, on success, redirects the browser to `returnUrl` with the result IDs (plus your `state` echo) appended as query parameters — the same shape as an OAuth callback.
 
-These pages are served by the dedicated **embed app** (`https://embed.nevermined.app` in production, `https://embed.nevermined.dev` on staging, `http://localhost:4250` in local dev) — the same origin the SDK mounts in iframe mode. Supported on the card flows and plan-only checkout; the **agent checkout (`/checkout/$did`) is iframe-only**.
+These pages are served by the dedicated **embed app** (`https://embed.nevermined.app`, for both sandbox and live) — the same origin the SDK mounts in iframe mode. Supported on the card flows and plan-only checkout; the **agent checkout (`/checkout/$did`) is iframe-only**.
 
 | Route (on the embed app) | Result params appended to `returnUrl` |
 |---|---|

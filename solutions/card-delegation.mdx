@@ -124,7 +124,7 @@ nevermined cards enroll [--org <id>] [--provider …]
 nevermined cards delegate --card <paymentMethodId> [--org <id>]
 ```
 
-Each command opens the browser at `{embed}/cards/<route>?…` — the standalone embed app (`embed.nevermined.app` for live, `embed.nevermined.dev` for staging), not the old webapp `/embed/*` routes — waits up to 5 minutes for the user to complete the flow, then exits cleanly with the resulting IDs. `--no-browser` prints the URL instead of opening it — useful over SSH or in CI.
+Each command opens the browser at `{embed}/cards/<route>?…` — the standalone embed app (`embed.nevermined.app`, for both sandbox and live), not the old webapp `/embed/*` routes — waits up to 5 minutes for the user to complete the flow, then exits cleanly with the resulting IDs. `--no-browser` prints the URL instead of opening it — useful over SSH or in CI.
 
 ### Build your own (any language)
 
@@ -195,7 +195,7 @@ If you are writing a CLI in a language other than TypeScript, or you want this b
       &provider=stripe
     ```
 
-    `{embed}` is the standalone embed app — `https://embed.nevermined.app` (live) or `https://embed.nevermined.dev` (staging). The card surfaces moved off the webapp `/embed/*` routes to this dedicated app. Three routes are available:
+    `{embed}` is the standalone embed app — `https://embed.nevermined.app`, for both sandbox and live. The card surfaces moved off the webapp `/embed/*` routes to this dedicated app. Three routes are available:
 
     | Route | Callback returns |
     |-------|------------------|

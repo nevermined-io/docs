@@ -28,11 +28,12 @@
     },
     "markdown": {
         "instructions": [
-            "If you are an agent buying services: start with these steps. Every page has a .md version.",
-            "1. Install the Catalog MCP (live server https://mcp.live.nevermined.app/mcp, sandbox server https://mcp.sandbox.nevermined.app/mcp; rehearse on sandbox with a sandbox API key before live, as keys work only in their own environment; Claude Code and Cursor commands, Codex config.toml entry): https://nevermined.ai/docs/products/catalog/mcp.md",
-            "2. Get an API key: https://nevermined.ai/docs/agents-guide/get-api-key.md",
-            "3. Enroll a card and create a delegation (a payment method plus a spend mandate: an amount, an expiry and a number of purchases): https://nevermined.ai/docs/agents-guide/enroll-card.md",
-            "4. Buy and call a paid agent over x402: https://nevermined.ai/docs/getting-started/ai-agent-purchase.md",
+            "If you are an agent buying Catalog services: start with these steps. Every page has a .md version.",
+            "1. Payment is live-only: every Catalog listing settles on mainnet. Sandbox pays only two free testnet test merchants kept for rehearsal (mpp-dev-paid-ping and x402-org-protected); no other Catalog listing is payable there, and a key or sign-in works only in its own environment.",
+            "2. From an assistant: install the Catalog MCP (live server https://mcp.live.nevermined.app/mcp; Claude Code and Cursor commands, Codex config.toml entry): https://nevermined.ai/docs/products/catalog/mcp.md. Sign in over OAuth and approve a spending cap or credit consent once (no API key needed): https://nevermined.ai/docs/mcp/catalog-mcp/overview.md#connect-from-your-assistant. Then call search_services, get_service, quote_service and pay_service, in that order.",
+            "3. Over REST: get a plain API key (https://nevermined.ai/docs/agents-guide/get-api-key.md) and create a crypto Delegation (provider erc4337). Quote the call with POST /api/v1/router/quote (https://nevermined.ai/docs/api-reference/router/quote.md), fund the Delegation's wallet on the network the quote names (Base for x402, Tempo for MPP), then call /api/v1/router/svc/<slug>/<invokePath>: https://nevermined.ai/docs/products/catalog/from-a-harness.md and https://nevermined.ai/docs/products/catalog/router/quickstart.md",
+            "4. Or pay with Nevermined credits, which need no wallet and no Delegation. A new account that signs up with a verified email gets free welcome credits while the offer is open (200,000 credits for 30 days today): https://nevermined.ai/docs/products/catalog/router/subscription.md",
+            "Buying a Nevermined payment plan from an agent that sells one (not a Catalog service) is a different path: enroll a card (https://nevermined.ai/docs/agents-guide/enroll-card.md) and buy the plan over x402 (https://nevermined.ai/docs/getting-started/ai-agent-purchase.md). A card Delegation cannot pay a Catalog service.",
             "SDK quickstart: https://nevermined.ai/docs/integrate/quickstart/typescript.md. Pricing: https://nevermined.ai/pricing/"
         ]
     },

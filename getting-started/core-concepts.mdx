@@ -142,7 +142,7 @@ The type comes from the plan's pricing config — `registry.price.isCrypto`, and
 </Tabs>
 
 <Note>
-  Server-side middleware (Express, FastAPI) and the A2A clients resolve the scheme for you. The direct `getX402AccessToken` / `get_x402_access_token` call does **not** — it defaults to `nvm:erc4337`. For a fiat plan you must pass `scheme: 'nvm:card-delegation'` and have a card enrolled with the matching provider. See [Payment method mismatch](/products/payments/faq#how-do-i-fix-a-payment-method-mismatch) if a payment is rejected.
+  Server-side middleware (Express, FastAPI) and the A2A clients resolve the scheme for you. The direct `getX402AccessToken` / `get_x402_access_token` call does **not** — it defaults to `nvm:erc4337`. For a fiat plan you must pass `scheme: 'nvm:card-delegation'` and have a card enrolled with the matching provider. If you leave the scheme at its default on a fiat plan, no error names the mismatch. A card Delegation's id is refused when you request the token with [`BCK.X402.0035`](/development-guide/api-errors/codes#bck-x402-0035), and a token from a crypto Delegation gets a 402 whose reason is `Insufficient credits - payment required via payment provider`. Request the token again with `scheme: 'nvm:card-delegation'`. The opposite mistakes do return a rail code: [`BCK.DELEGATION.0008`](/development-guide/api-errors/codes#bck-delegation-0008) (a crypto Delegation sent on the card scheme) and [`BCK.X402.0063`](/development-guide/api-errors/codes#bck-x402-0063) (a crypto-priced plan bought by card).
 </Note>
 
 ## Merchant Onboarding
