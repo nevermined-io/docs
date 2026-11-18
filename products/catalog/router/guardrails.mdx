@@ -41,7 +41,7 @@ On **x402 there is no balance check anywhere.** The Router signs and reserves yo
 
 An MPP `evm` charge isn't balance-checked either: the Router signs it and reserves your budget, and a short wallet fails when the merchant settles it. As on x402, the reserve is held until the Router releases it: once the authorization window has passed and the chain shows the authorization unused, or earlier where the deployment cancels a refused call's authorization on chain.
 
-On any rail, read the wallet address from the live Delegation (`providerPaymentMethodId`) rather than from anything you saved earlier. Funding a stale address is the most common cause of an underfunded wallet and the one that takes longest to spot — `0009` deliberately doesn't echo the address it checked, so it can't tell you that's what happened.
+On any rail, read the wallet address from the live Delegation rather than from anything you saved earlier: `fundingWalletAddress`, which `GET /api/v1/delegation/{id}?withPayer=true` returns. For a personal Delegation that is your own wallet, not `providerPaymentMethodId` (the smart-account address, which the Router never spends from); for an org-wallet Delegation the two are the same. Funding a stale address is the most common cause of an underfunded wallet and the one that takes longest to spot — `0009` deliberately doesn't echo the address it checked, so it can't tell you that's what happened.
 
 ## Session deposits
 

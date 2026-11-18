@@ -1,7 +1,7 @@
 ---
 name: nevermined-catalog-onboarding
-version: "1.1.1"
-lastUpdated: "2026-11-13"
+version: "1.1.2"
+lastUpdated: "2026-11-18"
 # Tool scope, read by NVIDIA SkillSpector, the scanner ClawHub runs (rule LP3;
 # see nevermined-io/docs#629). It describes the skill and grants nothing: no
 # host enforces it. Keep it top-level, where LP3 reads it. Do not turn it into
@@ -48,7 +48,7 @@ metadata:
 
 # Nevermined Catalog onboarding — enroll & validate an external x402 service
 
-> **Skill version**: 1.1.1 | **Last updated**: 2026-11-13
+> **Skill version**: 1.1.2 | **Last updated**: 2026-11-18
 >
 > Companion to two existing skills — **`nevermined-payments`** (register an agent/plan,
 > get an API key) and **`nevermined-router`** (the Router buy loop; its full error table is `nevermined-router/references/errors.md`).
@@ -336,5 +336,6 @@ Both flows with the exact API calls: **`references/claim-and-credits.md`**.
 | The raw-EOA EIP-3009 payer (runnable) + the direct 402→sign→pay flow | `references/direct-wallet-pay.md` |
 | Catalog publish/patch/mine DTOs, monitor promotion internals, moderation | `references/list-and-promote.md` |
 | Ownership (org-owned vs curated/ownerless), the claim flow, and when a listing is credit-payable | `references/claim-and-credits.md` |
-| The full Router buy loop, every error code, retry rules | the `nevermined-router` skill |
+| The Router buy loop | the `nevermined-router` skill |
+| Every error code and its retry rule | `nevermined-router/references/errors.md` |
 | Register an agent/plan, get an API key, card enrollment | the `nevermined-payments` skill |

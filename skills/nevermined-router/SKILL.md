@@ -1,4 +1,5 @@
 ---
+# Generated from nevermined-io/nvm-monorepo apps/catalog/src/lib/buyer-skill.ts by scripts/generate-buyer-skill.ts. Edit it there: a change here is overwritten.
 name: nevermined-router
 description: >-
   Use when an agent must pay for a call to an external AI service (data, search,
@@ -18,8 +19,6 @@ metadata:
           Nevermined API key, the whole string: live:... on production, sandbox:... on the
           sandbox. A human creates it at https://nevermined.app under API Keys.
 ---
-
-<!-- Generated from nevermined-io/nvm-monorepo apps/catalog/src/lib/buyer-skill.ts by scripts/generate-buyer-skill.ts. Edit it there: a change here is overwritten. -->
 
 # Nevermined Catalog: buy AI services per call
 
@@ -45,10 +44,11 @@ skill file, with a runnable quote and call for every endpoint: `https://nevermin
 A human needs a Nevermined account at https://nevermined.app, once.
 
 This skill is for live: real merchants and real money, within the cap the human approves. To
-test first, the sandbox (testnet funds) takes a `sandbox:` key and its own hosts,
-`https://api.sandbox.nevermined.app/api/v1` and `https://mcp.sandbox.nevermined.app/mcp`. A key works only on the deployment that issued it.
-The sandbox Router funds testnets only, so of its listings only the two free testnet test
-merchants can be paid there.
+test first, the sandbox (testnet funds) takes a `sandbox:` key and its own hosts: the API at
+`https://api.sandbox.nevermined.app` (in place of `https://api.live.nevermined.app` in every URL below,
+and as `NVM_API_URL`) and the MCP at `https://mcp.sandbox.nevermined.app/mcp`. A key works only on the deployment
+that issued it. The sandbox Router funds testnets only, so of its listings only the two free
+testnet test merchants can be paid there.
 
 Then take one of two paths.
 
@@ -100,7 +100,9 @@ Creating your delegation authorizes spending, and each paid call (or Commerce MC
 2. **Inspect.** `GET https://nevermined.app/catalog/<slug>/skill.md`, or `https://nevermined.app/catalog/<slug>` with
    `Accept: text/markdown`. It gives the service's rail and network, and for every endpoint its
    method, `invokePath`, price, request schema, an example with its grade, a quote and a paid
-   call. Over MCP: `get_service`. An example's grade says how far it was checked:
+   call. Over MCP: `get_service`. In `ai-catalog.json` an endpoint without `invokePath` is
+   called at its `path`, and an empty `invokePath` appends nothing. An example's grade says how
+   far it was checked:
    - `paid-run`: verified by a paid call.
    - `challenge`: the service accepted the request shape; the response is unverified.
    - `docs`: from the provider's documentation, unverified. Fill the request from the schema,
@@ -112,16 +114,13 @@ Creating your delegation authorizes spending, and each paid call (or Commerce MC
      -H "Content-Type: application/json" \
      -d '{"slug":"<slug>","path":"<invokePath>","method":"POST","body":{}}'
    ```
-   Nothing is charged. Add `"search":"a=1&b=2"` for a query string. `paymentRequired: true`
-   with `upstreamStatus: 402` means the service priced the request, and `fee.capChargedCents`
-   is what the call will take from your delegation, Router fee included. Any other
-   `upstreamStatus` means the request is wrong as it stands: fix it before you pay.
+   Nothing is charged. Add `"search":"a=1&b=2"` for a query string. Read `upstreamStatus`. `402`: the service priced the request, and `fee.capChargedMicros` is what the call takes from your delegation, Router fee included (`capChargedCents` rounds it up to a whole cent). A `2xx`: the service asked no payment for this request, so there is nothing to pay; an endpoint the catalog lists as free returns its answer through `/svc`, any other only its status (the quote already ran it once). `401` or `403`: the service wants its own login, which the Router does not provide. `429` or a `5xx`: try later. Any other `4xx`: the request is wrong as it stands, so fix it before you pay.
 4. **Pay.** Send the same request through `/router/svc` (below), with one
    `X-Router-Request-Id` per purchase.
-5. **Verify.** A paid reply carries `X-Router-Payment-Id`. `GET https://api.live.nevermined.app/api/v1/router/payments/<paymentId>`
-   shows that payment, and `GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your request id>` finds it by
-   your id. Judge the result: if it is irrelevant, or the service keeps refusing the call, try
-   the next matching service within your budget.
+5. **Verify.** A paid reply carries `X-Router-Payment-Id` (`curl -i` shows it).
+   `GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your request id>` finds the payment by your id. Judge
+   the result: if it is irrelevant, or the service keeps refusing the call, try the next matching
+   service within your budget.
 
 ## MCP
 
@@ -130,7 +129,8 @@ discover. `get_service` inspects and `quote_service` prices a request, neither c
 anything. `pay_service` pays and returns the result. `get_budget` and `list_payments` say
 what you can still spend and what you spent. Connected over OAuth, it pays within the cap the
 human approved. Connected with an API key (`Authorization: Bearer $NVM_API_KEY` on `https://mcp.live.nevermined.app/mcp`),
-it pays from a delegation, which `setup_delegation` creates. Documentation: https://nevermined.ai/docs/products/catalog/mcp.
+it pays in the human's Nevermined credits where a service accepts them, and otherwise from a
+delegation, which `setup_delegation` creates. Documentation: https://nevermined.ai/docs/products/catalog/mcp.
 
 ## REST: `/router/svc`
 
@@ -154,7 +154,7 @@ X-Router-Request-Id: <one id per purchase, reused on every retry>
   spend, so keep the cap small. To refuse a call that costs more than its quote, pay through
   `POST https://api.live.nevermined.app/api/v1/router/route` with `maxTotalCents` (https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/paying.md).
 - A 4xx refusal that names no paymentId (no X-Router-Payment-Id header, no paymentId in the error's params, no payment in a JSON reply) cost nothing: fix the request and resend.
-- Anything else (a 202, any 5xx such as 502 BCK.ROUTER.0034 or 0025, or any answer that names a paymentId) may already have paid the merchant. Before doing anything else, look the purchase up: GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your X-Router-Request-Id>; "absent" means nothing is recorded, so resend with the same id. A 202 is still running: poll its Location and never buy it again. A paid call left Issued, or Failed with no response, is not proof of a charge either way, and its price can stay reserved against your cap. Retry the same purchase only with the same X-Router-Request-Id: the Router never pays one id twice.
+- Anything else (a 202, any 5xx such as 502 BCK.ROUTER.0034 or 0025, or any answer that names a paymentId) may already have paid the merchant. Before doing anything else, look the purchase up: `GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your X-Router-Request-Id>`; "absent" means nothing is recorded, so resend with the same id. A 202 is still running: poll its Location and never buy it again. A paid call left Issued, or Failed with no response, is not proof of a charge either way, and its price can stay reserved against your cap. Retry the same purchase only with the same X-Router-Request-Id: the Router never pays one id twice.
 - Never create another delegation to get past a cap or budget refusal (402 BCK.ROUTER.0003): report it and stop.
 
 ## Funding
@@ -164,14 +164,15 @@ does not provide the money. Read the address to fund off the delegation, every t
 address is the usual cause of an underfunded wallet):
 
 ```bash
-curl -s https://api.live.nevermined.app/api/v1/delegation/$NVM_DELEGATION_ID -H "Authorization: Bearer $NVM_API_KEY"
-# providerPaymentMethodId is the wallet address to fund
+curl -s "https://api.live.nevermined.app/api/v1/delegation/$NVM_DELEGATION_ID?withPayer=true" -H "Authorization: Bearer $NVM_API_KEY"
+# fundingWalletAddress is the wallet to fund (not providerPaymentMethodId)
 ```
 
 | Rail | Network | Fund the wallet with |
 | --- | --- | --- |
 | x402 | Base | USDC on Base |
-| MPP | Tempo | the payment token the quote names (`settlement.asset`), on Tempo |
+| MPP, `tempo` method | Tempo | the payment token the quote names (`settlement.asset`), on Tempo |
+| MPP, `evm` method | Base | USDC on Base |
 
 - Both rails need a stablecoin (`erc4337`) delegation. Balances are per network: each service's
   skill file names its rail and network, so fund that one.
@@ -181,11 +182,15 @@ curl -s https://api.live.nevermined.app/api/v1/delegation/$NVM_DELEGATION_ID -H 
 - A deployment can leave the MPP rail off. If every MPP service is refused
   `400 BCK.ROUTER.0001 … not allowlisted` while x402 pays, that is the deployment, not the
   service: pin `X-Router-Require-Protocol: x402` where the service offers x402.
-- The Router adds a 2% routing fee to each paid call, from the same delegation. Size the cap
-  to include it.
+- The Router adds a 2% routing fee to each paid call, from the same delegation and as its own
+  transfer from the same wallet. Size the cap and the balance to include it.
+- A quote whose `settlement.scheme` is `session` also states `sessionDeposit`: that deposit
+  leaves the wallet at the first call, however small, so the wallet needs it too.
 - An empty wallet you cannot fund yourself is a stop: report it to the human.
-- **Credits.** Many services are also payable with a Nevermined subscription, in credits — an alternative to pay-per-call USDC. Credits are spent only through the Nevermined Commerce MCP (connected with a subscriber API key, or with a commerce OAuth connection that enabled Nevermined-credit spend at consent), or via POST /api/v1/router/subscription/route; a spending delegation always pays USDC, never credits. Credit prices are shown to subscribers only; subscribe or connect with a subscriber API key to see them. The prices here are the pay-per-call USDC prices. `POST https://api.live.nevermined.app/api/v1/router/subscription/quote`, with the
-  body `/router/subscription/route` takes, prices a call in credits without charging.
+- **Credits.** Many services are also payable with a Nevermined subscription, in credits — an alternative to pay-per-call USDC. Credits are spent only through the Nevermined Commerce MCP (connected with a subscriber API key, or with a commerce OAuth connection that enabled Nevermined-credit spend at consent), or via POST /api/v1/router/subscription/route; a spending delegation always pays USDC, never credits. Credit prices are shown to subscribers only; subscribe or connect with a subscriber API key to see them. The prices here are the pay-per-call USDC prices. The streaming
+  `https://api.live.nevermined.app/api/v1/router/subscription/svc/<slug>/<invokePath>` spends them too, and
+  `POST https://api.live.nevermined.app/api/v1/router/subscription/quote`, with the body `/router/subscription/route` takes,
+  prices a call in credits without charging.
 - **Welcome credits.** While the offer is open, a new account receives welcome credits.
   `GET https://api.live.nevermined.app/api/v1/credits/welcome/offer` (no key) says how many, and for how long. They are spent the
   same way as subscription credits.

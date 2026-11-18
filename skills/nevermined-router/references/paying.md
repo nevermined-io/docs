@@ -1,6 +1,6 @@
 # Paying — mode B, the streaming proxy, and mode A
 
-Three ways to pay. **Default to mode B.** Reach for the others only when its shape does not fit.
+Four ways to pay. **Default to mode B.** Reach for the others only when its shape does not fit.
 
 The [skill](../SKILL.md) pays through `/router/svc/<slug>/<invokePath>`, the streaming proxy addressed by catalog slug. This file covers every shape, including the `/route` envelope's `maxTotalCents`, the per-call price ceiling.
 
@@ -231,6 +231,7 @@ and settles as its own leg, signed separately from the same buyer wallet. So the
 `settlement.amount` **plus** `fee.amount`, and the fee's settlement is tracked independently on the
 ledger (`feeStatus`, `feeTxHash`) rather than by the payment's own `status`. See `ledger.md`.
 
+<a id="request-id"></a>
 ### `requestId` — the rule that prevents double-spending
 
 Required on mode B **because the Router pays automatically**: a retry after a dropped connection
@@ -345,12 +346,17 @@ commerce route gets `403 BCK.OAUTH.0033`.
 What the [skill](../SKILL.md) pays with: the streaming proxy below, addressed by catalog slug in the
 path. Send the endpoint's method, query and body to the `invokePath` the catalog lists, with
 `Authorization`, `X-Router-Delegation-Id` and `X-Router-Request-Id`, and no `X-Router-Target-Slug`
-or `X-Router-Target-Url` header (either is refused `400 BCK.ROUTER.0001`). Everything the next
-section says about the response, the `202`, the payment headers and retries applies unchanged.
+or `X-Router-Target-Url` header (either is refused `400 BCK.ROUTER.0001`). The `requestId` rule,
+the `202` and the retained result are [as for `/route`](#request-id). The response streams back
+as on [`/proxy`](#proxy), with one difference: `/svc` always pays a catalog service, so any
+answer that is not a delivered paid result, or a `2xx` from an endpoint the catalog lists as free,
+comes back as its status alone, with the body and headers withheld. A `4xx` then carries the typed
+`BCK.ROUTER.0019` body and a `5xx` the `0020` body; what to do after each is in those
+[`errors.md`](errors.md) rows.
 
 ```bash
-REQUEST_ID="$(uuidgen)"   # one per purchase; reuse it on every retry
-curl -s -X POST "$NVM_API_URL/api/v1/router/svc/<slug>/<invokePath>" \
+REQUEST_ID="$(uuidgen)"   # one per purchase: set it once, and resend this same id on a retry
+curl -si -X POST "$NVM_API_URL/api/v1/router/svc/<slug>/<invokePath>" \
   -H "Authorization: Bearer $NVM_API_KEY" \
   -H "X-Router-Delegation-Id: $NVM_DELEGATION_ID" \
   -H "X-Router-Request-Id: $REQUEST_ID" \
@@ -358,6 +364,7 @@ curl -s -X POST "$NVM_API_URL/api/v1/router/svc/<slug>/<invokePath>" \
   -d '{ … }'
 ```
 
+<a id="proxy"></a>
 ## Mode B streaming — `ALL /api/v1/router/proxy`
 
 Same engine, transparent transport: method, body and the standard request headers pass through and

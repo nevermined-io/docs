@@ -110,7 +110,7 @@ the catalog, since you do not know the pay-to address until the 402 arrives.
 ## 3. Read its live state — and the wallet address
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
+curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID?withPayer=true" \
   -H "Authorization: Bearer $NVM_API_KEY"
 ```
 
@@ -119,6 +119,7 @@ curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
   "delegationId": "5e7481c3-…",
   "provider": "erc4337",
   "providerPaymentMethodId": "0x8F60b3838e6C121FcDBdBc50e7B150F8560a670E",
+  "fundingWalletAddress": "0x4E8c…b71A",
   "status": "Active",
   "spendingLimitCents": "500",
   "amountSpentCents": "0",
@@ -139,7 +140,11 @@ You can list your Delegations with `GET /api/v1/delegation`, and a single Delega
 
 ## 4. Fund the buyer wallet
 
-**`providerPaymentMethodId` is the wallet address to fund.** Both rails **pull**: the
+**`fundingWalletAddress` is the wallet address to fund**, and only `?withPayer=true` returns it.
+For a personal Delegation it is your own wallet, not `providerPaymentMethodId` (the smart-account
+address), which the Router never spends from; for an org-wallet Delegation the two are the same.
+`null` on a crypto Delegation means the wallet could not be resolved: retry, and do not fund a
+guess. Both rails **pull**: the
 merchant takes funds from that wallet. The Delegation authorizes the spend; it does not supply the
 money. The two are independent — you can be inside your cap and still have an empty wallet.
 
@@ -206,7 +211,7 @@ Before the first payment of a run:
 
 1. `GET /api/v1/delegation/{id}` → `status: "Active"`, `remainingBudgetCents` covers what you plan
    to spend, `expiresAt` is comfortably ahead.
-2. `providerPaymentMethodId` read **from that response**, funded on the target network.
+2. `fundingWalletAddress` read **from that response** (`?withPayer=true`), funded on the target network.
 3. A `requestId` scheme that is stable per purchase (see `paying.md`).
 
 If any of these fails and you cannot fix it yourself, stop and report. Do not create a second
