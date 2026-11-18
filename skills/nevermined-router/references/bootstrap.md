@@ -143,8 +143,9 @@ You can list your Delegations with `GET /api/v1/delegation`, and a single Delega
 **`fundingWalletAddress` is the wallet address to fund**, and only `?withPayer=true` returns it.
 For a personal Delegation it is your own wallet, not `providerPaymentMethodId` (the smart-account
 address), which the Router never spends from; for an org-wallet Delegation the two are the same.
-`null` on a crypto Delegation means the wallet could not be resolved: retry, and do not fund a
-guess. Both rails **pull**: the
+`null` on a crypto Delegation means the wallet could not be resolved: read it again, and if it
+stays `null`, stop and report it to the human. Do not fund a guess, and never fund
+`providerPaymentMethodId` instead. Both rails **pull**: the
 merchant takes funds from that wallet. The Delegation authorizes the spend; it does not supply the
 money. The two are independent — you can be inside your cap and still have an empty wallet.
 
@@ -162,7 +163,8 @@ Decided by **what the merchant advertises**, not by which Nevermined environment
 | Rail | Networks | Assets |
 | --- | --- | --- |
 | **x402** | `base` (8453, **mainnet — real funds**), `base-sepolia` (84532, testnet) | `USDC`, `EURC` — 6 decimals |
-| **MPP** | Tempo mainnet (4217), Tempo Moderato testnet (42431) | Whatever the operator allowlisted for that chain |
+| **MPP** (`tempo` method) | Tempo mainnet (4217), Tempo Moderato testnet (42431) | Whatever the operator allowlisted for that chain |
+| **MPP** (`evm` method) | `base` (8453), `base-sepolia` (84532) | `USDC`, for an organization wallet only: a personal wallet pays over the service's x402 offer, or is refused `0001` when it has none |
 
 `base` moves real money. Read `settlement.network` on the response if you want certainty about what
 just happened.
@@ -209,7 +211,7 @@ allowlist is the first thing to check — the rails are configured independently
 
 Before the first payment of a run:
 
-1. `GET /api/v1/delegation/{id}` → `status: "Active"`, `remainingBudgetCents` covers what you plan
+1. `GET /api/v1/delegation/{id}?withPayer=true` → `status: "Active"`, `remainingBudgetCents` covers what you plan
    to spend, `expiresAt` is comfortably ahead.
 2. `fundingWalletAddress` read **from that response** (`?withPayer=true`), funded on the target network.
 3. A `requestId` scheme that is stable per purchase (see `paying.md`).

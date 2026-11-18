@@ -28,7 +28,8 @@ capped), relays the response and records the spend. You need no account with the
 no payment code.
 
 Every URL below is on the live deployment and spends real money. Each service also has its own
-skill file, with a runnable quote and call for every endpoint: `https://nevermined.app/catalog/<slug>/skill.md`.
+skill file, with the commands to quote and call each endpoint that can be called as listed (a free
+one gets the call alone): `https://nevermined.app/catalog/<slug>/skill.md`.
 
 ## When to use it
 
@@ -46,7 +47,8 @@ A human needs a Nevermined account at https://nevermined.app, once.
 This skill is for live: real merchants and real money, within the cap the human approves. To
 test first, the sandbox (testnet funds) takes a `sandbox:` key and its own hosts: the API at
 `https://api.sandbox.nevermined.app` (in place of `https://api.live.nevermined.app` in every URL below,
-and as `NVM_API_URL`) and the MCP at `https://mcp.sandbox.nevermined.app/mcp`. A key works only on the deployment
+and as `NVM_API_URL`) and the MCP at `https://mcp.sandbox.nevermined.app/mcp` (`https://mcp.api.sandbox.nevermined.app/mcp`
+for a host that signs in when it connects, such as Claude Code). A key works only on the deployment
 that issued it. The sandbox Router funds testnets only, so of its listings only the two free
 testnet test merchants can be paid there.
 
@@ -98,23 +100,24 @@ Creating your delegation authorizes spending, and each paid call (or Commerce MC
    file. `GET https://nevermined.app/catalog/ai-catalog.json` is the same catalog as JSON. Over MCP:
    `search_services`.
 2. **Inspect.** `GET https://nevermined.app/catalog/<slug>/skill.md`, or `https://nevermined.app/catalog/<slug>` with
-   `Accept: text/markdown`. It gives the service's rail and network, and for every endpoint its
-   method, `invokePath`, price, request schema, an example with its grade, a quote and a paid
-   call. Over MCP: `get_service`. In `ai-catalog.json` an endpoint without `invokePath` is
+   `Accept: text/markdown`. It gives the service's rail and network, and for each endpoint its
+   method, `invokePath`, price, request schema, an example with its grade, and its commands.
+   Over MCP: `get_service`. In `ai-catalog.json` an endpoint without `invokePath` is
    called at its `path`, and an empty `invokePath` appends nothing. An example's grade says how
    far it was checked:
    - `paid-run`: verified by a paid call.
    - `challenge`: the service accepted the request shape; the response is unverified.
    - `docs`: from the provider's documentation, unverified. Fill the request from the schema,
      and never guess a parameter name.
-3. **Quote, for free.** Price the exact request you will pay for:
+3. **Quote, for free.** Price the exact request you will pay for. Skip this for an endpoint whose
+   `access` is `free` or `free-after-purchase`: a quote runs it, so call it instead.
    ```bash
    curl -X POST https://api.live.nevermined.app/api/v1/router/quote \
      -H "Authorization: Bearer $NVM_API_KEY" \
      -H "Content-Type: application/json" \
      -d '{"slug":"<slug>","path":"<invokePath>","method":"POST","body":{}}'
    ```
-   Nothing is charged. Add `"search":"a=1&b=2"` for a query string. Read `upstreamStatus`. `402`: the service priced the request, and `fee.capChargedMicros` is what the call takes from your delegation, Router fee included (`capChargedCents` rounds it up to a whole cent). A `2xx`: the service asked no payment for this request, so there is nothing to pay; an endpoint the catalog lists as free returns its answer through `/svc`, any other only its status (the quote already ran it once). `401` or `403`: the service wants its own login, which the Router does not provide. `429` or a `5xx`: try later. Any other `4xx`: the request is wrong as it stands, so fix it before you pay.
+   Nothing is charged. Add `"search":"a=1&b=2"` for a query string. Read `upstreamStatus`. `402`: the service priced the request, and `fee.capChargedMicros` is what the call takes from your delegation, Router fee included (`capChargedCents` rounds it up to a whole cent). A `2xx`: the service asked no payment for this request. Unless the catalog lists the endpoint as free, the Router cannot return that answer: `/svc` relays only its status. `401` or `403`: the service wants its own login, which the Router does not provide. `429` or a `5xx`: try later. Any other `4xx`: the request is wrong as it stands, so fix it before you pay.
 4. **Pay.** Send the same request through `/router/svc` (below), with one
    `X-Router-Request-Id` per purchase.
 5. **Verify.** A paid reply carries `X-Router-Payment-Id` (`curl -i` shows it).
@@ -168,11 +171,14 @@ curl -s "https://api.live.nevermined.app/api/v1/delegation/$NVM_DELEGATION_ID?wi
 # fundingWalletAddress is the wallet to fund (not providerPaymentMethodId)
 ```
 
+If `fundingWalletAddress` is `null`, read it again. If it stays `null`, stop and report it to
+the human. Never fund `providerPaymentMethodId` instead.
+
 | Rail | Network | Fund the wallet with |
 | --- | --- | --- |
 | x402 | Base | USDC on Base |
 | MPP, `tempo` method | Tempo | the payment token the quote names (`settlement.asset`), on Tempo |
-| MPP, `evm` method | Base | USDC on Base |
+| MPP, `evm` method | Base | USDC on Base, for an organization wallet only: a personal wallet pays over the service's x402 offer, or is refused `0001` when it has none |
 
 - Both rails need a stablecoin (`erc4337`) delegation. Balances are per network: each service's
   skill file names its rail and network, so fund that one.
@@ -180,15 +186,15 @@ curl -s "https://api.live.nevermined.app/api/v1/delegation/$NVM_DELEGATION_ID?wi
   `402 BCK.ROUTER.0009` before anything is signed. An x402 payment is not checked and fails when
   the service settles it.
 - A deployment can leave the MPP rail off. If every MPP service is refused
-  `400 BCK.ROUTER.0001 … not allowlisted` while x402 pays, that is the deployment, not the
+  `400 BCK.ROUTER.0001` naming an allowlist while x402 pays, that is the deployment, not the
   service: pin `X-Router-Require-Protocol: x402` where the service offers x402.
 - The Router adds a 2% routing fee to each paid call, from the same delegation and as its own
   transfer from the same wallet. Size the cap and the balance to include it.
 - A quote whose `settlement.scheme` is `session` also states `sessionDeposit`: that deposit
   leaves the wallet at the first call, however small, so the wallet needs it too.
 - An empty wallet you cannot fund yourself is a stop: report it to the human.
-- **Credits.** Many services are also payable with a Nevermined subscription, in credits — an alternative to pay-per-call USDC. Credits are spent only through the Nevermined Commerce MCP (connected with a subscriber API key, or with a commerce OAuth connection that enabled Nevermined-credit spend at consent), or via POST /api/v1/router/subscription/route; a spending delegation always pays USDC, never credits. Credit prices are shown to subscribers only; subscribe or connect with a subscriber API key to see them. The prices here are the pay-per-call USDC prices. The streaming
-  `https://api.live.nevermined.app/api/v1/router/subscription/svc/<slug>/<invokePath>` spends them too, and
+- **Credits.** Many services are also payable with a Nevermined subscription, in credits — an alternative to pay-per-call USDC. Credits are spent only through the Nevermined Commerce MCP (connected with a subscriber API key, or with a commerce OAuth connection that enabled Nevermined-credit spend at consent), or via POST /api/v1/router/subscription/route or its streaming twin, the /api/v1/router/subscription/svc route; a spending delegation always pays USDC, never credits. Credit prices are shown to subscribers only; subscribe or connect with a subscriber API key to see them. The streaming route is
+  `https://api.live.nevermined.app/api/v1/router/subscription/svc/<slug>/<invokePath>`, and
   `POST https://api.live.nevermined.app/api/v1/router/subscription/quote`, with the body `/router/subscription/route` takes,
   prices a call in credits without charging.
 - **Welcome credits.** While the offer is open, a new account receives welcome credits.

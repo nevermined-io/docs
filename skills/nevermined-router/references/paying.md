@@ -348,11 +348,12 @@ path. Send the endpoint's method, query and body to the `invokePath` the catalog
 `Authorization`, `X-Router-Delegation-Id` and `X-Router-Request-Id`, and no `X-Router-Target-Slug`
 or `X-Router-Target-Url` header (either is refused `400 BCK.ROUTER.0001`). The `requestId` rule,
 the `202` and the retained result are [as for `/route`](#request-id). The response streams back
-as on [`/proxy`](#proxy), with one difference: `/svc` always pays a catalog service, so any
-answer that is not a delivered paid result, or a `2xx` from an endpoint the catalog lists as free,
-comes back as its status alone, with the body and headers withheld. A `4xx` then carries the typed
-`BCK.ROUTER.0019` body and a `5xx` the `0020` body; what to do after each is in those
-[`errors.md`](errors.md) rows.
+as on [`/proxy`](#proxy), with one difference: `/svc` always pays a catalog service, so the body
+and headers of any other answer are withheld. Only a delivered paid result, a `2xx` from an
+endpoint the catalog lists as free, and the paying wallet's free follow-up (such as a result poll)
+come back whole. A `4xx` other than `402` or `429` (or a `3xx`) carries the typed
+`BCK.ROUTER.0019` body, a `5xx` or a `429` the `0020` body, and a `402` comes back as its status
+alone; what to do after each is in those [`errors.md`](./errors.md) rows.
 
 ```bash
 REQUEST_ID="$(uuidgen)"   # one per purchase: set it once, and resend this same id on a retry
