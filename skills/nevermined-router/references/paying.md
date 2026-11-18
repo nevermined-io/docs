@@ -2,6 +2,8 @@
 
 Three ways to pay. **Default to mode B.** Reach for the others only when its shape does not fit.
 
+The [skill](../SKILL.md) pays through `/router/svc/<slug>/<invokePath>`, the streaming proxy addressed by catalog slug. This file covers every shape, including the `/route` envelope's `maxTotalCents`, the per-call price ceiling.
+
 | | Endpoint | Use when |
 | --- | --- | --- |
 | **Mode B — envelope** | `POST /api/v1/router/route` | Almost always. One call, JSON in, JSON out |

@@ -53,7 +53,8 @@ a spending cap, and the MCP pays from their wallet. There is no API key or deleg
   ```bash
   claude mcp add --transport http --scope user nevermined-catalog https://mcp.api.live.nevermined.app/mcp
   ```
-  Then run `/mcp` to sign in.
+  Then run `/mcp` to sign in. This host asks for sign-in as soon as you connect, which is when
+  Claude Code runs OAuth; on `https://mcp.live.nevermined.app/mcp` it connects without signing in.
 - claude.ai connectors, ChatGPT and other hosts: `https://mcp.live.nevermined.app/mcp`.
 
 Which host each assistant needs, and what the consent screen asks: https://nevermined.app/auth.md §6.
@@ -137,6 +138,11 @@ X-Router-Request-Id: <one id per purchase, reused on every retry>
 - In a shell, keep the key in double quotes: `-H "Authorization: Bearer $NVM_API_KEY"`. Single
   quotes send the literal text `$NVM_API_KEY`, and the call fails `401`.
 - `X-Router-Require-Protocol: x402` (or `mpp`) pins a service that offers both rails to one.
+- Never send `NVM_API_KEY` to a service directly: it goes to the Router only, which does not
+  forward `Authorization`.
+- `/svc` takes no per-call price ceiling: the delegation's cap and expiry bound what it can
+  spend, so keep the cap small. To refuse a call that costs more than its quote, pay through
+  `POST https://api.live.nevermined.app/api/v1/router/route` with `maxTotalCents` (https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/paying.md).
 - A refusal that names no paymentId (no X-Router-Payment-Id header, no paymentId in the error's params, no payment in a JSON reply) cost nothing: fix the request and resend.
 - Anything else (a 202, a 5xx such as 502 BCK.ROUTER.0034, or any answer that names a paymentId) may already have paid the merchant. Before doing anything else, look the purchase up: GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your X-Router-Request-Id>; "absent" means nothing is recorded, so resend with the same id. A 202 is still running: poll its Location and never buy it again. A paid call left Issued, or Failed with no response, is not proof of a charge either way, and its price can stay reserved against your cap. Retry the same purchase only with the same X-Router-Request-Id: the Router never pays one id twice.
 - Never create another delegation to get past a cap or budget refusal (402 BCK.ROUTER.0003): report it and stop.
