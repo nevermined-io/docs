@@ -74,6 +74,12 @@ def selftest():
     planted = "`staging_sandbox` and STAGING_LIVE at https://embed.nevermined.dev"
     assert leaks(planted) == ["staging_sandbox", "STAGING_LIVE", "nevermined.dev"], leaks(planted)
     assert leaks("{/* staging_live */} <!--\nnevermined.dev\n--> sandbox live nevermined.app") == []
+    # Scope, against real files: unpublished files that name staging stay out, published ones stay in.
+    files = set(published_files())
+    for unpublished in ("CLAUDE.md", ".mintlify/Assistant.md", "evaluation/IMPROVEMENTS.md"):
+        assert unpublished not in files, unpublished
+    for published in ("docs.json", "AGENTS.md", "products/catalog/mcp.mdx", *PENDING_SOURCE_FIX):
+        assert published in files, published
     print("selftest OK")
     return 0
 
