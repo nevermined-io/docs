@@ -102,7 +102,11 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     # Must exceed the publish step's TIMEOUT_MINUTES budget plus setup and one
-    # last upload, which the CLI retries for up to 3 x 2 minutes.
+    # last upload attempt. A responsive attempt takes seconds. The CLI uploads
+    # each file with its own requests and tries each request up to 3 times
+    # (15 s each, 2 min for a file body), so an attempt that hangs on every
+    # request can outlast this timeout. GitHub then stops the job, so the run
+    # is not green, and a green run still means the version is public.
     timeout-minutes: 45
     # Per-skill so the legs never queue behind each other, and a rerun of one
     # skill can't cancel an in-flight publish of another. It also holds the next
@@ -346,12 +350,15 @@ jobs:
               PUBLISHED=$(jq -r '.version' <<<"$OUT")
               LATEST=$(jq -r '.latestVersion // empty' <<<"$OUT")
               case "$RESULT" in
-                # CLI 0.22 reports an accepted (still held) upload as `published`.
-                # Later CLIs report `pending-publication` or `submitted`, so
-                # revisit this case with any CLI upgrade. check-cli.sh reads
-                # this case's arms and fails while the CLI declares a status
-                # that has no arm here.
-                published) break ;;
+                # An accepted upload. The CLI names it after the server's
+                # `publicationStatus`: `pending` (held for its scans) is
+                # `pending-publication`, `published` is `published`, and no
+                # status at all is `submitted`. All three take the same path:
+                # step 2 waits until the version is public, so none of them
+                # makes the run green on its own (nevermined-io/docs#655).
+                # check-cli.sh reads this case's arms and fails while the CLI
+                # declares a status that has no arm here.
+                published | pending-publication | submitted) break ;;
                 unchanged)
                   # The content matches SOME public version. Installs get it
                   # only if that version is the latest, which a revert breaks.
