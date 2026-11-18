@@ -42,7 +42,13 @@ skill file, with a runnable quote and call for every endpoint: `https://nevermin
 
 ## Set up
 
-A human needs a Nevermined account at https://nevermined.app, once. Then take one of two paths.
+A human needs a Nevermined account at https://nevermined.app, once.
+
+This skill is for live: real merchants and real money, within the cap the human approves. To
+test first, the sandbox (testnet funds) takes a `sandbox:` key and its own hosts,
+`https://api.sandbox.nevermined.app/api/v1` and `https://mcp.sandbox.nevermined.app/mcp`. A key works only on the deployment that issued it.
+
+Then take one of two paths.
 
 ### An assistant that speaks MCP
 
@@ -54,7 +60,8 @@ a spending cap, and the MCP pays from their wallet. There is no API key or deleg
   claude mcp add --transport http --scope user nevermined-catalog https://mcp.api.live.nevermined.app/mcp
   ```
   Then run `/mcp` to sign in. This host asks for sign-in as soon as you connect, which is when
-  Claude Code runs OAuth; on `https://mcp.live.nevermined.app/mcp` it connects without signing in.
+  Claude Code runs OAuth. With an API key instead, add `https://mcp.live.nevermined.app/mcp` with
+  `--header "Authorization: Bearer $NVM_API_KEY"`.
 - claude.ai connectors, ChatGPT and other hosts: `https://mcp.live.nevermined.app/mcp`.
 
 Which host each assistant needs, and what the consent screen asks: https://nevermined.app/auth.md §6.
@@ -143,8 +150,8 @@ X-Router-Request-Id: <one id per purchase, reused on every retry>
 - `/svc` takes no per-call price ceiling: the delegation's cap and expiry bound what it can
   spend, so keep the cap small. To refuse a call that costs more than its quote, pay through
   `POST https://api.live.nevermined.app/api/v1/router/route` with `maxTotalCents` (https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/paying.md).
-- A refusal that names no paymentId (no X-Router-Payment-Id header, no paymentId in the error's params, no payment in a JSON reply) cost nothing: fix the request and resend.
-- Anything else (a 202, a 5xx such as 502 BCK.ROUTER.0034, or any answer that names a paymentId) may already have paid the merchant. Before doing anything else, look the purchase up: GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your X-Router-Request-Id>; "absent" means nothing is recorded, so resend with the same id. A 202 is still running: poll its Location and never buy it again. A paid call left Issued, or Failed with no response, is not proof of a charge either way, and its price can stay reserved against your cap. Retry the same purchase only with the same X-Router-Request-Id: the Router never pays one id twice.
+- A 4xx refusal that names no paymentId (no X-Router-Payment-Id header, no paymentId in the error's params, no payment in a JSON reply) cost nothing: fix the request and resend.
+- Anything else (a 202, any 5xx such as 502 BCK.ROUTER.0034 or 0025, or any answer that names a paymentId) may already have paid the merchant. Before doing anything else, look the purchase up: GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your X-Router-Request-Id>; "absent" means nothing is recorded, so resend with the same id. A 202 is still running: poll its Location and never buy it again. A paid call left Issued, or Failed with no response, is not proof of a charge either way, and its price can stay reserved against your cap. Retry the same purchase only with the same X-Router-Request-Id: the Router never pays one id twice.
 - Never create another delegation to get past a cap or budget refusal (402 BCK.ROUTER.0003): report it and stop.
 
 ## Funding

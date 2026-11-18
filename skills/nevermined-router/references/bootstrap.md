@@ -90,7 +90,7 @@ behalf**; an API key authorises you to spend within a cap, not to enter agreemen
 who issued it. Calling that endpoint would also erase the only signal that the human never saw the
 new document. Report the 412, name the slugs in `outdated[]`, and stop.
 
-This is also why an agent that ran for weeks can fail at step ② one morning having changed nothing:
+This is also why an agent that ran for weeks can fail to create a delegation one morning having changed nothing:
 a document was updated on Nevermined's side.
 
 ### Recipient scope is optional, and unset means unrestricted

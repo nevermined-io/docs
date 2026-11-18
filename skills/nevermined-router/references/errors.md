@@ -250,6 +250,8 @@ check tripped. Common causes, in rough order:
 - **Wrong Delegation provider** — a card Delegation on a stablecoin rail or vice versa.
 - **MPP `splits`** — see below.
 - **Missing `delegationId`**, or a missing `X-Router-*` header on `/proxy`.
+- **A malformed `/svc` call**: an `X-Router-Target-Slug` (or `X-Router-Target-Url`) header on a
+  `/svc/<slug>/…` URL, or a subpath that still holds a placeholder such as `{id}`.
 
 Retrying does not help. Either fix the input or pick a different service.
 

@@ -6,11 +6,12 @@ The [skill](../SKILL.md) pays through `/router/svc/<slug>/<invokePath>`, the str
 
 | | Endpoint | Use when |
 | --- | --- | --- |
-| **Mode B — envelope** | `POST /api/v1/router/route` | Almost always. One call, JSON in, JSON out |
+| **Mode B — by slug** | `ALL /api/v1/router/svc/<slug>/<invokePath>` | A catalog service: what the skill uses. Headers in, the response streams back |
+| **Mode B — envelope** | `POST /api/v1/router/route` | JSON in, JSON out, or a per-call price ceiling (`maxTotalCents`) |
 | **Mode B — streaming** | `ALL /api/v1/router/proxy` | Large or streamed responses (SSE, downloads) |
 | **Mode A — credential** | `POST /api/v1/router/payments` | You must call the merchant yourself |
 
-All three need `Authorization: Bearer $NVM_API_KEY` and an `erc4337` `delegationId`.
+All of them need `Authorization: Bearer $NVM_API_KEY` and an `erc4337` `delegationId`.
 
 To learn what a mode-B call will cost before paying for it, [quote it](#quote) first.
 

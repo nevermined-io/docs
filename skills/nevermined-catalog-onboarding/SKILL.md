@@ -51,7 +51,7 @@ metadata:
 > **Skill version**: 1.1.1 | **Last updated**: 2026-11-13
 >
 > Companion to two existing skills — **`nevermined-payments`** (register an agent/plan,
-> get an API key) and **`nevermined-router`** (the full Router buy loop + error table).
+> get an API key) and **`nevermined-router`** (the Router buy loop; its full error table is `references/errors.md`).
 > This skill is the *catalog onboarding workflow*: it decides what to list, proves the
 > service works two ways, and gets it live. Reach for those two for the primitives it calls.
 
@@ -245,8 +245,8 @@ endpoint validates-before-charge with no manifest. Fix the URL (Phase 2 PATCH) o
 
 ## Phase 4 — E2E through the Router (can a buyer actually pay it?)
 
-The real product test. Full loop + the complete error table live in the **`nevermined-router`**
-skill; the onboarding-specific slice:
+The real product test. The full loop is in the **`nevermined-router`** skill and the complete
+error table in its `references/errors.md`; the onboarding-specific slice:
 
 ```bash
 # 1. Delegation (budget) — erc4337/usdc is required for the stablecoin rail
