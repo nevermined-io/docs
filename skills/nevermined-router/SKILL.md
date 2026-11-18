@@ -72,6 +72,7 @@ Which host each assistant needs, and what the consent screen asks: https://never
    over OAuth cannot create a delegation.
    ```bash
    export NVM_API_KEY="live:…"   # the whole key, prefix included
+   export NVM_API_URL="https://api.live.nevermined.app"   # the reference files' commands use it
    ```
 2. You create the delegation, your budget. No human is needed:
    ```bash

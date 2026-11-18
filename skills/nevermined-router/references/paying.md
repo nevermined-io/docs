@@ -340,6 +340,24 @@ commerce route gets `403 BCK.OAUTH.0033`.
 
 ---
 
+## Mode B by slug — `ALL /api/v1/router/svc/<slug>/<invokePath>`
+
+What the [skill](../SKILL.md) pays with: the streaming proxy below, addressed by catalog slug in the
+path. Send the endpoint's method, query and body to the `invokePath` the catalog lists, with
+`Authorization`, `X-Router-Delegation-Id` and `X-Router-Request-Id`, and no `X-Router-Target-Slug`
+or `X-Router-Target-Url` header (either is refused `400 BCK.ROUTER.0001`). Everything the next
+section says about the response, the `202`, the payment headers and retries applies unchanged.
+
+```bash
+REQUEST_ID="$(uuidgen)"   # one per purchase; reuse it on every retry
+curl -s -X POST "$NVM_API_URL/api/v1/router/svc/<slug>/<invokePath>" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "X-Router-Delegation-Id: $NVM_DELEGATION_ID" \
+  -H "X-Router-Request-Id: $REQUEST_ID" \
+  -H 'Content-Type: application/json' \
+  -d '{ … }'
+```
+
 ## Mode B streaming — `ALL /api/v1/router/proxy`
 
 Same engine, transparent transport: method, body and the standard request headers pass through and

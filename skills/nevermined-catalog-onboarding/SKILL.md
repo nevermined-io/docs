@@ -77,7 +77,7 @@ the claim flow, and credits: **`references/claim-and-credits.md`**.
 
 **Not for out-of-band SaaS** (Exa/Firecrawl/Tavily and friends): they bill monthly / by
 long-lived key and never quote a price on the wire (401/403, not 402). They cannot be
-routed. See `nevermined-router` → "This skill cannot help you with conventional SaaS APIs".
+routed. See `nevermined-router` → "When to use it": a `401`/`403` means authentication, not payment.
 
 ## Environment
 
