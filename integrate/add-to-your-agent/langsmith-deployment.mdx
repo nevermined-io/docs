@@ -199,7 +199,7 @@ The CLI buyer above is enough to validate the protocol, but most demos want a fa
 
 The flow:
 
-1. The user opens the chat and clicks **Authorize** on a top banner. A popup opens at `https://embed.<tier-host>/cards/setup?sessionToken=…&returnUrl=…/x402-callback&state=…` (e.g. `embed.nevermined.dev` for staging, `embed.nevermined.app` for production — the standalone embed app that replaced the webapp's removed `/embed/*` routes).
+1. The user opens the chat and clicks **Authorize** on a top banner. A popup opens at `https://embed.nevermined.app/cards/setup?sessionToken=…&returnUrl=…/x402-callback&state=…` (the standalone embed app that replaced the webapp's removed `/embed/*` routes, on both sandbox and live).
 2. They enrol a card on the embed page (Stripe, Braintree, or Visa Intelligent Commerce) and pick a budget — e.g. **$10 / 24 h** — then submit.
 3. Nevermined redirects the popup back to the chat UI's callback page with `paymentMethodId`, `delegationId`, and the round-tripped `state` nonce. The callback validates `state`, `postMessage`s the IDs to `window.opener`, then closes itself.
 4. The chat UI's Next.js server mints an x402 access token from the `delegationId` (`payments.x402.getX402AccessToken(planId, agentId, { delegationConfig: { delegationId } })`, pattern B in `@nevermined-io/payments`) and stores it in a `httpOnly` cookie. The browser never sees the raw token.
