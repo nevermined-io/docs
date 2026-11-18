@@ -101,8 +101,13 @@ jobs:
     # key depends on it (step "Require the payer check").
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    # Must exceed the publish step's TIMEOUT_MINUTES budget plus setup and one
-    # last upload, which the CLI retries for up to 3 x 2 minutes.
+    # Sized for the publish step's TIMEOUT_MINUTES budget, setup, a last upload
+    # attempt that gets answers (seconds) and the scan step's 3 minutes. It is
+    # not a bound on a hung attempt: the CLI uploads each file with its own
+    # requests and tries each one up to 3 times, with timeouts and backoff set
+    # in its http.js, so an attempt that hangs on every request can outlast
+    # this. GitHub then stops the job, so the run is not green, and a green run
+    # still means the version is public.
     timeout-minutes: 45
     # Per-skill so the legs never queue behind each other, and a rerun of one
     # skill can't cancel an in-flight publish of another. It also holds the next
@@ -346,12 +351,18 @@ jobs:
               PUBLISHED=$(jq -r '.version' <<<"$OUT")
               LATEST=$(jq -r '.latestVersion // empty' <<<"$OUT")
               case "$RESULT" in
-                # CLI 0.22 reports an accepted (still held) upload as `published`.
-                # Later CLIs report `pending-publication` or `submitted`, so
-                # revisit this case with any CLI upgrade. check-cli.sh reads
-                # this case's arms and fails while the CLI declares a status
-                # that has no arm here.
-                published) break ;;
+                # An accepted upload. The CLI names it after the server's
+                # `publicationStatus`: `pending` (held for its scans) is
+                # `pending-publication`, `published` is `published`, and no
+                # status at all is `submitted`. All three take the same path:
+                # step 2 waits until the version is public, so none of them
+                # makes the run green on its own (nevermined-io/docs#655). An
+                # accepted upload's status joins this `break` arm, never an arm
+                # that exits 0. check-cli.sh fails unless the statuses the CLI
+                # declares equal this case's arms (plus the dry run's
+                # `would-publish`): a missing arm and an extra one both fail.
+                # check-publish-step.sh runs this step against a mock ClawHub.
+                published | pending-publication | submitted) break ;;
                 unchanged)
                   # The content matches SOME public version. Installs get it
                   # only if that version is the latest, which a revert breaks.
@@ -374,7 +385,14 @@ jobs:
 
             TAKEN=$(grep -oE 'Version [0-9]+\.[0-9]+\.[0-9]+ already exists' "$ERR" | head -n 1 | cut -d' ' -f2) || TAKEN=''
             if [ -z "$TAKEN" ]; then
-              echo "::error::ClawHub skill publish failed (see output above)."
+              # ClawHub answers 409 when a publish fails after it used the
+              # upload tickets, and says the version may have been created.
+              # The CLI retries anyway, and only the retry's error is printed.
+              if grep -q 'upload ticket is missing, used, or expired' "$ERR"; then
+                echo "::error::ClawHub skill publish failed (see output above): a retried request found its upload tickets already used, so an earlier try may have created the version. Rerunning is safe: the next run finds that number taken and waits for it or skips it, and a run is green only once its version is public."
+              else
+                echo "::error::ClawHub skill publish failed (see output above)."
+              fi
               exit "$STATUS"
             fi
             read_publication "$TAKEN"
@@ -425,7 +443,10 @@ jobs:
           RC=0
           await_version "$PUBLISHED" || RC=$?
           if [ "$RC" -ne 0 ]; then
-            echo "::error::$SLUG@$PUBLISHED: $REASON."
+            # $RESULT is one of the accepted-upload arms above. A `submitted`
+            # upload may have no publication attempt at all, which REASON
+            # would otherwise blame on a secret-scan block.
+            echo "::error::$SLUG@$PUBLISHED (the CLI reported '$RESULT'): $REASON."
             exit 1
           fi
           echo "Published $OWNER/$SLUG@$PUBLISHED: https://clawhub.ai/$OWNER/skills/$SLUG"

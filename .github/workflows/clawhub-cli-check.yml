@@ -11,15 +11,20 @@ name: Check the locked ClawHub CLI
 #     still lists every command and option the publish passes, and its
 #     `skill publish --json` can report no status the publish step does not
 #     handle;
+#   - check-publish-step.sh: the publish step itself, read from the workflow,
+#     runs with this CLI against a local mock of the ClawHub API and a fake
+#     token, so what each status means and the error text the step greps are
+#     checked too (nevermined-io/docs#655);
 #   - check-age.sh: every locked package is at least 14 days old;
 #   - npm audit, as a warning only.
-# It never logs in and runs no publish, so a change in the server calls behind
-# an option shows only on the next real publish. Read a bump's changelog.
+# It never logs in and runs no real publish, so a change in the server calls
+# behind an option, or in what ClawHub answers, shows only on the next real
+# publish. Read a bump's changelog.
 #
 # It references no secret and must never be given one: it installs and runs
 # third-party code from a PR before anyone has merged it. Its clawhub calls
-# (--help, --cli-version) are offline; npm ci, npm view and npm audit reach the
-# npm registry.
+# are offline (--help, --cli-version) or go to the mock on 127.0.0.1 (the
+# publish step); npm ci, npm view and npm audit reach the npm registry.
 
 on:
   pull_request:
@@ -63,6 +68,10 @@ jobs:
       - name: Check the CLI still fits the publish workflow
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: tools/clawhub-cli/check-cli.sh
+
+      - name: Run the publish step against a mock ClawHub
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: tools/clawhub-cli/check-publish-step.sh
 
       # A red here does not block a merge: `main` has no required checks.
       - name: Check every locked package is at least 14 days old

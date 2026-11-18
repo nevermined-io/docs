@@ -65,10 +65,16 @@ done
 
 # The publish step reads `.status` from `clawhub skill publish --json`, and its
 # `case "$RESULT"` sends any value it has no arm for to `exit 1`, after the
-# upload has landed. clawhub 0.25 adds `pending-publication` and `submitted` for
-# an upload ClawHub holds. So the statuses the CLI declares must equal the arms
-# of that `case` (read from the workflow itself), plus `would-publish`, which
-# only the dry run reports. When a bump fails here, add the arms to the `case`.
+# upload has landed. clawhub 0.23.2 added `pending-publication` and `submitted`
+# for an accepted upload that 0.22 reported as `published`; this lock went from
+# 0.22.0 to 0.25.1 (docs#655). So the statuses the CLI declares must equal the
+# arms of that `case` (read from the workflow itself), plus `would-publish`,
+# which only the dry run reports: a missing arm and an extra one both fail.
+# This compares names only, not which arm a status is in or what it means;
+# check-publish-step.sh runs the step against a mock ClawHub for that. When a
+# bump fails here, read what the new status means in the CLI's publish.js, then
+# give it an arm in the `case`. An accepted upload's status joins the `break`
+# arm, never an arm that exits 0.
 WORKFLOW=../../.github/workflows/publish-skill-clawhub.yml
 DTS=node_modules/clawhub/dist/cli/commands/publish.d.ts
 words() { tr '|' '\n' | tr -d ' "' | grep -v '^$' | LC_ALL=C sort -u | xargs; }
