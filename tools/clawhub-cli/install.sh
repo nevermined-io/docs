@@ -43,8 +43,8 @@ fi
 #    another package's hash would install that package.
 npm ci --ignore-scripts --prefer-online --registry=https://registry.npmjs.org/ --replace-registry-host=never
 
-# 3. Link only `clawhub`. node_modules/.bin also holds other bins (clawdhub,
-#    semver, mime, json5, plugin-inspector), and none of them belongs on PATH.
+# 3. Link only `clawhub`. node_modules/.bin also holds the other packages'
+#    bins (clawdhub, semver, tsc and more), and none of them belongs on PATH.
 #    The link must lead into the clawhub package itself, not to whichever
 #    package claimed the bin name.
 #    readlink -e fails on a dangling link; pwd -P matches its physical path.
