@@ -110,14 +110,15 @@ Creating your delegation authorizes spending, and each paid call (or Commerce MC
    - `docs`: from the provider's documentation, unverified. Fill the request from the schema,
      and never guess a parameter name.
 3. **Quote, for free.** Price the exact request you will pay for. Skip this for an endpoint whose
-   `access` is `free` or `free-after-purchase`: a quote runs it, so call it instead.
+   `access` is `free` or `free-after-purchase`: a quote runs it, so call it instead (if the
+   service asks for payment anyway, the Router pays it, with no per-call ceiling).
    ```bash
    curl -X POST https://api.live.nevermined.app/api/v1/router/quote \
      -H "Authorization: Bearer $NVM_API_KEY" \
      -H "Content-Type: application/json" \
      -d '{"slug":"<slug>","path":"<invokePath>","method":"POST","body":{}}'
    ```
-   Nothing is charged. Add `"search":"a=1&b=2"` for a query string. Read `upstreamStatus`. `402`: the service priced the request, and `fee.capChargedMicros` is what the call takes from your delegation, Router fee included (`capChargedCents` rounds it up to a whole cent). A `2xx`: the service asked no payment for this request. Unless the catalog lists the endpoint as free, the Router cannot return that answer: `/svc` relays only its status. `401` or `403`: the service wants its own login, which the Router does not provide. `429` or a `5xx`: try later. Any other `4xx`: the request is wrong as it stands, so fix it before you pay.
+   Nothing is charged. Add `"search":"a=1&b=2"` for a query string. Read `upstreamStatus`. `402`: the service priced the request, and `fee.capChargedMicros` is what the call takes from your delegation, Router fee included (`capChargedCents` rounds it up to a whole cent). A `2xx`: the service asked no payment for this request, and the quote already ran it once, so there is nothing to pay and nothing more to read: unless the catalog lists the endpoint as free, `/svc` relays only its status. `401` or `403`: the service wants its own login, which the Router does not provide. `429` or a `5xx`: try later. Any other `4xx`: the request is wrong as it stands, so fix it before you pay.
 4. **Pay.** Send the same request through `/router/svc` (below), with one
    `X-Router-Request-Id` per purchase.
 5. **Verify.** A paid reply carries `X-Router-Payment-Id` (`curl -i` shows it).
