@@ -13,7 +13,9 @@
 #   - each accepted-upload status (`pending-publication`, `published`,
 #     `submitted`) is the one the CLI prints, and the step waits until the
 #     version is public before it ends green;
-#   - `unchanged` content that is the latest public version uploads nothing;
+#   - `unchanged` content that is the latest public version uploads nothing,
+#     and content that matches only an older version is published again;
+#   - a released version is not green until its public read answers 200;
 #   - a number held by a blocked version: the step's own grep reads the number
 #     out of the CLI's "Version X already exists" error, and the step skips it;
 #   - a version ClawHub blocks after the upload fails the step;
@@ -110,21 +112,42 @@ expect() {
   if [ -n "$want_status" ] && ! grep -qE "^ *\"status\": \"$want_status\"," <<<"$LOG"; then
     fail "$s: the CLI did not report status '$want_status'."
   fi
+  # No scenario is meant to run out of time: a step that only fails on its
+  # deadline would pass every exit-code check while its real logic is broken.
+  if grep -q 'still not public after' <<<"$LOG"; then
+    fail "$s: the step ran out of its time budget instead of settling."
+  fi
+}
+
+# expect_log <scenario> <fixed text>: the step's output must contain it.
+expect_log() {
+  if ! grep -qF -- "$2" <<<"$LOG"; then fail "$1: the step's output lacks '$2'."; fi
 }
 
 # Each accepted upload is green only once the version is public: the mock
-# answers the public read with 200 only after two `pending_checks` reads.
+# releases it after two `pending_checks` reads, and still answers its first
+# public read with 404.
 for pair in pending:pending-publication published:published submitted:submitted; do
   s=${pair%%:*}
   expect "$s" 0 1.0.1 "${pair#*:}"
-  if [ "$RC" = 0 ] && ! grep -q '^GET /api/v1/skills/probe/versions/1.0.1$' <<<"$REQUESTS"; then
-    fail "$s: the step ended green without reading the version's public state."
+  expect_log "$s" 'probe@1.0.1 is released but not publicly readable yet'
+  if [ "$RC" = 0 ] && [ "$(grep -c '^GET /api/v1/skills/probe/versions/1.0.1$' <<<"$REQUESTS")" -lt 2 ]; then
+    fail "$s: the step ended green before the version's public read answered 200."
   fi
 done
 
 expect unchanged 0 1.0.0 unchanged
-if grep -q '^POST /api/v1/skills ' <<<"$REQUESTS"; then
-  fail "unchanged: the step uploaded content that is already the latest public version."
+expect_log unchanged 'Nothing to publish.'
+if grep -qE '^POST /api/v1/skills |/publication$' <<<"$REQUESTS"; then
+  fail "unchanged: the step uploaded, or waited on, content that is already the latest public version."
+fi
+
+# The content matches only an older public version (a revert): installs get
+# the latest, so the step must publish this content again as the next version.
+expect revert 0 1.0.1 unchanged
+expect_log revert 'Publishing it as 1.0.1.'
+if ! grep -q '^POST /api/v1/skills version=1.0.1$' <<<"$REQUESTS"; then
+  fail "revert: the step did not publish the reverted content as 1.0.1."
 fi
 
 # 1.0.1 is taken by a blocked version. The step must read 1.0.1 out of the
@@ -135,11 +158,10 @@ if ! grep -q '^POST /api/v1/skills version=1.0.2$' <<<"$REQUESTS"; then
 fi
 
 expect blocked 1 '' pending-publication
+expect_log blocked "probe@1.0.1 (the CLI reported 'pending-publication'): ClawHub did not release it (stage: blocked)."
 
 expect orphan 1 '' submitted
-if ! grep -qF "probe@1.0.1 (the CLI reported 'submitted'):" <<<"$LOG"; then
-  fail "orphan: the step's error does not name the CLI's status."
-fi
+expect_log orphan "probe@1.0.1 (the CLI reported 'submitted'): ClawHub reports no live publication for it, 3 reads in a row"
 
 expect ticket 1 '' ''
 if ! grep -qF 'a retried request found its upload tickets already used' <<<"$LOG"; then
@@ -147,6 +169,6 @@ if ! grep -qF 'a retried request found its upload tickets already used' <<<"$LOG
 fi
 
 if [ "$FAILED" = 0 ]; then
-  echo "ok: the publish step handles pending-publication, published, submitted, unchanged, a held number, a blocked upload, an upload with no publication attempt and a used upload ticket"
+  echo "ok: the publish step handles pending-publication, published, submitted, unchanged, a revert, a held number, a blocked upload, an upload with no publication attempt and a used upload ticket"
 fi
 exit "$FAILED"

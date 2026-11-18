@@ -12,6 +12,8 @@
 //   published  the publish answers `publicationStatus: "published"`
 //   submitted  the publish answers with no publication status
 //   unchanged  /resolve reports that this content IS 1.0.0, the latest
+//   revert     /resolve reports that this content is 0.9.0, an older version,
+//              so the step must publish it again as 1.0.1
 //   held       1.0.1 is taken by a version ClawHub blocked: the publish of 1.0.1
 //              fails with ClawHub's own "already exists" text, and 1.0.2 goes
 //   blocked    the upload is accepted, and ClawHub then blocks it
@@ -19,13 +21,14 @@
 //              never shows a publication attempt for that version (404)
 //   ticket     the publish fails with ClawHub's used-upload-ticket error, as a
 //              CLI retry does after a 409 that came after the tickets were used
-// A version that is not blocked reads `pending_checks` twice, then `published`,
-// and only then answers the public read with 200.
+// A version that is not blocked reads `pending_checks` twice, then `published`.
+// Its first public read after that still answers 404 (released, not yet
+// readable), and only the next one answers 200.
 import { appendFileSync, writeFileSync } from "node:fs";
 import http from "node:http";
 
 const [scenario, portFile, logFile] = process.argv.slice(2);
-const SCENARIOS = ["pending", "published", "submitted", "unchanged", "held", "blocked", "orphan", "ticket"];
+const SCENARIOS = ["pending", "published", "submitted", "unchanged", "revert", "held", "blocked", "orphan", "ticket"];
 if (!SCENARIOS.includes(scenario) || !portFile || !logFile) {
   console.error(`usage: node mock-registry.mjs <${SCENARIOS.join("|")}> <port-file> <request-log>`);
   process.exit(2);
@@ -36,6 +39,7 @@ if (!SCENARIOS.includes(scenario) || !portFile || !logFile) {
 const alreadyExists = (v) => `Version ${v} already exists. Increment the version number and try again.`;
 const blockedVersion = (v) => scenario === "blocked" || (scenario === "held" && v === "1.0.1");
 const reads = new Map(); // version -> publication reads so far
+const publicReads = new Map(); // version -> public reads since it was released
 
 function stage(v) {
   if (blockedVersion(v)) return "blocked";
@@ -57,7 +61,7 @@ const server = http.createServer((req, res) => {
     try {
       if (url.pathname === "/api/v1/resolve") {
         return json(200, {
-          match: scenario === "unchanged" ? { version: "1.0.0" } : null,
+          match: { unchanged: { version: "1.0.0" }, revert: { version: "0.9.0" } }[scenario] ?? null,
           latestVersion: { version: "1.0.0" },
         });
       }
@@ -98,7 +102,9 @@ const server = http.createServer((req, res) => {
         });
       }
       if ((m = url.pathname.match(/^\/api\/v1\/skills\/[^/]+\/versions\/([^/]+)$/))) {
-        return stage(m[1]) === "published" ? json(200, { version: m[1] }) : json(404, { error: "not found" });
+        if (stage(m[1]) !== "published") return json(404, { error: "not found" });
+        publicReads.set(m[1], (publicReads.get(m[1]) ?? 0) + 1);
+        return publicReads.get(m[1]) > 1 ? json(200, { version: m[1] }) : json(404, { error: "not found" });
       }
       return json(404, { error: `not mocked: ${req.method} ${url.pathname}` });
     } finally {
