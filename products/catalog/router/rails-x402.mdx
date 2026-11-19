@@ -85,7 +85,7 @@ The `settlement.approxCents` field on every response tells you what the merchant
 
 The payment is a **pull**: your signature authorizes the merchant to take the amount from your own wallet. So the wallet must already hold that asset **on that chain** before you call.
 
-Get the address from your Delegation's `providerPaymentMethodId` — see [step 3 of the quickstart](/products/catalog/router/quickstart#3-fund-your-wallet).
+Fund your Delegation's `fundingWalletAddress`, which `GET /api/v1/delegation/{id}?withPayer=true` returns — not `providerPaymentMethodId`, the smart-account address the Router never spends from on a personal Delegation. `null` on a crypto Delegation means the wallet could not be resolved: read it again, and if it stays `null`, stop and report it to the human. See [step 3 of the quickstart](/products/catalog/router/quickstart#3-fund-your-wallet).
 
 <Warning>
 **On x402 the Router does not check your balance before signing.** A short wallet isn't refused up front: the credential is minted, your Delegation budget is reserved, and the shortfall only appears when the merchant attempts the transfer on-chain. The payment then lands as `Failed`, and the reserved **merchant leg** comes back only once the reconciler has confirmed the authorization expired **unconsumed** — it is kept for good only if the merchant did take the money. Until then your cap stays reserved. (`402 BCK.ROUTER.0009` is an [MPP-only](/products/catalog/router/rails-mpp#funding-your-wallet) error; this rail never raises it.)
