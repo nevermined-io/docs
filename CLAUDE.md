@@ -67,7 +67,7 @@ characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Old
   and `0024` to *More refusals*.
 - The file sits close to the 12,000 cap, so measure it after every edit, and check where the
   "Never widen" line ends: `t.find("\n", t.find("**Never widen"))` must stay below 6000. After
-  docs#667 it is 11,997 characters and that line ends at 5,622, so the next code added here must
+  docs#667 it is 11,992 characters and that line ends at 5,602, so the next code added here must
   shorten another bullet first.
   docs#639 fit `0049`, `0051` and `0052` by shortening the `0012`, `0041` and `0044`–`0047` bullets
   (every fact kept; the section header carries their retry verdict), and made room in the first
