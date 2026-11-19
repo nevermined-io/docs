@@ -74,7 +74,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.VERSION`](#bck-version) — 2 codes
 - [`BCK.VGS`](#bck-vgs) — 11 codes
 - [`BCK.VISA`](#bck-visa) — 29 codes
-- [`BCK.WALLET`](#bck-wallet) — 7 codes
+- [`BCK.WALLET`](#bck-wallet) — 9 codes
 - [`BCK.WELCOME_CREDITS`](#bck-welcome_credits) — 5 codes
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
@@ -1187,6 +1187,8 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-wallet-0005"></a>`BCK.WALLET.0005` | 502 | integration | ✅ | The transfer provider could not price or route this transfer | Privy (or the bridge behind it) rejected or failed the quote/transfer for a reason that is not the caller’s balance or input — no liquidity on the route, a provider outage, or a rejected authorization. Nothing was debited when a QUOTE fails; a failed TRANSFER may still have been submitted, so re-read the wallet balance before retrying rather than assuming it did not run. |
 | <a id="bck-wallet-0006"></a>`BCK.WALLET.0006` | 502 | integration | ❌ | The wallet provider request failed | The wallet provider failed a transfer quote, transfer or status read for a reason Nevermined could not classify (not a balance shortfall, which is BCK.WALLET.0004, nor a policy refusal, which is BCK.WALLET.0005). The provider's reply is in the server log for this error id and is never returned. A failed TRANSFER may still have been submitted, so re-read the wallet balance before retrying. |
 | <a id="bck-wallet-0007"></a>`BCK.WALLET.0007` | 400 | validation | ❌ | Invalid transfer id | The transfer id in the path must be the `id` returned by POST /api/v1/wallet/transfer: letters, digits, `_` and `-` only, at most 128 characters. |
+| <a id="bck-wallet-0008"></a>`BCK.WALLET.0008` | 409 | auth | ✅ | The wallet has not authorized Nevermined to sign for it | The Nevermined app grants this when the user signs in. Retry once sign-in has finished; if it keeps failing, sign out of the Nevermined app and sign in again to grant it. Nothing was moved. |
+| <a id="bck-wallet-0009"></a>`BCK.WALLET.0009` | 404 | business | ❌ | Transfer not found | No transfer with this id exists on the caller's wallet. Use the `id` returned by POST /api/v1/wallet/transfer. |
 
 ## <span id="bck-welcome_credits"></span>`BCK.WELCOME_CREDITS`
 
