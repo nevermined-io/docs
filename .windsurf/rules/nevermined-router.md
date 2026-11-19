@@ -103,7 +103,7 @@ the Delegation's `amountSpentCents`.
 - `BCK.ROUTER.0046` (400) — opt-in `validateRequestBody`: the body provably fails the endpoint's published request schema (`params.endpointPath`); nothing signed, reserved or charged; never without the flag. Applies on `/route`, `/commerce/route` (+ `/with-controls`), `/router/subscription/route` and MCP `pay_service`; not streaming `/proxy`·`/svc`. Fix the body (catalog `requestSchema`/`requestExample`, MCP `get_service`) or drop the flag.
 - `BCK.ROUTER.0047` (409) — `allowSessionPayments: false`, and the Router would pay over an MPP session (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged; never from `POST /router/payments` (`0041` there). Use a per-call service, or report to the human, who can deliberately drop a `requireProtocol: "mpp"` pin or create a delegation allowing sessions (OAuth app: reconnect in Nevermined with sessions allowed).
 - `BCK.ROUTER.0049` (422) — select: no payable match clears the relevance floor; nothing charged, even on autoPay. Rephrase or broaden `intent`, search the catalog, or pin `filters.require` (no floor).
-- `BCK.ROUTER.0053` (422) — select: close matches, none recorded as returning your `wantedMedia`; nothing charged, even on autoPay. Search, or pin `filters.require` (unchecked); name only media you need.
+- `BCK.ROUTER.0053` (422) — select: close matches, none recorded as returning your `wantedMedia`; nothing charged, even on autoPay. Search, or pin `filters.require` (no media check); name only media you need.
 
 ## Retryable refusals (backoff, same `requestId`)
 
