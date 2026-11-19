@@ -23,6 +23,7 @@ This document provides comprehensive guidelines for AI agents to write and maint
 - `development-guide/api-errors/codes.mdx` — mirrored from nvm-monorepo (`sync-errors-docs.yml`).
 - `development-guide/api-changelog.mdx` — mirrored from nvm-monorepo's version-gate registry (`sync-api-changelog-docs.yml`). Fix content at the source (`apps/api/src/api-versioning/registry.ts` gate descriptions) and let the sync regenerate it.
 - `api-reference/*` subtrees synced from payments / payments-py / cli / openclaw stay source-owned as before.
+- `skills/nevermined-router/SKILL.md` — the canonical buyer skill, regenerated on every nvm-monorepo `main` merge from the same source the catalog serves at https://nevermined.app/catalog/skill.md (`apps/catalog/src/lib/buyer-skill.ts`, written by `scripts/generate-buyer-skill.ts`, published by `sync-buyer-skill-docs.yml`). This copy adds the generator's marker line, and it can run ahead of the catalog's, which changes only on a production deploy. Edit it there. Mintlify publishes it as MDX, so the source keeps it MDX-safe: no `<tag>`, HTML comment or `{…}` outside code. Its `references/` files stay authored here. `.mintlify/skills/` links this skill and `nevermined-payments`, so the docs site's `/skill.md` is the index of both.
 
 `development-guide/api-versioning.mdx` is AUTHORED here (not generated) — edit it normally.
 

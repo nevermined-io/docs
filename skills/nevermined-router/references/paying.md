@@ -1,14 +1,17 @@
 # Paying — mode B, the streaming proxy, and mode A
 
-Three ways to pay. **Default to mode B.** Reach for the others only when its shape does not fit.
+Four ways to pay. **Default to mode B.** Reach for the others only when its shape does not fit.
+
+The [skill](../SKILL.md) pays through `/router/svc/<slug>/<invokePath>`, the streaming proxy addressed by catalog slug. This file covers every shape, including the `/route` envelope's `maxTotalCents`, the per-call price ceiling.
 
 | | Endpoint | Use when |
 | --- | --- | --- |
-| **Mode B — envelope** | `POST /api/v1/router/route` | Almost always. One call, JSON in, JSON out |
+| **Mode B — by slug** | `ALL /api/v1/router/svc/<slug>/<invokePath>` | A catalog service: what the skill uses. Headers in, the response streams back |
+| **Mode B — envelope** | `POST /api/v1/router/route` | JSON in, JSON out, or a per-call price ceiling (`maxTotalCents`) |
 | **Mode B — streaming** | `ALL /api/v1/router/proxy` | Large or streamed responses (SSE, downloads) |
 | **Mode A — credential** | `POST /api/v1/router/payments` | You must call the merchant yourself |
 
-All three need `Authorization: Bearer $NVM_API_KEY` and an `erc4337` `delegationId`.
+All of them need `Authorization: Bearer $NVM_API_KEY` and an `erc4337` `delegationId`.
 
 To learn what a mode-B call will cost before paying for it, [quote it](#quote) first.
 
@@ -228,6 +231,7 @@ and settles as its own leg, signed separately from the same buyer wallet. So the
 `settlement.amount` **plus** `fee.amount`, and the fee's settlement is tracked independently on the
 ledger (`feeStatus`, `feeTxHash`) rather than by the payment's own `status`. See `ledger.md`.
 
+<a id="request-id"></a>
 ### `requestId` — the rule that prevents double-spending
 
 Required on mode B **because the Router pays automatically**: a retry after a dropped connection
@@ -337,6 +341,31 @@ commerce route gets `403 BCK.OAUTH.0033`.
 
 ---
 
+## Mode B by slug — `ALL /api/v1/router/svc/<slug>/<invokePath>`
+
+What the [skill](../SKILL.md) pays with: the streaming proxy below, addressed by catalog slug in the
+path. Send the endpoint's method, query and body to the `invokePath` the catalog lists, with
+`Authorization`, `X-Router-Delegation-Id` and `X-Router-Request-Id`, and no `X-Router-Target-Slug`
+or `X-Router-Target-Url` header (either is refused `400 BCK.ROUTER.0001`). The `requestId` rule,
+the `202` and the retained result are [as for `/route`](#request-id). The response streams back
+as on [`/proxy`](#proxy), with one difference: `/svc` always pays a catalog service, so the body
+and headers of any other answer are withheld. Only a delivered paid result, a `2xx` from an
+endpoint the catalog lists as free, and the paying wallet's free follow-up (such as a result poll)
+come back whole. A `4xx` other than `402` or `429` (or a `3xx`) carries the typed
+`BCK.ROUTER.0019` body, a `5xx` or a `429` the `0020` body, and a `402` comes back as its status
+alone; what to do after each is in those [`errors.md`](./errors.md) rows.
+
+```bash
+REQUEST_ID="$(uuidgen)"   # one per purchase: set it once, and resend this same id on a retry
+curl -si -X POST "$NVM_API_URL/api/v1/router/svc/<slug>/<invokePath>" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "X-Router-Delegation-Id: $NVM_DELEGATION_ID" \
+  -H "X-Router-Request-Id: $REQUEST_ID" \
+  -H 'Content-Type: application/json' \
+  -d '{ … }'
+```
+
+<a id="proxy"></a>
 ## Mode B streaming — `ALL /api/v1/router/proxy`
 
 Same engine, transparent transport: method, body and the standard request headers pass through and

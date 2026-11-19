@@ -1,7 +1,7 @@
 ---
 name: nevermined-catalog-onboarding
-version: "1.1.1"
-lastUpdated: "2026-11-13"
+version: "1.1.2"
+lastUpdated: "2026-11-18"
 # Tool scope, read by NVIDIA SkillSpector, the scanner ClawHub runs (rule LP3;
 # see nevermined-io/docs#629). It describes the skill and grants nothing: no
 # host enforces it. Keep it top-level, where LP3 reads it. Do not turn it into
@@ -48,10 +48,10 @@ metadata:
 
 # Nevermined Catalog onboarding — enroll & validate an external x402 service
 
-> **Skill version**: 1.1.1 | **Last updated**: 2026-11-13
+> **Skill version**: 1.1.2 | **Last updated**: 2026-11-18
 >
 > Companion to two existing skills — **`nevermined-payments`** (register an agent/plan,
-> get an API key) and **`nevermined-router`** (the full Router buy loop + error table).
+> get an API key) and **`nevermined-router`** (the Router buy loop; its full error table is `nevermined-router/references/errors.md`).
 > This skill is the *catalog onboarding workflow*: it decides what to list, proves the
 > service works two ways, and gets it live. Reach for those two for the primitives it calls.
 
@@ -77,7 +77,7 @@ the claim flow, and credits: **`references/claim-and-credits.md`**.
 
 **Not for out-of-band SaaS** (Exa/Firecrawl/Tavily and friends): they bill monthly / by
 long-lived key and never quote a price on the wire (401/403, not 402). They cannot be
-routed. See `nevermined-router` → "This skill cannot help you with conventional SaaS APIs".
+routed. See `nevermined-router` → "When to use it": a `401`/`403` means authentication, not payment.
 
 ## Environment
 
@@ -245,8 +245,8 @@ endpoint validates-before-charge with no manifest. Fix the URL (Phase 2 PATCH) o
 
 ## Phase 4 — E2E through the Router (can a buyer actually pay it?)
 
-The real product test. Full loop + the complete error table live in the **`nevermined-router`**
-skill; the onboarding-specific slice:
+The real product test. The full loop is in the **`nevermined-router`** skill and the complete
+error table in `nevermined-router/references/errors.md`; the onboarding-specific slice:
 
 ```bash
 # 1. Delegation (budget) — erc4337/usdc is required for the stablecoin rail
@@ -336,5 +336,6 @@ Both flows with the exact API calls: **`references/claim-and-credits.md`**.
 | The raw-EOA EIP-3009 payer (runnable) + the direct 402→sign→pay flow | `references/direct-wallet-pay.md` |
 | Catalog publish/patch/mine DTOs, monitor promotion internals, moderation | `references/list-and-promote.md` |
 | Ownership (org-owned vs curated/ownerless), the claim flow, and when a listing is credit-payable | `references/claim-and-credits.md` |
-| The full Router buy loop, every error code, retry rules | the `nevermined-router` skill |
+| The Router buy loop | the `nevermined-router` skill |
+| Every error code and its retry rule | `nevermined-router/references/errors.md` |
 | Register an agent/plan, get an API key, card enrollment | the `nevermined-payments` skill |

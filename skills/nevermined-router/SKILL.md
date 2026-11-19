@@ -1,16 +1,11 @@
 ---
+# Generated from nevermined-io/nvm-monorepo apps/catalog/src/lib/buyer-skill.ts by scripts/generate-buyer-skill.ts. Edit it there: a change here is overwritten.
 name: nevermined-router
-version: "0.1.6"
-lastUpdated: "2026-11-13"
-description: >
-  Use when an AI agent needs to PAY an external service it does not have an account
-  with — any x402 agent or MPP merchant — using the Nevermined Router. Covers
-  discovering services in the Agent Services Catalog, creating a spending Delegation
-  from an API key, funding the buyer wallet, pricing a call first with
-  /api/v1/router/quote, making paid calls through /api/v1/router/route (or the
-  streaming /proxy), reading the payment ledger, and the
-  guardrails an autonomous buyer must respect. Complements the nevermined-payments
-  skill, which is about RECEIVING payments and buying Nevermined plans.
+description: >-
+  Use when an agent must pay for a call to an external AI service (data, search,
+  enrichment, inference, scraping) it has no account with. Finds the service in the
+  Nevermined Agent Services Catalog, prices the call for free, pays per call through
+  the Nevermined Router from a budget a human capped, and checks what was spent.
 metadata:
   openclaw:
     primaryEnv: NVM_API_KEY
@@ -20,340 +15,223 @@ metadata:
     envVars:
       - name: NVM_API_KEY
         required: true
-        description: >
-          Nevermined API key. Format `sandbox:...` for the sandbox environment,
-          `live:...` for production. Issued from https://nevermined.app under API
-          Keys. Must be a current-generation key — older keys are refused by the
-          Router with 403 BCK.ROUTER.0008.
+        description: >-
+          Nevermined API key, the whole string: live:... on production, sandbox:... on the
+          sandbox. A human creates it at https://nevermined.app under API Keys.
 ---
 
-# Nevermined Router — buy from any x402 or MPP service
+# Nevermined Catalog: buy AI services per call
 
-> **Skill version**: 0.1.6 | **Last updated**: 2026-11-13 | **Canonical source (always latest):** https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router
->
-> **⚠️ Use the latest version.** If you have a cached copy, check its **Last updated** date against the canonical source and refresh if older.
->
-> Human-readable twin of the Router documentation at https://nevermined.ai/docs/products/catalog/router/overview. Same facts, same error codes — if the two ever disagree, the docs site is authoritative and this skill has a bug.
+The Catalog lists paid AI services. You call one through the Nevermined Router. The Router
+answers the service's `402 Payment Required`, pays from your delegation (a budget a human
+capped), relays the response and records the spend. You need no account with the provider and
+no payment code.
 
-## What this is for
+Every URL below is on the live deployment and spends real money. Each service also has its own
+skill file, with the commands to quote and call each endpoint that can be called as listed (a free
+one gets the call alone): `https://nevermined.app/catalog/<slug>/skill.md`.
 
-You are an agent that needs something from a service you have **no account with, no API key for, and no billing relationship with**. The Router lets you pay it per request, from a budget a human capped in advance, and puts every spend on one ledger.
+## When to use it
 
-It works because a growing set of services quote their price **on the wire**: you call them, they answer `402 Payment Required` with what they want, you pay, you get the resource. The Router does the paying.
+- You need data or a capability that a cataloged service sells, and you have no account with
+  its provider.
+- You must stay within a budget a human set.
+- Not for a service that wants its own login: a `401` or `403` from the service means
+  authentication, not payment. Not for charging for your own agent: that is the
+  `nevermined-payments` skill.
 
-| | |
-| --- | --- |
-| **Use this skill when** | you need to buy a single call from an external x402 / MPP service |
-| **Use `nevermined-payments` instead when** | you are *charging* callers, or buying a Nevermined **plan** with credits |
+## Set up
 
-<a id="not-for"></a>
-**This skill cannot help you with conventional SaaS APIs.** Exa, Firecrawl, Tavily and similar are billed out of band — a monthly plan, a long-lived key. They never quote a price for one call, so there is nothing on the wire for the Router to pay and no address to pay it to. The Router isn't missing a feature; the transaction it performs does not exist for those services. If a service answers `401` or `403` rather than `402`, it wants **authentication**, not payment — stop, and tell the user it needs an account.
+A human needs a Nevermined account at https://nevermined.app, once.
 
-That is not a dead end, just a different rail. Nevermined can still buy from such a provider **out of band** — purchasing API credits up front instead of paying per call. Exa is the worked example: a $7 x402 card-delegation purchase provisions or tops up an Exa API key, fully agent-driven — https://nevermined.ai/docs/integrations/exa. That flow belongs to the `nevermined-payments` skill and the Payments SDK. What you cannot do is put those calls through `/router/route`.
+This skill is for live: real merchants and real money, within the cap the human approves. To
+test first, the sandbox (testnet funds) takes a `sandbox:` key and its own hosts: the API at
+`https://api.sandbox.nevermined.app` (in place of `https://api.live.nevermined.app` in every URL below,
+and as `NVM_API_URL`) and the MCP at `https://mcp.sandbox.nevermined.app/mcp` (`https://mcp.api.sandbox.nevermined.app/mcp`
+for a host that signs in when it connects, such as Claude Code). A key works only on the deployment
+that issued it. The sandbox Router funds testnets only, so of its listings only the two free
+testnet test merchants can be paid there.
 
-## The buy loop
+Then take one of two paths.
 
-Six steps. Steps 1–3 happen once; 4–6 repeat per purchase.
+### An assistant that speaks MCP
 
-```
-① API key  ──▶ ② Delegation (budget) ──▶ ③ Fund the buyer wallet
-                                              │
-                    ┌─────────────────────────┘
-                    ▼
-   ④ Discover a service ──▶ ⑤ POST /router/route ──▶ ⑥ Read the spend
-      (catalog)                (pays + relays)          (ledger)
-```
+Connect the Nevermined Commerce MCP. Your assistant runs OAuth: the human signs in and approves
+a spending cap, and the MCP pays from their wallet. There is no API key or delegation to create.
 
-Set your environment once:
+- Claude Code, and other CLIs that sign in when they connect:
+  ```bash
+  claude mcp add --transport http --scope user nevermined-catalog https://mcp.api.live.nevermined.app/mcp
+  ```
+  Then run `/mcp` to sign in. This host asks for sign-in as soon as you connect, which is when
+  Claude Code runs OAuth. With an API key instead, add `https://mcp.live.nevermined.app/mcp` with
+  `--header "Authorization: Bearer $NVM_API_KEY"`.
+- claude.ai connectors, ChatGPT and other hosts: `https://mcp.live.nevermined.app/mcp`.
 
-```bash
-export NVM_API_URL="https://api.sandbox.nevermined.app"   # live: https://api.live.nevermined.app
-export NVM_API_KEY="<your-api-key>"
-```
+Which host each assistant needs, and what the consent screen asks: https://nevermined.app/auth.md §6.
 
-Everything is plain HTTP with `Authorization: Bearer $NVM_API_KEY`. There is **no SDK for the Router yet** — that is deliberate here, because it means any agent in any language can drive it with an HTTP client. The one exception is the catalog, which is public and needs no key at all.
+### REST, with an API key
 
-<a id="rail-availability"></a>
-**The two rails are enabled independently per deployment, and the MPP rail is not on everywhere.** x402 (Base) is available by default. MPP's `tempo` method requires the operator to allowlist the payment token for that chain, and the allowlist is **fail-closed** — where it is unset, *every* MPP service paid over `tempo` is refused with `400 BCK.ROUTER.0001 … not allowlisted`, before anything is signed. That includes a service that also offers x402: the Router never falls back to x402 over its own configuration. An MPP service that offers only `method="evm"` (a stablecoin charge on Base) doesn't use that allowlist, but a personal Delegation can't pay it either: personal wallets on Nevermined are EIP-7702 smart accounts, and an `evm` charge needs a plain ECDSA signature. It is refused with `400 BCK.ROUTER.0001` before signing, or, on an unpinned `/route` or `/quote` call, moved to the service's x402 offer when it has one. Catalog credits can pay it.
-
-So **a service being in the catalog does not mean your deployment can pay it.** The catalog describes services; it says nothing about how the deployment you are pointed at is configured. If MPP services fail with `0001 … not allowlisted` while x402 services pay fine, the rail is off where you are — that is a deployment setting, not something you can fix from the client, not a fault in the merchant, and not a reason to retry or to go looking for a different Tempo-paid MPP service, which will fail identically. Ask the operator of your deployment, or, for a service that also offers x402, pin `requireProtocol: "x402"` (`protocol` is only a hint). See `references/errors.md`.
-
-**Never send `NVM_API_KEY` to the service you are paying.** It authenticates you to Nevermined and nothing else. If a merchant needs its own auth, pass it in `headers` (mode B) — see `references/paying.md`.
-
----
-
-## ① Get an API key — *needs a human once*
-
-Issued from the Nevermined app. If you were given one, use it.
-
-A key that predates the Router is refused with **`403 BCK.ROUTER.0008`**. The fix is to create a new key; newly issued keys work. Old keys keep working for credit-based flows, so nothing else needs rotating.
-
-## ② Create a Delegation — *fully programmatic*
-
-A **Delegation** is the budget: a hard cap in cents plus an expiry, enforced server-side on every single payment. Create it once, reuse the id.
-
-```bash
-curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
-  -H "Authorization: Bearer $NVM_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"provider":"erc4337","currency":"usdc","spendingLimitCents":500,"durationSecs":604800}'
-# → { "delegationId": "5e7481c3-e972-45bd-bdc5-a0b99c4de4a1" }
-```
-
-That is a $5.00 cap for 7 days. `provider: "erc4337"` is the crypto-funded Delegation both stablecoin rails require — a card-funded Delegation is refused on them.
-
-<a id="never-widen"></a>
-**You may create a Delegation. You must never widen one to get past a refusal.** The cap is the human's decision; a refusal is that decision taking effect. See [Guardrails](#guardrails).
-
-Two guards can refuse this call before your fields are read, and **neither is retryable**:
-
-- **`403 BCK.OAUTH.0030`** — the key was minted through an OAuth consent ceremony (`credits_purchase`, `account_access` or `commerce`) and may not create Delegations *or* use the paying routes. Use a plain API key issued by the account owner — or, if the key comes from a `commerce` grant, spend through `POST /api/v1/router/commerce/route` (and price a call through `POST /api/v1/router/commerce/quote`), which derive the Delegation from the grant instead of taking one from you.
-- **`412 {"error":"consent_required","outdated":[…]}`** — the account's legal-document consent has lapsed. ⚠️ Its only `code` is the generic **`BCK.HTTP.412`**, which names the status and not the cause, so branch on `body.error === "consent_required"` — the one place "branch on `code`" needs a second field. A human must accept; report it and stop.
-
-Full field list, recipient scoping, both guards in detail, and reading a Delegation's live state: `references/bootstrap.md`.
-
-## ③ Fund the buyer wallet — *may need a human*
-
-Both rails **pull**: the merchant takes funds from your own wallet. The Delegation authorizes the spend; it does not provide the money. Read the wallet address off the Delegation:
-
-```bash
-curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
-  -H "Authorization: Bearer $NVM_API_KEY"
-# → { "providerPaymentMethodId": "0x8F60b3838e6C121FcDBdBc50e7B150F8560a670E", ... }
-```
-
-`providerPaymentMethodId` is the address to fund, with the payment asset, **on the network you intend to pay on**.
-
-**Your deployment funds exactly one x402 network, fixed by its environment: sandbox → `base-sepolia`, live → `base`.** A merchant on the other chain is unpayable from where you are and fails with `400 BCK.ROUTER.0001 … no fundable option`, which reads like a broken service and is not. Check the environment before blaming the merchant — see `references/bootstrap.md`.
-
-**Always read this address back from the live Delegation — never from a value you cached.** Funding a stale address is the most common cause of an underfunded wallet. On MPP `tempo` that surfaces as `402 BCK.ROUTER.0009`, which deliberately does not echo the address it checked, so it cannot tell you that is what happened; x402 and MPP `evm` are not balance-checked, so there the payment fails at settlement instead.
-
-If the wallet is empty and you cannot fund it yourself, that is a **stop condition**: report it to the human. Do not retry.
-
-## ④ Discover a service
-
-The **Agent Services Catalog** is one public JSON feed — no API key, no query parameters. Fetch it and filter on your side:
-
-```bash
-curl -s https://nevermined.app/catalog/ai-catalog.json \
-  | jq '[.services[] | select(.protocol == "x402" and .category == "Search & Research")
-         | {slug, title, priceLabel, endpoints: [.endpoints[] | {method, path: (.invokePath // .path), description}]}]'
-```
-
-```json
-[
-  {
-    "slug": "superhighway",
-    "title": "Superhighway — Web Search for Agents",
-    "priceLabel": "$0.001",
-    "endpoints": [
-      { "method": "POST", "path": "/search", "description": "Web search" },
-      { "method": "POST", "path": "/news",   "description": "Real-time news search" },
-      { "method": "POST", "path": "/images", "description": "Image search" }
-    ]
-  }
-]
-```
-
-(An excerpt: the real result lists every match.) `/api/v1/catalog/services` and `/api/v1/catalog/categories` are **not a public API** — they return `403` by design. For server-side search, the Catalog MCP (`search_services`, `get_service`, `list_categories` at `https://mcp.live.nevermined.app/mcp`) is free and needs no key.
-
-Two rules that will otherwise cost you a wasted payment:
-
-1. **Only `protocol` of `x402` or `mpp` is payable through the Router.** Filter for them. Anything else in the catalog is listed for discovery, not for routing — see [above](#not-for).
-
-2. **Pay a listed service by its `slug`, never by URL.** The feed carries no merchant URL on purpose: the Router resolves it server-side and refuses a raw-URL payment to a cataloged host (`409 BCK.ROUTER.0014`). The subpath to send is the endpoint's `invokePath` when present — **even `""`, which means "append nothing"** — and its `path` otherwise:
-
-   ```js
-   const subpath = endpoint.invokePath ?? endpoint.path   // NOT `||`: '' must stay ''
-   // edgar-search: path '/edgar-search/search', invokePath '' → send ''. Sending the path double-stacks it and 404s after the charge.
+1. A human creates a plain API key in the app (https://nevermined.app/auth.md §3) and gives it to you. A key minted
+   over OAuth cannot create a delegation.
+   ```bash
+   export NVM_API_KEY="live:…"   # the whole key, prefix included
+   export NVM_API_URL="https://api.live.nevermined.app"   # the reference files' commands use it
    ```
+2. You create the delegation, your budget. No human is needed:
+   ```bash
+   curl -X POST https://api.live.nevermined.app/api/v1/delegation/create \
+     -H "Authorization: Bearer $NVM_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"provider":"erc4337","currency":"usdc","spendingLimitCents":500,"durationSecs":86400}'
+   export NVM_DELEGATION_ID="<delegationId from the reply>"
+   ```
+   Set `spendingLimitCents` to the budget the user gave you. It is your spending limit: every price, the Router fee and any retries come out of it. Reuse an
+   Active delegation (`GET https://api.live.nevermined.app/api/v1/delegation?accessible=true`) instead of creating one per call.
+   If creating the delegation is refused, stop and report the exact error to the user: 403 BCK.OAUTH.0030 means an OAuth-minted key (you need a plain one), 412 consent_required means the account must accept updated terms in the app, and 401 means an invalid or expired key.
+3. Fund the wallet the delegation spends from, on the network the service settles on (see
+   Funding).
 
-More filter recipes, categories, the Catalog MCP, and the ARD host document: `references/discovery.md`.
+Creating your delegation authorizes spending, and each paid call (or Commerce MCP pay_service tool use) spends real money — so your harness may pause for the operator to approve these before they run. That is expected, not a dead end: make the call and let the operator approve it rather than reporting the step as something only a human can do. Expect one approval per call; never turn your harness’s approvals off wholesale.
 
-**From API 1.55**, server-side selection (`POST /api/v1/router/select` and MCP `route_by_intent`)
-accepts exact opaque catalog slugs in `filters.require`, `filters.prefer` and `filters.exclude`.
-`require` is the strict control: the Router selects that slug or fails closed with
-`409 BCK.ROUTER.0031`; it never silently substitutes another service. `prefer` falls back to normal
-ranking when its slug is not payable, while `exclude` removes its slug from consideration.
-Selection also applies a relevance floor: it chooses a payable service only when its semantic score
-for your `intent` reaches the floor (a service not yet indexed for that score can win on a keyword
-match), and otherwise answers `422 BCK.ROUTER.0049`, with nothing charged even on autoPay. The
-floor applies to `prefer`; `require` is exempt. When nothing can be chosen because a close enough match is unhealthy or held by
-moderation right now, the answer is `409 BCK.ROUTER.0051`: retry later or search, rather than
-rephrase. While semantic ranking is unavailable no service has a score, so the floor applies to
-none, and an `autoPay` pick is refused with `503 BCK.ROUTER.0052` (nothing charged; a `require`
-pin is still paid): retry later, or select without autoPay and pay the pick by slug.
+## The workflow
 
-## ⑤ Make the paid call
+1. **Discover.** `GET https://nevermined.app/catalog/llms.txt` lists every service, each linked to its skill
+   file. `GET https://nevermined.app/catalog/ai-catalog.json` is the same catalog as JSON. Over MCP:
+   `search_services`.
+2. **Inspect.** `GET https://nevermined.app/catalog/<slug>/skill.md`, or `https://nevermined.app/catalog/<slug>` with
+   `Accept: text/markdown`. It gives the service's rail and network, and for each endpoint its
+   method, `invokePath`, price, request schema, an example with its grade, and its commands.
+   Over MCP: `get_service`. In `ai-catalog.json` an endpoint without `invokePath` is
+   called at its `path`, and an empty `invokePath` appends nothing. An example's grade says how
+   far it was checked:
+   - `paid-run`: verified by a paid call.
+   - `challenge`: the service accepted the request shape; the response is unverified.
+   - `docs`: from the provider's documentation, unverified. Fill the request from the schema,
+     and never guess a parameter name.
+3. **Quote, for free.** Price the exact request you will pay for. Skip this for an endpoint whose
+   `access` is `free` or `free-after-purchase`: a quote runs it, so call it instead (if the
+   service asks for payment anyway, the Router pays it, with no per-call ceiling).
+   ```bash
+   curl -X POST https://api.live.nevermined.app/api/v1/router/quote \
+     -H "Authorization: Bearer $NVM_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"slug":"<slug>","path":"<invokePath>","method":"POST","body":{}}'
+   ```
+   Nothing is charged. Add `"search":"a=1&b=2"` for a query string. Read `upstreamStatus`. `402`: the service priced the request, and `fee.capChargedMicros` is what the call takes from your delegation, Router fee included (`capChargedCents` rounds it up to a whole cent). A `2xx`: the service asked no payment for this request, and the quote already ran it once, so there is nothing to pay and nothing more to read: unless the catalog lists the endpoint as free, `/svc` relays only its status. `401` or `403`: the service wants its own login, which the Router does not provide. `429` or a `5xx`: try later. Any other `4xx`: the request is wrong as it stands, so fix it before you pay.
+4. **Pay.** Send the same request through `/router/svc` (below), with one
+   `X-Router-Request-Id` per purchase.
+5. **Verify.** A paid reply carries `X-Router-Payment-Id` (`curl -i` shows it).
+   `GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your request id>` finds the payment by your id. Judge
+   the result: if it is irrelevant, or the service keeps refusing the call, try the next matching
+   service within your budget.
 
-Hand the Router the request you want made. It probes the service, **auto-detects** the protocol from the 402, pays, and relays the answer — one call, and you never see the 402.
+## MCP
+
+The Commerce MCP offers the workflow as tools. `search_services` and `route_by_intent`
+discover. `get_service` inspects and `quote_service` prices a request, neither charging
+anything. `pay_service` pays and returns the result. `get_budget` and `list_payments` say
+what you can still spend and what you spent. Connected over OAuth, it pays within the cap the
+human approved. Connected with an API key (`Authorization: Bearer $NVM_API_KEY` on `https://mcp.live.nevermined.app/mcp`),
+it pays in the human's Nevermined credits where a service accepts them, and otherwise from a
+delegation, which `setup_delegation` creates. Documentation: https://nevermined.ai/docs/products/catalog/mcp.
+
+## REST: `/router/svc`
+
+```text
+<METHOD> https://api.live.nevermined.app/api/v1/router/svc/<slug>/<invokePath>[?query]
+Authorization: Bearer $NVM_API_KEY
+X-Router-Delegation-Id: $NVM_DELEGATION_ID
+X-Router-Request-Id: <one id per purchase, reused on every retry>
+```
+
+- Use the endpoint's method, its `invokePath`, and its query and JSON body. The Router forwards
+  them to the service.
+- Send no `X-Router-Target-Slug` header on a `/svc` URL: the Router refuses it
+  (`400 BCK.ROUTER.0001`).
+- In a shell, keep the key in double quotes: `-H "Authorization: Bearer $NVM_API_KEY"`. Single
+  quotes send the literal text `$NVM_API_KEY`, and the call fails `401`.
+- `X-Router-Require-Protocol: x402` (or `mpp`) pins a service that offers both rails to one.
+- Never send `NVM_API_KEY` to a service directly: it goes to the Router only, which does not
+  forward `Authorization`.
+- `/svc` takes no per-call price ceiling: the delegation's cap and expiry bound what it can
+  spend, so keep the cap small. To refuse a call that costs more than its quote, pay through
+  `POST https://api.live.nevermined.app/api/v1/router/route` with `maxTotalCents` (https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/paying.md).
+- A 4xx refusal that names no paymentId (no X-Router-Payment-Id header, no paymentId in the error's params, no payment in a JSON reply) cost nothing: fix the request and resend.
+- Anything else (a 202, any 5xx such as 502 BCK.ROUTER.0034 or 0025, or any answer that names a paymentId) may already have paid the merchant. Before doing anything else, look the purchase up: `GET https://api.live.nevermined.app/api/v1/router/payments?requestId=<your X-Router-Request-Id>`; "absent" means nothing is recorded, so resend with the same id. A 202 is still running: poll its Location and never buy it again. A paid call left Issued, or Failed with no response, is not proof of a charge either way, and its price can stay reserved against your cap. Retry the same purchase only with the same X-Router-Request-Id: the Router never pays one id twice.
+- Never create another delegation to get past a cap or budget refusal (402 BCK.ROUTER.0003): report it and stop.
+
+## Funding
+
+The service takes its payment from your own wallet. The delegation authorizes the spend; it
+does not provide the money. Read the address to fund off the delegation, every time (a cached
+address is the usual cause of an underfunded wallet):
 
 ```bash
-curl -sX POST "$NVM_API_URL/api/v1/router/route" \
-  -H "Authorization: Bearer $NVM_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "delegationId": "'"$NVM_DELEGATION_ID"'",
-    "slug": "superhighway",
-    "path": "/search",
-    "method": "POST",
-    "body": { "query": "nevermined router" },
-    "requestId": "search-nevermined-router-v1"
-  }'
+curl -s "https://api.live.nevermined.app/api/v1/delegation/$NVM_DELEGATION_ID?withPayer=true" -H "Authorization: Bearer $NVM_API_KEY"
+# fundingWalletAddress is the wallet to fund (not providerPaymentMethodId)
 ```
 
-A cataloged service is addressed by `slug` + `path` (the endpoint's `invokePath ?? path`). Send an absolute `url` instead only for an off-catalog x402 / MPP service.
+If `fundingWalletAddress` is `null`, read it again. If it stays `null`, stop and report it to
+the human. Never fund `providerPaymentMethodId` instead.
 
-```json
-{
-  "status": 200,
-  "body": { "…": "the paid resource" },
-  "paid": true,
-  "payment": {
-    "paymentId": "b1f9c2e4-…",
-    "settlement": { "amount": "1000", "asset": "USDC", "network": "base", "approxCents": "1" },
-    "fee": { "bps": 0, "amount": "0", "cents": "0", "capChargedCents": "1" },
-    "txHash": "0xfc8af37b…",
-    "status": "Settled"
-  }
-}
-```
+| Rail | Network | Fund the wallet with |
+| --- | --- | --- |
+| x402 | Base | USDC on Base |
+| MPP, `tempo` method | Tempo | the payment token the quote names (`settlement.asset`), on Tempo |
+| MPP, `evm` method | Base | USDC on Base, for an organization wallet only: a personal wallet pays over the service's x402 offer, or is refused `0001` when it has none |
 
-`status` and `body` are the merchant's own, unchanged. `paid: false` with no `payment` block means nothing was charged. For a catalog `slug`, the body of a free answer is withheld (`null`), except when you poll the result of an async job you already paid for through the same slug — including a wallet-authenticated (`auth: "siwx"`) result, which the Router signs for with your own wallet: see "Async services" in `references/paying.md`.
+- Both rails need a stablecoin (`erc4337`) delegation. Balances are per network: each service's
+  skill file names its rail and network, so fund that one.
+- Only an MPP payment on Tempo checks the balance first: short, it is refused
+  `402 BCK.ROUTER.0009` before anything is signed. An x402 payment is not checked and fails when
+  the service settles it.
+- A deployment can leave the MPP rail off. If every MPP service is refused
+  `400 BCK.ROUTER.0001` naming an allowlist while x402 pays, that is the deployment, not the
+  service: pin `X-Router-Require-Protocol: x402` where the service offers x402.
+- The Router adds a 2% routing fee to each paid call, from the same delegation and as its own
+  transfer from the same wallet. Size the cap and the balance to include it.
+- A quote whose `settlement.scheme` is `session` also states `sessionDeposit`: that deposit
+  leaves the wallet at the first call, however small, so the wallet needs it too.
+- An empty wallet you cannot fund yourself is a stop: report it to the human.
+- **Credits.** Many services are also payable with a Nevermined subscription, in credits — an alternative to pay-per-call USDC. Credits are spent only through the Nevermined Commerce MCP (connected with a subscriber API key, or with a commerce OAuth connection that enabled Nevermined-credit spend at consent), or via POST /api/v1/router/subscription/route or its streaming twin, the /api/v1/router/subscription/svc route; a spending delegation always pays USDC, never credits. Credit prices are shown to subscribers only; subscribe or connect with a subscriber API key to see them. The streaming route is
+  `https://api.live.nevermined.app/api/v1/router/subscription/svc/<slug>/<invokePath>`, and
+  `POST https://api.live.nevermined.app/api/v1/router/subscription/quote`, with the body `/router/subscription/route` takes,
+  prices a call in credits without charging.
+- **Welcome credits.** While the offer is open, a new account receives welcome credits.
+  `GET https://api.live.nevermined.app/api/v1/credits/welcome/offer` (no key) says how many, and for how long. They are spent the
+  same way as subscription credits.
 
-<a id="fee"></a>
-**`settlement.approxCents` is the merchant leg, not your bill.** Nevermined charges a routing fee on top, disclosed in the **always-present `fee` object** (zeroed when no fee applied, so never branch on its absence): `fee.capChargedCents` is what this call **reserved** against your Delegation cap — `settlement.approxCents + fee.cents`. Sum `capChargedCents`, not `approxCents`, or your accounting drifts by exactly the fee.
+## Errors
 
-⚠️ It is the **reserve at mint**, not the final figure: if a mode-B hop does not return `2xx` the fee half is given back (the merchant leg stays charged), so a running total over-reports on those calls. **`GET /api/v1/delegation/{id}` is the authority on what you have actually spent** — reconcile against `amountSpentCents` rather than your own sum. Full field list: `references/paying.md`.
+These six are the refusals a buyer meets. Retry says whether resending the same request can work.
 
-<a id="requestid"></a>
-**`requestId` is required, and it is an idempotency key — not a request counter.** Use **one stable id per logical purchase** and reuse it across retries of that purchase. Retrying a dropped call with the same id returns `409 BCK.ROUTER.0002` carrying the original `paymentId` — **not the resource** — instead of buying twice; a fresh id buys twice, on purpose. **Never answer that 409 by minting a fresh id**: that is the double-spend the key just prevented. If the purchase genuinely failed, report it. Derive it from the work you are doing (`"search-nevermined-router-v1"`), not from `uuid4()` per HTTP attempt — a fresh UUID on every retry is how an agent double-spends.
-
-<a id="pending"></a>
-**From API version 1.48** (a key pinned at or above it — new keys are pinned to the current version), a slow service no longer holds your connection. If it has not answered within **45 s**, `/route` answers `202 { paymentId, resultUrl, status: "Pending" }` (`/router/proxy` · `/router/svc`: `202` with `Location` and `X-Router-Payment-Id`, and only before the service starts responding). **The payment is made**; the call keeps running on the Router (up to its 120 s ceiling) and its fee is collected on a `2xx` or released otherwise, exactly as if you had waited. **Poll `GET $NVM_API_URL{resultUrl}`** with the same key: `202` while `Pending`, then `200` with `state: "Ready"` (`status` + `body`, as `/route` would have returned them) or `state: "Failed"` (`failureReason`), and `404 BCK.ROUTER.0030` once it has expired. To save the body itself (audio, images, PDFs) rather than base64 in JSON, `GET $NVM_API_URL{resultUrl}/content` with the same key: the bytes with the service's content type, `204` when there is none, `202` while `Pending`, `409 BCK.ROUTER.0050` when the result `Failed`. Read the service's status from `X-Upstream-Status`, never from the download's `200`/`204`. **Never pay again for a `202`.** Every paid result is kept for 24 h after the call ends, for the paying account only — a paid `/route` response carries it as `payment.resultUrl` — except a `/proxy` · `/svc` response that already streamed to you. A same-`requestId` retry returns that `202`, then the retained result, instead of the 409 — on `/proxy` · `/svc` too, when the first call answered `202`. It still gets the 409 when nothing was kept (a `/proxy` · `/svc` response that already streamed to you), when the first call `Failed`, or when the id was reused for a different target. Older keys keep waiting and get the 409, though their results are kept too. Either way, keep the same id.
-
-<a id="quote"></a>
-**Price it first: `POST /api/v1/router/quote`** (deployments on API 1.48 or later). Send the same body as `/route` minus `requestId`, `maxTotalCents` and `protocol`, which are stripped rather than refused (`delegationId` stays optional). The Router makes the same unpaid request to the service that a payment would, selects the option a payment would select, prices it with the routing fee — and stops. **Nothing is signed, minted, recorded or reserved.** It answers `200` with `paymentRequired`, `optionSet`, `protocol` and the same `settlement` and `fee` objects `/route` returns. Then route with `maxTotalCents` set to the quote's `fee.capChargedCents`, so a price that rose in between is refused (`402 BCK.ROUTER.0018`) instead of paid.
-
-**From API 1.55**, a payment-required quote also returns a short-lived opaque `quoteId` and
-`expiresAt` **60 seconds** later. Pass that `quoteId` to `/route` with the exact quoted target,
-method, headers, body, credential header and Delegation. It pays the sealed merchant challenge at
-the exact fee-inclusive amount without accepting a changed call; keep `maxTotalCents` too as an
-independent ceiling. An invalid/wrong-account id is `0029`, an expired id is `0032`, and any request,
-Delegation, rail or amount mismatch is `0033` — all before a charge. Re-quote when the call changes
-or the id expires. Clients pinned below 1.55 receive no `quoteId`/`expiresAt` and retain the legacy
-re-probe-plus-ceiling flow.
-
-- **It is not free of side effects.** The request really reaches the service, so a service that does not charge for it performs it — take care quoting a method with side effects. And a quote spends the same per-key and per-service rate budgets as a payment: **quote once per decision, don't poll.**
-- `fee.capChargedCents` is whole cents rounded **up** from `fee.capChargedMicros` (exact, in 1/10,000 of a cent), and it is the figure `maxTotalCents` is compared against. The ceiling has whole-cent resolution, so any price up to that whole cent is still paid: a 2.04¢ quote paid with `maxTotalCents: 3` accepts up to 3.00¢.
-- `optionSet: "delegation"` means the `delegationId` you sent was priced (a card Delegation pays over MPP-stripe, an organization-wallet Delegation pays in its own currency, a recipient allowlist is enforced); `"deployment"` means you sent none, so this is what a personal crypto Delegation would select. `paymentRequired: false` means the service did not ask for payment; `upstreamStatus` is its answer, and its body is never returned.
-- A quote checks neither your remaining cap nor your wallet balance. The payment checks the cap, and the balance only on MPP `tempo`: x402 and MPP `evm` are never balance-checked. `503 BCK.ROUTER.0028` (a read the price depends on failed) is retryable with backoff.
-- **With an OAuth `commerce` credential**, quote on `POST /api/v1/router/commerce/quote` instead (it ships in the first API release after 1.49; until your deployment has it, the route answers `404`, so bound the price with `maxTotalCents` alone): same body and answer, but it prices the Delegation the grant is pinned to, so sending a `delegationId` is refused (`400 BCK.OAUTH.0034`). Then pay on `/router/commerce/route`.
-
-Mode A (you call the merchant yourself), the streaming `/proxy` variant, and passing the merchant's own auth: `references/paying.md`.
-
-## ⑥ Read what you spent
-
-```bash
-curl -s "$NVM_API_URL/api/v1/router/payments?delegationId=$NVM_DELEGATION_ID" \
-  -H "Authorization: Bearer $NVM_API_KEY"
-```
-
-Every payment, every protocol, one ledger. Filters, CSV export, and the aggregate summary: `references/ledger.md`.
-
----
-
-<a id="guardrails"></a>
-## Guardrails — read this before writing a retry loop
-
-The Router signs payments from your wallet in response to instructions written by a merchant nobody vetted. It is deliberately suspicious, and **a refusal is the system working**.
-
-**Four rules for an agent that spends without a human watching:**
-
-1. **`402 BCK.ROUTER.0003` (over cap / expired) and `402 BCK.ROUTER.0009` (wallet short) are stop conditions.** They mean "out of budget" and "out of money". Report them to the human. Do not route around them.
-2. **Never widen a Delegation, and never create a second one, in response to a refusal.** The cap is the user's decision, not a runtime obstacle. Creating a fresh Delegation to escape an exhausted one defeats the entire mechanism — it is the single worst thing you can do with this API.
-3. **One `requestId` per purchase**, reused across retries of that purchase. See [above](#requestid).
-4. **Retry only the codes the table below marks retryable: `0006` (500, summary read), `0007` (429), `0020` (an upstream 5xx/429), `0022` (500, required capability unavailable; retry only after operator repair), `0028` (503, quote), `0042` (409, a closing payment channel), `0043` (503, a busy payment channel), `0048` (503, Privy did not answer when the Router read the wallet's key), `0051` (409, the closest catalog match is unavailable right now), `0052` (503, autoPay while semantic ranking is unavailable), `BCK.X402.0052` (503, the wallet's upgrade did not complete) and `BCK.USER_PROFILE.0006` (503, the wallet-ownership check got no answer).** On the paying path that means `0007`, `0020`, `0042`, `0043`, `0048`, `0051`, `0052`, `BCK.X402.0052` and `BCK.USER_PROFILE.0006`. Everything else is a decision, and retrying it unchanged produces the same answer. Back off on `0007` (too many routed calls in flight) and on `0020` (the upstream service errored or throttled). **The HTTP status does not tell you whether to retry** — `0010` is a 500 you must not retry and `0011` is a 402 you must not retry. Read the code, not the status.
-
-**Check the price before you commit.** `priceLabel` in the catalog is indicative — [quote the call](#quote) for its live, fee-inclusive price; on the response, `settlement.approxCents` is what the **merchant** charged and [`fee.capChargedCents`](#fee) is what your **cap** reserved — they differ whenever a routing fee applies. Budget is debited in whole cents rounded up, so a run of sub-cent calls still burns a cent each. For spend to date, read the Delegation, not a sum of responses.
-
-**Delegations expire silently.** A long-running agent that worked yesterday and fails today with `0003` has very often just aged out — check `expiresAt` before assuming anything is broken.
-
-| Code | Status | Meaning | Retry? |
+| Code | Status | What happened | Retry? |
 | --- | --- | --- | --- |
-| `BCK.ROUTER.0001` | 400 | Bad input: unsupported protocol, malformed/empty challenge, no fundable option, recipient outside the Delegation's scope, non-allowlisted asset, wrong-provider Delegation, missing `delegationId`. `details` names the specific problem. Identity consent requires a plain key, HTTPS slug target, seller opt-in and supported direct route. OAuth credentials get `403 BCK.OAUTH.0030` on `/route`, `/route/with-controls`, `/proxy` and `/svc` before consent checks; consent on commerce routes gets this `0001`. Select refuses the field whenever present, even false or null, once past authentication guards. | No |
-| `BCK.ROUTER.0002` | 409 | This `requestId` already minted a payment. The original `paymentId` is in the response — usually what you wanted. | No |
-| `BCK.ROUTER.0003` | 402 | Delegation over cap, expired, exhausted, or revoked. | No — **stop** |
-| `BCK.ROUTER.0004` | 404 | No Router payment with that id belongs to you. | No |
-| `BCK.ROUTER.0005` | 409 | Payment not in a settleable state. Only `Issued` can be marked `Settled`. | No |
-| `BCK.ROUTER.0006` | 500 | Transient failure building the payments summary. | **Yes** |
-| `BCK.ROUTER.0007` | 429 | Too many concurrent routed requests in flight. | **Yes**, after backoff |
-| `BCK.ROUTER.0008` | 403 | Legacy API key. Create a new one. | No |
-| `BCK.ROUTER.0009` | 402 | An MPP `tempo` payment (a charge, or a session's deposit or top-up): the wallet doesn't hold enough of the payment token on that Tempo chain; or, on the card rail (MPP-stripe), the issuer declined the card. Nothing was signed. x402 and an MPP `evm` charge are never balance-checked and never answer this: a short wallet still gets its credential, and the payment fails when the merchant settles it. | No — **stop** |
-| `BCK.ROUTER.0010` | 500 | Internal: the rail reported a charge amount the Router can't reserve against the cap. | No — **never blind-retry** |
-| `BCK.ROUTER.0011` | 402 | Card rail: the charge needs cardholder 3-D Secure, and an agent has no browser to complete it. Nothing was charged and the seller got no usable credential. | No — **needs a human** |
-| `BCK.ROUTER.0012` | 400 | The seller's 402 advertises an EIP-712 domain its own settlement token does not sign under, so the Router refuses to sign. Nothing signed, charged or reserved — an authorization under the wrong domain is unspendable anyway. Seller-side bug | No — **report it, pay elsewhere** |
-| `BCK.ROUTER.0013` | 500 | Nevermined holds no EIP-712 signing domain for the token the funding filter selected — a gap in OUR canonical table, not the seller's bug and not your request. Nothing signed, charged or reserved | No — **report it to Nevermined** |
-| `BCK.ROUTER.0014` | 409 | The target is a cataloged Nevermined service, whose upstream URL is deliberately hidden. The Router refuses to pay it by raw URL — mode A and a raw mode-B target both put the merchant's host on your wire, defeating the broker. The match is by HOST, so a co-hosted endpoint that is not itself listed is refused too — ask the vendor to list it, or contact Nevermined; hosts with no cataloged service are unaffected. | No — **use the slug**: `POST /router/route` with a `slug`, or `POST /router/svc/<catalog-slug>` (a `commerce` grant: `POST /router/commerce/route` with a `slug`). A refused **quote** is re-quoted by slug — `POST /router/quote`, or `/router/commerce/quote` for a grant — never paid |
-| `BCK.ROUTER.0018` | 402 | Per-call `maxTotalCents` is below the fee-inclusive, whole-cent cap reserve. No charge or cap reserve, though signing may already have occurred; parse JSON-string `params` for `requiredTotalCents`. | No — raise the ceiling only if this call is intended; reuse the same `requestId` |
-| `BCK.ROUTER.0019` | 400 | Streaming surfaces only (`/proxy` · `/svc`; `/route` returns the envelope status with `body: null`). A cataloged service returned a **non-retryable** status — a 4xx client error, or a rare 3xx the Router does not follow (a 402 re-challenge and a 429 are **not** this code). The upstream body is withheld (it can name the merchant host); this typed body preserves the **real** upstream status (on the HTTP status line and in JSON-string `params`). Build a valid request from the service's Catalog detail (`requestExample` / `responseFields`). | No — **fix the request first**, then retry with a fresh `requestId` |
-| `BCK.ROUTER.0020` | 502 | Streaming surfaces only (`/proxy` · `/svc`; `/route` returns the envelope status with `body: null`). A cataloged service returned a server error (5xx) or rate-limited (429) — an upstream/transient condition, not your request. Body **and** headers are withheld (host oracle, including `Retry-After`); this typed body preserves the **real** status. The Router charges **no routing fee** for an undelivered call; whether the merchant leg itself charged is reported as `merchantSettlementObservedAt` (recorded by on-chain reconciliation on x402, MPP `evm` and MPP-tempo; `null` on a clean per-call settlement, whenever reconciliation has no verdict, and always on MPP-stripe, so `null` is not proof of no charge; read alongside `status`) on `GET /api/v1/router/payments`. | **Yes**, with backoff — reuse the same `requestId` only if no `X-Router-Payment-Id` came back; if one did, a payment is already recorded, so use a NEW id and reconcile via `GET /router/payments` |
-| `BCK.ROUTER.0021` | 400 | The rail this service advertised carries its payment credential in a header you are **already using**. On the MPP rails that header is `Authorization`, which is also where your own merchant auth goes (`headers.Authorization` on `/route`, `X-Router-Upstream-Authorization` on `/proxy` · `/svc`). Rather than silently dropping yours on the paid hop, the Router refuses: **nothing was minted, no cap was reserved and no money moved**. JSON-string `params` names the contested header. | No — **name the header the service documents** for its credential: `credentialHeader` in the `/route` body, or the `X-Router-Credential-Header` request header on `/proxy` · `/svc` (a separate `Payment` header is the common one). If the service documents none, it wants the credential in `Authorization` itself and cannot also take your bearer there: drop your own auth for that call, or pay it over an x402 endpoint (whose credential travels in `PAYMENT-SIGNATURE`). Retrying unchanged fails identically |
-| `BCK.ROUTER.0022` | 500 | A required Router capability is not configured: service selection or buyer identity signing. Details/params identify the capability; nothing sent, minted or charged by this attempt. | Yes — only after the operator restores the capability; do not loop unchanged. Deliberately omit disclosure consent if attribution is optional |
-| `BCK.ROUTER.0023` | 502 | On an autoPay `POST /router/select` (or `/router/commerce/select`): the chosen service was paid but the downstream call did not complete cleanly **after** the payment was created, so the charge outcome is **indeterminate** — the merchant leg may or may not have settled. JSON-string `params` carries the `paymentId` when one was created. | No — do **not** retry with a fresh `requestId` (that could double-charge). Reconcile via `GET /api/v1/router/payments?requestId=<id>` (percent-encoded), then reuse the **same** `requestId` to retry safely |
-| `BCK.ROUTER.0024` | 413 | The request body exceeds the Router's size limit (about 5 MB). | No — reduce the request body before trying again |
-| `BCK.ROUTER.0025` | 502 | The upstream reply was too large to deliver after a paid request. The payment outcome is indeterminate; it may have gone through. | No — this reply has no `X-Router-Payment-Id`; JSON-string `params` may carry `paymentId`. If `params` has no `paymentId`, look the payment up by your `requestId`: `GET /api/v1/router/payments?requestId=<id>` (percent-encoded) answers `{ presence, payments }`. A 0025 always records the payment first, so `absent` there means you queried the wrong id, account or environment — never that nothing was charged. The row reads `status: Failed` because delivery failed, not because the merchant was uncharged. A non-null `merchantSettlementObservedAt` confirms the merchant was paid on-chain; null does not prove no charge on any rail. Do not retry: the same `requestId` returns 409 `BCK.ROUTER.0002` with the original `paymentId` and cannot re-deliver the reply; a fresh id risks another charge. |
-| `BCK.ROUTER.0026` | 415 | The Router cannot forward this request body. The streaming surfaces (`/router/svc/:slug`, `/router/proxy`) forward only JSON (`application/json`) or URL-encoded (`application/x-www-form-urlencoded`) bodies; any other type — `multipart/form-data` above all, but also `text/plain`, `application/octet-stream` or a vendor `+json` — and any body on GET/HEAD is refused. No payment was minted and no money moved. JSON-string `params` names the refused `contentType` (null when none was sent). | No — resend the body as JSON or a URL-encoded form the service accepts; a service that only takes a file upload cannot be paid through the Router yet, and retrying unchanged fails identically |
-| `BCK.ROUTER.0027` | 413 | The request body is larger than the catalog endpoint accepts. The catalog records a `maxRequestBytes` per endpoint (on the service detail and in MCP `get_service`) — the Locus gateways (`*.mpp.paywithlocus.com`) take 8,000 bytes — and a slug-routed call (`/router/route`, `/router/quote`, `/router/svc/:slug`, `/router/proxy` with a slug) whose body is larger is refused before the service is contacted. No payment was minted and no money moved. JSON-string `params` carries `bodyBytes` and `maxRequestBytes`. | No — shrink the body below the limit or split the work, or pick a service that takes larger requests (`POST /router/select` with the same `body` skips endpoints whose limit is below it); retrying unchanged fails identically |
-| `BCK.ROUTER.0028` | 503 | `POST /router/quote` could not price the call because a read it depends on failed (for example the settlement-token details on the payment network). Nothing is signed, minted or charged on the quote path. | **Yes**, with backoff — a quote never charges, so nothing needs unwinding. The same condition would also fail a payment, so do not route the call meanwhile; if it persists, quote `correlationId` |
-| `BCK.ROUTER.0029` | 404 | The `quoteId` is invalid or belongs to another account. Nothing was signed, reserved or charged. | No — request a new quote and use its `quoteId`; do not retry the same invalid id |
-| `BCK.ROUTER.0030` | 404 | No retained paid result for that paymentId under your account. A paid Router result is retained for 24h after the call ends, for the paying user only; it is not retained for a response that had already started streaming when the call completed, or for a payment never routed through `/router/route`, `/router/proxy` or `/router/svc`. The payment record itself is unaffected. | No — the result is gone (or was never retained); read the payment with `GET /api/v1/router/payments` |
-| `BCK.ROUTER.0031` | 409 | The exact catalog slug in `filters.require` is unavailable, unhealthy, unpayable, excluded by this request, or cannot accept the body. The Router fails closed instead of substituting another service. | No — inspect `params.reason`; correct the slug or request, or deliberately remove `require` to allow fallback |
-| `BCK.ROUTER.0032` | 410 | The `quoteId` expired before payment began. Nothing was signed, reserved or charged. | No — quote the same call again and decide against the new fee-inclusive total; do not retry the expired id |
-| `BCK.ROUTER.0033` | 409 | The payment differs from the quote in its target, method, headers, body, credential header, delegation, rail, or exact fee-inclusive amount. Nothing was reserved or charged. | No — send the quoted call unchanged, or request a new quote for the changed call |
-| `BCK.ROUTER.0034` | 502 | A paid request got no response from the service (timeout or connection failure) after the credential was sent — the service may already have redeemed the payment. `params` carries the `paymentId`. | No — reconcile via `GET /api/v1/router/payments/{paymentId}`; never retry with a fresh `requestId` (it could pay twice) |
-| `BCK.ROUTER.0035` | 422 | The service's challenge asks for no payment (a zero amount — typically an auth-only "sign in with your wallet" challenge), and the Router could not answer it. It answers one (MPP zero-amount proof or x402 SIWX) only on a slug call to an `auth: "siwx"` endpoint or declared follow-up path, after **your own wallet** settled a payment for that service within the follow-up window (see "Wallet-authenticated results" in `references/paying.md`). Your request is not malformed; nothing was signed, reserved or charged. | No — make the paid call first from your own wallet, then poll through the same slug; or authenticate with the service directly |
-| `BCK.ROUTER.0036` | 422 | Every catalog endpoint the call reaches is known to answer after the Router abandons a paid call (120 s), and the merchant charges on receipt — so paying would charge and deliver nothing. Refused before any payment (a retry of an already-paid `requestId` gets `0002` instead). `params.source` is `declared` (permanent) or `observed` (lifts at `params.liftsAt`). On a declared free-follow-up path it is raised only when the service answers `402`. | No — pick another endpoint or service; an `observed` refusal lifts at `liftsAt` |
-| `BCK.ROUTER.0040` | 500 | Internal: the Router's record of an MPP **session** payment channel refused an inconsistent read or write — a defect on our side, not your request. The payment was refused before its credential reached the service, so nothing moved. | No — **report it** with the `correlationId` |
-| `BCK.ROUTER.0041` | 400 | The service's MPP challenge offers only a **session** (a payment channel). The Router must read the service's receipt after every call to keep the channel consistent, so it pays a session only when it fetches the service itself — never through `POST /router/payments`. Nothing was signed or charged. It is the answer there for every crypto delegation, including one created with `allowSessionPayments: false` (on the Router-fetched routes that one gets `0047` instead, unless they can pay the service another way). | No — call it through `POST /router/route`, `/router/svc/<slug>` or `/router/proxy`, or, if the service also offers x402, pay that offer on `POST /router/payments` with `protocol: "x402"` |
-| `BCK.ROUTER.0042` | 409 | The MPP **session** payment channel with this service is closing — its deposit reached its ceiling, or the service refused the channel, a top-up of its deposit, or the payment after a top-up — so nothing can be signed on it until the close completes. No payment was signed, reserved or charged (a top-up the Router sent only moved your own funds into the channel; they come back at close). | **Yes**, later — reuse the same `requestId`; the next call after the close opens a new channel |
-| `BCK.ROUTER.0043` | 503 | The MPP **session** payment channel with this service is busy: another payment on it held it too long, your wallet's signer or balance read did not answer in time, or a top-up of the channel was in flight or the service could not be reached to take one (`params.stage`). Nothing was signed, reserved or charged. | **Yes**, after a few seconds — same `requestId` |
-| `BCK.ROUTER.0044` | 422 | The Router cannot collect its routing fee on this MPP **session** payment, so it refused it. A session's fee is never charged call by call: it is added up and collected later in one transfer from the paying wallet, and `params.cause` says why that cannot happen here: `org-wallet` (the payment is funded by an organization wallet, which that collection cannot draw from yet) or `network` (this deployment does not collect session fees on the service's network). Nothing was signed, reserved or charged, and no payment channel was opened. | No — `org-wallet`: pay from a delegation funded by your own wallet; `network`: pay a service on another network |
-| `BCK.ROUTER.0045` | 409 | The service does not offer the payment rail pinned by `requireProtocol` (`X-Router-Require-Protocol` on `/proxy` · `/svc`; x402 or mpp). `params.requireProtocol` names the pin and `params.offered` lists the rails offered by its payment challenge (empty when neither rail is offered: choose another service). Nothing was signed, reserved or charged. | No — choose a service that accepts your required rail, or deliberately change the pin; never drop it automatically |
-| `BCK.ROUTER.0046` | 400 | You set `validateRequestBody` (opt-in) and the request body provably fails the endpoint's published request schema, so the Router refused it before anything was signed, minted, reserved or charged. `params.endpointPath` names the endpoint whose schema the body failed. Without `validateRequestBody` the call is never refused on this basis. It is read on `/route`, `/commerce/route` (and their `/with-controls` variants) and `/router/subscription/route`, and the Commerce MCP `pay_service` forwards it to them; the streaming `/proxy` and `/svc/:slug` surfaces do not apply it. | No — fix the request body to match the endpoint's published request schema/example (the catalog service detail's `requestSchema`/`requestExample`, or the Commerce MCP `get_service`), then retry; or drop `validateRequestBody` to send it as-is |
-| `BCK.ROUTER.0047` | 409 | This delegation was created with `allowSessionPayments: false` and the Router would pay the service over an MPP **session** (a refundable deposit leaves the wallet at the first call). Nothing signed, reserved or charged, and no channel opened. Raised by the routes and quotes that can pay a session, never by `POST /router/payments`, which answers `0041` instead. | No — use a service that charges per call, or report to the human, who can deliberately drop a `requireProtocol: "mpp"` pin or create a delegation that allows session payments. An app connected over OAuth holds its delegation through its grant, so they disconnect the app in Nevermined and reconnect it with session payments allowed instead |
-| `BCK.ROUTER.0048` | 503 | On an MPP `tempo` payment, Privy did not answer (a rate limit, a server error or no response) when the Router read the wallet's public key, which it does once per wallet. Transient: nothing was signed, reserved or charged. | **Yes**, after a backoff — same `requestId` |
-| `BCK.ROUTER.0049` | 422 | `POST /router/select` or `/router/commerce/select` (MCP `route_by_intent`): the Router chooses a payable service only when its semantic score for your `intent` (0–100) reaches the relevance floor (35 by default); a service not yet indexed for that score can be chosen on a keyword match alone, and while semantic ranking is unavailable no service has a score, so the floor applies to none (an `autoPay` pick is then refused with `0052`). Every payable candidate here fell below the floor, so it chose none rather than name, or pay for, a service that probably does not do what you asked: **nothing was charged and no payment was attempted, even with `autoPay: true`**. The floor applies to `filters.prefer` too. JSON-string `params` carries `bestSemanticScore` (the closest payable candidate) and `minSemanticScore` (the floor). When a close enough match exists but is unhealthy or held by moderation right now, the answer is `0051` instead; when no payable service matched at all, `0001`. | No — rephrase `intent` to name the capability concretely (what you send and what you get back) or broaden it, then select again; or list candidates with `POST /api/v1/ard/search` (MCP `search_services`) and pay one by slug; or name a slug in `filters.require`, which the floor does not apply to. The same intent is refused again |
-| `BCK.ROUTER.0050` | 409 | `GET /api/v1/router/payments/{id}/result/content` (the raw download of a retained paid result): the retained result's `state` is `Failed` (not the payment's `status`: a delivered, charged call can end that way), so there is no body to download. Unlike `0030`, the result itself is retained. Rarely, the stored body could not be read for download; `/result` may still return it. | No — read `GET /api/v1/router/payments/{id}/result`: a `Failed` result carries `failureReason`, and in the rare unreadable case it answers `Ready` with the body. Check `deliveryStatus` with `GET /api/v1/router/payments?requestId=<original-requestId>` (percent-encoded) before paying again |
-| `BCK.ROUTER.0051` | 409 | `POST /router/select` or `/router/commerce/select` (MCP `route_by_intent`): a catalog service that matches your `intent` closely enough to be chosen is unhealthy or held by moderation right now, and no other payable service matched closely enough to take its place, so the Router chose none. **Nothing was charged and no payment was attempted, even with `autoPay: true`.** The cause is on the catalog side, not in your request, so rephrasing finds the same service again. | **Yes**, later — retry the same request (keep its `requestId`, if it has one), since service health is re-checked periodically; or list candidates with `POST /api/v1/ard/search` (MCP `search_services`) and pay one by slug. Don't rephrase |
-| `BCK.ROUTER.0052` | 503 | `POST /router/select` or `/router/commerce/select` with `autoPay: true` (MCP `route_by_intent`): semantic ranking, which scores how closely each service matches your `intent`, is temporarily unavailable, so the Router could only match on keywords and will not pay a keyword-only pick on its own. **Nothing was charged and no payment was attempted.** A `filters.require` pin is still paid, and select without `autoPay` still returns the pick. | **Yes**, later — same `requestId`; or select without `autoPay`, check the pick it returns and pay it yourself by slug (MCP `pay_service`) |
-| `BCK.X402.0052` | 503 | Not a Router code. Before it pays on `POST /router/payments`, `/route` or `/commerce/route`, or through `/proxy` or `/svc` (never on a quote), the Router runs your account wallet's EIP-7702 upgrade, whichever delegation pays (only where EIP-7702 is enabled), and the upgrade did not complete: its delegation could not be installed, a step was mined but reverted, Privy did not sign it, or moving its funds to the upgraded wallet failed. Nothing was paid from the wallet. | **Yes**, after a backoff of a few minutes (a retry inside the fail-closed window that follows a failed upgrade gets `BCK.X402.0052` again) — same `requestId`; if it persists across several such retries, report it |
-| `BCK.USER_PROFILE.0006` | 503 | Not a Router code, but the same paying routes can return it: Privy or the chain RPC did not answer while the Router checked that the wallet belongs to your account. Nothing was signed, reserved or charged. | **Yes**, after a short backoff — same `requestId` |
-| `BCK.OAUTH.0030` | 403 | This API key was OAuth-minted and may not create Delegations or use `/router/{payments,route,quote,select,proxy,svc}`. Use a plain account-owner key — or, for a `commerce` grant, `POST /router/commerce/route` to pay and `POST /router/commerce/quote` to price. | No |
-| `BCK.OAUTH.0033` | 403 | A commerce route (`/commerce/route`, `/commerce/route/with-controls`, `/commerce/select`, `/commerce/quote`) needs a credential minted from a `commerce` grant pinned to a usable Delegation. A plain key uses the twin that names its own Delegation: `POST /router/route` to pay, `/router/select` to pick, `/router/quote` to price. A commerce credential that still sees it: re-run the authorization. | No |
-| `BCK.OAUTH.0034` | 400 | `delegationId` sent on a commerce route; there it is derived from the grant. Remove it, or use the plain-key twins (`/router/route`, `/router/select`, `/router/quote`) to choose one. | No |
-| `BCK.HTTP.412` | 412 | `{"error":"consent_required"}` on `POST /delegation/create` — the account's legal-document consent lapsed. The code is generic; branch on `body.error`. | No — **needs a human** |
+| `BCK.ROUTER.0001` | 400 | The request was refused before anything was charged: a `/svc` call with an `X-Router-Target-Slug` header, a path that still holds a placeholder such as `{id}`, no `X-Router-Request-Id`, a delegation that is not `erc4337`, or no offer this deployment can fund. `details` names the problem. | No: fix the request |
+| `BCK.ROUTER.0003` | 402 | The call would exceed the delegation's cap, or the delegation expired, ran out or was revoked. | No: report it to the human; never create another delegation to get past it |
+| `BCK.ROUTER.0008` | 403 | The API key is a legacy (v1) key, which the Router cannot pay with. | No: the human creates a new API key |
+| `BCK.ROUTER.0009` | 402 | An MPP payment on Tempo: the wallet holds too little of the payment token there. Nothing was signed. | No: fund the wallet on Tempo, then resend |
+| `BCK.ROUTER.0034` | 502 | The payment was sent but the service never answered, so it may have charged. | No: look the payment up before anything else |
+| `BCK.OAUTH.0030` | 403 | A key minted over OAuth called `/router/svc`, `/router/quote` or another spend route, or `POST /delegation/create`. | No: use a plain API key, or pay through the MCP |
 
-**`0011` needs a human, not a retry.** The card issuer is demanding 3-D Secure and the Router has no browser to answer it. Nothing was charged. Do **not** loop: 3DS is often mandated per charge, so every attempt re-demands it and mints a fresh single-use card credential that is then abandoned. A later *human-driven* attempt may succeed — that is a decision, not a retry.
+Every Router error, with its fix: https://nevermined.ai/docs/products/catalog/router/guardrails.
 
-**`0010` is the one 500 you must never retry.** A payment credential **was already minted** before it failed — and because no payment record was written, your `requestId` will *not* suppress the retry. So a retry mints a **fresh** credential and then fails identically, because the cause is a deterministic defect in the rail's amount derivation, not a transient blip. Report it to the human.
+## Links
 
-Note `0006`, the retryable 500, is only ever raised by the payments *summary* read — never by a payment. **On the paying path `0007`, `0020`, `0042`, `0043`, `0048`, `0051`, `0052`, `BCK.X402.0052` and `BCK.USER_PROFILE.0006` are the codes worth retrying (with backoff).** And seeing `0010` at all means a Nevermined-side regression: no rail emits a non-numeric amount today, so it is a bug report, not a condition to handle. (On the card rail the minted credential is a Stripe Shared Payment Token, left stranded with no revoke path until `min(challenge expiry, Delegation expiry, 89 days)`.)
+- Catalog: https://nevermined.app/catalog/
+- Every service, linked to its skill file: https://nevermined.app/catalog/llms.txt
+- The catalog as JSON: https://nevermined.app/catalog/ai-catalog.json
+- Authentication and API keys: https://nevermined.app/auth.md
+- Router documentation: https://nevermined.ai/docs/products/catalog/router/overview
+- Commerce MCP: https://nevermined.ai/docs/products/catalog/mcp
+- This skill: https://nevermined.app/catalog/skill.md
 
-Catalog errors: `BCK.CATALOG.0001` (404, no listed service with that slug — slugs are case-sensitive), `BCK.CATALOG.0002` (500, transient, retryable).
+In depth, when a step above is not enough:
 
-What the Router refuses outright — private/loopback/metadata targets, redirects, MPP `splits`, forged `X-Router-*` headers — and the relay limits: `references/errors.md`.
-
-## Reference files
-
-| You need… | Read |
-| --- | --- |
-| The Catalog feed, filter recipes, categories, the Catalog MCP, the ARD host document | `references/discovery.md` |
-| Mode A vs mode B, `/proxy` streaming, merchant auth, full payloads | `references/paying.md` |
-| Delegation fields, recipient scoping, wallet funding, networks | `references/bootstrap.md` |
-| Every guardrail, every code, what is retryable and why | `references/errors.md` |
-| Payment records, filters, CSV export, summary, reconciliation | `references/ledger.md` |
-
-## Optional seller attribution
-
-Never enable identity disclosure implicitly: it shares the stable delegationId, plus orgId and buyer-declared agentId when present. A plain-key delegation owner can opt in per paid slug request only when the seller listing also opts in. OAuth credentials, group members acting for another delegation owner and subscription funding cannot use this interface. See the [version 1 seller contract](https://nevermined.ai/docs/products/catalog/router/buyer-identity) for strict boolean consent, public keys, request bindings and replay checks. Check availability at the seller-contract endpoint: it must answer and report a configured issuer. No version or enablement is implied by this page.
+- Every guardrail and error code, and what is retryable: https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/errors.md
+- Paying a URL you already have (`/router/route`, `/router/proxy`) and passing a merchant's own
+  auth: https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/paying.md
+- Delegation fields, recipient scoping, funding and networks: https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/bootstrap.md
+- Catalog filters, categories and the ARD feed: https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/discovery.md
+- The payment ledger, CSV export and reconciliation: https://raw.githubusercontent.com/nevermined-io/docs/main/skills/nevermined-router/references/ledger.md
