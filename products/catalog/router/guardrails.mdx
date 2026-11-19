@@ -95,7 +95,7 @@ floor: it chooses a payable service only when its semantic score for your `inten
 the Router never infers them from `intent`), and only a service recorded as returning every one of them
 is chosen, `prefer` included. When no close enough match is recorded as returning them, even if one is
 unhealthy or held by moderation, the answer is `422 BCK.ROUTER.0053`, with nothing charged: search the
-catalog and pay one by slug, or pin a slug with `require`, which is exempt from that check too. When nothing can be chosen because a close enough match (one that returns any media you named) is unhealthy or held by moderation right now, the
+catalog and pay one by slug, or pin a slug with `require`, which is exempt from that check too. When nothing can be chosen because a close enough match (one that returns every medium you named) is unhealthy or held by moderation right now, the
 answer is `409 BCK.ROUTER.0051`: retry later or search, rather than rephrase. While semantic ranking
 is unavailable no service has a score, so the floor applies to none, and an `autoPay` pick is
 refused with `503 BCK.ROUTER.0052` (nothing charged; a `require` pin is still paid): retry later, or
