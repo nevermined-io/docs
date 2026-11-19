@@ -68,7 +68,7 @@ That's a $5.00 cap for 7 days. The cap is enforced server-side on every single p
 Both rails **pull**: the merchant takes the money from your own wallet. A Delegation authorizes the spend, but the wallet has to actually hold the funds. Find its address on the Delegation:
 
 ```bash
-curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
+curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID?withPayer=true" \
   -H "Authorization: Bearer $NVM_API_KEY"
 ```
 
@@ -76,7 +76,8 @@ curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
 {
   "delegationId": "5e7481c3-…",
   "provider": "erc4337",
-  "providerPaymentMethodId": "0x8F60b3838e6C121FcDBdBc50e7B150F8560a670E",
+  "providerPaymentMethodId": "0x8F60…670E",
+  "fundingWalletAddress": "0x4E8c…b71A",
   "status": "Active",
   "spendingLimitCents": "500",
   "amountSpentCents": "0",
@@ -85,16 +86,19 @@ curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID" \
 }
 ```
 
-`providerPaymentMethodId` is the wallet address to fund. Send it the payment asset **on the network you intend to pay on**:
+**`fundingWalletAddress` is the wallet address to fund**, and only `?withPayer=true` returns it. For a personal Delegation it is your own wallet, not `providerPaymentMethodId` (the smart-account address), which the Router never spends from; for an org-wallet Delegation the two are the same. `null` on a crypto Delegation means the wallet could not be resolved: read it again, and if it stays `null`, stop and report it to the human. Never fund `providerPaymentMethodId` instead.
+
+Send the wallet the payment asset **on the network you intend to pay on**:
 
 | Rail | Network | Asset |
 | --- | --- | --- |
 | x402 | Base mainnet (`8453`) | USDC — `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
 | x402 | Base Sepolia (`84532`) | testnet USDC, from a public faucet |
-| MPP | Tempo mainnet (`4217`) | USDC.e — `0x20c000000000000000000000b9537d11c60e8b50` |
-| MPP | Tempo Moderato (`42431`) | PathUSD — `0x20c0000000000000000000000000000000000000`, self-funded via [one RPC call](/products/catalog/router/rails-mpp#funding-your-wallet) |
+| MPP (`tempo` method) | Tempo mainnet (`4217`) | USDC.e — `0x20c000000000000000000000b9537d11c60e8b50` |
+| MPP (`tempo` method) | Tempo Moderato (`42431`) | PathUSD — `0x20c0000000000000000000000000000000000000`, self-funded via [one RPC call](/products/catalog/router/rails-mpp#funding-your-wallet) |
+| MPP (`evm` method) | Base mainnet (`8453`), Base Sepolia (`84532`) | USDC, for an organization wallet only: a personal wallet pays over the service's x402 offer, or is refused `0001` when it has none |
 
-The address is the same on every EVM chain — it's one key-derived wallet, so there is nothing extra to create on Tempo. But **the balances are per-chain**: funding Base does nothing for an MPP payment. See [the x402 rail](/products/catalog/router/rails-x402) and [the MPP rail](/products/catalog/router/rails-mpp) for the full picture.
+The address is the same on every EVM chain — it's one key-derived wallet, so there is nothing extra to create on Tempo. But **the balances are per-chain**: funding Base does nothing for an MPP `tempo` payment. See [the x402 rail](/products/catalog/router/rails-x402) and [the MPP rail](/products/catalog/router/rails-mpp) for the full picture.
 
 <Note>
 **You fund this wallet; your agent cannot refill it**, and a Nevermined credit balance cannot top it up. Open the [**Wallet** on your Nevermined App profile](https://nevermined.app/profile?tab=wallet), pick the chain under **Network**, and use **+ Add** on the token's row:
