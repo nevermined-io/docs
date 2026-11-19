@@ -76,7 +76,7 @@ curl -s "$NVM_API_URL/api/v1/delegation/$NVM_DELEGATION_ID?withPayer=true" \
 {
   "delegationId": "5e7481c3-…",
   "provider": "erc4337",
-  "providerPaymentMethodId": "0x8F60b3838e6C121FcDBdBc50e7B150F8560a670E",
+  "providerPaymentMethodId": "0x8F60…670E",
   "fundingWalletAddress": "0x4E8c…b71A",
   "status": "Active",
   "spendingLimitCents": "500",
@@ -98,7 +98,7 @@ Send the wallet the payment asset **on the network you intend to pay on**:
 | MPP (`tempo` method) | Tempo Moderato (`42431`) | PathUSD — `0x20c0000000000000000000000000000000000000`, self-funded via [one RPC call](/products/catalog/router/rails-mpp#funding-your-wallet) |
 | MPP (`evm` method) | Base mainnet (`8453`), Base Sepolia (`84532`) | USDC, for an organization wallet only: a personal wallet pays over the service's x402 offer, or is refused `0001` when it has none |
 
-The address is the same on every EVM chain — it's one key-derived wallet, so there is nothing extra to create on Tempo. But **the balances are per-chain**: funding Base does nothing for an MPP payment. See [the x402 rail](/products/catalog/router/rails-x402) and [the MPP rail](/products/catalog/router/rails-mpp) for the full picture.
+The address is the same on every EVM chain — it's one key-derived wallet, so there is nothing extra to create on Tempo. But **the balances are per-chain**: funding Base does nothing for an MPP `tempo` payment. See [the x402 rail](/products/catalog/router/rails-x402) and [the MPP rail](/products/catalog/router/rails-mpp) for the full picture.
 
 <Note>
 **You fund this wallet; your agent cannot refill it**, and a Nevermined credit balance cannot top it up. Open the [**Wallet** on your Nevermined App profile](https://nevermined.app/profile?tab=wallet), pick the chain under **Network**, and use **+ Add** on the token's row:

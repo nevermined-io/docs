@@ -14,7 +14,7 @@ agent or MPP merchant — through the Nevermined Router. If you are *receiving* 
 Nevermined plan, use the `nevermined-payments` rules instead.
 
 **The workflow — set up, discover, quote, pay, verify — is the buyer skill:
-https://nevermined.app/catalog/skill.md** (also in this repo, with its `references/`:
+https://nevermined.app/catalog/skill.md** (also on GitHub, with its `references/`:
 https://github.com/nevermined-io/docs/tree/main/skills/nevermined-router). Follow it for the steps.
 This file condenses them for code that calls the Router, with the guardrails and gotchas to keep.
 Nevermined credits (pay catalog services with credits instead of a Delegation; free at sign-up, from top-up packs or from a Nevermined Subscription): https://nevermined.ai/docs/products/catalog/router/subscription
@@ -39,8 +39,9 @@ Live by default: real merchants and real money, within the cap a human approves.
   the sandbox Router funds testnets only, so of its listings only the two free testnet test
   merchants can be paid there.
 - `NVM_API_KEY` — the whole key, prefix included: `live:…` (`sandbox:…` on the sandbox). **Never
-  send it to the merchant**; it goes to the Router only, which does not forward `Authorization`.
-  The merchant's own auth goes in `headers`.
+  send it to the merchant**; it goes to the Router only, which does not forward your
+  `Authorization` header. The merchant's own auth goes in `headers` on `/route`, or in
+  `X-Router-Upstream-Authorization` on `/svc`·`/proxy`.
 - `NVM_DELEGATION_ID` — the spending Delegation
 
 ## 1. Create a Delegation (the budget)
@@ -50,6 +51,10 @@ curl -sX POST "$NVM_API_URL/api/v1/delegation/create" \
   -H "Authorization: Bearer $NVM_API_KEY" -H "Content-Type: application/json" \
   -d '{"provider":"erc4337","currency":"usdc","spendingLimitCents":500,"durationSecs":604800}'
 ```
+
+Set `spendingLimitCents` and `durationSecs` to the budget and duration the human gave you — the
+`500` ($5.00) and 7 days above are only an example — and reuse an Active Delegation
+(`GET /api/v1/delegation?accessible=true`) instead of creating one per call.
 
 All four fields are required — no defaults. `erc4337` is the crypto-funded Delegation both
 stablecoin rails need. Two guards refuse this call outright, neither retryable:
@@ -79,7 +84,8 @@ address), which the Router never spends from; for an org-wallet Delegation the t
 `null`, stop and report it to the human. Never fund `providerPaymentMethodId` instead.
 
 **Never reuse a cached address.** A stale one is the most common cause of an underfunded wallet. On
-MPP `tempo` that is `402 BCK.ROUTER.0009`, refused before anything is signed; x402 and MPP `evm` are
+MPP `tempo` that is `402 BCK.ROUTER.0009`, refused before anything is signed; its message names the
+wallet and chain it checked, so compare them with `fundingWalletAddress`. x402 and MPP `evm` are
 not balance-checked, so there the payment fails at settlement instead. MPP `evm` (USDC on Base) pays
 from an organization wallet only: a personal wallet pays over the service's x402 offer, or is
 refused `0001` when it has none.
@@ -167,10 +173,13 @@ quote spends the same per-key and per-service rate budgets as a payment — quot
 don't poll. Pay with `maxTotalCents` set to its `fee.capChargedCents` (whole cents rounded **up**
 from `fee.capChargedMicros`), so a price that rose in between is refused (`402 BCK.ROUTER.0018`)
 instead of paid; any price up to that whole cent is still paid. It checks neither your cap nor your
-wallet. Read `upstreamStatus`: `402` is priced; a `2xx` asked no payment and the quote already ran
+wallet. A quote whose `settlement.scheme` is `session` also states `sessionDeposit`: that deposit
+leaves the wallet at the first call, however small, and `maxTotalCents` does not bound it. Read `upstreamStatus`: `402` is priced; a `2xx` asked no payment and the quote already ran
 it once, so there is nothing to pay; `401`/`403` wants the service's own login; `429` or a `5xx`,
 try later; any other `4xx`, fix the request before you pay. Skip the quote for an endpoint whose
-`access` is `free` or `free-after-purchase`: a quote runs it, so call it instead. An OAuth
+`access` is `free` or `free-after-purchase`: a quote runs it, so call it instead. If such a call
+asks for payment anyway, the Router pays it with no per-call ceiling; on `/route`, send
+`maxTotalCents: 0` to have it refused (`0018`) instead. An OAuth
 `commerce` key quotes on `POST /router/commerce/quote` (no `delegationId`; first API release after 1.49, `404` until then).
 
 API 1.55+: a payment-required quote returns `quoteId` + `expiresAt` (60 s). Pass the id with the exact unchanged
@@ -232,7 +241,7 @@ read `GET /api/v1/delegation/{id}` → `amountSpentCents`.
   No charge or cap debit, though signing may already have occurred. Parse JSON-string `params` for `requiredTotalCents`; only raise the ceiling if this call is intended.
   Reuse the same `requestId` after a refusal. Do not auto-retry unchanged.
 - `BCK.ROUTER.0019` (4xx) — (streaming `/proxy`·`/svc` only) a cataloged service rejected the request (a 4xx, or a rare 3xx the Router does not follow; not a 402/429). The upstream body is withheld as a host oracle; the typed error preserves the real status. Fix the request from the service's Catalog detail — not retryable.
-- `BCK.ROUTER.0020` (5xx / 429) — (streaming `/proxy`·`/svc` only) a cataloged service errored or rate-limited (upstream/transient). Body and headers are withheld; the real status is preserved. The Router charges no routing fee for an undelivered call; retry with backoff and the **same** `requestId`: the Router never pays one id twice. If an `X-Router-Payment-Id` came back, a payment is recorded: look it up by your `requestId` (`GET /router/payments?requestId=`) first. A fresh id buys again from a merchant that may already have been paid.
+- `BCK.ROUTER.0020` (5xx / 429) — (streaming `/proxy`·`/svc` only) a cataloged service errored or rate-limited (upstream/transient). Body and headers are withheld; the real status is preserved. The Router charges no routing fee for an undelivered call; retry with backoff and the **same** `requestId`: the Router never pays one id twice. If an `X-Router-Payment-Id` came back, a payment is recorded: look it up by your `requestId` (`GET /router/payments?requestId=`) first. A fresh id buys again from a merchant that may already have been paid: the error's own `hint` calls that a NEW `requestId` for a fresh attempt, so make it only after the lookup, as a deliberate second purchase.
 - `BCK.ROUTER.0021` (400) — the payment credential would overwrite a header you asked the Router to forward: the MPP rails carry it in `Authorization`, which is also where your own merchant auth goes. Nothing was minted and no money moved. Name the header the service documents for its credential — `credentialHeader` in the `/route` body, or `X-Router-Credential-Header` on `/proxy`·`/svc` (a separate `Payment` header is the common one) — and your `Authorization` is left untouched. Do not retry unchanged.
 - `BCK.ROUTER.0024` (413) — the request body exceeds the Router's size limit (about 5 MB). Do not retry unchanged; reduce the request body.
 - `BCK.ROUTER.0025` (502) — reply too large after a paid request; payment may have gone through. The reply has no `X-Router-Payment-Id`; JSON-string `params` may carry `paymentId`. If `params` has no `paymentId`, look the payment up by your `requestId`: `GET /api/v1/router/payments?requestId=<id>` (percent-encoded) answers `{ presence, payments }`. A 0025 always records the payment first, so `absent` there means you queried the wrong id, account or environment — never that nothing was charged. The row reads `status: Failed` because delivery failed, not because the merchant was uncharged. A non-null `merchantSettlementObservedAt` confirms the merchant was paid on-chain; null does not prove no charge on any rail. Do not retry: the same `requestId` returns 409 `BCK.ROUTER.0002` with the original `paymentId` and cannot re-deliver the reply; a fresh id risks another charge.
