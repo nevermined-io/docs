@@ -14,11 +14,11 @@ every supported pin keeps working. See the [versioning guide](/development-guide
 - **Floor (oldest supported version):** `1.0`
 - **Live current version:** `GET /api/v1/meta/versions`
 
-## 1.102
+## 1.103
 
 _Changes relative to `1.94`:_
 
-- **POST /api/v1/router/subscription/quote can answer from the price the catalog observed for the endpoint (its proven example, or any call of an endpoint that takes no parameters), without contacting the merchant: priceSource is then observed, with observedAt and no upstreamStatus. Send live: true to have the merchant price it. Every quote also says whether the call would go through (wouldSucceed, blockers, unchecked, topUp). Clients pinned below 1.102 always have the merchant price the request, as before.** (`request`)
+- **POST /api/v1/router/subscription/quote can answer from the price the catalog observed for the endpoint (its proven example, or any call of an endpoint that takes no parameters), without contacting the merchant: priceSource is then observed, with observedAt and no upstreamStatus. Send live: true to have the merchant price it. Every quote also says whether the call would go through (wouldSucceed, blockers, unchecked, topUp). Clients pinned below 1.103 always have the merchant price the request, as before.** (`request`)
   - `POST /api/v1/router/subscription/quote`
 
 ## 1.94
