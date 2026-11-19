@@ -117,7 +117,128 @@ Always read this address back from the live Delegation rather than reusing one y
 
 ## 4. Make a paid call
 
-Hand the Router the request you want made. It probes the service, detects the protocol, pays the 402, and relays the answer.
+`POST /api/v1/router/run` is the call to use. Name a catalog service by its `slug`, say what to send, and read one answer however it was paid (a delegation or Nevermined credits). It needs no protocol detection on your side: the Router probes the service, pays the 402 and relays the result.
+
+Start with a **dry run**. It prices the call and lists anything that would refuse it, and charges nothing:
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/run" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "slug": "webscrape-pro",
+    "path": "scrape",
+    "method": "POST",
+    "body": { "url": "https://example.com" },
+    "delegationId": "'"$NVM_DELEGATION_ID"'",
+    "dryRun": true
+  }'
+```
+
+The answer has `wouldSucceed`, any `blockers` (the first is the error the real call would return), the `price`, and a `quoteId` you can send back to pay at exactly that quote. The price shown is indicative until the call is made: the wire price governs.
+
+Then make the real call: the same body without `dryRun`, plus an `Idempotency-Key` header.
+
+<Tabs>
+  <Tab title="curl">
+    ```bash
+    curl -sX POST "$NVM_API_URL/api/v1/router/run" \
+      -H "Authorization: Bearer $NVM_API_KEY" \
+      -H "Content-Type: application/json" \
+      -H "Idempotency-Key: scrape-example-v1" \
+      -d '{
+        "slug": "webscrape-pro",
+        "path": "scrape",
+        "method": "POST",
+        "body": { "url": "https://example.com" },
+        "delegationId": "'"$NVM_DELEGATION_ID"'"
+      }'
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    const res = await fetch(`${process.env.NVM_API_URL}/api/v1/router/run`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.NVM_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Idempotency-Key': 'scrape-example-v1',
+      },
+      body: JSON.stringify({
+        slug: 'webscrape-pro',
+        path: 'scrape',
+        method: 'POST',
+        body: { url: 'https://example.com' },
+        delegationId: process.env.NVM_DELEGATION_ID,
+      }),
+    })
+
+    const { success, funding, price, deliveryStatus, data, replayed } = await res.json()
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os, requests
+
+    res = requests.post(
+        f"{os.environ['NVM_API_URL']}/api/v1/router/run",
+        headers={
+            "Authorization": f"Bearer {os.environ['NVM_API_KEY']}",
+            "Idempotency-Key": "scrape-example-v1",
+        },
+        json={
+            "slug": "webscrape-pro",
+            "path": "scrape",
+            "method": "POST",
+            "body": {"url": "https://example.com"},
+            "delegationId": os.environ["NVM_DELEGATION_ID"],
+        },
+    ).json()
+
+    print(res["success"], res["funding"], res["price"], res["deliveryStatus"])
+    ```
+  </Tab>
+</Tabs>
+
+Every `/run` answer has the same envelope, whichever way it was funded:
+
+```json
+{
+  "success": true,
+  "requestId": "scrape-example-v1",
+  "funding": "delegation",
+  "fundingReason": "…",
+  "price": { "…": "what the call cost, in the funding's own unit (money for a delegation, credits for credits)" },
+  "deliveryStatus": "delivered",
+  "status": 200,
+  "data": { "…": "the merchant's response" },
+  "payment": {
+    "paymentId": "b1f9c2e4-…",
+    "txHash": "0xfc8af37b…",
+    "status": "Settled",
+    "settlement": { "amount": "1000", "asset": "USDC", "network": "base", "approxCents": "1" }
+  },
+  "replayed": false
+}
+```
+
+`funding` says what paid (`delegation` or `credits`) and `fundingReason` why. With no `funding` field the Router uses credits when the account can pay with them, otherwise the delegation; with nothing to pay with the answer is `402 BCK.ROUTER.0055`. `deliveryStatus` says whether the merchant answered; `data` is its body.
+
+### Idempotency
+
+The `Idempotency-Key` header and the body's `requestId` are the same thing; send one. Use **one stable key per logical purchase, not per HTTP attempt**.
+
+- **A retry replays and pays nothing.** The same key with the same request returns the first call's result with `replayed: true`. This holds even when the first answer was lost to a timeout.
+- **The same key with a different request is `422 BCK.ROUTER.0054`.** The method, path, query, body or service differs from the first call. Do not answer it with a new key if you are retrying a call whose outcome you do not know: a new key is a new purchase. Reconcile first with `GET /api/v1/router/payments?requestId=<the original key>` and only then decide.
+- **Paid calls only.** A dry run needs no key and reserves nothing.
+
+<Note>
+`/run` takes a slug, never a URL, and returns the merchant's answer whole. To **stream** an answer or proxy a call transparently, use [`/svc/<slug>`](/products/catalog/from-a-harness) (or `/proxy`). `/run` dispatches to `/route`, `/commerce/route` and `/subscription/route`; those are the lower-level routes it is built on, and still work if you need their exact request or response shape.
+</Note>
+
+### The lower-level `/route`
+
+`POST /api/v1/router/route` pays a delegation directly, by `url` or `slug`, and answers with the merchant's `status` and `body` plus `paid` and `payment`:
 
 <Tabs>
   <Tab title="curl">
@@ -209,13 +330,15 @@ Every payment across every protocol is on one ledger — see [the ledger page](/
 
 ## When something is refused
 
-Refusals are the system working. The three you're most likely to meet:
+Refusals are the system working. The ones you're most likely to meet:
 
 | Code | Status | What happened |
 | --- | --- | --- |
 | `BCK.ROUTER.0003` | 402 | The spend would exceed your Delegation cap, or the Delegation expired. |
 | `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on that network. MPP only — nothing was signed. x402 has no balance pre-check and fails on-chain instead. |
 | `BCK.ROUTER.0002` | 409 | That `requestId` already bought something. The original `paymentId` is in the response. |
+| `BCK.ROUTER.0054` | 422 | On `/run`: that `Idempotency-Key` was already used for a different request. Reconcile with `GET /router/payments?requestId=` before sending a new key. |
+| `BCK.ROUTER.0055` | 402 | On `/run`: nothing to pay with. Send a `delegationId`. |
 
 [Guardrails](/products/catalog/router/guardrails) covers every code and, more usefully, why widening a cap in response to a refusal is almost always the wrong move.
 
