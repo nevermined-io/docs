@@ -117,7 +117,148 @@ Always read this address back from the live Delegation rather than reusing one y
 
 ## 4. Make a paid call
 
-Hand the Router the request you want made. It probes the service, detects the protocol, pays the 402, and relays the answer.
+`POST /api/v1/router/run` is the call to use. Name a catalog service by its `slug`, say what to send, and read one answer however it was paid (a delegation or Nevermined credits). It needs no protocol detection on your side: the Router probes the service, pays the 402 and relays the result.
+
+Start with a **dry run**. It prices the call and lists anything that would refuse it, and charges nothing. The service does receive the request unpaid so it can name its price, and a service that does not ask for payment runs it, so do not dry-run a call with side effects there. Checks the quote could not make are listed in `unchecked` and do not block. (`webscrape-pro` and `scrape` stand for a real service: use a `slug` and its endpoint's `invokePath ?? path` from the catalog.)
+
+```bash
+curl -sX POST "$NVM_API_URL/api/v1/router/run" \
+  -H "Authorization: Bearer $NVM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "slug": "webscrape-pro",
+    "path": "scrape",
+    "method": "POST",
+    "body": { "url": "https://example.com" },
+    "delegationId": "'"$NVM_DELEGATION_ID"'",
+    "dryRun": true
+  }'
+```
+
+The answer has `wouldSucceed`, any `blockers` (the first is the error the real call would return), the `price` and, when a delegation would pay, a `quoteId`. Send the `quoteId` on the real call to pay that sealed quote (`410 BCK.ROUTER.0032` once it has expired, after 60 seconds; `409 BCK.ROUTER.0033` if the call changed; quote again in either case). Without it the price is indicative, and the service's price at call time governs.
+
+Then make the real call: the same body without `dryRun`, plus an `Idempotency-Key` header.
+
+<Tabs>
+  <Tab title="curl">
+    ```bash
+    curl -sX POST "$NVM_API_URL/api/v1/router/run" \
+      -H "Authorization: Bearer $NVM_API_KEY" \
+      -H "Content-Type: application/json" \
+      -H "Idempotency-Key: scrape-example-v1" \
+      -d '{
+        "slug": "webscrape-pro",
+        "path": "scrape",
+        "method": "POST",
+        "body": { "url": "https://example.com" },
+        "delegationId": "'"$NVM_DELEGATION_ID"'"
+      }'
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    const res = await fetch(`${process.env.NVM_API_URL}/api/v1/router/run`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.NVM_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Idempotency-Key': 'scrape-example-v1',
+      },
+      body: JSON.stringify({
+        slug: 'webscrape-pro',
+        path: 'scrape',
+        method: 'POST',
+        body: { url: 'https://example.com' },
+        delegationId: process.env.NVM_DELEGATION_ID,
+      }),
+    })
+
+    const answer = await res.json()
+    if (res.status === 202) {
+      // Paid and still running: send this same request again with the same key to get the envelope.
+    } else if (res.ok) {
+      const { success, funding, price, deliveryStatus, data, replayed } = answer
+    } else {
+      console.error(answer.code, answer.hint) // a refusal, e.g. BCK.ROUTER.0055
+    }
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os, requests
+
+    res = requests.post(
+        f"{os.environ['NVM_API_URL']}/api/v1/router/run",
+        headers={
+            "Authorization": f"Bearer {os.environ['NVM_API_KEY']}",
+            "Idempotency-Key": "scrape-example-v1",
+        },
+        json={
+            "slug": "webscrape-pro",
+            "path": "scrape",
+            "method": "POST",
+            "body": {"url": "https://example.com"},
+            "delegationId": os.environ["NVM_DELEGATION_ID"],
+        },
+    )
+    answer = res.json()
+
+    if res.status_code == 202:
+        pass  # Paid and still running: send this same request again with the same key to get the envelope.
+    elif res.ok:
+        print(answer["success"], answer["funding"], answer["price"], answer["deliveryStatus"])
+    else:
+        print(answer["code"], answer.get("hint"))  # a refusal, e.g. BCK.ROUTER.0055
+    ```
+  </Tab>
+</Tabs>
+
+A `200` answer has the same envelope, whichever way it was funded:
+
+```json
+{
+  "success": true,
+  "requestId": "scrape-example-v1",
+  "funding": "delegation",
+  "fundingReason": null,
+  "price": { "currency": "USD", "micros": "10200" },
+  "deliveryStatus": "delivered",
+  "status": 200,
+  "contentType": "application/json",
+  "data": { "…": "the merchant's response" },
+  "dataEncoding": "json",
+  "payment": {
+    "paymentId": "b1f9c2e4-…",
+    "txHash": "0xfc8af37b…",
+    "status": "Settled",
+    "settlement": { "amount": "10000", "asset": "USDC", "network": "base", "approxCents": "1" }
+  },
+  "replayed": false
+}
+```
+
+- **`funding`** says what paid (`delegation` or `credits`). **`fundingReason`** is the credits refusal code that moved a default call to the delegation, and `null` otherwise (and on a replay). With no `funding` field the Router pays with credits when the account can; a `delegationId` is then only the fallback payer, used when credits are not available to the account or refuse the call for a reason the delegation can solve. Any other credits refusal is the answer. Send `"funding": "delegation"` to always pay from the delegation. With nothing to pay with, the answer is `402 BCK.ROUTER.0055`.
+- **`price`** is what the call cost, in the funding's own unit: `currency` and `micros` (millionths of it, the service's price plus the routing fee) for a delegation, `{ "credits": N }` for credits. On a usage-based (x402 `upto`) call it is the maximum reserved, not the cost: once the settlement is reconciled, `GET /api/v1/router/payments?requestId=` shows what the service took (`settledAmount`).
+- **`deliveryStatus`** is the paid call's outcome, as on the payments ledger: `delivered`, `not_delivered` (the service answered the paid call with an error), `charged_not_delivered`, `charged_unconfirmed`, `not_charged` or `pending`; `null` when nothing was paid.
+- **`status`, `contentType` and `data`** are the service's answer. `data` is its body as `dataEncoding` says: `json`, `text`, or `base64` for a binary answer. A paid call the service refused is still a `200` here, with `success: false` and the service's `status`.
+
+**A `202` means paid and still running.** A call that outlives the synchronous wait answers `202` with `requestId`, `funding`, `fundingReason`, `paymentId`, `resultUrl`, `status: "Pending"` and `replayed` (on credits, also `payment.creditsLeft` and `payment.topUp`, the credit pack the call bought, if any), and no envelope. Send the same request again with the same key until the result is ready, to get the envelope; `resultUrl` answers in `/route`'s shape instead. Never buy it again under a new key.
+
+### Idempotency
+
+A real call needs a key: the `Idempotency-Key` header or the body's `requestId`, which are the same thing. If you send both they must be equal, and the key never goes inside the forwarded `headers`. Without one the call is `400 BCK.ROUTER.0001`. Use **one stable key per logical purchase, not per HTTP attempt**.
+
+- **A retry never pays twice.** The same key with the same request returns the first call's stored result (`replayed: true`, header `Idempotency-Replayed: true`) for 24 hours (replay and the `202` need [API](/development-guide/api-versioning) 1.48 or later: a request that resolves below it, such as a key pinned below 1.48 with no `Nevermined-Version` header, gets the `409` below; send `Nevermined-Version: 1.48` or later on the retry). While the first call is still running, a retry gets `409 BCK.ROUTER.0002` (or the same `202`, past the synchronous wait): keep the key and try again later. After 24 hours it is that `409` with nothing to replay, and so it is when the first paid call failed without an answer (`502 BCK.ROUTER.0034` or `0025`): retrying will not change it, so reconcile by `requestId`, never with a new key.
+- **The same key with a different request is `422 BCK.ROUTER.0054`.** The method, path, query, body or service differs from the first call. Headers, `delegationId` and `funding` are not compared: a retry that changes the payer replays the first payment and does not pay from the new one. Do not answer `0054` with a new key if you are retrying a call whose outcome you do not know: a new key is a new purchase. Reconcile first with `GET /api/v1/router/payments?requestId=<the original key>` and only then decide.
+- **Paid calls only.** If the service answers without asking for payment, nothing is recorded under the key and a retry runs the call again. A dry run ignores the key, so the same key can go on the real call.
+
+<Note>
+`/run` takes a slug, never a URL, and returns the merchant's answer whole. To **stream** an answer or proxy a call transparently, use [`/svc/<slug>`](/products/catalog/from-a-harness) (or `/proxy`), or `/subscription/svc/<slug>` to stream on credits. `/run` dispatches to `/route`, `/commerce/route` and `/subscription/route`; those are the lower-level routes it is built on, and still work if you need their exact request or response shape.
+</Note>
+
+### The lower-level `/route`
+
+`POST /api/v1/router/route` pays a delegation directly, by `url` or `slug`, and answers with the merchant's `status` and `body` plus `paid` and `payment`:
 
 <Tabs>
   <Tab title="curl">
@@ -209,13 +350,15 @@ Every payment across every protocol is on one ledger — see [the ledger page](/
 
 ## When something is refused
 
-Refusals are the system working. The three you're most likely to meet:
+Refusals are the system working. The ones you're most likely to meet:
 
 | Code | Status | What happened |
 | --- | --- | --- |
 | `BCK.ROUTER.0003` | 402 | The spend would exceed your Delegation cap, or the Delegation expired. |
 | `BCK.ROUTER.0009` | 402 | Your wallet doesn't hold enough of the asset on that network. MPP only — nothing was signed. x402 has no balance pre-check and fails on-chain instead. |
-| `BCK.ROUTER.0002` | 409 | That `requestId` already bought something. The original `paymentId` is in the response. |
+| `BCK.ROUTER.0002` | 409 | That `requestId` already paid for this request, and there is no stored result to replay yet (the call is still running) or any more (after 24 hours), or the first call failed without an answer (`502 BCK.ROUTER.0034` or `0025`), or the retry resolved below API 1.48. The original `paymentId` is in the response. Keep the key: try again later while it runs, or send `Nevermined-Version: 1.48` or later; after a failed first call retrying will not change it, so reconcile by `requestId`. |
+| `BCK.ROUTER.0054` | 422 | That `requestId` / `Idempotency-Key` was already used for a different request (not on the streaming routes `/svc`, `/subscription/svc` and `/proxy` or on `POST /router/payments`, which answer `409 BCK.ROUTER.0002` instead, nor, outside `/run`, for a key first used on one of them). Nothing was paid, though the service may have received it unpaid. Reconcile with `GET /router/payments?requestId=` before sending a new key. |
+| `BCK.ROUTER.0055` | 402 | On `/run`: nothing to pay with. Send a `delegationId`. |
 
 [Guardrails](/products/catalog/router/guardrails) covers every code and, more usefully, why widening a cap in response to a refusal is almost always the wrong move.
 
