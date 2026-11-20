@@ -67,7 +67,7 @@ characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Old
   and `0024` to *More refusals*.
 - The file sits close to the 12,000 cap, so measure it after every edit, and check where the
   "Never widen" line ends: `t.find("\n", t.find("**Never widen"))` must stay below 6000. After
-  docs#664 it is 11,994 characters and that line ends at 5,602, so the next code added here must
+  docs#664's follow-up it is 11,997 characters and that line ends at 5,602, so the next code added here must
   shorten another bullet first.
   docs#639 fit `0049`, `0051` and `0052` by shortening the `0012`, `0041` and `0044`–`0047` bullets
   (every fact kept; the section header carries their retry verdict), and made room in the first
@@ -76,7 +76,10 @@ characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Old
   `0057`'s place in the blanket rule is paid for by moving `0020` to *Retryable refusals*. docs#664
   fit `0054`/`0055` as one bullet by merging the `0049`/`0053` bullets and shortening `0013`,
   `0021`, `0026`, `0027`, `0034`–`0036`, `0041`, `0042`/`0043`, `0044`–`0047` and the quote bullet
-  (every fact kept, some wording shortened).
+  (every fact kept, some wording shortened). Its follow-up fit `0059` into that `/run` bullet by defining
+  "pre-charge" once in the *More refusals* header (nothing signed, reserved or charged) and using it
+  for every bullet that said so (`0012`, `0021`, `0026`, `0036`, `0045`–`0047`, `0049`/`0053`,
+  `0056`/`0058`), plus small trims to `0012`, `0021`, `0027`, `0045` and `0049`/`0053`.
 
 The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser** — no
 worked examples (`curl` blocks and the `new URL(...)` snippet become prose), no literal enum members,
