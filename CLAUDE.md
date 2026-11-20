@@ -67,10 +67,15 @@ characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Old
   and `0024` to *More refusals*.
 - The file sits close to the 12,000 cap, so measure it after every edit, and check where the
   "Never widen" line ends: `t.find("\n", t.find("**Never widen"))` must stay below 6000. After
-  docs#639 it is 11,987 characters, so the next code added here must shorten another bullet first.
+  docs#664 it is 11,995 characters and that line ends at 5,602, so the next code added here must
+  shorten another bullet first.
   docs#639 fit `0049`, `0051` and `0052` by shortening the `0012`, `0041` and `0044`–`0047` bullets
   (every fact kept; the section header carries their retry verdict), and made room in the first
-  6,000 for `0051`/`0052` in the blanket rule by moving `0013` to *More refusals*.
+  6,000 for `0051`/`0052` in the blanket rule by moving `0013` to *More refusals*. docs#667 fit
+  `0056`–`0058` the same way: `0056`/`0058` share a bullet, `0057` shares `BCK.X402.0052`'s, and
+  `0057`'s place in the blanket rule is paid for by moving `0020` to *Retryable refusals*. docs#664
+  fit `0054`/`0055` as one bullet by merging the `0049`/`0053` bullets and shortening `0013`,
+  `0021`, `0026`, `0027`, `0034`–`0036`, `0041` and `0044`–`0047` (every fact kept).
 
 The other three IDE rule files share a fuller body; **Windsurf's copy is deliberately terser** — no
 worked examples (`curl` blocks and the `new URL(...)` snippet become prose), no literal enum members,
