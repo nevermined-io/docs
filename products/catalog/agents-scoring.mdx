@@ -358,11 +358,12 @@ A new version applies to every analysis from its release, so a score keeps the v
 #### readiness/1.2.0
 
 - **Version level:** MINOR
-- **Summary:** An endpoint the Router quotes as x402 `upto` (usage-based: the buyer authorizes a maximum and the service charges what the call used) is a dynamic price, on the provisional estimate and on the full score. It counts when the quote was observed in the last 48 hours, and on the full score when the analysis finds the endpoint payable. The maximum bounds the price (from zero up to the maximum, in its token), which counts as a declared range and unit, so P4 gives full credit with a declared price driver and half credit without one. Before this version the maximum never varied, so the endpoint was treated as fixed and P4 always passed.
+- **Summary:** An endpoint the Router quotes as x402 `upto` (usage-based: the buyer authorizes a maximum and the service charges what the call used) is a dynamic price, on the provisional estimate and on the full score. It counts when the quote was observed in the last 48 hours, and on the full score when the analysis finds the endpoint payable. The maximum bounds the price (from zero up to the maximum, in its token), which counts as a declared range and unit, so P4 gives full credit with a declared price driver and half credit without one. Before this version the maximum never varied, so the endpoint was treated as fixed and P4 did not count it. On the full score the quote also counts as machine-readable (P2).
 - **Dimensions:** Pricing clarity (P2, P3, P4). Weights, caps, and bands are unchanged.
 - **Why:** A maximum is a bound, not a price; treating it as fixed told buyers the charge was known in advance.
 - **Effect on your score:**
-  - **Down** by up to 2 points for an `upto` endpoint whose price driver is not declared.
+  - **Down** by up to 2 points for a listing with an `upto` endpoint whose price driver is not declared.
+  - **Up** by up to 4 points (P4) for a listing whose other dynamic endpoints fail P4. P4 averages its credit over a listing's dynamic endpoints (see [P4](#p4)), so the `upto` endpoint's credit, full with a declared price driver and half without, raises the average.
   - **Up** by up to 6 points on the full score (P2) if the analysis did not read the maximum as machine-readable before.
   - **No change** for any other service, or for an analysis of a URL that is not a Catalog listing.
 
