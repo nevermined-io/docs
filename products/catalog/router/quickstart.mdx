@@ -119,17 +119,17 @@ Always read this address back from the live Delegation rather than reusing one y
 
 `POST /api/v1/router/run` is the call to use. Name a catalog service by its `slug`, say what to send, and read one answer however it was paid (a delegation or Nevermined credits). It needs no protocol detection on your side: the Router probes the service, pays the 402 and relays the result.
 
-Start with a **dry run**. It prices the call and lists anything that would refuse it, and charges nothing. The service does receive the request unpaid so it can name its price, and a service that does not ask for payment runs it, so do not dry-run a call with side effects there. Checks the quote could not make are listed in `unchecked` and do not block. (`webscrape-pro` and `scrape` stand for a real service: use a `slug` and its endpoint's `invokePath ?? path` from the catalog.)
+Start with a **dry run**. It prices the call and lists anything that would refuse it, and charges nothing. The service does receive the request unpaid so it can name its price, and a service that does not ask for payment runs it, so do not dry-run a call with side effects there. Checks the quote could not make are listed in `unchecked` and do not block. The example calls SpecStream's page extractor (`specstream`, `POST v1/extract`, $0.002 a call on Base); for another service, use its `slug` and its endpoint's `invokePath ?? path` from the catalog.
 
 ```bash
 curl -sX POST "$NVM_API_URL/api/v1/router/run" \
   -H "Authorization: Bearer $NVM_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "slug": "webscrape-pro",
-    "path": "scrape",
+    "slug": "specstream",
+    "path": "v1/extract",
     "method": "POST",
-    "body": { "url": "https://example.com" },
+    "body": { "urls": ["https://stripe.com/about"], "format": "markdown" },
     "delegationId": "'"$NVM_DELEGATION_ID"'",
     "dryRun": true
   }'
@@ -145,12 +145,12 @@ Then make the real call: the same body without `dryRun`, plus an `Idempotency-Ke
     curl -sX POST "$NVM_API_URL/api/v1/router/run" \
       -H "Authorization: Bearer $NVM_API_KEY" \
       -H "Content-Type: application/json" \
-      -H "Idempotency-Key: scrape-example-v1" \
+      -H "Idempotency-Key: extract-example-v1" \
       -d '{
-        "slug": "webscrape-pro",
-        "path": "scrape",
+        "slug": "specstream",
+        "path": "v1/extract",
         "method": "POST",
-        "body": { "url": "https://example.com" },
+        "body": { "urls": ["https://stripe.com/about"], "format": "markdown" },
         "delegationId": "'"$NVM_DELEGATION_ID"'"
       }'
     ```
@@ -162,13 +162,13 @@ Then make the real call: the same body without `dryRun`, plus an `Idempotency-Ke
       headers: {
         Authorization: `Bearer ${process.env.NVM_API_KEY}`,
         'Content-Type': 'application/json',
-        'Idempotency-Key': 'scrape-example-v1',
+        'Idempotency-Key': 'extract-example-v1',
       },
       body: JSON.stringify({
-        slug: 'webscrape-pro',
-        path: 'scrape',
+        slug: 'specstream',
+        path: 'v1/extract',
         method: 'POST',
-        body: { url: 'https://example.com' },
+        body: { urls: ['https://stripe.com/about'], format: 'markdown' },
         delegationId: process.env.NVM_DELEGATION_ID,
       }),
     })
@@ -191,13 +191,13 @@ Then make the real call: the same body without `dryRun`, plus an `Idempotency-Ke
         f"{os.environ['NVM_API_URL']}/api/v1/router/run",
         headers={
             "Authorization": f"Bearer {os.environ['NVM_API_KEY']}",
-            "Idempotency-Key": "scrape-example-v1",
+            "Idempotency-Key": "extract-example-v1",
         },
         json={
-            "slug": "webscrape-pro",
-            "path": "scrape",
+            "slug": "specstream",
+            "path": "v1/extract",
             "method": "POST",
-            "body": {"url": "https://example.com"},
+            "body": {"urls": ["https://stripe.com/about"], "format": "markdown"},
             "delegationId": os.environ["NVM_DELEGATION_ID"],
         },
     )
@@ -218,10 +218,10 @@ A `200` answer has the same envelope, whichever way it was funded:
 ```json
 {
   "success": true,
-  "requestId": "scrape-example-v1",
+  "requestId": "extract-example-v1",
   "funding": "delegation",
   "fundingReason": null,
-  "price": { "currency": "USD", "micros": "10200" },
+  "price": { "currency": "USD", "micros": "2040" },
   "deliveryStatus": "delivered",
   "status": 200,
   "contentType": "application/json",
@@ -231,7 +231,7 @@ A `200` answer has the same envelope, whichever way it was funded:
     "paymentId": "b1f9c2e4-…",
     "txHash": "0xfc8af37b…",
     "status": "Settled",
-    "settlement": { "amount": "10000", "asset": "USDC", "network": "base", "approxCents": "1" }
+    "settlement": { "amount": "2000", "asset": "USDC", "network": "base", "approxCents": "1" }
   },
   "replayed": false
 }
@@ -244,6 +244,8 @@ A `200` answer has the same envelope, whichever way it was funded:
 
 **A `202` means paid and still running.** A call that outlives the synchronous wait answers `202` with `requestId`, `funding`, `fundingReason`, `paymentId`, `resultUrl`, `status: "Pending"` and `replayed` (on credits, also `payment.creditsLeft` and `payment.topUp`, the credit pack the call bought, if any), and no envelope. Send the same request again with the same key until the result is ready, to get the envelope; `resultUrl` answers in `/route`'s shape instead. Never buy it again under a new key.
 
+**A refusal** keeps the API's standard error body (`code`, `hint`, `httpStatus`, `retryable` and the rest, with the same status) and adds `success: false`, `requestId` (the key, or `null` when the call was refused before it was read), `funding` (the payer that refused it, or `null`) and `nextTool`: the call that leads on, as `{ "mcp", "method", "path", "body"? }`, or `null`. For example `BCK.ROUTER.0054` names `GET /api/v1/router/payments?requestId=<your key>` (the Catalog MCP's `list_payments`), and `BCK.SUBSCRIPTION_ROUTER.0020` names `/run` again with `body: { "dryRun": true }` merged into your call.
+
 ### Idempotency
 
 A real call needs a key: the `Idempotency-Key` header or the body's `requestId`, which are the same thing. If you send both they must be equal, and the key never goes inside the forwarded `headers`. Without one the call is `400 BCK.ROUTER.0001`. Use **one stable key per logical purchase, not per HTTP attempt**.
@@ -253,7 +255,7 @@ A real call needs a key: the `Idempotency-Key` header or the body's `requestId`,
 - **Paid calls only.** If the service answers without asking for payment, nothing is recorded under the key and a retry runs the call again. A dry run ignores the key, so the same key can go on the real call.
 
 <Note>
-`/run` takes a slug, never a URL, and returns the merchant's answer whole. To **stream** an answer or proxy a call transparently, use [`/svc/<slug>`](/products/catalog/from-a-harness) (or `/proxy`), or `/subscription/svc/<slug>` to stream on credits. `/run` dispatches to `/route`, `/commerce/route` and `/subscription/route`; those are the lower-level routes it is built on, and still work if you need their exact request or response shape.
+`/run` takes a slug, never a URL, and returns the merchant's answer whole. To **stream** an answer or proxy a call transparently, use [`/svc/<slug>`](/products/catalog/from-a-harness) (or `/proxy`), or `/subscription/svc/<slug>` to stream on credits. A call that asks for a stream (an `Accept: text/event-stream` in `headers`) is refused `400 BCK.ROUTER.0059` before anything is sent. `/run` dispatches to `/route`, `/commerce/route` and `/subscription/route`; those are the lower-level routes it is built on, and still work if you need their exact request or response shape.
 </Note>
 
 ### The lower-level `/route`
