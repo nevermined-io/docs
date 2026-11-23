@@ -132,7 +132,7 @@ The payment-methods endpoint is heterogeneous: it lists enrolled cards across al
 |---|---|---|
 | `/api/v1/payment-methods` | `GET` | List enrolled payment methods (cards + ERC-4337 wallet) |
 | `/api/v1/payment-methods/{id}` | `PATCH` | Update alias or allowed API keys |
-| `/api/v1/payment-methods/{id}` | `DELETE` | Remove card and revoke all delegations on it |
+| `/api/v1/payment-methods/{id}` | `DELETE` | Revoke a card. Its `CRD…` card id revokes the whole card and every delegation on it; its Visa agentic token id turns off Visa agentic payments only. A card that pays for a subscription, an organization tier or automatic credit top-ups needs `?confirm=true` |
 | `/api/v1/delegation/{id}/transactions` | `GET` | Per-delegation transaction history |
 
 ## Choosing a Provider
