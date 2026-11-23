@@ -60,7 +60,8 @@ precede all merchant requests and free-quota consumption. Explicit consent perfo
 lookup even if the merchant later answers free. Probes and free responses never carry identity.
 An unavailable identity capability is the internal configuration error BCK.ROUTER.0022 (500),
 with capability=buyer-identity; retry only after the operator restores it, or deliberately omit
-consent if attribution is not needed. Existing service-selection wiring uses the same error class.
+consent if attribution is not needed. Existing service-selection wiring and the partner-edge token
+signer (capability=partner-edge) use the same error class.
 
 ## Verification checklist
 
