@@ -67,7 +67,7 @@ characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Old
   and `0024` to *More refusals*.
 - The file sits close to the 12,000 cap, so measure it after every edit, and check where the
   "Never widen" line ends: `t.find("\n", t.find("**Never widen"))` must stay below 6000. After
-  the `0061` PR it is 11,997 characters and that line ends at 5,467, so the next code added here must
+  docs#677 it is 11,997 characters and that line ends at 5,467, so the next code added here must
   shorten another bullet first.
   docs#639 fit `0049`, `0051` and `0052` by shortening the `0012`, `0041` and `0044`–`0047` bullets
   (every fact kept; the section header carries their retry verdict), and made room in the first
@@ -81,8 +81,8 @@ characters each"*, docs.devin.ai/desktop/cascade/memories, read 2026-10-08). Old
   for every bullet that said so (`0012`, `0021`, `0026`, `0036`, `0045`–`0047`, `0049`/`0053`,
   `0056`/`0058`), plus small trims to `0012`, `0021`, `0027`, `0045` and `0049`/`0053`. docs#675 fit
   `0060` into the same `/run` bullet (`0054`/`0055`/`0059`/`0060`), paid for by naming the `0046`
-  routes "JSON routes" and dropping "first" from the `0054` wording (every fact kept). The `0061`
-  PR put `0061` in the blanket rule's `0022` slot (`0022`/`0061`) and widened `0022` to
+  routes "JSON routes" and dropping "first" from the `0054` wording (every fact kept). docs#677
+  put `0061` in the blanket rule's `0022` slot (`0022`/`0061`) and widened `0022` to
   partner-edge, paid for in the first 6,000 by moving `0008` to *More refusals* and shortening the
   `0025` bullet, the `requestId` idempotency sentence, and the §2/§3 references to `0009`, `0001`
   and `0014` (now short codes; each keeps its full code and status in its own bullet). Its
