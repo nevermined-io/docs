@@ -6602,7 +6602,7 @@
           },
           "resultUrl": {
             "type": "string",
-            "description": "Relative URL of the retained paid result. It may answer Pending while the call is running, or 404 after retention expires, for a mode-A payment, for an unknown payment, or for a payment owned by another caller. A 404 is not delivery evidence; use `deliveryStatus`.",
+            "description": "Relative URL of the retained paid result. It may answer Pending while the call is running, or 404 after retention expires, for a mode-A payment, for an unknown payment, or for a payment owned by another caller. A payment to a partner API whose licence forbids keeping its answers is never retained: its result answers 404 BCK.ROUTER.0062. A 404 is not delivery evidence; use `deliveryStatus`.",
             "example": "/api/v1/router/payments/b1f9c2e4-8a3d-4f27-9c6b-5d2e17a04f8b/result"
           },
           "fundingSource": {
