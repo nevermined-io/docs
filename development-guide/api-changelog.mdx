@@ -14,6 +14,13 @@ every supported pin keeps working. See the [versioning guide](/development-guide
 - **Floor (oldest supported version):** `1.0`
 - **Live current version:** `GET /api/v1/meta/versions`
 
+## 1.106
+
+_Changes relative to `1.103`:_
+
+- **GET /api/v1/payment-methods lists a card enrolled for card-on-file and Visa agentic payments once: its card-on-file (provider vgs) entry carries the Visa agentic token as visaAgenticTokenId, and the card has no separate visa entry. This holds when both rails are Active and agree on every field but id and provider (alias, key restriction, organization, card details, needsReactivation), and only on a list that keeps both rails: a provider filter that leaves one out folds nothing. A card whose history does not agree (a revoked or duplicate visa entry, or one whose alias, key restriction, organization, card details or needsReactivation differs) is still listed once per entry, grouped by cardId. Clients pinned below 1.106 get the visa entry back, right before the card entry, so its position in the list can differ from before.** (`response`)
+  - `GET /api/v1/payment-methods`
+
 ## 1.103
 
 _Changes relative to `1.94`:_
