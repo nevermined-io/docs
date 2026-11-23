@@ -1785,7 +1785,7 @@
     },
     "/payment-methods/{paymentMethodId}": {
       "patch": {
-        "description": "Updates a saved payment method, changing its friendly alias and/or the set of NVM API keys allowed to use it. Requires a Nevermined API key.",
+        "description": "Updates a saved payment method, changing its friendly alias and/or the set of NVM API keys allowed to use it. Requires a Nevermined API key. A card enrolled with Nevermined can be listed twice, once per rail it is enrolled on (card-on-file under its card id `CRD…`, Visa agentic under its agentic token id): an update of either applies to both, so the card is never usable by a key one of its rails excludes.",
         "operationId": "PaymentMethodsController_updatePaymentMethod",
         "parameters": [
           {
@@ -1825,6 +1825,9 @@
           },
           "404": {
             "description": "Not Found - Payment method does not exist"
+          },
+          "503": {
+            "description": "BCK.CARD_PAYMENT.0023 - The rails of the card could not be read or updated; retry the same update"
           }
         },
         "summary": "Update a payment method",
