@@ -30,7 +30,7 @@ All providers share the same core fields:
 | Field | Description |
 |---|---|
 | `provider` | `stripe`, `vgs`, `visa`, or `erc4337`. `vgs` is a card enrolled with Nevermined, and it pays Stripe-priced and Braintree-priced plans alike |
-| `providerPaymentMethodId` | Stripe `pm_…`; for `vgs`, the card's `CRD…` `cardId`; for `visa`, the Visa Agentic Token `vat_…`, or the card's `CRD…` `cardId` when the card lists `visa` in its `rails` on `GET /api/v1/payment-methods` |
+| `providerPaymentMethodId` | Stripe `pm_…`; for `vgs`, the card's `CRD…` `cardId`; for `visa`, the Visa Agentic Token `vat_…`, or the card's `CRD…` `cardId` when the card lists `visa` in its `rails` on `GET /api/v1/payment-methods` (a `visa` delegation created from the `CRD…` is stored, and read back, under the card's agentic token) |
 | `spendingLimitCents` | Maximum total amount the delegation can charge over its lifetime, in cents |
 | `durationSecs` | How long the delegation is valid for, in seconds from creation |
 | `maxTransactions` | Optional cap on the number of charges. Omit the field to allow unlimited transactions. |

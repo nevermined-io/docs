@@ -1836,7 +1836,7 @@
         ]
       },
       "delete": {
-        "description": "Revokes (detaches) a saved payment method so it can no longer be used for delegated payments. Requires a Nevermined API key.",
+        "description": "Revokes (detaches) a saved payment method so it can no longer be used for delegated payments. Requires a Nevermined API key. A card enrolled with Nevermined can be listed twice, once per rail it is enrolled on: as card-on-file (provider `vgs`, listed under its card id `CRD…`) and as Visa agentic (provider `visa`, listed under its agentic token id). Revoking the card id revokes the whole card: both rails and every delegation on either. Revoking the Visa agentic token id turns off Visa agentic payments only: its delegations are revoked and the card keeps paying as card-on-file. A Visa agentic card enrolled on no other rail is revoked whole.",
         "operationId": "PaymentMethodsController_revokePaymentMethod",
         "parameters": [
           {
@@ -1846,6 +1846,15 @@
             "description": "Identifier of the payment method to revoke",
             "schema": {
               "example": "pm_1Abc2Def3Ghi4Jkl",
+              "type": "string"
+            }
+          },
+          {
+            "name": "confirm",
+            "required": false,
+            "in": "query",
+            "description": "`true` revokes a card that pays for a subscription, an organization tier or automatic credit top-ups. Without it such a card is refused with BCK.CARD_PAYMENT.0010, which lists what it pays for.",
+            "schema": {
               "type": "string"
             }
           }
@@ -1868,6 +1877,12 @@
           },
           "404": {
             "description": "Not Found - Payment method does not exist"
+          },
+          "409": {
+            "description": "BCK.CARD_PAYMENT.0010 - The card pays for something; send confirm=true"
+          },
+          "503": {
+            "description": "BCK.CARD_PAYMENT.0009 - What the card pays for could not be read; retry. BCK.CARD_PAYMENT.0022 - The rails of the card could not be read or revoked; retry"
           }
         },
         "summary": "Revoke a payment method",
