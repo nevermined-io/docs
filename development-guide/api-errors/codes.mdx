@@ -78,7 +78,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.WELCOME_CREDITS`](#bck-welcome_credits) — 5 codes
 - [`BCK.WIDGET`](#bck-widget) — 5 codes
 - [`BCK.WIDGET_KEYS`](#bck-widget_keys) — 2 codes
-- [`BCK.WIDGET_SESSION`](#bck-widget_session) — 13 codes
+- [`BCK.WIDGET_SESSION`](#bck-widget_session) — 14 codes
 - [`BCK.X402`](#bck-x402) — 57 codes
 
 ## <span id="bck-account_provisioning"></span>`BCK.ACCOUNT_PROVISIONING`
@@ -1245,6 +1245,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-widget_session-0018"></a>`BCK.WIDGET_SESSION.0018` | 403 | auth | — | Card setup is only available to organization members | The authenticated user has no active organization membership — `POST /widgets/session/self` is the org-scoped (members-only) widget path. To enroll a card or create a delegation as a buyer/agent, use the open embedded flow instead: `POST /api/v1/embed/session` (then open the embed app card-setup page with the returned sessionToken). |
 | <a id="bck-widget_session-0019"></a>`BCK.WIDGET_SESSION.0019` | 403 | auth | — | orgId is not one of the caller’s organization memberships | Pass an `orgId` the authenticated user is a member of — list your memberships via `/organizations/my-memberships` or the org switcher in the dashboard. To enroll a card or create a delegation as a buyer/agent (no org), use the open embedded flow: `POST /api/v1/embed/session` (then open the embed app card-setup page with the returned sessionToken). |
 | <a id="bck-widget_session-0020"></a>`BCK.WIDGET_SESSION.0020` | 403 | auth | — | Agent or plan does not belong to the widget session’s organization | The embed checkout can only purchase agents/plans owned by the organization the widget session was minted for. Verify the `agentId`/`planId` in the embed URL belongs to that organization. |
+| <a id="bck-widget_session-0021"></a>`BCK.WIDGET_SESSION.0021` | 403 | auth | — | Widget session cannot be created for this account | This email belongs to an existing Nevermined account. Onboard it as a customer (POST /api/v1/organizations/account with as: 'customer'); Nevermined emails the account owner a consent link, and the widget session succeeds once they confirm. |
 
 ## <span id="bck-x402"></span>`BCK.X402`
 
