@@ -26,7 +26,7 @@ Content-Type: application/json
 
 The `202` case carries no identity: you can't attach someone else's account to your org, and the response never discloses who owns it. Retry with the same email once the owner approves the emailed challenge.
 
-**Rate limit.** Plan for 120 calls per hour per organization, counted across all of its API keys, with member invites included. Past it the call returns `429` with `Retry-After` (seconds) and provisions nothing: wait that long before retrying, and spread a bulk import over several hours.
+**Rate limit.** Plan for 120 calls per hour per organization, counted across all of its API keys, with member invites included. Every call that passes authentication and validation counts, including one that then fails, so back off on a 5xx instead of retrying tightly. Past the limit the call returns `429` with `Retry-After` (seconds) and provisions nothing: wait that long before retrying, and spread a bulk import over several hours.
 
 ```bash
 # New / returning customer → usable key
