@@ -24,7 +24,9 @@ Content-Type: application/json
 | **Already your customer** (renewal) | `201` | same shape — the scoped key re-issued |
 | **An existing account you don't own** | `202` | `{ consentRequired: true }` — **no key, no identity**; a consent email was sent to the owner |
 
-The `202` case is deliberately opaque: you can't attach someone else's account to your org, and the response never reveals whether/who the account belongs to (no enumeration oracle). Retry with the same email once the owner approves the emailed challenge.
+The `202` case carries no identity: you can't attach someone else's account to your org, and the response never discloses who owns it. Retry with the same email once the owner approves the emailed challenge.
+
+**Rate limit.** Plan for 120 calls per hour per organization, counted across all of its API keys, with member invites included. Past it the call returns `429` with `Retry-After` (seconds) and provisions nothing: wait that long before retrying, and spread a bulk import over several hours.
 
 ```bash
 # New / returning customer → usable key

@@ -35,7 +35,11 @@ You hand the SDK an email. What comes back depends on whether that email already
 | **Already your customer** | The scoped key is re-issued (renewal) | The usable `nvmApiKey` |
 | **An existing account you don't own** | No key is issued. A consent email is sent to the account's owner | `consentRequired: true` only — the account's identity is never disclosed |
 
-That last case keeps onboarding safe: you can't silently attach someone else's Nevermined account to your organization, and you can't use the call to probe which emails have accounts. Once the owner approves the emailed challenge, call again with the same email to complete onboarding and receive the key.
+That last case keeps onboarding safe: you can't silently attach someone else's Nevermined account to your organization, and the response never discloses who owns it. Once the owner approves the emailed challenge, call again with the same email to complete onboarding and receive the key.
+
+<Note>
+  **Rate limit.** Plan for **120 calls per hour per organization**, counted across all of its API keys, with member invites included. Past it the call returns `429` with a `Retry-After` header (in seconds) and provisions nothing. Spread a bulk import over several hours.
+</Note>
 
 ## The credential you get back
 
