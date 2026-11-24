@@ -55,7 +55,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.POINT`](#bck-point) — 19 codes
 - [`BCK.PROTOCOL`](#bck-protocol) — 62 codes
 - [`BCK.PURCHASES`](#bck-purchases) — 5 codes
-- [`BCK.ROUTER`](#bck-router) — 61 codes
+- [`BCK.ROUTER`](#bck-router) — 62 codes
 - [`BCK.STRIPE`](#bck-stripe) — 42 codes
 - [`BCK.STRIPE.CONNECT`](#bck-stripe-connect) — 12 codes
 - [`BCK.SUBSCRIPTION_ACCESS`](#bck-subscription_access) — 2 codes
@@ -859,6 +859,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-router-0059"></a>`BCK.ROUTER.0059` | 400 | business | ❌ | This call asks for a streamed answer, which POST /router/run cannot relay | You forwarded an `Accept` header naming `text/event-stream`. `POST /api/v1/router/run` reads the service’s answer whole into its envelope, so it cannot relay a stream. Nothing was sent to the service, signed, reserved or charged. Stream the answer with `ALL /api/v1/router/svc/<slug>/<path>` (paid from a delegation) or `ALL /api/v1/router/subscription/svc/<slug>/<path>` (paid with credits; a commerce OAuth grant streams only there, since the first route refuses OAuth credentials), or drop the `text/event-stream` Accept header to get the whole answer here. |
 | <a id="bck-router-0060"></a>`BCK.ROUTER.0060` | 403 | business | ❌ | This service is sold for Nevermined credits only | Nevermined resells this service and, for now, sells it only for Nevermined credits, so it cannot be paid from a delegation. Nothing was sent to the service, signed, reserved or charged. Pay it with credits through `POST /api/v1/router/subscription/route` or `ALL /api/v1/router/subscription/svc/<slug>/<path>` (quote it first with `POST /api/v1/router/subscription/quote`); through the Commerce MCP, call `pay_service` without naming a delegation. A commerce OAuth connection pays with credits only once its human reconnects it with Nevermined credits enabled. |
 | <a id="bck-router-0061"></a>`BCK.ROUTER.0061` | 500 | internal | ✅ | The call could not be signed for the partner service | A configuration or signing fault on our side, not a problem with your request. The payment named by `params.paymentId` was recorded as Failed and not delivered, and its credits are refunded (at once, or by the refund engine shortly after); nothing was sent to the service. Retry with a new request id once the operator has fixed it; do not loop unchanged. Quote correlationId and the paymentId when reporting the issue. |
+| <a id="bck-router-0062"></a>`BCK.ROUTER.0062` | 404 | business | ❌ | This service’s answers are not retained | This payment paid a partner API whose licence does not allow Nevermined to keep a copy of its answers, so no result of a call to it is ever stored, on any route. Its answer was returned only on the original call, which waits for the service rather than answering 202. Do not poll for it, and do not pay again to recover it unless you mean to make a new call. The payment record itself is kept: read it with `GET /api/v1/router/payments` and the original requestId. |
 
 ## <span id="bck-stripe"></span>`BCK.STRIPE`
 
