@@ -28,6 +28,8 @@ The `202` case carries no identity: you can't attach someone else's account to y
 
 **Rate limit.** Plan for 120 calls per hour per organization, counted across all of its API keys, with member invites included. Every call that passes authentication and validation counts, including one that then fails, so back off on a 5xx instead of retrying tightly. Past the limit the call returns `429` with `Retry-After` (seconds) and provisions nothing: wait that long before retrying, and spread a bulk import over several hours.
 
+**Consent limit.** With `as: "customer"`, at most 20 consent requests (`202`) per hour per organization. Calls still in progress count towards it, so run an import with a few calls at a time. Past it, every email that is not already your customer returns `429` with `Retry-After` and issues no key, whether or not it has an account. Your customers, and owners who gave consent, can still get a key. `message` says which limit was reached.
+
 ```bash
 # New / returning customer → usable key
 curl -s -XPOST -H "Authorization: Bearer $ORG_ADMIN_API_KEY" -H "Content-Type: application/json" \

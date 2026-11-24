@@ -38,7 +38,9 @@ You hand the SDK an email. What comes back depends on whether that email already
 That last case keeps onboarding safe: you can't silently attach someone else's Nevermined account to your organization, and the response never discloses who owns it. Once the owner approves the emailed challenge, call again with the same email to complete onboarding and receive the key.
 
 <Note>
-  **Rate limit.** Plan for **120 calls per hour per organization**, counted across all of its API keys, with member invites included. Every call that passes authentication and validation counts, including one that then fails, so back off on a 5xx instead of retrying tightly. Past the limit the call returns `429` with a `Retry-After` header (in seconds) and provisions nothing. Spread a bulk import over several hours.
+  **Rate limits.** Plan for **120 calls per hour per organization**, counted across all of its API keys, with member invites included. Every call that passes authentication and validation counts, including one that then fails, so back off on a 5xx instead of retrying tightly. Past the limit the call returns `429` with a `Retry-After` header (in seconds) and provisions nothing. Spread a bulk import over several hours.
+
+  Customer onboarding also has a limit of **20 consent requests per hour per organization**, one for each existing account you don't own. Calls still in progress count towards it, so run an import with a few calls at a time. Past it, onboarding a customer returns `429` with `Retry-After` and issues no key, for any email that is not already your customer. Your customers, and owners who gave consent, can still get a key. The `message` of the response says which limit was reached.
 </Note>
 
 ## The credential you get back
