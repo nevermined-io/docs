@@ -5,7 +5,7 @@ Welcome to the Nevermined Docs: a Mintlify-powered developer hub for AI-native p
 - Agent registration and metadata structure
 - Payment plan configuration and pricing models
 - Credit metering, redemption, and usage control
-- Proxy-based integrations
+- SDK integrations
 - API Reference and endpoint examples
 - Guides, troubleshooting, and community links
 
@@ -49,7 +49,7 @@ Ensure you’re running mintlify dev from a directory that includes a valid docs
 
 📂 Key Structure
 	•	introduction/ — Welcome, quickstart, high-level overview
-	•	guides/ — Step-by-step agent onboarding, plan creation, proxy usage
+	•	guides/ — Step-by-step agent onboarding, plan creation
 	•	api-reference/ — Structured API endpoints and usage
 	•	components/ — Custom Mintlify UI cards, accordions, and callouts
 

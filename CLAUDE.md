@@ -12,7 +12,7 @@ This document provides comprehensive guidelines for AI agents to write and maint
 - Nevermined Payments Library (Agent registration, Payment Plans, etc).
 - Payment plan configuration (fixed, usage-based, outcome-based, value-based)
 - Payments, Credit metering, redemption, and usage control
-- Proxy-based and SDK integrations
+- SDK integrations
 - API references and endpoint examples
 - Integration guides and troubleshooting
 
@@ -513,7 +513,7 @@ Before finalizing any documentation:
 - **Purpose**: Help developers integrate Nevermined into existing systems
 - **Structure**: Prerequisites → Architecture → Implementation → Testing
 - **Tone**: Practical and step-by-step
-- **Examples**: SDK integration, proxy-based flows, agent registration
+- **Examples**: SDK integration, agent registration
 
 **Partner pages** (`integrations/exa.mdx`, `youdotcom.mdx`, `baselayer.mdx` — a merchant that
 accepts x402 card-delegation) are one template in **two shapes**. The shape is decided by **how many

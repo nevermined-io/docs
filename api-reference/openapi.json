@@ -1003,57 +1003,6 @@
         }
       }
     },
-    "/protocol/token/{planId}/{agentId}": {
-      "get": {
-        "summary": "Get Access Token",
-        "description": "Generates access credentials for agent-plan interaction.",
-        "operationId": "getAccessToken",
-        "tags": [
-          "Protocol - Access"
-        ],
-        "parameters": [
-          {
-            "name": "planId",
-            "in": "path",
-            "description": "The plan's unique identifier",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "name": "agentId",
-            "in": "path",
-            "description": "The agent's unique identifier",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Access token generated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccessTokenResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "402": {
-            "description": "No active subscription"
-          },
-          "404": {
-            "description": "Plan or agent not found"
-          }
-        }
-      }
-    },
     "/protocol/plans/mint": {
       "post": {
         "summary": "Mint Credits",
@@ -3987,21 +3936,6 @@
           },
           "remaining": {
             "type": "integer"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "AccessTokenResponse": {
-        "type": "object",
-        "properties": {
-          "accessToken": {
-            "type": "string"
-          },
-          "neverminedProxyUri": {
-            "type": "string"
           },
           "expiresAt": {
             "type": "string",
