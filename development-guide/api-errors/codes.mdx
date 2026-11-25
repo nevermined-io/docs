@@ -46,7 +46,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.OAUTH`](#bck-oauth) — 40 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
 - [`BCK.ORDER`](#bck-order) — 8 codes
-- [`BCK.ORGANIZATIONS`](#bck-organizations) — 37 codes
+- [`BCK.ORGANIZATIONS`](#bck-organizations) — 40 codes
 - [`BCK.ORG_INTEGRATION`](#bck-org_integration) — 4 codes
 - [`BCK.ORG_WALLETS`](#bck-org_wallets) — 13 codes
 - [`BCK.PAYMENT_CREDENTIAL`](#bck-payment_credential) — 4 codes
@@ -68,7 +68,6 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.SUBSCRIPTION_STRIPE`](#bck-subscription_stripe) — 6 codes
 - [`BCK.SUBSCRIPTION_TARIFF`](#bck-subscription_tariff) — 12 codes
 - [`BCK.SUBSCRIPTION_TREASURY`](#bck-subscription_treasury) — 16 codes
-- [`BCK.TRANSCODING`](#bck-transcoding) — 4 codes
 - [`BCK.TXS`](#bck-txs) — 16 codes
 - [`BCK.USER_PROFILE`](#bck-user_profile) — 7 codes
 - [`BCK.VERSION`](#bck-version) — 2 codes
@@ -644,6 +643,9 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-organizations-0035"></a>`BCK.ORGANIZATIONS.0035` | 409 | business | ❌ | This account has been disabled | The Nevermined account behind this email is disabled, so no credential can be issued for it. Contact support if the account should be reactivated. |
 | <a id="bck-organizations-0036"></a>`BCK.ORGANIZATIONS.0036` | 500 | business | ✅ | Could not securely complete the member invitation | The bootstrap key minted while provisioning the invitee could not be revoked, so the invitation was failed closed rather than leave a live credential on the invitee account. Inspect the underlying error in logs and retry — provisioning is idempotent by email. |
 | <a id="bck-organizations-0037"></a>`BCK.ORGANIZATIONS.0037` | 500 | internal | ❌ | Could not record organization customer activity | Recording a customer's activity for an organization returned no row from the database upsert. The payment itself is unaffected; only the organization's customer list and totals missed this update. This is a server-side defect; quote the correlation id when reporting it. |
+| <a id="bck-organizations-0038"></a>`BCK.ORGANIZATIONS.0038` | 400 | business | ❌ | Unsupported or invalid branding image | The image must be a PNG, JPEG, WebP or GIF file (SVG is not accepted). Convert it to a supported raster format and upload it again. |
+| <a id="bck-organizations-0039"></a>`BCK.ORGANIZATIONS.0039` | 500 | internal | ❌ | Branding image storage is not configured | The public storage bucket is not set on this deployment; this is a server-side configuration issue, not retryable by the client. |
+| <a id="bck-organizations-0040"></a>`BCK.ORGANIZATIONS.0040` | 500 | internal | ✅ | Failed to store the branding image | Transient server-side error uploading the image to storage; safe to retry. |
 
 ## <span id="bck-org_integration"></span>`BCK.ORG_INTEGRATION`
 
@@ -1087,15 +1089,6 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-subscription_treasury-0014"></a>`BCK.SUBSCRIPTION_TREASURY.0014` | 503 | internal | ❌ | A subscription treasury control is not configured (retired: no longer returned) | Retired. The Nevermined Subscription treasury no longer refuses a payment because an outflow or velocity control, or the retired-wallet list, is unconfigured, so this code is no longer returned. Only an older API deployment can still return it. |
 | <a id="bck-subscription_treasury-0015"></a>`BCK.SUBSCRIPTION_TREASURY.0015` | 503 | integration | ✅ | The subscription treasury wallet is unavailable | The treasury wallet could not be loaded from its custody provider, or (on Tempo) its signing key could not be resolved. The treasury refused BEFORE signing: no authorization was signed and no money moved; the Router rolls the call back, so none of the subscription’s credits were used. Retry later. |
 | <a id="bck-subscription_treasury-0016"></a>`BCK.SUBSCRIPTION_TREASURY.0016` | 503 | integration | ✅ | The subscription treasury could not approve this usage-based payment | Paying a usage-based (x402 `upto`) service with Catalog Credits needs the subscription treasury to approve Permit2 once for the token, and that approval did not complete or could not be confirmed: the relayer, the chain RPC or the treasury wallet failed, or a failure in the last 5 minutes is still in its backoff window, where a retry gets this error again without a new attempt. No payment authorization was signed for the merchant and no money moved, so none of the subscription’s credits were used. Retry after 5 minutes with the same requestId; if it persists, report it with the correlationId. |
-
-## <span id="bck-transcoding"></span>`BCK.TRANSCODING`
-
-| Code | HTTP | Category | Retryable | Message | Hint |
-|---|---|---|---|---|---|
-| <a id="bck-transcoding-0001"></a>`BCK.TRANSCODING.0001` | 404 | integration | — | UGC not found | Verify the UGC asset id. The asset may have been deleted, or transcoding has not finished yet for newly uploaded media. |
-| <a id="bck-transcoding-0002"></a>`BCK.TRANSCODING.0002` | 404 | business | ❌ | Transcoded asset not found for the given UGC id | Verify the UGC id in params. The queue row may have been pruned, or the upload never reached the transcoder. |
-| <a id="bck-transcoding-0003"></a>`BCK.TRANSCODING.0003` | 500 | integration | ❌ | Transcoding failed for UGC asset | Inspect the underlying error in logs. The transcoder marked this asset Errored — usually a codec/format issue or storage failure. Re-upload after fixing the source. |
-| <a id="bck-transcoding-0004"></a>`BCK.TRANSCODING.0004` | 503 | integration | ✅ | Transcoding is still in progress for UGC asset | The transcoder has not finished encoding this asset. Retry after a short backoff; the worker typically completes within seconds for small assets. |
 
 ## <span id="bck-txs"></span>`BCK.TXS`
 
