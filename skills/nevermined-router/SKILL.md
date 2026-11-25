@@ -198,13 +198,18 @@ the human. Never fund `providerPaymentMethodId` instead.
   `https://api.live.nevermined.app/api/v1/router/subscription/svc/<slug>/<invokePath>`, and
   `POST https://api.live.nevermined.app/api/v1/router/subscription/quote`, with the body `/router/subscription/route` takes,
   prices a call in credits without charging.
+- **Credits only.** A partner's official listing (`partnerListing.creditsOnly` in the feed) is
+  sold for Nevermined credits only: call it on the credits routes above, with no delegation. A
+  delegation call to it is refused `403 BCK.ROUTER.0060` before anything is paid. An `autoPay`
+  selection never picks one: it picks another close match, and answers `0060` (`params.slug`
+  names the service) only when the closest match is one and nothing else can be picked.
 - **Welcome credits.** While the offer is open, a new account receives welcome credits.
   `GET https://api.live.nevermined.app/api/v1/credits/welcome/offer` (no key) says how many, and for how long. They are spent the
   same way as subscription credits.
 
 ## Errors
 
-These six are the refusals a buyer meets. Retry says whether resending the same request can work.
+These seven are the refusals a buyer meets. Retry says whether resending the same request can work.
 
 | Code | Status | What happened | Retry? |
 | --- | --- | --- | --- |
@@ -212,6 +217,7 @@ These six are the refusals a buyer meets. Retry says whether resending the same 
 | `BCK.ROUTER.0003` | 402 | The call would exceed the delegation's cap, or the delegation expired, ran out or was revoked. | No: report it to the human; never create another delegation to get past it |
 | `BCK.ROUTER.0008` | 403 | The API key is a legacy (v1) key, which the Router cannot pay with. | No: the human creates a new API key |
 | `BCK.ROUTER.0009` | 402 | An MPP payment on Tempo: the wallet holds too little of the payment token there. Nothing was signed. | No: fund the wallet on Tempo, then resend |
+| `BCK.ROUTER.0060` | 403 | The service is sold for Nevermined credits only, so no delegation can pay it. Nothing was sent or charged. | No: pay it on the credits routes |
 | `BCK.ROUTER.0034` | 502 | The payment was sent but the service never answered, so it may have charged. | No: look the payment up before anything else |
 | `BCK.OAUTH.0030` | 403 | A key minted over OAuth called `/router/svc`, `/router/quote` or another spend route, or `POST /delegation/create`. | No: use a plain API key, or pay through the MCP |
 
