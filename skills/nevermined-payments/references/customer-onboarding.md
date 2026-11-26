@@ -22,9 +22,15 @@ Content-Type: application/json
 |---|---|---|
 | **New** | `201` | `{ nvmApiKey, userId, userWallet, isCustomer: true, customerRecorded }` — the **usable** key |
 | **Already your customer** (renewal) | `201` | same shape — the scoped key re-issued |
-| **An existing account you don't own** | `202` | `{ consentRequired: true }` — **no key, no identity**; a consent email was sent to the owner |
+| **An existing account you don't own** | `202` | `{ consentRequired: true }` — **no key, no identity**; a consent email goes to the owner, at most once every 24 hours; its link works for one hour |
 
-The `202` case is deliberately opaque: you can't attach someone else's account to your org, and the response never reveals whether/who the account belongs to (no enumeration oracle). Retry with the same email once the owner approves the emailed challenge.
+The `202` case carries no identity: you can't attach someone else's account to your org, and the response never discloses who owns it. Retry with the same email once the owner approves the emailed challenge.
+
+**Rate limit.** Plan for 120 calls per hour per organization, counted across all of its API keys, with member invites included. Every call that passes authentication and validation counts, including one that then fails, so back off on a 5xx instead of retrying tightly. Past the limit the call returns `429` with `Retry-After` (seconds) and provisions nothing. The hour starts at the first counted call and the whole budget returns when it ends: wait `Retry-After` before retrying, and spread a bulk import over several hours.
+
+**Consent limit.** With `as: "customer"`, a limit of 20 consent emails per hour per organization, one for each existing account you don't own. A repeat call for an email whose owner has not approved yet, within 24 hours of your consent email to it, sends no new email and does not count towards this limit; below the limit it answers `202`. The link in a consent email works for one hour, so an owner who misses it gets a new one only after 24 hours. The limit covers the last 60 minutes, so it frees one email at a time. Past it, onboarding returns `429` with `Retry-After` and issues no key for any email that is neither already your customer nor an owner who approved your consent request, whether or not it has an account. Renewing your customers still works. An owner who approved consent can usually still be onboarded; if one gets a `429`, retry after `Retry-After`. Your concurrent `as: "customer"` calls also count while they wait for an answer, so run an import with a few calls at a time; a call refused for that reason gets `Retry-After: 30`. `message` says which limit was reached.
+
+Through the SDK, a refusal is a `PaymentsError` whose `code` is `BCK.HTTP.429`. The SDK does not expose `Retry-After`: call the REST endpoint if you need the exact wait, or back off for several minutes.
 
 ```bash
 # New / returning customer → usable key

@@ -33,9 +33,18 @@ You hand the SDK an email. What comes back depends on whether that email already
 |---|---|---|
 | **New** | An account is created, recorded in your Customers CRM, and issued a scoped key | The usable `nvmApiKey` (+ `userId`, `userWallet`) |
 | **Already your customer** | The scoped key is re-issued (renewal) | The usable `nvmApiKey` |
-| **An existing account you don't own** | No key is issued. A consent email is sent to the account's owner | `consentRequired: true` only — the account's identity is never disclosed |
+| **An existing account you don't own** | No key is issued. A consent email is sent to the account's owner, at most once every 24 hours; its link works for one hour | `consentRequired: true` only — the account's identity is never disclosed |
 
-That last case keeps onboarding safe: you can't silently attach someone else's Nevermined account to your organization, and you can't use the call to probe which emails have accounts. Once the owner approves the emailed challenge, call again with the same email to complete onboarding and receive the key.
+That last case keeps onboarding safe: you can't silently attach someone else's Nevermined account to your organization, and the response never discloses who owns it. Once the owner approves the emailed challenge, call again with the same email to complete onboarding and receive the key.
+
+<Note>
+  **Rate limits.** Past either limit the call returns `429` with a `Retry-After` header (in seconds), and the `message` of the response says which limit was reached.
+
+  - Plan for **120 calls per hour per organization**, counted across all of its API keys, with member invites included. Every call that passes authentication and validation counts, including one that then fails, so back off on a 5xx instead of retrying tightly. Past it the call provisions nothing. The hour starts at the first counted call and the whole budget returns when it ends: wait `Retry-After` before retrying, and spread a bulk import over several hours.
+  - **20 consent emails per hour per organization** when onboarding customers, one for each existing account you don't own. A repeat call for an email whose owner has not approved yet, within 24 hours of your consent email to it, sends no new email and does not count towards this limit; below the limit it answers `202`. The link in a consent email works for one hour, so an owner who misses it gets a new one only after 24 hours. The limit covers the last 60 minutes, so it frees one email at a time. Past it, no key is issued to any email that is neither already your customer nor an owner who approved your consent request, whether or not it has an account. Renewing your customers still works. An owner who approved consent can usually still be onboarded; if one gets a `429`, retry after `Retry-After`. Your concurrent customer calls also count while they wait for an answer, so run an import with a few calls at a time; a call refused for that reason gets `Retry-After: 30`.
+
+  Through the SDK, a refusal is a `PaymentsError` whose `code` is `BCK.HTTP.429`. The SDK does not expose `Retry-After`: call the REST endpoint if you need the exact wait, or back off for several minutes.
+</Note>
 
 ## The credential you get back
 
