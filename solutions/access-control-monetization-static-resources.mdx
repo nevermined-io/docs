@@ -1,33 +1,183 @@
 ---
 title: "Monetize Static Assets"
-description: "Gate and monetize datasets, models, or APIs using Nevermined’s transparent HTTP Proxy with flexible payment plans."
+description: "Sell downloads of datasets, models and files: your server checks the buyer's x402 access token before it serves the file."
 icon: "lock"
 ---
 
-Monetize static assets—like datasets, files, pre-trained models, or HTTP URLs without restructuring your infrastructure. Nevermined provides a transparent HTTP Proxy and access control, enabling you to define who can access which resources and under what conditions.
+Sell access to datasets, model weights, reports or any other file you host. One route on your server checks the buyer's payment before it serves a file, and settles it once the file is served, through the payment middleware of the Nevermined SDK.
+
+Keep the storage private so that only your server can read it. A public bucket or CDN URL bypasses the payment.
 
 ## How It Works
 
-- **Transparent Proxy**: Requests pass through Nevermined’s proxy, which validates access tokens and credit balances before forwarding to your asset.
-- **Payment Plans**: Offer subscriptions or credit-based plans priced in stablecoins or fiat.
-- **Fine-Grained Access**: Control access per resource, route, or method; enforce rate limits and usage caps.
+<Steps>
+  <Step title="The buyer gets an access token">
+    The buyer creates a delegation, a spending limit on their crypto wallet or card, and mints an [x402](/development-guide/nevermined-x402) access token for your plan against it.
+  </Step>
+  <Step title="The buyer asks for the file">
+    A `GET` to your download route, with the token in the `payment-signature` header.
+  </Step>
+  <Step title="The middleware verifies">
+    It checks the token with the Nevermined [facilitator](/products/payments-facilitator/overview). A request without a valid token gets `402 Payment Required`, with what to pay in the `payment-required` header.
+  </Step>
+  <Step title="Your handler serves the file">
+    Your code reads the file from disk, or from a bucket or CDN origin only your server can reach.
+  </Step>
+  <Step title="The middleware settles">
+    Once your handler answers with a `2xx`, the middleware settles the payment and burns the route's credits.
+  </Step>
+</Steps>
 
-## Benefits
+## Protect a Download Route
 
-- **Minimal changes**: Keep your existing storage/API; add a proxy in front.
-- **Secure access**: Bearer-token validation and metered usage.
-- **Flexible payments**: Stablecoin and fiat support with configurable pricing.
-- **Operational clarity**: Audit logs and usage metrics per resource.
+Register the asset in the [Nevermined App](/products/nevermined-app/register-agents) with a plan priced in credits, then gate the route with its plan ID. `credits` is how many of the plan's credits each request burns, so a download resumed with a `Range` request pays again.
 
-## Implementation Steps
+<Tabs>
+  <Tab title="TypeScript (Express)">
+    ```typescript
+    import express from 'express'
+    import path from 'node:path'
+    import { Payments } from '@nevermined-io/payments'
+    import { paymentMiddleware } from '@nevermined-io/payments/express'
 
-1. **Model your Resource as an Agent**: Register a resource-representing agent with endpoints/paths.
-2. **Create a Payment Plan**: Choose subscription or credits and set pricing.
-3. **Enable the HTTP Proxy**: Configure the proxy to protect your resource and validate incoming requests.
-4. **Publish & Monitor**: Make the resource available; track usage and revenue in the App.
+    const app = express()
+    // Match paths exactly, as the payment check does. Without these two lines
+    // `/DATASETS/x` or `/datasets/x/` reaches the handler below without paying.
+    app.set('case sensitive routing', true)
+    app.set('strict routing', true)
+
+    // The environment (sandbox or live) comes from the API key's prefix.
+    const payments = Payments.getInstance({ nvmApiKey: process.env.NVM_API_KEY! })
+
+    app.use(
+      paymentMiddleware(payments, {
+        'GET /datasets/:name': { planId: process.env.NVM_PLAN_ID!, credits: 1 },
+      }),
+    )
+
+    // Express answers HEAD from a GET route, which would give out the file's size for free.
+    app.head('/datasets/:name', (_req, res) => {
+      res.set('Allow', 'GET').sendStatus(405)
+    })
+
+    app.get('/datasets/:name', (req, res) => {
+      // Refuse a name with a directory part (`premium%2Fx` arrives as `premium/x`),
+      // and `root` keeps the file inside /srv/datasets.
+      const name = path.basename(req.params.name)
+      if (name !== req.params.name) return res.sendStatus(404)
+      res.sendFile(name, { root: '/srv/datasets' })
+    })
+
+    app.listen(3000)
+    ```
+
+    `sendFile` streams the file, so it is on its way before settlement ends: the response carries no `payment-response` receipt, and a settlement that fails cannot take the file back.
+  </Tab>
+  <Tab title="Python (FastAPI)">
+    ```python
+    import os
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import FileResponse
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402.fastapi import PaymentMiddleware
+
+    app = FastAPI()
+
+    # The environment (sandbox or live) comes from the API key's prefix.
+    payments = Payments.get_instance(PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY']))
+
+    app.add_middleware(
+        PaymentMiddleware,
+        payments=payments,
+        routes={
+            # Express-style :name, even in FastAPI: a {name} key matches nothing
+            # and leaves the route unpaid.
+            'GET /datasets/:name': {'plan_id': os.environ['NVM_PLAN_ID'], 'credits': 1},
+        },
+    )
+
+    @app.get('/datasets/{name}')
+    async def download(name: str):
+        # basename drops any directory part, so the file stays inside /srv/datasets.
+        path = os.path.join('/srv/datasets', os.path.basename(name))
+        if not os.path.isfile(path):
+            raise HTTPException(status_code=404)
+        return FileResponse(path)
+    ```
+
+    The FastAPI middleware settles before it sends the file and returns the receipt, but it holds the whole response in memory to do so. For large files, return a signed URL instead (see the warning below).
+  </Tab>
+</Tabs>
+
+A request that no route key matches reaches your handler without paying. Route keys match whole path segments: `:name` matches any one segment, and there are no wildcards or extension patterns, so `*` or `:name.csv` do not do what they look like. To price files differently, give each price its own route and its own folder, neither inside the other: `GET /datasets/:name` serving `/srv/datasets` at 1 credit, and `GET /premium/:name` serving `/srv/premium` at 5, each with its own `HEAD` route that answers 405.
+
+<Warning>
+  **Answer with the file, not a redirect.** The middleware charges only `2xx` responses, so a `3xx` to the file's storage URL hands the file over for free. To serve a signed storage URL, return it in a JSON body. Anyone who holds that URL can download the file until it expires, so keep its expiry short (minutes) and mint a new one for each paid request.
+</Warning>
+
+## Download as a Buyer
+
+The buyer needs no `orderPlan` call: with a delegation, the facilitator tops up their credits when a request settles. This is the crypto path; for a plan paid by card, see [Nevermined x402](/development-guide/nevermined-x402).
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { Payments } from '@nevermined-io/payments'
+
+    // The buyer's own API key, not the seller's.
+    const payments = Payments.getInstance({ nvmApiKey: process.env.NVM_BUYER_API_KEY! })
+
+    const { delegationId } = await payments.delegation.createDelegation({
+      provider: 'erc4337',
+      spendingLimitCents: 1000,
+      durationSecs: 86_400,
+      currency: 'usdc',
+    })
+    const { accessToken } = await payments.x402.getX402AccessToken(process.env.NVM_PLAN_ID!, undefined, {
+      delegationConfig: { delegationId },
+    })
+
+    const res = await fetch('https://files.example.com/datasets/weather-2024.csv', {
+      headers: { 'payment-signature': accessToken },
+    })
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import os
+    import requests
+    from payments_py import Payments, PaymentOptions
+    from payments_py.x402 import CreateDelegationPayload, DelegationConfig, X402TokenOptions
+
+    # The buyer's own API key, not the seller's.
+    payments = Payments.get_instance(PaymentOptions(nvm_api_key=os.environ['NVM_BUYER_API_KEY']))
+
+    delegation = payments.delegation.create_delegation(
+        CreateDelegationPayload(
+            provider='erc4337',
+            spending_limit_cents=1000,
+            duration_secs=86_400,
+            currency='usdc',
+        )
+    )
+    token = payments.x402.get_x402_access_token(
+        os.environ['NVM_PLAN_ID'],
+        None,
+        token_options=X402TokenOptions(
+            delegation_config=DelegationConfig(delegation_id=delegation.delegation_id)
+        ),
+    )
+
+    res = requests.get(
+        'https://files.example.com/datasets/weather-2024.csv',
+        headers={'payment-signature': token['accessToken']},
+    )
+    ```
+  </Tab>
+</Tabs>
 
 ## Learn More
 
-- [Register Agents](/products/nevermined-app/register-agents) in the Nevermined App
-- [5-Minute Setup](/integrate/quickstart/5-minute-setup) to get started
-
+- [Express](/integrate/add-to-your-agent/express) and [FastAPI](/integrate/add-to-your-agent/fastapi): middleware options and hooks
+- [Static Resources](/api-reference/typescript/publishing-static-resources): register your download route (`GET https://files.example.com/datasets/:name`) as the agent's endpoint. Its wildcards apply to that registration, not to the middleware's route keys
+- [Register Agents](/products/nevermined-app/register-agents) and [Manage Plans](/products/nevermined-app/manage-plans) in the Nevermined App
