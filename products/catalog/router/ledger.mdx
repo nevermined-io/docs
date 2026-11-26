@@ -195,7 +195,7 @@ A call paid with [Nevermined credits](/products/catalog/router/subscription) —
 | `creditsCharged` | The call's rate, in credits. `null` on a Delegation record. |
 | `creditsStatus` | `Committed` (delivered, credits spent), `Reserved` (still running, or undelivered and being refunded) or `Refunded` (credits returned). `null` on a Delegation record. |
 
-On a credits record `delegationId` is `null` — Nevermined's treasury paid the merchant, so `amount`, `asset`, `txHash`, `buyer` (the treasury's address) and `deliveryStatus` describe **that** payment, not a charge to you — there is no routing fee (`feeBps` is `0`), and `chargedMicros` is `"0"`. `creditsCharged` is the call's rate on every credits record, refunded ones included: it counts against your credits only when `creditsStatus` is `Committed`, so filter on `creditsStatus` before adding it up.
+On a credits record `delegationId` is `null` — Nevermined's treasury paid the merchant, so `amount`, `asset`, `txHash`, `buyer` (the treasury's address) and `deliveryStatus` describe **that** payment, not a charge to you — there is no routing fee (`feeBps` is `0`), and `chargedMicros` is `"0"`. `creditsCharged` is the call's rate on every credits record, refunded ones included (on a usage-based x402 `upto` call, the credits of its maximum until the settlement is reconciled, then the credits kept): it counts against your credits only when `creditsStatus` is `Committed`, so filter on `creditsStatus` before adding it up.
 
 ### Export
 
