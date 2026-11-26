@@ -1692,7 +1692,7 @@
             "name": "provider",
             "required": false,
             "in": "query",
-            "description": "When set, return only payment methods backed by this provider. Omit to return methods from every provider (default).",
+            "description": "When set, return only payment methods backed by this provider. Omit to return methods from every provider (default). A filter lists a card enrolled on two rails by its entry on that rail alone, without visaAgenticTokenId: read `rails` to know which rails the card has.",
             "schema": {
               "enum": [
                 "stripe",
@@ -1734,7 +1734,7 @@
     },
     "/payment-methods/{paymentMethodId}": {
       "patch": {
-        "description": "Updates a saved payment method, changing its friendly alias and/or the set of NVM API keys allowed to use it. Requires a Nevermined API key. A card enrolled with Nevermined can be listed twice, once per rail it is enrolled on (card-on-file under its card id `CRD…`, Visa agentic under its agentic token id): an update of either applies to both, so the card is never usable by a key one of its rails excludes.",
+        "description": "Updates a saved payment method: its friendly alias, the set of NVM API keys allowed to use it, and/or the organization it belongs to (an organization the caller is an active member of, or null for personal). Requires a Nevermined API key. A card enrolled with Nevermined can hold two rails: card-on-file (its card id `CRD…`) and Visa agentic (its agentic token id: the `visaAgenticTokenId` of the card entry, or the id of its own visa entry where the card is listed once per rail). An update naming either id applies to both rails, so once it succeeds no key is excluded by one rail and allowed by the other. A 503 BCK.CARD_PAYMENT.0023 can leave the rails partly updated: retry the same update until it succeeds.",
         "operationId": "PaymentMethodsController_updatePaymentMethod",
         "parameters": [
           {
@@ -1785,7 +1785,7 @@
         ]
       },
       "delete": {
-        "description": "Revokes (detaches) a saved payment method so it can no longer be used for delegated payments. Requires a Nevermined API key. A card enrolled with Nevermined can be listed twice, once per rail it is enrolled on: as card-on-file (provider `vgs`, listed under its card id `CRD…`) and as Visa agentic (provider `visa`, listed under its agentic token id). Revoking the card id revokes the whole card: both rails and every delegation on either. Revoking the Visa agentic token id turns off Visa agentic payments only: its delegations are revoked and the card keeps paying as card-on-file. A Visa agentic card enrolled on no other rail is revoked whole.",
+        "description": "Revokes (detaches) a saved payment method so it can no longer be used for delegated payments. Requires a Nevermined API key. A card enrolled with Nevermined can hold two rails: card-on-file (provider `vgs`, its card id `CRD…`) and Visa agentic (provider `visa`, its agentic token id: the `visaAgenticTokenId` of the card entry, or the id of its own visa entry where the card is listed once per rail). Revoking the card id revokes the whole card: both rails and every delegation on either. Revoking the Visa agentic token id turns off Visa agentic payments only: its delegations are revoked and the card keeps paying as card-on-file. A Visa agentic card enrolled on no other rail is revoked whole.",
         "operationId": "PaymentMethodsController_revokePaymentMethod",
         "parameters": [
           {
@@ -5100,12 +5100,12 @@
           },
           "needsReactivation": {
             "type": "boolean",
-            "description": "Present and true on an entry of an enrolled card whose card-on-file network token is no longer active: its holder can reactivate it in the Nevermined App. Absent too when that read fails, so its absence does not prove the token active. `rails`, not this flag, tells whether the card can pay now and through which rail."
+            "description": "Present and true on an entry of an enrolled card whose card-on-file network token is no longer active: its holder can reactivate it in the Nevermined App. Absent too when the read of which cards need reactivation fails, so its absence does not prove the token active; that read is separate from the one that lists the cards (see cardId), and either can fail alone. `rails`, not this flag, tells whether the card can pay now and through which rail."
           },
           "cardId": {
             "type": "string",
             "example": "CRDs4FYUfwueGDryKrPDjd3JR",
-            "description": "The card’s CRD… card id, on an entry of a card enrolled with Nevermined (provider vgs or visa) whose card is known, and on an entry flagged needsReactivation. A card enrolled for card-on-file and Visa agentic payments is listed once per rail (or more), each entry with the same cardId: group entries by `cardId`, falling back to `id`. Absent on other entries. When the cards cannot be read it is absent too (a vgs entry without cardId is the sign; a retry can fix it), except on an entry flagged needsReactivation, which keeps it without `rails`. POST /delegation/create takes it as `providerPaymentMethodId` for a provider its `rails` lists. Only GET /payment-methods sets it: the PATCH /payment-methods/{paymentMethodId} response carries neither it nor `rails`."
+            "description": "The card’s CRD… card id, on an entry of a card enrolled with Nevermined (provider vgs or visa) whose card is known, and on an entry flagged needsReactivation. A card enrolled for card-on-file and Visa agentic payments is listed once, as its card-on-file (vgs) entry with the Visa agentic token in visaAgenticTokenId, when both rails are Active and agree on every field but id and provider, on a list that keeps both rails (a provider filter folds nothing). A card whose history does not (a Revoked or duplicate visa entry, or one whose alias, key restriction, organization, card details or needsReactivation differ) is listed once per entry, each with the same cardId: group entries by `cardId`, falling back to `id`. Absent on other entries. When the cards cannot be read it is absent too, except on an entry flagged needsReactivation, which keeps it without `rails`: a vgs entry without cardId, or a cardId without `rails`, is the sign, and a retry can fix it. POST /delegation/create takes it as `providerPaymentMethodId` for a provider its `rails` lists. Only GET /payment-methods sets it: the PATCH /payment-methods/{paymentMethodId} response carries neither it nor `rails`."
           },
           "rails": {
             "type": "array",
@@ -5113,7 +5113,7 @@
               "vgs",
               "visa"
             ],
-            "description": "Listed with cardId on an entry of a card enrolled with Nevermined: the delegation providers a new delegation naming the card by its cardId can pay through now — vgs (card on file; listed only while the card-on-file network token is active) and visa (Visa agentic). `rails`, not needsReactivation, tells whether the card can pay now. It describes the card, so the entry for a rail that was turned off still lists the card’s other rails. Empty when the card can pay through neither. Absent when the cards cannot be read, so on an entry with cardId a missing `rails` means unknown (retry) and `[]` means none. A vgs entry’s own `id` is the card’s CRD…, so naming it is the same request: refused BCK.DELEGATION.0005 while the card cannot pay card on file. A Revoked vgs or visa entry is refused. An Active visa entry’s own `id` (its agentic token) is accepted even when the entry carries no `rails` (its token is linked to no card, or the cards could not be read).",
+            "description": "Listed with cardId on an entry of a card enrolled with Nevermined: the delegation providers a new delegation naming the card by its cardId can pay through now — vgs (card on file; listed only while the card-on-file network token is active) and visa (Visa agentic). `rails`, not needsReactivation, tells whether the card can pay now. It describes the card, so the entry for a rail that was turned off still lists the card’s other rails. Empty when the card can pay through neither. Absent when the cards cannot be read, so on an entry with cardId a missing `rails` means unknown (retry) and `[]` means none. A vgs entry’s own `id` is the card’s CRD…, so naming it is the same request: refused BCK.DELEGATION.0005 while the card cannot pay card on file. A Revoked vgs or visa entry is refused. An Active visa entry’s own `id` (its agentic token), like a card entry’s visaAgenticTokenId, is accepted even when `rails` is missing from the entry (missing, not `[]`: its token is linked to no card, or the cards could not be read).",
             "items": {
               "type": "string",
               "enum": [
@@ -5121,6 +5121,11 @@
                 "visa"
               ]
             }
+          },
+          "visaAgenticTokenId": {
+            "type": "string",
+            "example": "tok_visa_agentic_3fa9c2",
+            "description": "On the card-on-file (vgs) entry of a card that also pays through Visa agentic: the card’s Visa agentic token, the id a delegation on that rail names (POST /delegation/create with provider visa takes it, or the card’s cardId), and the id that DELETE /payment-methods/{paymentMethodId} takes to turn off the Visa agentic rail alone. The card then has no separate visa entry. Absent on every other entry; on a card whose Visa agentic rail is listed as its own entry (see cardId); on a list filtered by provider, which leaves one rail out and folds nothing; and on the PATCH /payment-methods/{paymentMethodId} response. Its absence does not mean the card has no Visa agentic rail: read `rails` for that."
           },
           "orgId": {
             "type": [
@@ -5267,7 +5272,7 @@
           },
           "providerPaymentMethodId": {
             "type": "string",
-            "description": "Payment-method identifier from the provider. For stripe this is the saved card; for vgs this is the `CRD…` canonical cardId from the unified VGS-Collect enroll; for visa this is the card’s `CRD…` cardId (the card must list `visa` in its `rails` on GET /payment-methods) or the VGS agentic-token id returned by enrollment. A visa delegation created from the `CRD…` is stored under the card’s agentic token, so delegation reads return that token id as its `providerPaymentMethodId`, not the `CRD…` sent; the visa entry of GET /payment-methods whose `id` is that token carries the card’s `cardId`. Required for these providers; ignored for erc4337.",
+            "description": "Payment-method identifier from the provider. For stripe this is the saved card; for vgs this is the `CRD…` canonical cardId from the unified VGS-Collect enroll; for visa this is the card’s `CRD…` cardId (the card must list `visa` in its `rails` on GET /payment-methods) or the card’s Visa agentic token id (the `visaAgenticTokenId` of the card’s entry on GET /payment-methods, or the `id` of its visa entry where the card is listed once per rail). A visa delegation created from the `CRD…` is stored under the card’s agentic token, so delegation reads return that token id as its `providerPaymentMethodId`, not the `CRD…` sent; on GET /payment-methods that token is the card entry’s `visaAgenticTokenId`, or the `id` of a visa entry carrying the card’s `cardId`. Required for these providers; ignored for erc4337.",
             "example": "pm_1Abc2Def3Ghi4Jkl"
           },
           "consumerPrompt": {
