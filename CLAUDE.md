@@ -296,10 +296,7 @@ Example usage:
     ```typescript
     import { Payments } from '@nevermined-io/payments'
     
-    const payments = Payments.getInstance({
-      nvmApiKey: process.env.NVM_API_KEY,
-      environment: 'sandbox'
-    })
+    const payments = Payments.getInstance({ nvmApiKey: process.env.NVM_API_KEY })
     
     // Your code here
     ```
@@ -309,9 +306,7 @@ Example usage:
     import os
     from payments_py import Payments, PaymentOptions
     
-    payments = Payments.get_instance(
-      PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY'], environment='sandbox')
-    )
+    payments = Payments.get_instance(PaymentOptions(nvm_api_key=os.environ['NVM_API_KEY']))
     
     # Your code here
     ```
@@ -321,7 +316,7 @@ Example usage:
 
 ### Key Code Patterns
 
-1. **Always initialize the Payments client** with API key and environment
+1. **Always initialize the Payments client** with the API key alone. Both SDKs take the environment (`sandbox` or `live`) from the key's prefix and deprecate the `environment` option, so new examples leave it out
 2. **Show real endpoints** (not placeholders) or make it clear when to substitute
 3. **Include complete objects** - Don't use `...` shorthand; show full structure
 4. **Add inline comments** for non-obvious steps
