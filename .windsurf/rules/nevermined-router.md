@@ -1,8 +1,8 @@
-# Nevermined Router — paying services
+# Nevermined Router
 
-Pay x402/MPP services through the Router (to receive: `nevermined-payments`).
+Pay x402/MPP via Router (receive: `nevermined-payments`).
 
-Workflow: https://nevermined.app/catalog/skill.md
+https://nevermined.app/catalog/skill.md
 
 **The Router pays on-wire prices per request.** Plan-billed APIs and `401`/`403` need auth.
 
@@ -72,7 +72,7 @@ the Delegation's `amountSpentCents`.
 - `BCK.ROUTER.0018` (402) — `maxTotalCents` below the fee-inclusive rounded reserve. No charge/cap debit; may sign. JSON-string `params` has `requiredTotalCents`. Raise only if intended; reuse `requestId`.
 - `BCK.ROUTER.0019` (4xx, streaming) — cataloged service rejected it; body withheld, status kept. Fix from Catalog detail.
 - `BCK.ROUTER.0025` (502) — oversized reply; charge unknown. Don't retry: same id can't redeliver; fresh may charge again. Use `params.paymentId`, else `/router/payments?requestId=<encoded id>` (`absent` = wrong id/account). `Failed` = undelivered, not uncharged; non-null `merchantSettlementObservedAt` confirms on-chain payment; null proves nothing.
-- Only `BCK.ROUTER.0006` (500, summary read), `0007` (429), `0020` (5xx/429), `0022`/`0061` (500, unconfigured selection/identity/partner-edge / unsigned partner call; only after operator repair (`0061`: new id), never loop unchanged), `0028` (503, quote), `0042`/`0043` (409/503, closing/busy payment channel), `0048` (503, Privy), `0051` (409, match down), `0052` (503, ranking down) and `0057` (503, Permit2 approval) are **retryable**, with backoff, as are `BCK.X402.0052` and `BCK.USER_PROFILE.0006` (503s); paying path: `0007`/`0020`/`0042`/`0043`/`0048`/`0051`/`0052`/`0057` plus those two.
+- Only `BCK.ROUTER.0006` (500, summary), `0007` (429), `0020` (5xx/429), `0022`/`0061` (500, unconfigured selection/identity/partner-edge / unsigned partner call; only after operator repair (`0061`: new id), never loop unchanged), `0028` (503, quote), `0042`/`0043` (409/503, channel closing/busy), `0048` (503, Privy), `0051` (409, match down), `0052` (503, ranking down) and `0057` (503, Permit2 approval) are **retryable** with backoff; also `BCK.X402.0052` and `BCK.USER_PROFILE.0006` (503s), and `BCK.ROUTER.0063` (500, Personal ledger/CSV coverage; read-only); paying: `0007`/`0020`/`0042`/`0043`/`0048`/`0051`/`0052`/`0057` plus those two.
 
 **Never widen a Delegation, or create a second one, to get past a refusal.**
 
