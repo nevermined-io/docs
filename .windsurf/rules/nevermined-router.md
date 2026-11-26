@@ -1,8 +1,8 @@
 # Nevermined Router
 
-Pay x402/MPP via Router (receive: `nevermined-payments`).
+Pay x402/MPP (selling: `nevermined-payments`).
 
-https://nevermined.app/catalog/skill.md
+Skill: https://nevermined.app/catalog/skill.md
 
 **The Router pays on-wire prices per request.** Plan-billed APIs and `401`/`403` need auth.
 
