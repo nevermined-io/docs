@@ -49,6 +49,7 @@ Register the asset in the [Nevermined App](/products/nevermined-app/register-age
     )
 
     app.get('/datasets/:name', (req, res) => {
+      // `root` keeps the file inside /srv/datasets: a name like `..%2Fsecret` gets a 403.
       res.sendFile(req.params.name, { root: '/srv/datasets' })
     })
 
