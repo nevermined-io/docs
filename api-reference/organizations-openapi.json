@@ -3,12 +3,12 @@
   "paths": {
     "/organizations/account": {
       "post": {
-        "description": "Provisions a Nevermined identity (and Privy-managed wallet) for the given email under the caller's organization. The `as` field selects the outcome:\n\n- `member` (default): adds a seat-consuming `OrganizationMember` with the requested role (defaults to Member), starting inactive pending an email-challenge confirmation. Returns 201 when the membership was created, or 200 when the user is already a member, or `503` (`BCK.ORGANIZATIONS.0041`) when the invitation email could not be sent; no member is added, and an existing member gets the `503` too, not `200`.\n- `customer`: **white-label onboarding** — no seat is consumed. `role` is ignored. The behaviour depends on whether the email already has a Nevermined identity:\n  - **new account**: recorded into the organization Customers CRM immediately (before any purchase) and the response returns a usable, scoped NVM API key (`walletResult.nvmApiKey`, 201) so the organization can transparently act for its own customer. The key is tagged to the caller's organization, so the customer's requests resolve to that workspace and their activity/purchases are attributed to it.\n  - **existing account**: no key is issued (account-takeover guard). An email challenge is sent to the owner and the response is `202` with `walletResult.consentRequired = true`; the organization cannot obtain a credential for an account it does not own without the owner’s consent. If the consent email cannot be sent, the response is `503` (`BCK.ORGANIZATIONS.0041`) instead, and a retry sends a new email.\n\nRequires a Nevermined API key and organization admin privileges.",
+        "description": "Invites a member to, or onboards a customer into, the caller's organization. The `as` field selects the outcome:\n\n- `member` (default): creates a pending invitation with the requested role (defaults to Member) and emails the invitee a link to join, the same invitation `POST /organizations/{orgId}/invitations` creates. No account is provisioned and nothing about an existing account is returned: `walletResult` carries only the `invitation`. The invitee becomes a member when they accept. Requires the organization to be on the Premium tier or higher, and a free member seat (pending invitations count toward the seat cap). If the invitation email cannot be sent, the response is `503` (`BCK.ORGANIZATIONS.0041`) and no invitation is created.\n- `customer`: **white-label onboarding** — provisions a Nevermined identity (and Privy-managed wallet) for the email. No seat is consumed. `role` is ignored. The behaviour depends on whether the email already has a Nevermined identity:\n  - **new account**: recorded into the organization Customers CRM immediately (before any purchase) and the response returns a usable, scoped NVM API key (`walletResult.nvmApiKey`, 201) so the organization can transparently act for its own customer. The key is tagged to the caller's organization, so the customer's requests resolve to that workspace and their activity/purchases are attributed to it.\n  - **existing account**: no key is issued (account-takeover guard). An email challenge is sent to the owner and the response is `202` with `walletResult.consentRequired = true`; the organization cannot obtain a credential for an account it does not own without the owner’s consent. If the consent email cannot be sent, the response is `503` (`BCK.ORGANIZATIONS.0041`) instead, and a retry sends a new email.\n\nRequires a Nevermined API key and organization admin privileges.",
         "operationId": "OrganizationsController_createUserByOrganization",
         "parameters": [],
         "requestBody": {
           "required": true,
-          "description": "Email to provision, and the onboarding outcome (`as`).",
+          "description": "Email to invite or onboard, and the outcome (`as`).",
           "content": {
             "application/json": {
               "schema": {
@@ -16,7 +16,7 @@
               },
               "examples": {
                 "member": {
-                  "summary": "Member enrolment (default)",
+                  "summary": "Member invitation (default)",
                   "value": {
                     "email": "user@example.com",
                     "role": "Member"
@@ -34,90 +34,94 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "User was already a member of the organization; returns the existing wallet info.",
+          "201": {
+            "description": "For `as=member`: the invitation was created and its email sent; `walletResult.invitation` is the pending invitation (`status` is `pending`). No account identity is returned. For `as=customer` with a NEW account: recorded into the Customers CRM (no seat) with a usable scoped `nvmApiKey` returned.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "User already a member of the organization"
-                    },
-                    "walletResult": {
+                  "oneOf": [
+                    {
+                      "title": "Member invitation (as=member)",
                       "type": "object",
+                      "required": [
+                        "success",
+                        "walletResult"
+                      ],
                       "properties": {
-                        "hash": {
-                          "type": "string"
-                        },
-                        "userId": {
-                          "type": "string"
-                        },
-                        "userWallet": {
-                          "type": "string"
-                        },
-                        "alreadyMember": {
+                        "success": {
                           "type": "boolean",
                           "example": true
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Account provisioned. For `as=member`: added as an inactive member. For `as=customer` with a NEW account: recorded into the Customers CRM (no seat) with a usable scoped `nvmApiKey` returned.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "User created and login successful"
-                    },
-                    "walletResult": {
-                      "type": "object",
-                      "properties": {
-                        "hash": {
-                          "type": "string"
                         },
-                        "userId": {
-                          "type": "string"
-                        },
-                        "userWallet": {
-                          "type": "string"
-                        },
-                        "alreadyMember": {
-                          "type": "boolean",
-                          "example": false
-                        },
-                        "nvmApiKey": {
+                        "message": {
                           "type": "string",
-                          "description": "Usable, scoped NVM API key (Bearer credential). Present only for a NEW-account `as=customer`."
+                          "example": "Invitation sent"
                         },
-                        "isCustomer": {
+                        "walletResult": {
+                          "type": "object",
+                          "properties": {
+                            "invitation": {
+                              "$ref": "#/components/schemas/InvitationResponseDto"
+                            }
+                          },
+                          "required": [
+                            "invitation"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "title": "Customer credential (as=customer)",
+                      "type": "object",
+                      "required": [
+                        "success",
+                        "walletResult"
+                      ],
+                      "properties": {
+                        "success": {
                           "type": "boolean",
-                          "description": "True when provisioned via the white-label customer outcome (new account)."
+                          "example": true
                         },
-                        "customerRecorded": {
-                          "type": "boolean",
-                          "description": "Whether the customer was written to the Customers CRM. False signals a best-effort write failed (the customer is still provisioned and keyed)."
+                        "message": {
+                          "type": "string",
+                          "example": "Customer onboarded"
+                        },
+                        "walletResult": {
+                          "type": "object",
+                          "properties": {
+                            "hash": {
+                              "type": "string"
+                            },
+                            "userId": {
+                              "type": "string"
+                            },
+                            "userWallet": {
+                              "type": "string"
+                            },
+                            "alreadyMember": {
+                              "type": "boolean",
+                              "example": false
+                            },
+                            "nvmApiKey": {
+                              "type": "string",
+                              "description": "Usable, scoped NVM API key (Bearer credential). Present only for a NEW-account `as=customer`."
+                            },
+                            "isCustomer": {
+                              "type": "boolean",
+                              "description": "True when provisioned via the white-label customer outcome (new account)."
+                            },
+                            "customerRecorded": {
+                              "type": "boolean",
+                              "description": "Whether the customer was written to the Customers CRM. False signals a best-effort write failed (the customer is still provisioned and keyed)."
+                            }
+                          },
+                          "required": [
+                            "hash",
+                            "isCustomer"
+                          ]
                         }
                       }
                     }
-                  }
+                  ]
                 }
               }
             }
@@ -155,7 +159,7 @@
             }
           },
           "400": {
-            "description": "Validation error — e.g. BCK.ACCOUNT_PROVISIONING.0001 when `email` is missing.",
+            "description": "Validation error — BCK.HTTP.400 when `email` is missing or `role` is not Admin or Member; for `as=member`, BCK.INVITATIONS.0007 when `email` is not a valid address of at most 254 characters; for `as=customer`, BCK.ACCOUNT_PROVISIONING.0001 for an empty email.",
             "content": {
               "application/json": {
                 "schema": {
@@ -165,7 +169,27 @@
             }
           },
           "403": {
-            "description": "Caller is not an active admin of the organization.",
+            "description": "Caller is not an active admin of the organization. For `as=member`, also BCK.INVITATIONS.0006 when the organization is below the Premium tier, or BCK.ORGANIZATIONS.0008 when the email belongs to an active member of the organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "For `as=member`: BCK.INVITATIONS.0002 when a pending invitation already exists for that email. For `as=customer`, no credential can be issued for this email: BCK.ORGANIZATIONS.0034 when it names a customer the organization blocked, BCK.ORGANIZATIONS.0035 when the Nevermined account behind it is disabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`as=member` only: BCK.INVITATIONS.0001 when the organization has no free member seat (active members and pending invitations both count toward the cap).",
             "content": {
               "application/json": {
                 "schema": {
@@ -175,7 +199,7 @@
             }
           },
           "500": {
-            "description": "Internal server error",
+            "description": "Internal server error — e.g. BCK.NOTIF.0007 when this deployment has no mail provider, so the invitation or consent email cannot be sent (a retry will not help), or, for `as=member`, BCK.INVITATIONS.0009 when the invitation email was not sent and the invitation could not be withdrawn: revoke `params.invitationId`, then invite again.",
             "content": {
               "application/json": {
                 "schema": {
@@ -185,7 +209,7 @@
             }
           },
           "503": {
-            "description": "BCK.ORGANIZATIONS.0041: the invitation (`as=member`) or consent (`as=customer`) email was not accepted for delivery. This call added no member and cancelled no earlier invitation: for `as=member`, one sent in the last hour still works; for `as=customer`, no earlier consent link is pending. Retry after a backoff and cap automatic retries: each retry sends a new email. The `503` carries no `Retry-After`. For `as=customer` the address counts once toward the 20-per-hour consent limit and takes at most 3 consent emails an hour, failed sends included (then `429` with `Retry-After`).",
+            "description": "BCK.ORGANIZATIONS.0041: the invitation (`as=member`) or consent (`as=customer`) email was not accepted for delivery (for `as=member`, or not confirmed within 10 seconds: that email may still arrive, and its link no longer works). This call added no member and left nothing pending: for `as=member`, no invitation is left pending (one may be listed as revoked; an email with a pending invitation answers `409` before any email is sent); for `as=customer`, no earlier consent link is pending. Retry after a backoff and cap automatic retries: each retry sends a new email. The `503` carries no `Retry-After`. For `as=member`, BCK.INVITATIONS.0008 means concurrent invitations to the organization conflicted and nothing was stored or sent: retry after a short backoff. For `as=customer` the address counts once toward the 20-per-hour consent limit and takes at most 3 consent emails an hour, failed sends included (then `429` with `Retry-After`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -200,7 +224,7 @@
             "Authorization": []
           }
         ],
-        "summary": "Provision an account for the organization (member or customer)",
+        "summary": "Invite a member to, or onboard a customer into, the organization",
         "tags": [
           "Organizations"
         ]
