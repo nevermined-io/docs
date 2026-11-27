@@ -3,7 +3,7 @@
   "paths": {
     "/organizations/account": {
       "post": {
-        "description": "Provisions a Nevermined identity (and Privy-managed wallet) for the given email under the caller's organization. The `as` field selects the outcome:\n\n- `member` (default): adds a seat-consuming `OrganizationMember` with the requested role (defaults to Member), starting inactive pending an email-challenge confirmation. Returns 201 when the membership was created, or 200 when the user is already a member.\n- `customer`: **white-label onboarding** — no seat is consumed. `role` is ignored. The behaviour depends on whether the email already has a Nevermined identity:\n  - **new account**: recorded into the organization Customers CRM immediately (before any purchase) and the response returns a usable, scoped NVM API key (`walletResult.nvmApiKey`, 201) so the organization can transparently act for its own customer. The key is tagged to the caller's organization, so the customer's requests resolve to that workspace and their activity/purchases are attributed to it.\n  - **existing account**: no key is issued (account-takeover guard). An email challenge is sent to the owner and the response is `202` with `walletResult.consentRequired = true`; the organization cannot obtain a credential for an account it does not own without the owner’s consent.\n\nRequires a Nevermined API key and organization admin privileges.",
+        "description": "Provisions a Nevermined identity (and Privy-managed wallet) for the given email under the caller's organization. The `as` field selects the outcome:\n\n- `member` (default): adds a seat-consuming `OrganizationMember` with the requested role (defaults to Member), starting inactive pending an email-challenge confirmation. Returns 201 when the membership was created, or 200 when the user is already a member, or `503` (`BCK.ORGANIZATIONS.0041`) when the invitation email could not be sent; no member is added, and an existing member gets the `503` too, not `200`.\n- `customer`: **white-label onboarding** — no seat is consumed. `role` is ignored. The behaviour depends on whether the email already has a Nevermined identity:\n  - **new account**: recorded into the organization Customers CRM immediately (before any purchase) and the response returns a usable, scoped NVM API key (`walletResult.nvmApiKey`, 201) so the organization can transparently act for its own customer. The key is tagged to the caller's organization, so the customer's requests resolve to that workspace and their activity/purchases are attributed to it.\n  - **existing account**: no key is issued (account-takeover guard). An email challenge is sent to the owner and the response is `202` with `walletResult.consentRequired = true`; the organization cannot obtain a credential for an account it does not own without the owner’s consent. If the consent email cannot be sent, the response is `503` (`BCK.ORGANIZATIONS.0041`) instead, and a retry sends a new email.\n\nRequires a Nevermined API key and organization admin privileges.",
         "operationId": "OrganizationsController_createUserByOrganization",
         "parameters": [],
         "requestBody": {
@@ -176,6 +176,16 @@
           },
           "500": {
             "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "BCK.ORGANIZATIONS.0041: the invitation (`as=member`) or consent (`as=customer`) email was not accepted for delivery. This call added no member and cancelled no earlier invitation: for `as=member`, one sent in the last hour still works; for `as=customer`, no earlier consent link is pending. Retry after a backoff and cap automatic retries: each retry sends a new email. The `503` carries no `Retry-After`. For `as=customer` the address counts once toward the 20-per-hour consent limit and takes at most 3 consent emails an hour, failed sends included (then `429` with `Retry-After`).",
             "content": {
               "application/json": {
                 "schema": {
