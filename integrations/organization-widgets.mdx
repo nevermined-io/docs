@@ -177,7 +177,7 @@ The `rawSecret` is the equivalent of a password for your organization's widget s
     </Tabs>
 
     <Note>
-      `email` identifies the **end-user of your site**, not the org admin. Resolve it from your auth session — Nevermined uses it as the canonical identity for the widget user (the same email logging in directly at nevermined.app resolves to the same Privy user, wallet and profile).
+      `email` identifies the **end-user of your site**, not the org admin. Resolve it from your auth session — Nevermined uses it as the canonical identity for the widget user (the same email logging in directly at nevermined.app resolves to the same Privy user, wallet and profile). An email that already has a Nevermined account gets a session only once it is your customer — see [Existing Nevermined accounts](#existing-nevermined-accounts).
     </Note>
   </Step>
 
@@ -350,6 +350,19 @@ http://localhost:8976/callback?paymentMethodId=pm_...&delegationId=del_...&state
 
 A widget session is minted for a specific **email** (the end-user you passed to `createWidgetSession`), and that session is the **sole** identity inside the iframe. The embed app is Privy-free: it never reads the host page's Nevermined (Privy) login — which is exactly why it runs on any of your domains without that domain having to be on Nevermined's auth allow-list. There's nothing to reconcile on the host side, so no `onAuthMismatch` / host-login handling is needed; the widget always acts as the session's user.
 
+### Existing Nevermined accounts
+
+A session for a **new** email creates its Nevermined account. An email that **already has** an account gets a session only when it is already your organization's customer, or when its owner has approved your consent request. Otherwise the API answers `403` with code `BCK.WIDGET_SESSION.0021` and issues no session and no key; `createWidgetSession` throws an `Error` whose message carries the status and the response body.
+
+To give that buyer a session, onboard the email as a customer with [White-label Onboarding](/solutions/organizations/white-label-onboarding) (`POST /api/v1/organizations/account` with `as: "customer"`), then call `createWidgetSession` again:
+
+- A new email is provisioned at once (`201`), and the next session succeeds.
+- An existing account you don't own answers `202` with `consentRequired: true`. Nevermined emails its owner a consent link, and the session succeeds once they approve.
+
+<Note>
+  **Refusal limit.** Each `0021` refusal counts towards a limit of **20 per hour per organization**, and your widget sessions in progress count too. Once it is reached, every email that is neither your customer nor an owner who approved your consent request is refused with the same `0021`, new emails included, until the hour frees. Your customers keep getting sessions. Handle the refusal the same way: onboard the email, then retry. The limit is counted on each Nevermined API instance, so the exact point where it applies can vary.
+</Note>
+
 ## Environments
 
 Pick the environment that matches the Nevermined dashboard you used to mint the widget key.
@@ -393,6 +406,7 @@ The SDK resolves all three for you from the `environment` you pass to `initializ
 | `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0011` | The widget key was revoked while the session was alive | Re-call `createWidgetSession` with the new key's `rawSecret` |
 | Widget mounts but never reaches `onReady` → `onError` apiCode `BCK.WIDGET_SESSION.0012` (403) | The mount origin isn't in the key's `allowedOrigins` | Add your site's origin to the key's allowlist (mind the scheme: `https://` vs `http://`) |
 | `onError`: `UNAUTHORIZED`, apiCode `BCK.WIDGET_SESSION.0020` (403) | The `did` / `planId` you're checking out belongs to a **different organization** than the widget session | Embed only agents/plans owned by the org the session was minted for |
+| `createWidgetSession` throws `… failed with status 403: …` with code `BCK.WIDGET_SESSION.0021` | The email already has a Nevermined account that is not your customer, or your organization reached the [refusal limit](#existing-nevermined-accounts), past which new emails are refused too | Onboard the email as a customer, then call `createWidgetSession` again |
 | `onError`: `PAYMENT_NOT_CONFIRMED` | Came back from a Stripe redirect, but the backend couldn't confirm the payment intent | Don't trust the `redirect_status` query flag alone; if the user was actually charged, reconcile via your Stripe dashboard / support |
 | `onError`: `NETWORK` | Fetch failed before getting a response | Check your network, CORS, and that the `environment` matches the API you minted the key against |
 | `[NeverminedWidgets] initialize: invalid environment` | `environment` is not a supported value | Use `'sandbox'` or `'live'` |
