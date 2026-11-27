@@ -185,7 +185,7 @@
             }
           },
           "503": {
-            "description": "BCK.ORGANIZATIONS.0041: the invitation (`as=member`) or consent (`as=customer`) email was not accepted for delivery. This call added no member and created no consent request. Retry after a backoff and cap automatic retries: each retry sends a new email.",
+            "description": "BCK.ORGANIZATIONS.0041: the invitation (`as=member`) or consent (`as=customer`) email was not accepted for delivery. This call added no member and left no consent request pending. Retry after a backoff and cap automatic retries: each retry sends a new email. For `as=customer` the address still counts once toward the hourly consent limit.",
             "content": {
               "application/json": {
                 "schema": {
