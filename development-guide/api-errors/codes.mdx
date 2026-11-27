@@ -37,7 +37,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.FEATURE_ACCESS`](#bck-feature_access) — 3 codes
 - [`BCK.GROUPS`](#bck-groups) — 12 codes
 - [`BCK.GUEST`](#bck-guest) — 2 codes
-- [`BCK.INVITATIONS`](#bck-invitations) — 5 codes
+- [`BCK.INVITATIONS`](#bck-invitations) — 9 codes
 - [`BCK.LEGAL_DOCS`](#bck-legal_docs) — 6 codes
 - [`BCK.METRIC`](#bck-metric) — 5 codes
 - [`BCK.METRICS`](#bck-metrics) — 1 code
@@ -484,6 +484,10 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-invitations-0003"></a>`BCK.INVITATIONS.0003` | 404 | business | ❌ | Invitation token is invalid or has expired | Invitations expire 7 days after creation. Ask the org Admin to resend the invitation, which mints a fresh token. |
 | <a id="bck-invitations-0004"></a>`BCK.INVITATIONS.0004` | 403 | business | ❌ | Email mismatch: the invitation was sent to a different email address | Sign in with the email address the invitation was sent to. Invitations are bound to a specific email and cannot be redirected. |
 | <a id="bck-invitations-0005"></a>`BCK.INVITATIONS.0005` | 400 | validation | ❌ | Role not allowed: only Admin and Member roles are permitted for invitations | Pass role=Admin or role=Member. Other role values (e.g. Owner) are not assignable via invitation. |
+| <a id="bck-invitations-0006"></a>`BCK.INVITATIONS.0006` | 403 | business | ❌ | Member invitations are not available for this organization tier | Inviting members requires a Premium or Enterprise organization. Upgrade the organization tier to invite members. |
+| <a id="bck-invitations-0007"></a>`BCK.INVITATIONS.0007` | 400 | validation | ❌ | The email to invite is not a valid address | Pass the invitee's email address, at most 254 characters, in `email`. |
+| <a id="bck-invitations-0008"></a>`BCK.INVITATIONS.0008` | 503 | integration | ✅ | The invitation could not be stored: other invitations to this organization were being created at the same time | Concurrent invitations to one organization conflicted and this one was not stored, after retries. Nothing was created and no email was sent. Retry after a short backoff; send bulk invitations a few at a time. |
+| <a id="bck-invitations-0009"></a>`BCK.INVITATIONS.0009` | 500 | integration | ❌ | The invitation email was not confirmed as sent and the invitation could not be withdrawn | The invitation `params.invitationId` is still pending although its email was not sent, or the provider did not confirm it within 10 seconds (that email may still arrive, and its link works until you revoke the invitation). Inviting the address again answers 409 BCK.INVITATIONS.0002. Revoke it with `POST /api/v1/organizations/{orgId}/invitations/{invitationId}/revoke`, then invite again. |
 
 ## <span id="bck-legal_docs"></span>`BCK.LEGAL_DOCS`
 
@@ -650,7 +654,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-organizations-0038"></a>`BCK.ORGANIZATIONS.0038` | 400 | business | ❌ | Unsupported or invalid branding image | The image must be a PNG, JPEG, WebP or GIF file (SVG is not accepted). Convert it to a supported raster format and upload it again. |
 | <a id="bck-organizations-0039"></a>`BCK.ORGANIZATIONS.0039` | 500 | internal | ❌ | Branding image storage is not configured | The public storage bucket is not set on this deployment; this is a server-side configuration issue, not retryable by the client. |
 | <a id="bck-organizations-0040"></a>`BCK.ORGANIZATIONS.0040` | 500 | internal | ✅ | Failed to store the branding image | Transient server-side error uploading the image to storage; safe to retry. |
-| <a id="bck-organizations-0041"></a>`BCK.ORGANIZATIONS.0041` | 503 | integration | ✅ | The email this request needs could not be sent | POST /api/v1/organizations/account could not get its invitation (`as: member`) or consent (`as: customer`) email accepted by the mail provider. This request added no member and cancelled no earlier invitation: for `as: member`, one sent in the last hour still works. For `as: customer`, no earlier consent link is pending. Retry after a backoff, and cap automatic retries: each retry sends a new email. For `as: customer`, an address counts once toward the organization's hourly consent limit, which also applies to new accounts, and takes at most 3 consent emails per hour. |
+| <a id="bck-organizations-0041"></a>`BCK.ORGANIZATIONS.0041` | 503 | integration | ✅ | The email this request needs could not be sent | POST /api/v1/organizations/account could not get its invitation (`as: member`) or consent (`as: customer`) email accepted by the mail provider. For `as: member` that includes a provider that did not confirm it within 10 seconds: that email may still arrive, and its link no longer works. This request added no member and left nothing pending: for `as: member`, no invitation is left pending (one may be listed as revoked; an address that already has a pending invitation answers 409 BCK.INVITATIONS.0002 before any email is sent). For `as: customer`, no earlier consent link is pending. Retry after a backoff, and cap automatic retries: each retry sends a new email. For `as: customer`, an address counts once toward the organization's hourly consent limit, which also applies to new accounts, and takes at most 3 consent emails per hour. |
 
 ## <span id="bck-org_integration"></span>`BCK.ORG_INTEGRATION`
 
