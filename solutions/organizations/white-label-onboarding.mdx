@@ -23,7 +23,7 @@ Two different people transact with your organization, and they're provisioned di
   </Card>
 </CardGroup>
 
-Both are provisioned through the same endpoint (`POST /organizations/account`) — the outcome is a parameter, not a separate integration. The member flow is unchanged; onboarding a **customer** is the additive path described here.
+Both go through the same endpoint (`POST /organizations/account`) — the outcome is a parameter, not a separate integration. A **member** (`as: member`, the default) is invited, not provisioned: the call creates a pending [invitation](/solutions/organizations/workspaces-and-members#invite-a-member), the invitee joins from the emailed link, and nothing about their account comes back. Onboarding a **customer** is the path described here.
 
 ## How it works
 
@@ -37,7 +37,7 @@ You hand the SDK an email. What comes back depends on whether that email already
 
 That last case keeps onboarding safe: you can't silently attach someone else's Nevermined account to your organization, and the response never discloses who owns it. Once the owner approves the emailed challenge, call again with the same email to complete onboarding and receive the key.
 
-If the consent email cannot be sent, the call answers `503` with code `BCK.ORGANIZATIONS.0041` instead of `202`. This call left no consent request pending, and calling again sends a new email. The `503` carries no `Retry-After`, so back off on your own schedule and cap automatic retries. A member invite (`as: member`) answers the same `503`, without adding the member, when its invitation email cannot be sent; an invitation sent in the last hour still works.
+If the consent email cannot be sent, the call answers `503` with code `BCK.ORGANIZATIONS.0041` instead of `202`. This call left no consent request pending, and calling again sends a new email. The `503` carries no `Retry-After`, so back off on your own schedule and cap automatic retries. A member invite (`as: member`) answers the same `503` when its invitation email cannot be sent, and creates no invitation, so calling again sends a new one.
 
 <Note>
   **Rate limits.** Past any of these limits the call returns `429` with a `Retry-After` header (in seconds), and the `message` of the response says which limit was reached.

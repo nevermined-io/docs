@@ -2,7 +2,7 @@
 
 How an **organization** provisions Nevermined accounts for *its own customers* — under its brand, without the customer ever creating a Nevermined login. Companion to **Track A · A8** in `SKILL.md`.
 
-> **Admin-only.** Authenticate with your **organization admin** API key. One endpoint does both member and customer provisioning — the outcome is the `as` field, not a second route.
+> **Admin-only.** Authenticate with your **organization admin** API key. One endpoint invites members and onboards customers — the outcome is the `as` field, not a second route.
 
 ## The endpoint
 
@@ -14,7 +14,7 @@ Content-Type: application/json
 { "email": "customer@example.com", "as": "customer" }
 ```
 
-`as: "customer"` provisions a **customer** (no member seat, recorded in the Customers CRM, returns a usable scoped key). Omit `as` (or `as: "member"`) for the unchanged member-enrolment behaviour.
+`as: "customer"` provisions a **customer** (no member seat, recorded in the Customers CRM, returns a usable scoped key). Omit `as` (or pass `as: "member"`) to invite a **member** instead: the call creates a pending invitation (`201`, `walletResult.invitation`), returns nothing about the invitee's account, and the invitee joins from the emailed link.
 
 ## Three outcomes (by email provenance)
 
