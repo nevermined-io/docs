@@ -43,6 +43,10 @@
                     {
                       "title": "Member invitation (as=member)",
                       "type": "object",
+                      "required": [
+                        "success",
+                        "walletResult"
+                      ],
                       "properties": {
                         "success": {
                           "type": "boolean",
@@ -68,6 +72,10 @@
                     {
                       "title": "Customer credential (as=customer)",
                       "type": "object",
+                      "required": [
+                        "success",
+                        "walletResult"
+                      ],
                       "properties": {
                         "success": {
                           "type": "boolean",
@@ -107,6 +115,7 @@
                             }
                           },
                           "required": [
+                            "hash",
                             "isCustomer"
                           ]
                         }
@@ -190,7 +199,7 @@
             }
           },
           "500": {
-            "description": "Internal server error — e.g. BCK.NOTIF.0007 when this deployment has no mail provider, so the invitation or consent email cannot be sent; a retry will not help.",
+            "description": "Internal server error — e.g. BCK.NOTIF.0007 when this deployment has no mail provider, so the invitation or consent email cannot be sent (a retry will not help), or, for `as=member`, BCK.INVITATIONS.0009 when the invitation email was not sent and the invitation could not be withdrawn: revoke `params.invitationId`, then invite again.",
             "content": {
               "application/json": {
                 "schema": {
@@ -200,7 +209,7 @@
             }
           },
           "503": {
-            "description": "BCK.ORGANIZATIONS.0041: the invitation (`as=member`) or consent (`as=customer`) email was not accepted for delivery. This call added no member and left nothing pending: for `as=member`, no invitation was created (an email with a pending invitation answers `409` before any email is sent); for `as=customer`, no earlier consent link is pending. Retry after a backoff and cap automatic retries: each retry sends a new email. The `503` carries no `Retry-After`. For `as=customer` the address counts once toward the 20-per-hour consent limit and takes at most 3 consent emails an hour, failed sends included (then `429` with `Retry-After`).",
+            "description": "BCK.ORGANIZATIONS.0041: the invitation (`as=member`) or consent (`as=customer`) email was not accepted for delivery. This call added no member and left nothing pending: for `as=member`, no invitation is left pending (one may be listed as revoked; an email with a pending invitation answers `409` before any email is sent); for `as=customer`, no earlier consent link is pending. Retry after a backoff and cap automatic retries: each retry sends a new email. The `503` carries no `Retry-After`. For `as=member`, BCK.INVITATIONS.0008 means concurrent invitations to the organization conflicted and nothing was stored or sent: retry after a short backoff. For `as=customer` the address counts once toward the 20-per-hour consent limit and takes at most 3 consent emails an hour, failed sends included (then `429` with `Retry-After`).",
             "content": {
               "application/json": {
                 "schema": {
