@@ -46,7 +46,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 - [`BCK.OAUTH`](#bck-oauth) — 40 codes
 - [`BCK.OBSERVABILITY`](#bck-observability) — 5 codes
 - [`BCK.ORDER`](#bck-order) — 8 codes
-- [`BCK.ORGANIZATIONS`](#bck-organizations) — 40 codes
+- [`BCK.ORGANIZATIONS`](#bck-organizations) — 41 codes
 - [`BCK.ORG_INTEGRATION`](#bck-org_integration) — 4 codes
 - [`BCK.ORG_WALLETS`](#bck-org_wallets) — 13 codes
 - [`BCK.PARTNER_PAYOUT`](#bck-partner_payout) — 15 codes
@@ -534,7 +534,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-notif-0004"></a>`BCK.NOTIF.0004` | 500 | integration | — | Error updating notification read status | Inspect the underlying error in logs. Notification read-status update failed — usually a DB-layer error. |
 | <a id="bck-notif-0005"></a>`BCK.NOTIF.0005` | 500 | integration | — | Error deleting notification | Inspect the underlying error in logs. Notification deletion failed — usually a DB-layer error. |
 | <a id="bck-notif-0006"></a>`BCK.NOTIF.0006` | 404 | integration | — | Error searching for notifications filtered by receiver | Verify the receiver address. Empty result sets surface as 404 by design. |
-| <a id="bck-notif-0007"></a>`BCK.NOTIF.0007` | 500 | integration | — | Resend API Key or Email Sender not set | Configure `RESEND_API_KEY` and `EMAIL_SENDER` in the deployment env. Email notifications are disabled until both are present. |
+| <a id="bck-notif-0007"></a>`BCK.NOTIF.0007` | 500 | integration | ❌ | Resend API Key or Email Sender not set | This deployment has no mail provider key (`RESEND_API_KEY`), so no email can be sent. It is a server configuration issue: a retry will not help. |
 | <a id="bck-notif-0008"></a>`BCK.NOTIF.0008` | 500 | integration | — | Error sending email notification | params.receiver names who the email was for, usually a user or organization id rather than an address, so resolve it to an address before searching the Resend dashboard logs. Common causes: invalid recipient address, domain not verified, or quota exhaustion. |
 | <a id="bck-notif-0009"></a>`BCK.NOTIF.0009` | 403 | business | ❌ | The user doesnt own this notification | Notifications are scoped to a single recipient; only the owner can act on them. Re-authenticating as the same caller will not help. |
 
@@ -650,6 +650,7 @@ Every error response from the Nevermined API carries a stable `code` (e.g. `BCK.
 | <a id="bck-organizations-0038"></a>`BCK.ORGANIZATIONS.0038` | 400 | business | ❌ | Unsupported or invalid branding image | The image must be a PNG, JPEG, WebP or GIF file (SVG is not accepted). Convert it to a supported raster format and upload it again. |
 | <a id="bck-organizations-0039"></a>`BCK.ORGANIZATIONS.0039` | 500 | internal | ❌ | Branding image storage is not configured | The public storage bucket is not set on this deployment; this is a server-side configuration issue, not retryable by the client. |
 | <a id="bck-organizations-0040"></a>`BCK.ORGANIZATIONS.0040` | 500 | internal | ✅ | Failed to store the branding image | Transient server-side error uploading the image to storage; safe to retry. |
+| <a id="bck-organizations-0041"></a>`BCK.ORGANIZATIONS.0041` | 503 | integration | ✅ | The email this request needs could not be sent | POST /api/v1/organizations/account could not get its invitation (`as: member`) or consent (`as: customer`) email accepted by the mail provider. This request added no member and cancelled no earlier invitation: for `as: member`, one sent in the last hour still works. For `as: customer`, no earlier consent link is pending. Retry after a backoff, and cap automatic retries: each retry sends a new email. For `as: customer`, an address counts once toward the organization's hourly consent limit, which also applies to new accounts, and takes at most 3 consent emails per hour. |
 
 ## <span id="bck-org_integration"></span>`BCK.ORG_INTEGRATION`
 
